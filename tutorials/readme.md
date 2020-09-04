@@ -8,4 +8,4 @@
 | Image       | Classification  | Exemplar |
 | Tabular     | Classification  | Exemplar |
 | Tabular     | Regression      | Exemplar |
-| Text        | Classification  | Exemplar |
+| Text        | Classification  | [Exemplar](https://github.com/AIModelShare/aimodelshare/blob/master/tutorials/text_data_classification.ipynb)|
