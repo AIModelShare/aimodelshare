@@ -6,6 +6,6 @@
 | Data Type   | Model           | Tutorial |
 | ----------- |:---------------:| --------:|
 | Image       | Classification  | Exemplar |
-| Tabular     | Classification  | Exemplar |
-| Tabular     | Regression      | [Exemplar](https://github.com/AIModelShare/aimodelshare/blob/master/tutorials/tabular_data_regression.ipynb) |
-| Text        | Classification  | [Exemplar](https://github.com/AIModelShare/aimodelshare/blob/master/tutorials/text_data_classification.ipynb)|
+| Tabular     | Classification  | [Exemplar](https://github.com/AIModelShare/aimodelshare/blob/master/tutorials/tabular_data_classification.ipynb) |
+| Tabular     | Regression      | [Exemplar](https://github.com/AIModelShare/aimodelshare/blob/master/tutorials/tabular_data_regression.ipynb)     |
+| Text        | Classification  | [Exemplar](https://github.com/AIModelShare/aimodelshare/blob/master/tutorials/text_data_classification.ipynb)    |
