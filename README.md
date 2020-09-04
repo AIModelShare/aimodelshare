@@ -16,7 +16,7 @@
 
 # Installation
 
-You can then install ONNX from PyPi (Note: Set environment variable ONNX_ML=1 for onnx-ml):
+You can then install aimodelshare from PyPi
 ```
 pip install aimodelshare
 ```
