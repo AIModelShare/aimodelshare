@@ -1,4 +1,4 @@
-<p align="center"><img width="40%" src="docs/ONNX_logo_main.png" /></p>
+<p align="center"><img width="40%" src="docs/aimodshare_banner.jpg" /></p>
 
 - The mission of the AI Model Share Initiative is to innovate a platform that will act as the world's trusted academic repository for machine learning model prediction APIs.
 
