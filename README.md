@@ -13,3 +13,10 @@
 
 # Find model detail pages and generate predictions
 * [View deployed models and generate predictions at modelshare.org](http://mlsite5aimodelshare-dev.s3-website.us-east-2.amazonaws.com/)
+
+# Installation
+
+You can then install ONNX from PyPi (Note: Set environment variable ONNX_ML=1 for onnx-ml):
+```
+pip install aimodelshare
+```
