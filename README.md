@@ -9,7 +9,7 @@
 - In a matter of seconds, data scientists can launch a model into this infrastructure and end-users the world over will be able to engage their machine learning models. A developer version of the platform is currently being used by Columbia University students, faculty, and staff to test and improve platform functionality.
 
 # Use aimodelshare Python library to deploy your model
-* [Tutorials for deploying models](https://github.com/aimodelshare/tutorials).
+* [Tutorials for deploying models](https://github.com/AIModelShare/aimodelshare/tutorials).
 
 # Find model detail pages and generate predictions
 * [View deployed models and generate predictions at modelshare.org](http://mlsite5aimodelshare-dev.s3-website.us-east-2.amazonaws.com/)
