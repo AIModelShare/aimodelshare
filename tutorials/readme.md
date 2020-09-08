@@ -5,7 +5,7 @@
 
 | Data Type   | Model           | Tutorial |
 | ----------- |:---------------:| --------:|
-| Image       | Classification  | [Example](https://github.com/AIModelShare/aimodelshare/blob/master/tutorials/image_classification.ipynb)        |
-| Tabular     | Classification  | [Example](https://github.com/AIModelShare/aimodelshare/blob/master/tutorials/tabular_data_classification.ipynb) |
-| Tabular     | Regression      | [Example](https://github.com/AIModelShare/aimodelshare/blob/master/tutorials/tabular_data_regression.ipynb)     |
-| Text        | Classification  | [Example](https://github.com/AIModelShare/aimodelshare/blob/master/tutorials/text_data_classification.ipynb)    |
+| Image       | Classification  | [Example](https://github.com/AIModelShare/aimodelshare/blob/master/tutorials/notebooks/image_classification.ipynb)        |
+| Tabular     | Classification  | [Example](https://github.com/AIModelShare/aimodelshare/blob/master/tutorials/notebooks/tabular_data_classification.ipynb) |
+| Tabular     | Regression      | [Example](https://github.com/AIModelShare/aimodelshare/blob/master/tutorials/notebooks/tabular_data_regression.ipynb)     |
+| Text        | Classification  | [Example](https://github.com/AIModelShare/aimodelshare/blob/master/tutorials/notebooks/text_data_classification.ipynb)    |
