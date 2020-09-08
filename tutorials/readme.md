@@ -10,5 +10,5 @@
 | Tabular     | Classification  | Keras    |[Example](https://github.com/AIModelShare/aimodelshare/blob/master/tutorials/notebooks/tabular_data_classification.ipynb) |
 | Tabular     | Regression      | Keras    |[Example](https://github.com/AIModelShare/aimodelshare/blob/master/tutorials/notebooks/tabular_data_regression.ipynb)     |
 | Text        | Classification  | Keras    |[Example](https://github.com/AIModelShare/aimodelshare/blob/master/tutorials/notebooks/text_data_classification.ipynb)    |
-<h2 align="center">Write fxn to preprocess data, fit your model, save it, and then deploy it!</h2>
+<h2 align="center">Simply write a function to preprocess your data, fit your model, save it, and then deploy it!</h2>
 <p align="center"><img width="60%" src="https://aimodelsharecontent.s3.amazonaws.com/ModelandPreprocessorObjectPreparation.jpeg" /></p>
