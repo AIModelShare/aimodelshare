@@ -3,9 +3,9 @@
 
 # Tutorials
 
-| Data Type   | Model           | Tutorial |
-| ----------- |:---------------:| --------:|
-| Image       | Classification  | [Example](https://github.com/AIModelShare/aimodelshare/blob/master/tutorials/notebooks/image_classification.ipynb)        |
-| Tabular     | Classification  | [Example](https://github.com/AIModelShare/aimodelshare/blob/master/tutorials/notebooks/tabular_data_classification.ipynb) |
-| Tabular     | Regression      | [Example](https://github.com/AIModelShare/aimodelshare/blob/master/tutorials/notebooks/tabular_data_regression.ipynb)     |
-| Text        | Classification  | [Example](https://github.com/AIModelShare/aimodelshare/blob/master/tutorials/notebooks/text_data_classification.ipynb)    |
+| Data Type   | Model           | Framework|Tutorial |
+| ----------- |:---------------:| --------:| --------:|
+| Image       | Classification  | Keras    |[Example](https://github.com/AIModelShare/aimodelshare/blob/master/tutorials/notebooks/image_classification.ipynb)        |
+| Tabular     | Classification  | Keras    |[Example](https://github.com/AIModelShare/aimodelshare/blob/master/tutorials/notebooks/tabular_data_classification.ipynb) |
+| Tabular     | Regression      | Keras    |[Example](https://github.com/AIModelShare/aimodelshare/blob/master/tutorials/notebooks/tabular_data_regression.ipynb)     |
+| Text        | Classification  | Keras    |[Example](https://github.com/AIModelShare/aimodelshare/blob/master/tutorials/notebooks/text_data_classification.ipynb)    |
