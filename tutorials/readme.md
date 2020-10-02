@@ -16,5 +16,9 @@
 | Tabular     | Classification  | Scikit-learn    |[Example](https://github.com/AIModelShare/aimodelshare/blob/master/tutorials/notebooks/tabular_sklearn_classification.ipynb) |
 | Tabular     | Regression      | Scikit-learn    |[Example](https://github.com/AIModelShare/aimodelshare/blob/master/tutorials/notebooks/tabular_sklearn_regression.ipynb) |
 | Text        | Classification  | Scikit-learn    |[Example](https://github.com/AIModelShare/aimodelshare/blob/master/tutorials/notebooks/text_sklearn_classification.ipynb) |
+
+| Data Type   | Model           | Framework|Tutorial |
+| ----------- |:---------------:| --------:| --------:|
+| Image       | Classification  | PyTorch  |[Example](https://github.com/AIModelShare/aimodelshare/blob/master/tutorials/notebooks/image_pytorch_classification.ipynb) |
 <h2 align="center">Simply write a function to preprocess your data, fit your model, save it, and then deploy it!</h2>
 <p align="center"><img width="60%" src="https://aimodelsharecontent.s3.amazonaws.com/ModelandPreprocessorObjectPreparation.jpeg" /></p>
