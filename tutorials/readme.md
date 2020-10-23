@@ -20,5 +20,6 @@
 | Data Type   | Model           | Framework|Tutorial |
 | ----------- |:---------------:| --------:| --------:|
 | Image       | Classification  | PyTorch  |[Example](https://github.com/AIModelShare/aimodelshare/blob/master/tutorials/notebooks/image_pytorch_classification.ipynb) |
+| Image       | Classification  | PyTorch  |[Example2](https://github.com/AIModelShare/aimodelshare/blob/master/tutorials/notebooks/image_pytorch_classification_cifar.ipynb) |
 <h2 align="center">Simply write a function to preprocess your data, fit your model, save it, and then deploy it!</h2>
 <p align="center"><img width="60%" src="https://aimodelsharecontent.s3.amazonaws.com/ModelandPreprocessorObjectPreparation.jpeg" /></p>
