@@ -1,3 +1,5 @@
+#Image Classification Prediction Runtime Code
+
 import boto3
 import cv2
 import os
@@ -17,19 +19,42 @@ def get_model_onnx(runtimemodel_s3_filename="runtime_model.onnx"):
 
   with open("/tmp/runtime_model.onnx", "wb") as modelfo:
       bucket.download_fileobj("{1}/runtime_model.onnx",  modelfo)
-      model = rt.InferenceSession("/tmp/runtime_model.onnx")
+  model = rt.InferenceSession("/tmp/runtime_model.onnx")
   return model
 
+def get_preprocessor(preprocessor_s3_filename="runtime_preprocessor.zip"):
+    import pickle
+    from zipfile import ZipFile
+    from io import BytesIO
+    import os
+    s3 = boto3.resource("s3")
+    bucket = s3.Bucket("{0}")
+    
+    zip_obj = s3.Object(bucket_name="{0}", key="{1}/runtime_preprocessor.zip")
+    buffer = BytesIO(zip_obj.get()["Body"].read())
+    z = ZipFile(buffer)
+    # Extract all the contents of zip file in current directory
+    z.extractall("/tmp/")
+    
+    folderpath=os.path.dirname(os.path.abspath("/tmp/preprocessor.py"))
+    file_name=os.path.basename("/tmp/preprocessor.py")
 
-def get_preprocessor(preprocessor_s3_filename="runtime_preprocessor.pkl"):
-      s3 = boto3.resource("s3")
-      bucket = s3.Bucket("{0}")
+    #Then import all pkl files you want from bucket (need to generate this list from...
+    # function globals)
+    import os
+    pickle_file_list=[]
+    for file in os.listdir(folderpath):
+          if file.endswith(".pkl"):
+              pickle_file_list.append(os.path.join(folderpath, file))
 
-      with open("/tmp/runtime_preprocessor.pkl", "wb") as preprocessorfo:
-          bucket.download_fileobj("{1}/runtime_preprocessor.pkl",  preprocessorfo)
-          preprocessorfo.seek(0)
-          preprocessor = pickle.load(open("/tmp/runtime_preprocessor.pkl","rb"))
-      return preprocessor
+    for i in pickle_file_list: 
+          objectname=str(os.path.basename(i)).replace(".pkl","")
+          objects={objectname:""}
+          globals()[objectname]=pickle.load(open(str(i), "rb" ) )
+      # First import preprocessor function to session from preprocessor.py
+    exec(open(os.path.join(folderpath,'preprocessor.py')).read(),globals())
+    return preprocessor
+
 
 def get_runtimedata(runtimedata_s3_filename="runtime_data.json"):
 
@@ -50,14 +75,10 @@ model=get_model_onnx(runtimemodel_s3_filename='runtime_model.onnx')
 
 # Load preprocessor
 
-try:
-  assert preprocessor_type=="module"
-except:
-  preprocessor=get_preprocessor(preprocessor_s3_filename="runtime_preprocessor.pkl")
-else:
-  import preprocessor
+preprocessor=get_preprocessor(preprocessor_s3_filename="runtime_preprocessor.zip")
 
-def predict(event,model,preprocessor,preprocessor_type):
+
+def predict(event,model,preprocessor):
 
 # Load base64 encoded image stored within "data" key of event dictionary
   print(event["body"])
@@ -84,10 +105,8 @@ def predict(event,model,preprocessor,preprocessor_type):
   with open("/tmp/imagetopredict."+image_file_type, "wb") as fh:
     fh.write(base64.b64decode(bodydata))
 
-  img = cv2.imread("/tmp/imagetopredict."+image_file_type)
+  input_data = preprocessor("/tmp/imagetopredict."+image_file_type)
   
-  import preprocessor as prep
-  input_data = prep.preprocessor(img)
 
 # Generate prediction using preprocessed input data
   print("The model expects input shape:", model.get_inputs()[0].shape)
