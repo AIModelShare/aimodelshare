@@ -12,7 +12,7 @@ from zipfile import ZipFile, ZIP_STORED, ZipInfo
 
 
 
-def create_prediction_api(my_credentials, model_filepath, unique_model_id, model_type, fileextension, categorical, labels,preprocessor="default", preprocessor_fileextension="default" ):
+def create_prediction_api(my_credentials, model_filepath, unique_model_id, model_type, fileextension, categorical, labels, preprocessor_fileextension="default" ):
     AI_MODELSHARE_AccessKeyId = my_credentials["AI_MODELSHARE_AccessKeyId"]
     AI_MODELSHARE_SecretAccessKey = my_credentials["AI_MODELSHARE_SecretAccessKey"]
     region = my_credentials["region"]
@@ -22,22 +22,8 @@ def create_prediction_api(my_credentials, model_filepath, unique_model_id, model
   # Wait for 5 seconds to ensure aws iam user on user account has time to load into aws's system
     time.sleep(5)
     user_session = boto3.session.Session(aws_access_key_id=AI_MODELSHARE_AccessKeyId, aws_secret_access_key=AI_MODELSHARE_SecretAccessKey, region_name=region)
-    redis_layer = "arn:aws:lambda:us-east-1:517169013426:layer:redis_layer:2"
+    cloud_layer = "arn:aws:lambda:us-east-1:517169013426:layer:tabular_cloudpicklelayer:1"
     #dill_layer ="arn:aws:lambda:us-east-1:517169013426:layer:dill:3"
-
-
-    if model_type=='sklearn_image_grey' or model_type=='sklearn_image_color' or model_type=='keras_image_grey':
-            model_layer ="arn:aws:lambda:us-east-1:517169013426:layer:sklearn_image:2"
-    elif model_type=='sklearn_text' or  model_type=='keras_text' or model_type=='flubber_text' or model_type=='text':
-           model_layer ="arn:aws:lambda:us-east-1:517169013426:layer:tabular_layer:2"
-           keras_layer ='arn:aws:lambda:us-east-1:517169013426:layer:keras_preprocesor:1'
-            #model_layer ="arn:aws:lambda:us-east-1:517169013426:layer:text_layer:1"
-    elif model_type=='keras_image_color':
-            model_layer ="arn:aws:lambda:us-east-1:517169013426:layer:keras_image:1"
-    elif model_type=='sklearn_tabular' or model_type=='keras_tabular' or model_type=='tabular' or model_type=='flubber_tabular_regression' or model_type=='flubber_tabular_classification':
-            model_layer ="arn:aws:lambda:us-east-1:517169013426:layer:tabular_layer:2"
-    else:
-            print("no matching model type to correct python package zip file")
 
   ## Update note:  dyndb data to add.  apiname. (include username too)
 
@@ -68,29 +54,29 @@ def create_prediction_api(my_credentials, model_filepath, unique_model_id, model
         resource_id=response3['items'][1]['id']
 
     #write main handlers
-    if model_type=='sklearn_text' or  model_type=='keras_text' or model_type=='flubber_text' or model_type =='text':
+    if  model_type=='Text' or model_type =='text':
   
       with open('./aimodelshare/main/1.txt', 'r') as txt_file: #this is for keras_image_color
         data = txt_file.read()
       with open('/tmp/main.py', 'w') as file:
         file.write(data.format(bucket_name,unique_model_id))
       
-    elif model_type =='keras_image_color' and categorical== 'TRUE':
+    elif model_type =='Image' and categorical== 'TRUE':
         with open('./aimodelshare/main/2.txt', 'r') as txt_file: #this is for keras_image_color
           data = txt_file.read()
         with open('/tmp/main.py', 'w') as file:
           file.write(data.format(bucket_name,unique_model_id,labels))
-    elif model_type =='keras_image_color' and categorical== 'FALSE':
+    elif model_type =='Image' and categorical== 'FALSE':
         with open('./aimodelshare/main/3.txt', 'r') as txt_file: #this is for keras_image_color
           data = txt_file.read()
         with open('/tmp/main.py', 'w') as file:
           file.write(data.format(bucket_name,unique_model_id))
-    elif all([model_type=='sklearn_tabular' or model_type=='keras_tabular' or model_type =='tabular',categorical =='TRUE']):
+    elif all([  model_type =='Tabular',categorical =='TRUE']):
         with open('./aimodelshare/main/4.txt', 'r') as txt_file: #this is for keras_image_color
           data = txt_file.read()
         with open('/tmp/main.py', 'w') as file:
           file.write(data.format(bucket_name,unique_model_id,labels))
-    elif all([model_type=='sklearn_tabular' or model_type=='keras_tabular' or model_type=='Tabular', categorical =='FALSE']):
+    elif all([model_type=='Tabular', categorical =='FALSE']):
         with open('./aimodelshare/main/5.txt', 'r') as txt_file: #this is for keras_image_color
           data = txt_file.read()
         with open('/tmp/main.py', 'w') as file:
@@ -157,16 +143,8 @@ def create_prediction_api(my_credentials, model_filepath, unique_model_id, model
         RoleName=lambdarolename,
         )
     lambdaclient = user_session.client('lambda')
-    layers =[redis_layer,model_layer]
-    if(preprocessor_fileextension=='.py'):
-      response5 = lambdaclient.publish_layer_version(
-              LayerName='preprocessor_layer',
-              Description='upload preprocessor.py',
-              Content={ 'ZipFile' : open('./aimodelshare/python/preprocessor_mostrecent.zip', 'rb').read()
-              })
-      preprocessor_layer = response5['LayerVersionArn']
-      layers.append(preprocessor_layer)
-      os.remove("./aimodelshare/python/preprocessor_mostrecent.zip")
+    layers =[cloud_layer]
+    
     #if model_type=='sklearn_text' or  model_type=='keras_text' or model_type=='flubber_text' or model_type =='text':
       #layers.append(keras_layer)
       

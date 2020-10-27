@@ -14,7 +14,7 @@ from aimodelshare.exceptions import AuthorizationError, AWSAccessError, AWSUploa
 from aimodelshare.api import create_prediction_api
 from aimodelshare.preprocessormodules import upload_preprocessor
 from aimodelshare.model import _get_predictionmodel_key
-def take_user_info_and_generate_api(model_filepath,my_credentials,model_type, categorical, private, labels,preprocessor_filepath="default", preprocessor="default"):
+def take_user_info_and_generate_api(model_filepath,my_credentials,model_type, categorical, private, labels,preprocessor_filepath="default"):
   #unpack user credentials
   username = my_credentials["username"]
   AI_MODELSHARE_AccessKeyId = my_credentials["AI_MODELSHARE_AccessKeyId"]
@@ -73,7 +73,7 @@ def take_user_info_and_generate_api(model_filepath,my_credentials,model_type, ca
     raise AWSUploadError("There was a problem with model/preprocessor upload. "+str(err))
   model_filepath = file_key +file_extension
   #headers = {'content-type': 'application/json'}
-  apiurl = create_prediction_api(my_credentials, model_filepath, unique_model_id, model_type, file_extension, categorical, labels,preprocessor, preprocessor_file_extension)
+  apiurl = create_prediction_api(my_credentials, model_filepath, unique_model_id, model_type, file_extension, categorical, labels, preprocessor_file_extension)
   finalresult= [apiurl["body"],apiurl["statusCode"], now, unique_model_id, bucket_name]
   return finalresult
 
@@ -122,7 +122,7 @@ def send_model_data_to_dyndb_and_return_api(api_info, my_credentials, private, c
       "delete":"FALSE",
       "input_feature_dtypes":variablename_and_type_data[0],
       "input_feature_names":variablename_and_type_data[1],
-      "preprocessor":preprocessor,
+      "preprocessor":preprocessor_filepath,
       "preprocessor_fileextension":preprocessor_file_extension
       }
     # Get the response
@@ -159,7 +159,7 @@ def send_model_data_to_dyndb_and_return_api(api_info, my_credentials, private, c
     return print(finalresult2+"\n"+finalresultteams3info)
 
 
-def model_to_api(model_filepath, my_credentials, model_type, private, categorical, trainingdata, y_train, preprocessor_filepath, preprocessor):
+def model_to_api(model_filepath, my_credentials, model_type, private, categorical, trainingdata, y_train, preprocessor_filepath):
   print("   ")
   print("Creating your prediction API. (Process typically takes less than one minute)...")
   if model_type=="tabular" or "keras_tabular" or'Tabular':
@@ -172,8 +172,8 @@ def model_to_api(model_filepath, my_credentials, model_type, private, categorica
         labels = list(set(y_train.to_frame()['tags'].tolist()))
   else:
       labels="no data"
-  api_info = take_user_info_and_generate_api(model_filepath, my_credentials, model_type, categorical,private, labels,preprocessor_filepath, preprocessor)
-  final_results = send_model_data_to_dyndb_and_return_api(api_info,my_credentials, private, categorical,variablename_and_type_data, preprocessor_filepath, preprocessor)
+  api_info = take_user_info_and_generate_api(model_filepath, my_credentials, model_type, categorical,private, labels,preprocessor_filepath)
+  final_results = send_model_data_to_dyndb_and_return_api(api_info,my_credentials, private, categorical,variablename_and_type_data, preprocessor_filepath)
   return final_results
 
 
