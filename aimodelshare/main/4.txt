@@ -22,7 +22,6 @@ def get_preprocessor(preprocessor_s3_filename="runtime_preprocessor.zip"):
     from zipfile import ZipFile
     from io import BytesIO
     import os
-    import sklearn
     s3 = boto3.resource("s3")
     bucket = s3.Bucket("{0}")
     
