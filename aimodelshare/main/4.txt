@@ -6,6 +6,7 @@ import os
 import numpy as np
 import onnxruntime as rt
 import json
+import sklearn
 
 def get_model_onnx(runtimemodel_s3_filename="runtime_model.onnx"):
   s3 = boto3.resource("s3")
@@ -15,15 +16,40 @@ def get_model_onnx(runtimemodel_s3_filename="runtime_model.onnx"):
       bucket.download_fileobj("{1}/runtime_model.onnx",  modelfo)
   model = rt.InferenceSession("/tmp/runtime_model.onnx")
   return model
-def get_preprocessor(preprocessor_s3_filename="runtime_preprocessor.pkl"):
-      s3 = boto3.resource("s3")
-      bucket = s3.Bucket("{0}")
 
-      with open("/tmp/runtime_preprocessor.pkl", "wb") as preprocessorfo:
-          bucket.download_fileobj("{1}/runtime_preprocessor.pkl",  preprocessorfo)
-          preprocessorfo.seek(0)
-          preprocessor = pickle.load(open("/tmp/runtime_preprocessor.pkl","rb"))
-      return preprocessor
+def get_preprocessor(preprocessor_s3_filename="runtime_preprocessor.zip"):
+    import pickle
+    from zipfile import ZipFile
+    from io import BytesIO
+    import os
+    import sklearn
+    s3 = boto3.resource("s3")
+    bucket = s3.Bucket("{0}")
+    
+    zip_obj = s3.Object(bucket_name="{0}", key="{1}/runtime_preprocessor.zip")
+    buffer = BytesIO(zip_obj.get()["Body"].read())
+    z = ZipFile(buffer)
+    # Extract all the contents of zip file in current directory
+    z.extractall("/tmp/")
+    
+    folderpath=os.path.dirname(os.path.abspath("/tmp/preprocessor.py"))
+    file_name=os.path.basename("/tmp/preprocessor.py")
+
+    #Then import all pkl files you want from bucket (need to generate this list from...
+    # function globals)
+    import os
+    pickle_file_list=[]
+    for file in os.listdir(folderpath):
+          if file.endswith(".pkl"):
+              pickle_file_list.append(os.path.join(folderpath, file))
+
+    for i in pickle_file_list: 
+          objectname=str(os.path.basename(i)).replace(".pkl","")
+          objects={objectname:""}
+          globals()[objectname]=pickle.load(open(str(i), "rb" ) )
+      # First import preprocessor function to session from preprocessor.py
+    exec(open(os.path.join(folderpath,'preprocessor.py')).read(),globals())
+    return preprocessor
 
 def get_runtimedata(runtimedata_s3_filename="runtime_data.json"):
 
@@ -40,18 +66,14 @@ preprocessor_type=runtime_data["runtime_preprocessor"]
 
 runtime_model=runtime_data["runtime_model"]["name"]
 
+# Load model
 model=get_model_onnx(runtimemodel_s3_filename='runtime_model.onnx')
 
 # Load preprocessor
+preprocessor=get_preprocessor(preprocessor_s3_filename="runtime_preprocessor.zip")
 
-try:
-  assert preprocessor_type=="module"
-except:
-  preprocessor=get_preprocessor(preprocessor_s3_filename="runtime_preprocessor.pkl")
-else:
-  import preprocessor
 
-def predict(event,model,preprocessor, preprocessor_type):
+def predict(event,model,preprocessor):
     body = event["body"]
     import six
     if isinstance(event["body"], six.string_types):
@@ -70,29 +92,28 @@ def predict(event,model,preprocessor, preprocessor_type):
             else:
               return (proba > 0.5).astype("int32")
     input_name = model.get_inputs()[0].name
-    try:
-        import preprocessor as prep
-        input_data = prep.preprocessor(bodydata) #needs to be float32
-    except:
-        input_data=bodydata.astype("float32").to_array() #needs to be float32
-    res=model.run(None,  {{input_name: input_data}})
+    print(input_name)
+    input_data = preprocessor(bodydata).astype('float32') #needs to be float32
+    print(input_data)
+    res=model.run(None,  {input_name: input_data})
     prob = res[0]
+    print(prob)
     prediction_index=predict_classes(prob)
     def index_to_label(labels,index_n):
         return labels[index_n]
-    labels={2}
+    labels=['setosa', 'versicolor', 'virginica']
     result=list(map(lambda x: labels[x], prediction_index))
 
     return result
 
 def handler(event, context):
-        result = predict(event,model,preprocessor,preprocessor_type)
-        return {{"statusCode": 200,
-        "headers": {{
+        result = predict(event,model,preprocessor)
+        return {"statusCode": 200,
+        "headers": {
         "Access-Control-Allow-Origin" : "*",
         "Access-Control-Allow-Credentials": True,
         "Allow" : "GET, OPTIONS, POST",
         "Access-Control-Allow-Methods" : "GET, OPTIONS, POST",
         "Access-Control-Allow-Headers" : "*"
-        }},
-        "body": json.dumps(result)}}
+        },
+        "body": json.dumps(result)}
