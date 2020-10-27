@@ -6,7 +6,7 @@
 ## Tutorials: How to Prepare Files for Model Deployment
 | Data Type   | Model           | Framework|Tutorial |
 | ----------- |:---------------:| --------:| --------:|
-| Image       | Classification  | Keras    |[Example](https://github.com/AIModelShare/aimodelshare/blob/master/tutorials/notebooks/image_classification.ipynb) |
+| Image       | Classification  | Keras    |[Example](https://github.com/AIModelShare/aimodelshare/blob/master/tutorials/notebooks/image_keras.ipynb) |
 | Tabular     | Classification  | Keras    |[Example](https://github.com/AIModelShare/aimodelshare/blob/master/tutorials/notebooks/tabular_data_classification.ipynb) |
 | Tabular     | Regression      | Keras    |[Example](https://github.com/AIModelShare/aimodelshare/blob/master/tutorials/notebooks/tabular_data_regression.ipynb) |
 | Text        | Classification  | Keras    |[Example](https://github.com/AIModelShare/aimodelshare/blob/master/tutorials/notebooks/text_data_classification.ipynb) |
