@@ -1,3 +1,5 @@
+#Image Regression Prediction Runtime Code
+
 import boto3
 import cv2
 import os
@@ -8,24 +10,76 @@ import base64
 import imghdr
 import six
 from functools import partial
+import os.path
+from os import path
 
 
-def get_model_onnx(version="mostrecent"):
-  fileextension='{2}'
-  localFilename ="/tmp/predictionmodel_"+str(version)+fileextension
-
+def get_model_onnx(runtimemodel_s3_filename="runtime_model.onnx"):
   s3 = boto3.resource("s3")
   bucket = s3.Bucket("{0}")
 
-  with open(localFilename, "wb") as modelfo:
-      bucket.download_fileobj("{1}/predictionmodel_kerasonnx_"+str(version)+fileextension,  modelfo)
-  model = rt.InferenceSession(localFilename)
+  with open("/tmp/runtime_model.onnx", "wb") as modelfo:
+      bucket.download_fileobj("{1}/runtime_model.onnx",  modelfo)
+  model = rt.InferenceSession("/tmp/runtime_model.onnx")
   return model
 
-model=get_model_onnx(version="mostrecent")
+def get_preprocessor(preprocessor_s3_filename="runtime_preprocessor.zip"):
+    import pickle
+    from zipfile import ZipFile
+    from io import BytesIO
+    import os
+    s3 = boto3.resource("s3")
+    bucket = s3.Bucket("{0}")
+    
+    zip_obj = s3.Object(bucket_name="{0}", key="{1}/runtime_preprocessor.zip")
+    buffer = BytesIO(zip_obj.get()["Body"].read())
+    z = ZipFile(buffer)
+    # Extract all the contents of zip file in current directory
+    z.extractall("/tmp/")
+    
+    folderpath=os.path.dirname(os.path.abspath("/tmp/preprocessor.py"))
+    file_name=os.path.basename("/tmp/preprocessor.py")
+
+    #Then import all pkl files you want from bucket (need to generate this list from...
+    # function globals)
+    import os
+    pickle_file_list=[]
+    for file in os.listdir(folderpath):
+          if file.endswith(".pkl"):
+              pickle_file_list.append(os.path.join(folderpath, file))
+
+    for i in pickle_file_list: 
+          objectname=str(os.path.basename(i)).replace(".pkl","")
+          objects={objectname:""}
+          globals()[objectname]=pickle.load(open(str(i), "rb" ) )
+      # First import preprocessor function to session from preprocessor.py
+    exec(open(os.path.join(folderpath,'preprocessor.py')).read(),globals())
+    return preprocessor
 
 
-def predict(event,model):
+def get_runtimedata(runtimedata_s3_filename="runtime_data.json"):
+
+      s3 = boto3.resource('s3')
+      obj = s3.Object("{0}", "{1}"+"/"+runtimedata_s3_filename)
+      runtime_data = json.load(obj.get()['Body'])
+
+      return runtime_data
+
+
+runtime_data=get_runtimedata(runtimedata_s3_filename="runtime_data.json")
+
+preprocessor_type=runtime_data["runtime_preprocessor"]
+
+runtime_model=runtime_data["runtime_model"]["name"]
+
+model=get_model_onnx(runtimemodel_s3_filename='runtime_model.onnx')
+
+# Load preprocessor
+
+preprocessor=get_preprocessor(preprocessor_s3_filename="runtime_preprocessor.zip")
+
+
+def predict(event,model,preprocessor):
 
 # Load base64 encoded image stored within "data" key of event dictionary
   print(event["body"])
@@ -52,10 +106,7 @@ def predict(event,model):
   with open("/tmp/imagetopredict."+image_file_type, "wb") as fh:
     fh.write(base64.b64decode(bodydata))
 
-  img = cv2.imread("/tmp/imagetopredict."+image_file_type)
-  
-  import preprocessor as prep
-  input_data = prep.preprocessor(img)
+  input_data = preprocessor("/tmp/imagetopredict."+image_file_type)
 
 # Generate prediction using preprocessed input data
   print("The model expects input shape:", model.get_inputs()[0].shape)
@@ -73,7 +124,7 @@ def predict(event,model):
 
 def handler(event, context):
 
-    result = predict(event,model)
+    result = predict(event,model,preprocessor)
     return {{"statusCode": 200,
     "headers": {{
     "Access-Control-Allow-Origin" : "*",
