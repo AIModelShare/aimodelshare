@@ -171,7 +171,6 @@ def model_to_api(model_filepath, my_credentials, model_type, private, categorica
   print("Creating your prediction API. (Process typically takes less than one minute)...")
   if model_type=="tabular" or "keras_tabular" or'Tabular':
     variablename_and_type_data = extract_varnames_fromtrainingdata(trainingdata)
-    print(variablename_and_type_data)
   if categorical=="TRUE":
       try:
         labels=y_train.columns.tolist()
