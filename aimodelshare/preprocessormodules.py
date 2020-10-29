@@ -2,65 +2,159 @@ import os
 import zipfile
 import sys
 import pickle
+import tempfile
+import dill
+import importlib
+import inspect
+from aimodelshare.python.my_preprocessor import *
 
+# how to import a preprocessor from a zipfile into a tempfile then into the current session
+def import_preprocessor(filepath):
+      #preprocessor fxn should always be named "preprocessor" to work properly in aimodelshare process.
+      import tempfile
+      from zipfile import ZipFile
+      import inspect
+      import os
+      import pickle
+      import string
+      # Create a ZipFile Object and load sample.zip in it
+      with ZipFile(filepath, 'r') as zipObj:
+          # Extract all the contents of zip file in current directory
+          zipObj.extractall()
+      
+      folderpath=os.path.dirname(os.path.abspath(filepath))
+      file_name=os.path.basename(filepath)
+      import os
+      pickle_file_list=[]
+      for file in os.listdir(folderpath):
+          if file.endswith(".pkl"):
+              pickle_file_list.append(os.path.join(folderpath, file))
 
-
-def import_preprocessor(fname):
-    # Load preprocessor version to session as preprocessor() function
-    import importlib
-    new_module = __import__(fname)
-    return new_module
-
+      for i in pickle_file_list: 
+          objectname=str(os.path.basename(i)).replace(".pkl","")
+          objects={objectname:""}
+          globals()[objectname]=pickle.load(open(str(i), "rb" ) )
+      # First import preprocessor function to session from preprocessor.py
+      exec(open(os.path.join(folderpath,'preprocessor.py')).read(),globals())
+      return preprocessor
 
 import os
-def export_preprocessor(preprocessor_fxn):
+
+def export_preprocessor(preprocessor_fxn,directory):
     #preprocessor fxn should always be named "preprocessor" to work properly in aimodelshare process.
     try:
+        import tempfile
+        from zipfile import ZipFile
         import inspect
+        import os
+
+
+        folderpath=directory
+
+      #create temporary folder
+        temp_dir=tempfile.gettempdir()
+
+      #save function code within temporary folder
         source = inspect.getsource(preprocessor_fxn)
-        with open("./aimodelshare/python/my_preprocessor.py", "w") as f:
-            f.write(source)
+        with open(os.path.join(temp_dir,"preprocessor.py"), "w") as f:
+              f.write(source)
+
+        try:
+              os.remove(os.path.join(folderpath,"preprocessor.zip"))
+        except:
+              pass
+    
+      # create a ZipFile object
+        zipObj = ZipFile(os.path.join(folderpath,"preprocessor.zip"), 'w')
+      # Add preprocessor function to the zipfile
+        zipObj.write(os.path.join(temp_dir,"preprocessor.py"),"preprocessor.py")
+
+      #getting list of global variables used in function
+
+        import inspect
+        function_objects=list(inspect.getclosurevars(preprocessor_fxn).globals.keys())
+        function_objects=list(inspect.getclosurevars(preprocessor_fxn).globals.keys())      
+
+        import sys
+        modulenames = set(sys.modules) & set(globals())
+        function_objects_nomodules = [i for i in function_objects if i not in list(modulenames)]
+        #print(modulenames)
+        #print(function_objects_nomodules)
+
+        def savetopickle(function_objects_listelement):
+            import pickle
+            pickle.dump(eval(function_objects_listelement), open( os.path.join(temp_dir,function_objects_listelement+".pkl"), "wb" ) )
+            return function_objects_listelement
+
+        savedpreprocessorobjectslist = list(map(savetopickle, function_objects_nomodules))
+
+      # take savedpreprocessorobjectslist pkl files saved to tempdir to zipfile
+        import pickle
+        import string
+        for i in savedpreprocessorobjectslist: 
+            objectname=str(i)+".pkl"
+            zipObj.write(os.path.join(temp_dir,objectname),objectname)
+
+      # close the Zip File
+        zipObj.close()
+
+        try:
+          # clean up temp directory files for future runs
+            os.remove(os.path.join(temp_dir,"preprocessor.py"))
+
+            for i in savedpreprocessorobjectslist: 
+                objectname=str(i)+".pkl"
+                os.remove(os.path.join(temp_dir,objectname))
+        except:
+              pass
+
     except Exception as e:
         print(e)
 
+
 def upload_preprocessor(preprocessor_path, client, bucket, model_id, model_version):
+
+  try:
+
+    
     # Check the preprocessor {{{
     if not os.path.exists(preprocessor_path):
         raise FileNotFoundError(
             f"The preprocessor file at {preprocessor_path} does not exist"
         )
 
+    
     file_name = os.path.basename(preprocessor_path)
     file_name, file_ext = os.path.splitext(file_name)
 
-
-    # Upload the preprocessor {{{
+    prep = __import__(file_name)
+    source = inspect.getsource(prep)
+    with open("./aimodelshare/python/my_preprocessor.py", "w") as f:
+        f.write(source)
+    f.close()
+    #pickle()
     try:
-        client["client"].upload_file(
-            preprocessor_path, bucket, model_id + "/runtime_preprocessor" + file_ext
-        )
-        client["client"].upload_file(
-            preprocessor_path, bucket, model_id + f"/preprocessor_{model_version}" + file_ext
-        )
-       
-            
-        if(file_ext =='.py'):
-            prep  = import_preprocessor(file_name)
-            response = export_preprocessor(prep)
-            try:
-            	with zipfile.ZipFile('./aimodelshare/python/preprocessor_mostrecent.zip', 'a') as z:
-            		z.write('./aimodelshare/python/my_preprocessor.py',os.path.join('python','preprocessor.py'))
-            except Exception as e:
-            	print(e)
-            
-    except Exception as err:
-        return err
-    # }}}
 
+        import  aimodelshare.python.my_preprocessor as my_preprocessor
+        export_preprocessor(preprocessor,"")
+    except Exception as e:
+        print("error :" , e)
+
+    
+    from zipfile import ZipFile
+    dir_zip = 'preprocessor.zip'
+    #zipObj = ZipFile(os.path.join("./preprocessor.zip"), 'a')
+    #/Users/aishwarya/Downloads/aimodelshare-master
+    client["client"].upload_file(dir_zip, bucket, model_id + "/runtime_preprocessor" + ".zip")
+  except Exception as e:
+    print(e)
+
+     
 
 __all__ = [
     import_preprocessor,
     export_preprocessor,
     upload_preprocessor,
+    
 ]
 
