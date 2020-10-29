@@ -65,17 +65,24 @@ def create_prediction_api(my_credentials, model_filepath, unique_model_id, model
     temp_dir=tempfile.gettempdir()
 
     model_type=model_type.lower()
+    categorical=categorical.upper()
     #write main handlers
-    if  model_type=='text':
-  
-      with open('./aimodelshare/main/1.txt', 'r') as txt_file: #this is for keras_image_color
+    if model_type =='text' and categorical== 'TRUE':
+       with open('./aimodelshare/main/1.txt', 'r') as txt_file: #this is for keras_image_color
+          data = txt_file.read()
+          from string import Template
+          t = Template(data)
+          newdata=t.substitute(bucket_name=bucket_name,unique_model_id=unique_model_id,labels=labels)
+      with open(os.path.join(temp_dir,'main.py'), 'w') as file:
+          file.write(newdata)
+    elif model_type =='text' and categorical== 'FALSE':
+       with open('./aimodelshare/main/1B.txt', 'r') as txt_file: #this is for keras_image_color
           data = txt_file.read()
           from string import Template
           t = Template(data)
           newdata=t.substitute(bucket_name=bucket_name,unique_model_id=unique_model_id)
       with open(os.path.join(temp_dir,'main.py'), 'w') as file:
-          file.write(newdata)
-      
+          file.write(newdata)     
     elif model_type =='image' and categorical== 'TRUE':
         with open('./aimodelshare/main/2.txt', 'r') as txt_file: #this is for keras_image_color
           data = txt_file.read()
