@@ -12,7 +12,9 @@ from zipfile import ZipFile, ZIP_STORED, ZipInfo
 
 
 
+
 def create_prediction_api(my_credentials, model_filepath, unique_model_id, model_type, fileextension, categorical, labels, preprocessor_fileextension="default" ):
+    import random
     AI_MODELSHARE_AccessKeyId = my_credentials["AI_MODELSHARE_AccessKeyId"]
     AI_MODELSHARE_SecretAccessKey = my_credentials["AI_MODELSHARE_SecretAccessKey"]
     region = my_credentials["region"]
@@ -53,51 +55,76 @@ def create_prediction_api(my_credentials, model_filepath, unique_model_id, model
     else:
         resource_id=response3['items'][1]['id']
 
+    import tempfile
+    from zipfile import ZipFile
+    import zipfile
+    import os
+
+
+    #create temporary folder
+    temp_dir=tempfile.gettempdir()
+
+
     #write main handlers
     if  model_type=='Text' or model_type =='text':
   
       with open('./aimodelshare/main/1.txt', 'r') as txt_file: #this is for keras_image_color
-        data = txt_file.read()
-      with open('/tmp/main.py', 'w') as file:
-        file.write(data.format(bucket_name,unique_model_id))
+          data = txt_file.read()
+          from string import Template
+          t = Template(data)
+          newdata=t.substitute(bucket_name=bucket_name,unique_model_id=unique_model_id)
+      with open(os.path.join(temp_dir,'main.py'), 'w') as file:
+          file.write(newdata)
       
     elif model_type =='Image' and categorical== 'TRUE':
         with open('./aimodelshare/main/2.txt', 'r') as txt_file: #this is for keras_image_color
           data = txt_file.read()
-        with open('/tmp/main.py', 'w') as file:
-          file.write(data.format(bucket_name,unique_model_id,labels))
+          from string import Template
+          t = Template(data)
+          newdata=t.substitute(bucket_name=bucket_name,unique_model_id=unique_model_id,labels=labels)
+        with open(os.path.join(temp_dir,'main.py'), 'w') as file:
+          file.write(newdata)
     elif model_type =='Image' and categorical== 'FALSE':
         with open('./aimodelshare/main/3.txt', 'r') as txt_file: #this is for keras_image_color
           data = txt_file.read()
-        with open('/tmp/main.py', 'w') as file:
-          file.write(data.format(bucket_name,unique_model_id))
+          from string import Template
+          t = Template(data)
+          newdata=t.substitute(bucket_name=bucket_name,unique_model_id=unique_model_id)
+        with open(os.path.join(temp_dir,'main.py'), 'w') as file:
+          file.write(newdata)
     elif all([  model_type =='Tabular',categorical =='TRUE']):
         with open('./aimodelshare/main/4.txt', 'r') as txt_file: #this is for keras_image_color
           data = txt_file.read()
-        with open('/tmp/main.py', 'w') as file:
-          file.write(data.format(bucket_name,unique_model_id,labels))
+          from string import Template
+          t = Template(data)
+          newdata=t.substitute(bucket_name=bucket_name,unique_model_id=unique_model_id,labels=labels)
+        with open(os.path.join(temp_dir,'main.py'), 'w') as file:
+          file.write(newdata)
     elif all([model_type=='Tabular', categorical =='FALSE']):
         with open('./aimodelshare/main/5.txt', 'r') as txt_file: #this is for keras_image_color
           data = txt_file.read()
-        with open('/tmp/main.py', 'w') as file:
-          file.write(data.format(bucket_name,unique_model_id))
+          from string import Template
+          t = Template(data)
+          newdata=t.substitute(bucket_name=bucket_name,unique_model_id=unique_model_id)
+        with open(os.path.join(temp_dir,'main.py'), 'w') as file:
+          file.write(newdata)
 
-    with zipfile.ZipFile('/tmp/archive.zip', 'a') as z:
-        z.write('/tmp/main.py','main.py')
+    with zipfile.ZipFile(os.path.join(temp_dir,'archive.zip'), 'a') as z:
+        z.write(os.path.join(temp_dir,'main.py'),'main.py')
 
-    os.remove("/tmp/main.py")
+    #os.remove(os.path.join(temp_dir,'main.py'))
     #preprocessor upload
 
 
   # Upload lambda function zipfile to user's model file folder on s3
     try:
         s3_client = user_session.client('s3')  # This should go to developer's account from my account
-        s3_client.upload_file('/tmp/archive.zip', bucket_name,  unique_model_id+"/"+'archivetest.zip')
+        s3_client.upload_file(os.path.join(temp_dir,'archive.zip'), bucket_name,  unique_model_id+"/"+'archivetest.zip')
 
     except Exception as e:
         print(e)
 
-    os.remove("/tmp/archive.zip")
+    os.remove(os.path.join(temp_dir,'archive.zip'))
   # Create and/or update roles for lambda function you will create below
     lambdarole1={u'Version': u'2012-10-17', u'Statement': [{u'Action': u'sts:AssumeRole', u'Effect': u'Allow', u'Principal': {u'Service': u'lambda.amazonaws.com'}}]}
     lambdarolename='myService-dev-us-east-1-lambdaRole'
