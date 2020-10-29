@@ -15,6 +15,13 @@ from aimodelshare.api import create_prediction_api
 from aimodelshare.preprocessormodules import upload_preprocessor
 from aimodelshare.model import _get_predictionmodel_key
 def take_user_info_and_generate_api(model_filepath,my_credentials,model_type, categorical, private, labels,preprocessor_filepath="default"):
+  import tempfile
+  from zipfile import ZipFile
+  import os
+  import random
+
+  #create temporary folder
+  temp_dir=tempfile.gettempdir()
   #unpack user credentials
   username = my_credentials["username"]
   AI_MODELSHARE_AccessKeyId = my_credentials["AI_MODELSHARE_AccessKeyId"]
@@ -50,7 +57,7 @@ def take_user_info_and_generate_api(model_filepath,my_credentials,model_type, ca
     response = upload_preprocessor(preprocessor_filepath, s3, bucket_name, unique_model_id,1 )
     preprocessor_file_extension =_get_extension_from_filepath(preprocessor_filepath)
     #write runtime JSON
-    json_path = "/tmp/runtime_data.json"
+    json_path = os.path.join(temp_dir,"runtime_data.json")
     if(preprocessor_file_extension == '.py'):
       runtime_preprocessor_type = "module"
     elif(preprocessor_file_extension == '.pkl'):
@@ -71,9 +78,9 @@ def take_user_info_and_generate_api(model_filepath,my_credentials,model_type, ca
     os.remove(json_path)  
   except Exception as err:
     raise AWSUploadError("There was a problem with model/preprocessor upload. "+str(err))
-  model_filepath = file_key +file_extension
+
   #headers = {'content-type': 'application/json'}
-  apiurl = create_prediction_api(my_credentials, model_filepath, unique_model_id, model_type, file_extension, categorical, labels, preprocessor_file_extension)
+  apiurl = create_prediction_api(my_credentials, file_key, unique_model_id, model_type, file_extension, categorical, labels, preprocessor_file_extension)
   finalresult= [apiurl["body"],apiurl["statusCode"], now, unique_model_id, bucket_name]
   return finalresult
 

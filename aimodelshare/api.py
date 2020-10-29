@@ -64,9 +64,9 @@ def create_prediction_api(my_credentials, model_filepath, unique_model_id, model
     #create temporary folder
     temp_dir=tempfile.gettempdir()
 
-
+    model_type=model_type.lower()
     #write main handlers
-    if  model_type=='Text' or model_type =='text':
+    if  model_type=='text':
   
       with open('./aimodelshare/main/1.txt', 'r') as txt_file: #this is for keras_image_color
           data = txt_file.read()
@@ -76,7 +76,7 @@ def create_prediction_api(my_credentials, model_filepath, unique_model_id, model
       with open(os.path.join(temp_dir,'main.py'), 'w') as file:
           file.write(newdata)
       
-    elif model_type =='Image' and categorical== 'TRUE':
+    elif model_type =='image' and categorical== 'TRUE':
         with open('./aimodelshare/main/2.txt', 'r') as txt_file: #this is for keras_image_color
           data = txt_file.read()
           from string import Template
@@ -84,7 +84,7 @@ def create_prediction_api(my_credentials, model_filepath, unique_model_id, model
           newdata=t.substitute(bucket_name=bucket_name,unique_model_id=unique_model_id,labels=labels)
         with open(os.path.join(temp_dir,'main.py'), 'w') as file:
           file.write(newdata)
-    elif model_type =='Image' and categorical== 'FALSE':
+    elif model_type =='image' and categorical== 'FALSE':
         with open('./aimodelshare/main/3.txt', 'r') as txt_file: #this is for keras_image_color
           data = txt_file.read()
           from string import Template
@@ -92,7 +92,7 @@ def create_prediction_api(my_credentials, model_filepath, unique_model_id, model
           newdata=t.substitute(bucket_name=bucket_name,unique_model_id=unique_model_id)
         with open(os.path.join(temp_dir,'main.py'), 'w') as file:
           file.write(newdata)
-    elif all([  model_type =='Tabular',categorical =='TRUE']):
+    elif all([  model_type =='tabular',categorical =='TRUE']):
         with open('./aimodelshare/main/4.txt', 'r') as txt_file: #this is for keras_image_color
           data = txt_file.read()
           from string import Template
@@ -100,7 +100,7 @@ def create_prediction_api(my_credentials, model_filepath, unique_model_id, model
           newdata=t.substitute(bucket_name=bucket_name,unique_model_id=unique_model_id,labels=labels)
         with open(os.path.join(temp_dir,'main.py'), 'w') as file:
           file.write(newdata)
-    elif all([model_type=='Tabular', categorical =='FALSE']):
+    elif all([model_type=='tabular', categorical =='FALSE']):
         with open('./aimodelshare/main/5.txt', 'r') as txt_file: #this is for keras_image_color
           data = txt_file.read()
           from string import Template
