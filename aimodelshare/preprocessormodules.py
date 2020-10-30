@@ -126,28 +126,16 @@ def upload_preprocessor(preprocessor_path, client, bucket, model_id, model_versi
     
     file_name = os.path.basename(preprocessor_path)
     file_name, file_ext = os.path.splitext(file_name)
-
-    prep = __import__(file_name)
-    source = inspect.getsource(prep)
-    with open("./aimodelshare/python/my_preprocessor.py", "w") as f:
-        f.write(source)
-    f.close()
-    #pickle()
-    try:
-
-        import  aimodelshare.python.my_preprocessor as my_preprocessor
-        export_preprocessor(preprocessor,"")
-    except Exception as e:
-        print("error :" , e)
-
     
     from zipfile import ZipFile
-    dir_zip = 'preprocessor.zip'
+    dir_zip = preprocessor_path
+
     #zipObj = ZipFile(os.path.join("./preprocessor.zip"), 'a')
     #/Users/aishwarya/Downloads/aimodelshare-master
     client["client"].upload_file(dir_zip, bucket, model_id + "/runtime_preprocessor" + ".zip")
   except Exception as e:
     print(e)
+
 
      
 

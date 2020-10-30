@@ -1,12 +1,19 @@
-#Tabular Regression Prediction Runtime Code
+#Text Regression Prediction Runtime Code
 
 import boto3
 import pandas as pd
 import os
+from io import BytesIO
+import pickle
 import numpy as np
-import onnxruntime as rt
 import json
+import onnxruntime as rt
+import warnings
+import six
+from sklearn.feature_extraction.text import CountVectorizer, TfidfVectorizer
 import sklearn
+import keras_preprocessors
+
 
 def get_model_onnx(runtimemodel_s3_filename="runtime_model.onnx"):
   s3 = boto3.resource("s3")
@@ -74,39 +81,38 @@ preprocessor=get_preprocessor(preprocessor_s3_filename="runtime_preprocessor.zip
 
 def predict(event,model,preprocessor):
     body = event["body"]
-    import six
     if isinstance(event["body"], six.string_types):
         body = json.loads(event["body"])
         print(body["data"])
-        bodydata = pd.DataFrame.from_dict(body["data"])
+        bodynew = pd.Series(body["data"])
     else:
         print(body["data"])
-        bodydata = pd.DataFrame.from_dict(body["data"])
-        print(bodydata)
+        bodynew = pd.Series(body["data"])
+        print(bodynew)
+        
+    sess=model
+    def predict_classes(x): # adjusted from keras github code
+            proba=x
+            if proba.shape[-1] > 1:
+              return proba.argmax(axis=-1)
+            else:
+              return (proba > 0.5).astype("int32")
+    input_name = sess.get_inputs()[0].name
 
-    input_name = model.get_inputs()[0].name
-    print(input_name)
+    input_data = preprocessor.transform(bodynew).astype(np.float32) #needs to be float32
 
-	#Preprocess data
-    input_data = preprocessor(bodydata).astype('float32') #needs to be float32
-    print(input_data)
-	
-    # Generate prediction using preprocessed input data
-
-    res=model.run(None,  {input_name: input_data})
-    
-    result = res[0].tolist()[0]
-
-    return result
+    res = sess.run(None,  {{input_name: input_data}})
+    prob = res[0]
+    return prob.tolist()[0]
 
 def handler(event, context):
-        result = predict(event,model,preprocessor)
-        return {"statusCode": 200,
-        "headers": {
-        "Access-Control-Allow-Origin" : "*",
-        "Access-Control-Allow-Credentials": True,
-        "Allow" : "GET, OPTIONS, POST",
-        "Access-Control-Allow-Methods" : "GET, OPTIONS, POST",
-        "Access-Control-Allow-Headers" : "*"
-        },
-        "body": json.dumps(result)}
+    result = predict(event,model,preprocessor,preprocessor_type)
+    return {{"statusCode": 200,
+    "headers": {{
+    "Access-Control-Allow-Origin" : "*",
+    "Access-Control-Allow-Credentials": True,
+    "Allow" : "GET, OPTIONS, POST",
+    "Access-Control-Allow-Methods" : "GET, OPTIONS, POST",
+    "Access-Control-Allow-Headers" : "*"
+    }},
+    "body": json.dumps(result)}}
