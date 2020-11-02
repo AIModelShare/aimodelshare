@@ -6,7 +6,7 @@ import tempfile
 import dill
 import importlib
 import inspect
-from aimodelshare.python.my_preprocessor import *
+#from aimodelshare.python.my_preprocessor import *
 
 # how to import a preprocessor from a zipfile into a tempfile then into the current session
 def import_preprocessor(filepath):
@@ -40,73 +40,72 @@ def import_preprocessor(filepath):
 
 import os
 
-def export_preprocessor(preprocessor_fxn,directory):
+def export_preprocessor(preprocessor_fxn,directory, globs=globals()):
     #preprocessor fxn should always be named "preprocessor" to work properly in aimodelshare process.
     try:
-        import tempfile
-        from zipfile import ZipFile
-        import inspect
-        import os
+      import tempfile
+      from zipfile import ZipFile
+      import inspect
+      import os
 
+      globals().update(preprocessor_fxn.__globals__)
 
-        folderpath=directory
+      folderpath=directory
 
       #create temporary folder
-        temp_dir=tempfile.gettempdir()
-
+      temp_dir=tempfile.gettempdir()
+      try:
+          os.remove(os.path.join(folderpath,"preprocessor.zip"))
+      except:
+          pass
       #save function code within temporary folder
-        source = inspect.getsource(preprocessor_fxn)
-        with open(os.path.join(temp_dir,"preprocessor.py"), "w") as f:
-              f.write(source)
+      source = inspect.getsource(preprocessor_fxn)
+      with open(os.path.join(temp_dir,"preprocessor.py"), "w") as f:
+          f.write(source)
 
-        try:
-              os.remove(os.path.join(folderpath,"preprocessor.zip"))
-        except:
-              pass
-    
       # create a ZipFile object
-        zipObj = ZipFile(os.path.join(folderpath,"preprocessor.zip"), 'w')
+      zipObj = ZipFile(os.path.join(folderpath,"preprocessor.zip"), 'w')
       # Add preprocessor function to the zipfile
-        zipObj.write(os.path.join(temp_dir,"preprocessor.py"),"preprocessor.py")
+      zipObj.write(os.path.join(temp_dir,"preprocessor.py"),"preprocessor.py")
 
       #getting list of global variables used in function
 
-        import inspect
-        function_objects=list(inspect.getclosurevars(preprocessor_fxn).globals.keys())
-        function_objects=list(inspect.getclosurevars(preprocessor_fxn).globals.keys())      
+      import inspect
+      function_objects=list(inspect.getclosurevars(preprocessor_fxn).globals.keys())
 
-        import sys
-        modulenames = set(sys.modules) & set(globals())
-        function_objects_nomodules = [i for i in function_objects if i not in list(modulenames)]
-        #print(modulenames)
-        #print(function_objects_nomodules)
+      import sys
+      modulenames = ["sklearn"]
+      function_objects_nomodules = [i for i in function_objects if i not in list(modulenames)]
+      print(modulenames)
+      print(function_objects_nomodules)
+      print(function_objects)
 
-        def savetopickle(function_objects_listelement):
-            import pickle
-            pickle.dump(eval(function_objects_listelement), open( os.path.join(temp_dir,function_objects_listelement+".pkl"), "wb" ) )
-            return function_objects_listelement
+      def savetopickle(function_objects_listelement):
+        import pickle
+        pickle.dump(globals()[function_objects_listelement], open( os.path.join(temp_dir,function_objects_listelement+".pkl"), "wb" ) )
+        return function_objects_listelement
 
-        savedpreprocessorobjectslist = list(map(savetopickle, function_objects_nomodules))
+      savedpreprocessorobjectslist = list(map(savetopickle, function_objects_nomodules))
 
       # take savedpreprocessorobjectslist pkl files saved to tempdir to zipfile
-        import pickle
-        import string
-        for i in savedpreprocessorobjectslist: 
-            objectname=str(i)+".pkl"
-            zipObj.write(os.path.join(temp_dir,objectname),objectname)
+      import pickle
+      import string
+      for i in savedpreprocessorobjectslist: 
+          objectname=str(i)+".pkl"
+          zipObj.write(os.path.join(temp_dir,objectname),objectname)
 
       # close the Zip File
-        zipObj.close()
+      zipObj.close()
 
-        try:
+      try:
           # clean up temp directory files for future runs
-            os.remove(os.path.join(temp_dir,"preprocessor.py"))
+          os.remove(os.path.join(temp_dir,"preprocessor.py"))
 
-            for i in savedpreprocessorobjectslist: 
-                objectname=str(i)+".pkl"
-                os.remove(os.path.join(temp_dir,objectname))
-        except:
-              pass
+          for i in savedpreprocessorobjectslist: 
+              objectname=str(i)+".pkl"
+              os.remove(os.path.join(temp_dir,objectname))
+      except:
+          pass
 
     except Exception as e:
         print(e)
