@@ -76,9 +76,6 @@ def export_preprocessor(preprocessor_fxn,directory, globs=globals()):
       import sys
       modulenames = ["sklearn"]
       function_objects_nomodules = [i for i in function_objects if i not in list(modulenames)]
-      print(modulenames)
-      print(function_objects_nomodules)
-      print(function_objects)
 
       def savetopickle(function_objects_listelement):
         import pickle
