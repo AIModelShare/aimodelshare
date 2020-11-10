@@ -94,12 +94,10 @@ def _upload_preprocessor(preprocessor, client, bucket, model_id, model_version):
 
 def _extract_model_metadata(model, eval_metrics=None):
     # Getting the model metadata {{{
-    import onnx
-
     graph = model.graph
 
     if eval_metrics is not None:
-        metadata = eval_metrics.copy()
+        metadata = eval_metrics.copy().to_dict()
     else:
         metadata = dict()
 
@@ -125,6 +123,7 @@ def _extract_model_metadata(model, eval_metrics=None):
             else:
                 dims.append(str(d.dim_value))
 
+        metadata["input_shape"] = dims
         inputs += f"{inp.name} ({'x'.join(dims)})"
     metadata["inputs"] = inputs
 
