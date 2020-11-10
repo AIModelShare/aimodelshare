@@ -68,7 +68,7 @@ def _upload_onnx_model(modelpath, client, bucket, model_id, model_version):
         return err
     # }}}
 
-def upload_preprocessor(preprocessor, client, bucket, model_id, model_version):
+def _upload_preprocessor(preprocessor, client, bucket, model_id, model_version):
 
   try:
 
