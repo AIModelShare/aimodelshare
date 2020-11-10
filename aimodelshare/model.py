@@ -74,7 +74,7 @@ def _extract_model_metadata(model, eval_metrics=None):
     graph = model.graph
 
     if eval_metrics is not None:
-        metadata = eval_metrics.copy()
+        metadata = eval_metrics
     else:
         metadata = dict()
 
