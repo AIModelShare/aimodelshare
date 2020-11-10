@@ -96,7 +96,6 @@ def _extract_model_metadata(model, eval_metrics=None):
     # Getting the model metadata {{{
     import onnx
 
-    model = onnx.load(modelpath)
     graph = model.graph
 
     if eval_metrics is not None:
