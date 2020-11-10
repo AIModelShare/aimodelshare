@@ -97,7 +97,7 @@ def _extract_model_metadata(model, eval_metrics=None):
     graph = model.graph
 
     if eval_metrics is not None:
-        metadata = eval_metrics.copy().to_dict()
+        metadata = eval_metrics
     else:
         metadata = dict()
 
@@ -141,7 +141,6 @@ def _extract_model_metadata(model, eval_metrics=None):
     # }}}
 
     return metadata
-
 
 def _update_leaderboard(
     modelpath, eval_metrics, client, token, bucket, model_id, model_version
