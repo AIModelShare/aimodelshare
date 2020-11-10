@@ -100,6 +100,7 @@ def _extract_model_metadata(model, eval_metrics=None):
             else:
                 dims.append(str(d.dim_value))
 
+        metadata["input_shape"] = dims
         inputs += f"{inp.name} ({'x'.join(dims)})"
     metadata["inputs"] = inputs
 
@@ -264,4 +265,5 @@ def submit_model(
 
 __all__ = [
     submit_model,
+    _extract_model_metadata
 ]
