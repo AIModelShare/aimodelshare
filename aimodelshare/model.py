@@ -68,6 +68,29 @@ def _upload_onnx_model(modelpath, client, bucket, model_id, model_version):
         return err
     # }}}
 
+def _upload_preprocessor(preprocessor, client, bucket, model_id, model_version):
+
+  try:
+
+    
+    # Check the preprocessor {{{
+    if not os.path.exists(preprocessor):
+        raise FileNotFoundError(
+            f"The preprocessor file at {preprocessor} does not exist"
+        )
+
+    
+    file_name = os.path.basename(preprocessor)
+    file_name, file_ext = os.path.splitext(file_name)
+    
+    from zipfile import ZipFile
+    dir_zip = preprocessor
+
+    #zipObj = ZipFile(os.path.join("./preprocessor.zip"), 'a')
+    #/Users/aishwarya/Downloads/aimodelshare-master
+    client["client"].upload_file(dir_zip, bucket, model_id + "/preprocessor_v" + str(model_version)+ ".zip")
+  except Exception as e:
+    print(e)
 
 def _extract_model_metadata(model, eval_metrics=None):
     # Getting the model metadata {{{
@@ -118,7 +141,6 @@ def _extract_model_metadata(model, eval_metrics=None):
     # }}}
 
     return metadata
-
 
 def _update_leaderboard(
     modelpath, eval_metrics, client, token, bucket, model_id, model_version
