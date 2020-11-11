@@ -44,7 +44,14 @@ def model_eval_metrics(y_true, y_pred,classification="FALSE"):
      
 
 def evaluate_model(event):
-    prediction_list=event["body"]
+    body = event["body"]
+    import six
+    if isinstance(event["body"], six.string_types):
+        prediction_list = json.loads(event["body"])
+        print(prediction_list)
+    else:
+        print(body)
+        prediction_list = event["body"]
     ytest_list=[1,2,3,4] #read this in from local file pkl in next step
     result=model_eval_metrics(ytest_list,prediction_list,classification="TRUE")
     return result
