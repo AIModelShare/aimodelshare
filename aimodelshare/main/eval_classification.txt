@@ -1,0 +1,62 @@
+import boto3
+import pandas as pd
+import os
+import numpy as np
+import onnxruntime as rt
+import json
+import sklearn
+import numpy as np
+from sklearn.metrics import accuracy_score
+from sklearn.metrics import f1_score
+from sklearn.metrics import precision_score
+from sklearn.metrics import recall_score
+from sklearn.metrics import roc_auc_score
+from sklearn.metrics import mean_squared_error
+from sklearn.metrics import r2_score
+from sklearn.metrics import mean_absolute_error
+import pandas as pd
+from math import sqrt
+
+def model_eval_metrics(y_true, y_pred,classification="TRUE"):
+     if classification=="TRUE":
+        accuracy_eval = accuracy_score(y_true, y_pred)
+        f1_score_eval = f1_score(y_true, y_pred,average="macro",zero_division=0)
+        precision_eval = precision_score(y_true, y_pred,average="macro",zero_division=0)
+        recall_eval = recall_score(y_true, y_pred,average="macro",zero_division=0)
+        mse_eval = 0
+        rmse_eval = 0
+        mae_eval = 0
+        r2_eval = 0
+        metricdata = {'accuracy': [accuracy_eval], 'f1_score': [f1_score_eval], 'precision': [precision_eval], 'recall': [recall_eval], 'mse': [mse_eval], 'rmse': [rmse_eval], 'mae': [mae_eval], 'r2': [r2_eval]}
+        finalmetricdata = pd.DataFrame.from_dict(metricdata)
+     else:
+        accuracy_eval = 0
+        f1_score_eval = 0
+        precision_eval = 0
+        recall_eval = 0
+        mse_eval = mean_squared_error(y_true, y_pred)
+        rmse_eval = sqrt(mean_squared_error(y_true, y_pred))
+        mae_eval = mean_absolute_error(y_true, y_pred)
+        r2_eval = r2_score(y_true, y_pred)
+        metricdata = {'accuracy': [accuracy_eval], 'f1_score': [f1_score_eval], 'precision': [precision_eval], 'recall': [recall_eval], 'mse': [mse_eval], 'rmse': [rmse_eval], 'mae': [mae_eval], 'r2': [r2_eval]}
+        finalmetricdata = pd.DataFrame.from_dict(metricdata)
+     return finalmetricdata.to_dict('records')[0]
+     
+
+def evaluate_model(event):
+    prediction_list=event["body"]
+    ytest_list=[1,2,3,4] #read this in from local file pkl in next step
+    result=model_eval_metrics(ytest_list,prediction_list,classification="TRUE")
+    return result
+
+def handler(event, context):
+        result = evaluate_model(event)
+        return {"statusCode": 200,
+        "headers": {
+        "Access-Control-Allow-Origin" : "*",
+        "Access-Control-Allow-Credentials": True,
+        "Allow" : "GET, OPTIONS, POST",
+        "Access-Control-Allow-Methods" : "GET, OPTIONS, POST",
+        "Access-Control-Allow-Headers" : "*"
+        },
+        "body": json.dumps(result)}
