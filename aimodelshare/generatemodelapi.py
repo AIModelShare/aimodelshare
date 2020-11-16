@@ -79,7 +79,7 @@ def take_user_info_and_generate_api(model_filepath, my_credentials, model_type, 
         runtime_data["runtime_preprocessor"] = runtime_preprocessor_type
 
 
-        if(y_test==None):
+        if(y_test.any()==None):
             pass
         else:
             ytest_path = os.path.join(temp_dir, "ytest.pkl")
@@ -204,7 +204,7 @@ def send_model_data_to_dyndb_and_return_api(api_info, my_credentials, private, c
     return print(finalresult2+"\n"+finalresultteams3info)
 
 
-def model_to_api(model_filepath, my_credentials, model_type, private, categorical, trainingdata, y_train, y_test=None,preprocessor_filepath):
+def model_to_api(model_filepath, my_credentials, model_type, private, categorical, trainingdata, y_train,preprocessor_filepath, y_test=None):
     print("   ")
     print("Creating your prediction API. (Process typically takes less than one minute)...")
     variablename_and_type_data = None
