@@ -261,8 +261,8 @@ def submit_model(
 
     token=get_token(username,password)
     headers = { 'Content-Type':'application/json', 'authorizationToken': token, } 
-     
-    prediction = requests.post(apiurl,headers=headers,data=json.dumps(prediction_submission)) 
+    apiurl_eval=apiurl[:-1]+"eval"
+    prediction = requests.post(apiurl_eval,headers=headers,data=json.dumps(prediction_submission)) 
 
     eval_metrics=prediction.text
 
