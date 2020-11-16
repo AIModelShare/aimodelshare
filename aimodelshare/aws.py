@@ -105,6 +105,20 @@ def run_function_on_lambda(url, token, **kwargs):
     return response, None
 
 
+def get_token(username, password):
+      #get token for access to prediction lambas or to submit predictions to generate model evaluation metrics
+      tokenstring = '{\"username\": \"$usernamestring\", \"password\": \"$passwordstring\"}'
+      from string import Template
+      t = Template(tokenstring)
+      newdata = t.substitute(
+          usernamestring=username, passwordstring=password)
+      api_url='https://xgwe1d6wai.execute-api.us-east-1.amazonaws.com/dev' 
+      headers={ 'Content-Type':'application/json'}
+      token =requests.post(api_url,headers=headers,data=json.dumps({"action": "login", "request":newdata}))
+      return token.text
+
+
+
 __all__ = [
     get_aws_token,
     get_aws_client,
