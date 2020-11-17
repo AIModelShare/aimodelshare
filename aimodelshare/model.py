@@ -259,7 +259,7 @@ def submit_model(
 
     if prediction_submission is not None:
         if type(prediction_submission) is not list:
-            prediction_submission.tolist()
+            prediction_submission=prediction_submission.tolist()
         else: 
             pass
     else: 
