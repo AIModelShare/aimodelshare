@@ -256,13 +256,19 @@ def submit_model(
     if err is not None:
         raise err
     # }}}
+
+    if prediction_submission is not None:
+        if type(prediction_submission) is not list:
+            prediction_submission.tolist()
+        else: 
+            pass
+    else: 
+            pass
     
-
-
     token=get_token(aws_token['username'],aws_token['password'])
     headers = { 'Content-Type':'application/json', 'authorizationToken': token, } 
     apiurl_eval=apiurl[:-1]+"eval"
-    prediction = requests.post(apiurl_eval,headers=headers,data=json.dumps(prediction_submission)) 
+    prediction = requests.post(apiurl_eval,headers=headers,data=json.dumps(prediction_submission.tolist())) 
 
     eval_metrics=prediction.text
 
