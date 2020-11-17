@@ -270,7 +270,8 @@ def submit_model(
     apiurl_eval=apiurl[:-1]+"eval"
     prediction = requests.post(apiurl_eval,headers=headers,data=json.dumps(prediction_submission)) 
 
-    eval_metrics=prediction.text
+    eval_metrics=json.loads(prediction.text)
+
 
 
 
