@@ -20,7 +20,7 @@ import pickle
 
 def get_ytestdata(ytest_s3_filename="ytest.pkl"):
   s3 = boto3.resource("s3")
-  bucket = s3.Bucket("$bucketname")
+  bucket = s3.Bucket("$bucket_name")
 
   with open("/tmp/ytest.pkl", "wb") as ytestfo:
       bucket.download_fileobj("$unique_model_id/ytest.pkl",  ytestfo)
