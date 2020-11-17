@@ -23,7 +23,7 @@ def get_aws_token(user_name, user_pass):
     except Exception as err:
         raise AuthorizationError("Could not authorize user. " + str(err))
 
-    return {"username": user_name, "token": response["AuthenticationResult"]["IdToken"]}
+    return {"username": user_name,"password": user_pass, "token": response["AuthenticationResult"]["IdToken"]}
 
 
 def get_aws_client(aws_key=None, aws_secret=None, aws_region=None):
