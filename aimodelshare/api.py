@@ -483,7 +483,7 @@ def create_prediction_api(my_credentials, model_filepath, unique_model_id, model
         patchOperations=[{
             "op": "replace",
             "path": "/policy",
-            "value": '{"Version": "2012-10-17","Statement": [{"Effect": "Allow","Principal": "*","Action": "execute-api:Invoke","Resource": "arn:aws:execute-api:'+region+':'+account_number+':'+api_id+'/prod/OPTIONS/m"}]}'
+            "value": '{"Version": "2012-10-17","Statement": [{"Effect": "Allow","Principal": "*","Action": "execute-api:Invoke","Resource": "arn:aws:execute-api:'+region+':'+account_number+':'+api_id+'/prod/OPTIONS/*"}]}'
         }, ]
     )
 
@@ -599,7 +599,7 @@ def create_prediction_api(my_credentials, model_filepath, unique_model_id, model
         patchOperations=[{
             "op": "replace",
             "path": "/policy",
-            "value": '{"Version": "2012-10-17","Statement": [{"Effect": "Allow","Principal": "*","Action": "execute-api:Invoke","Resource": "arn:aws:execute-api:'+region+':'+account_number+':'+api_id+'/prod/OPTIONS/eval"}]}'
+            "value": '{"Version": "2012-10-17","Statement": [{"Effect": "Allow","Principal": "*","Action": "execute-api:Invoke","Resource": "arn:aws:execute-api:'+region+':'+account_number+':'+api_id+'/prod/OPTIONS/*"}]}'
         }, ]
     )
 
