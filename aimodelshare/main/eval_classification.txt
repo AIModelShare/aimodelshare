@@ -54,9 +54,9 @@ def model_eval_metrics(y_true, y_pred,classification="TRUE"):
 ytestdata=get_ytestdata(ytest_s3_filename="ytest.pkl")
 
 def evaluate_model(event,ytestdata):
-	body = event["body"]
+    body = event["body"]
 
-	if isinstance(event["body"], six.string_types):
+    if isinstance(event["body"], six.string_types):
         prediction_list = json.loads(event["body"])
         print(prediction_list)
     else:

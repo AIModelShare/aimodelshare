@@ -87,10 +87,10 @@ def predict(event,model,preprocessor):
     input_name = model.get_inputs()[0].name
     print(input_name)
 
-	#Preprocess data
+    #Preprocess data
     input_data = preprocessor(bodydata).astype('float32') #needs to be float32
     print(input_data)
-	
+    
     # Generate prediction using preprocessed input data
 
     res=model.run(None,  {input_name: input_data})
