@@ -2,7 +2,7 @@ import os
 import boto3
 import botocore
 import requests
-
+import json
 from aimodelshare.exceptions import AuthorizationError, AWSAccessError
 
 
@@ -15,7 +15,7 @@ def get_aws_token(user_name, user_pass):
 
     try:
         response = provider_client.initiate_auth(
-            ClientId="57tnil9teheh8ic5ravno5c7ln",
+            ClientId="25vssbned2bbaoi1q7rs4i914u",
             AuthFlow="USER_PASSWORD_AUTH",
             AuthParameters={"USERNAME": user_name, "PASSWORD": user_pass},
         )
@@ -23,7 +23,7 @@ def get_aws_token(user_name, user_pass):
     except Exception as err:
         raise AuthorizationError("Could not authorize user. " + str(err))
 
-    return {"username": user_name, "token": response["AuthenticationResult"]["IdToken"]}
+    return {"username": user_name,"password": user_pass, "token": response["AuthenticationResult"]["IdToken"]}
 
 
 def get_aws_client(aws_key=None, aws_secret=None, aws_region=None):
@@ -103,6 +103,20 @@ def run_function_on_lambda(url, token, **kwargs):
         )
 
     return response, None
+
+
+def get_token(username, password):
+      #get token for access to prediction lambas or to submit predictions to generate model evaluation metrics
+      tokenstring = '{\"username\": \"$usernamestring\", \"password\": \"$passwordstring\"}'
+      from string import Template
+      t = Template(tokenstring)
+      newdata = t.substitute(
+          usernamestring=username, passwordstring=password)
+      api_url='https://xgwe1d6wai.execute-api.us-east-1.amazonaws.com/dev' 
+      headers={ 'Content-Type':'application/json'}
+      token =requests.post(api_url,headers=headers,data=json.dumps({"action": "login", "request":newdata}))
+      return token.text
+
 
 
 __all__ = [

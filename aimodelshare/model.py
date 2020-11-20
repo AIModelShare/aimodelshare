@@ -3,10 +3,13 @@ import json
 import onnx
 import numpy as np
 import pandas as pd
+import requests 
+import json 
 
 from datetime import datetime
 
 from aimodelshare.aws import run_function_on_lambda
+from aimodelshare.aws import get_token
 
 
 def _get_file_list(client, bucket, model_id):
@@ -199,7 +202,7 @@ def submit_model(
     apiurl,
     aws_token,
     aws_client,
-    eval_metrics=None,
+    prediction_submission=None,
     preprocessor=None,
     sample_data=None,
 ):
@@ -253,6 +256,25 @@ def submit_model(
     if err is not None:
         raise err
     # }}}
+
+    if prediction_submission is not None:
+        if type(prediction_submission) is not list:
+            prediction_submission=prediction_submission.tolist()
+        else: 
+            pass
+    else: 
+            pass
+    
+    token=get_token(aws_token['username'],aws_token['password'])
+    headers = { 'Content-Type':'application/json', 'authorizationToken': token, } 
+    apiurl_eval=apiurl[:-1]+"eval"
+    prediction = requests.post(apiurl_eval,headers=headers,data=json.dumps(prediction_submission)) 
+
+    eval_metrics=json.loads(prediction.text)
+
+
+
+
 
     # Upload model metrics and metadata {{{
     err = _update_leaderboard(

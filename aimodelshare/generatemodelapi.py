@@ -18,7 +18,7 @@ from aimodelshare.preprocessormodules import upload_preprocessor
 from aimodelshare.model import _get_predictionmodel_key, _extract_model_metadata
 
 
-def take_user_info_and_generate_api(model_filepath, my_credentials, model_type, categorical, private, labels, preprocessor_filepath="default"):
+def take_user_info_and_generate_api(model_filepath, my_credentials, model_type, categorical, private, labels, preprocessor_filepath="default",y_test=None):
     import tempfile
     from zipfile import ZipFile
     import os
@@ -78,6 +78,16 @@ def take_user_info_and_generate_api(model_filepath, my_credentials, model_type, 
         runtime_data["runtime_model"] = {"name": "runtime_model.onnx"}
         runtime_data["runtime_preprocessor"] = runtime_preprocessor_type
 
+
+        if(y_test.any()==None):
+            pass
+        else:
+            ytest_path = os.path.join(temp_dir, "ytest.pkl")
+            import pickle
+            #ytest data to load to s3
+            pickle.dump( list(y_test),open(ytest_path,"wb"))
+            s3["client"].upload_file(ytest_path, bucket_name,  unique_model_id + "/ytest.pkl")
+            
         #runtime_data = {"runtime_model": {"name": "runtime_model.onnx"},"runtime_preprocessor": runtime_preprocessor_type }
         json_string = json.dumps(runtime_data, sort_keys=False)
         with open(json_path, 'w') as outfile:
@@ -194,7 +204,7 @@ def send_model_data_to_dyndb_and_return_api(api_info, my_credentials, private, c
     return print(finalresult2+"\n"+finalresultteams3info)
 
 
-def model_to_api(model_filepath, my_credentials, model_type, private, categorical, trainingdata, y_train, preprocessor_filepath):
+def model_to_api(model_filepath, my_credentials, model_type, private, categorical, trainingdata, y_train,preprocessor_filepath, y_test=None):
     print("   ")
     print("Creating your prediction API. (Process typically takes less than one minute)...")
     variablename_and_type_data = None
@@ -209,7 +219,7 @@ def model_to_api(model_filepath, my_credentials, model_type, private, categorica
     else:
         labels = "no data"
     api_info = take_user_info_and_generate_api(
-        model_filepath, my_credentials, model_type, categorical, private, labels, preprocessor_filepath)
+        model_filepath, my_credentials, model_type, categorical, private, labels, preprocessor_filepath,y_test)
     final_results = send_model_data_to_dyndb_and_return_api(
         api_info, my_credentials, private, categorical, variablename_and_type_data, preprocessor_filepath)
     return final_results
