@@ -12,19 +12,30 @@ import functools
 from zipfile import ZipFile, ZIP_STORED, ZipInfo
 
 
-def create_prediction_api(my_credentials, model_filepath, unique_model_id, model_type, fileextension, categorical, labels, preprocessor_fileextension="default"):
+def create_prediction_api(my_credentials, model_filepath, unique_model_id, model_type,categorical, labels):
 
     AI_MODELSHARE_AccessKeyId = my_credentials["AI_MODELSHARE_AccessKeyId"]
     AI_MODELSHARE_SecretAccessKey = my_credentials["AI_MODELSHARE_SecretAccessKey"]
     region = my_credentials["region"]
     username = my_credentials["username"]
     bucket_name = my_credentials["bucket_name"]
-
+    model_type = model_type.lower()
+    categorical = categorical.upper()
   # Wait for 5 seconds to ensure aws iam user on user account has time to load into aws's system
     time.sleep(5)
     user_session = boto3.session.Session(aws_access_key_id=AI_MODELSHARE_AccessKeyId,
                                          aws_secret_access_key=AI_MODELSHARE_SecretAccessKey, region_name=region)
-    cloud_layer = "arn:aws:lambda:us-east-1:517169013426:layer:tabular_cloudpicklelayer:1"
+    if model_type=='image' :
+           model_layer ="arn:aws:lambda:us-east-1:517169013426:layer:keras_image:1"
+    elif model_type=='text':
+           model_layer ="arn:aws:lambda:us-east-1:517169013426:layer:tabular_layer:2"
+           keras_layer ='arn:aws:lambda:us-east-1:517169013426:layer:keras_preprocesor:1'
+    elif model_type == 'tabular':
+            model_layer ="arn:aws:lambda:us-east-1:517169013426:layer:tabular_cloudpicklelayer:1"
+    else :
+        print("no matching model data type to load correct python package zip file (lambda layer)")
+
+    #cloud_layer = "arn:aws:lambda:us-east-1:517169013426:layer:tabular_cloudpicklelayer:1"
     # dill_layer ="arn:aws:lambda:us-east-1:517169013426:layer:dill:3"
 
   # Update note:  dyndb data to add.  apiname. (include username too)
@@ -72,8 +83,7 @@ def create_prediction_api(my_credentials, model_filepath, unique_model_id, model
     # create temporary folder
     temp_dir = tempfile.gettempdir()
 
-    model_type = model_type.lower()
-    categorical = categorical.upper()
+    
     # write main handlers
     if model_type == 'text' and categorical == 'TRUE':
         with open('./aimodelshare/main/1.txt', 'r') as txt_file:  # this is for keras_image_color
@@ -289,7 +299,10 @@ def create_prediction_api(my_credentials, model_filepath, unique_model_id, model
 
 ##!!!  this is f'd.  looks like aishwarya hasn't fixed the reference to other layers!  It's a good start, but we should add a subfunction to return
 ## the correct layer from an externally stored list (save arns to a github repo and allow them to be imported here at some point.)
-    layers = [cloud_layer]
+    layers = []
+    layers.append(model_layer)
+    if model_type =='text':
+        layers.append(keras_layer)
 
     # if model_type=='sklearn_text' or  model_type=='keras_text' or model_type=='flubber_text' or model_type =='text':
     # layers.append(keras_layer)
