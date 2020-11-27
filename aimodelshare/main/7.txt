@@ -104,6 +104,8 @@ def predict(event,model,preprocessor):
   
   input_name = model.get_inputs()[0].name
 
+  input_data = np.float32(input_data)
+
   res = model.run(None, {input_name: input_data})
  
   #extract predicted probability for all classes, extract predicted label
@@ -122,7 +124,7 @@ def predict(event,model,preprocessor):
   labels=$labels
   result=list(map(lambda x: labels[x], prediction_index))
 
-  os.remove("/tmp/imagetopredict."+extension)
+  os.remove("/tmp/audiotopredict."+extension)
 
   return result
 
