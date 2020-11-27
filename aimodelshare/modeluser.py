@@ -26,7 +26,7 @@ def get_jwt_token(username, password):
     try:
       # Get JWT token for the user
       response = provider_client.initiate_auth(
-        ClientId='57tnil9teheh8ic5ravno5c7ln',
+        ClientId='25vssbned2bbaoi1q7rs4i914u',
         AuthFlow='USER_PASSWORD_AUTH',
         AuthParameters={'USERNAME': username,'PASSWORD': password})
 
