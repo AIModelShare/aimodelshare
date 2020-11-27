@@ -129,6 +129,16 @@ def create_prediction_api(my_credentials, model_filepath, unique_model_id, model
         with open(os.path.join(temp_dir, 'main.py'), 'w') as file:
             file.write(newdata)
 
+    elif model_type.lower() == 'audio' and categorical == 'TRUE':
+        with open('./aimodelshare/main/7.txt', 'r') as txt_file:
+            data = txt_file.read()
+            from string import Template
+            t = Template(data)
+            newdata = t.substitute(
+                bucket_name=bucket_name, unique_model_id=unique_model_id, labels=labels)
+        with open(os.path.join(temp_dir, 'main.py'), 'w') as file:
+            file.write(newdata)
+
     with zipfile.ZipFile(os.path.join(temp_dir, 'archive.zip'), 'a') as z:
         z.write(os.path.join(temp_dir, 'main.py'), 'main.py')
 
