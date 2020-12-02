@@ -12,7 +12,7 @@ import functools
 from zipfile import ZipFile, ZIP_STORED, ZipInfo
 
 
-def create_prediction_api(my_credentials, model_filepath, unique_model_id, model_type,categorical, labels):
+def create_prediction_api(my_credentials, model_filepath, unique_model_id, model_type, categorical, labels):
 
     AI_MODELSHARE_AccessKeyId = my_credentials["AI_MODELSHARE_AccessKeyId"]
     AI_MODELSHARE_SecretAccessKey = my_credentials["AI_MODELSHARE_SecretAccessKey"]
@@ -25,19 +25,21 @@ def create_prediction_api(my_credentials, model_filepath, unique_model_id, model
     time.sleep(5)
     user_session = boto3.session.Session(aws_access_key_id=AI_MODELSHARE_AccessKeyId,
                                          aws_secret_access_key=AI_MODELSHARE_SecretAccessKey, region_name=region)
-    if model_type=='image' :
-           model_layer ="arn:aws:lambda:us-east-1:517169013426:layer:keras_image:1"
-    elif model_type=='text':
-           model_layer ="arn:aws:lambda:us-east-1:517169013426:layer:tabular_layer:2"
-           keras_layer ='arn:aws:lambda:us-east-1:517169013426:layer:keras_preprocesor:1'
-    elif model_type == 'tabular' or model_type =='timeseries':
-            model_layer ="arn:aws:lambda:us-east-1:517169013426:layer:tabular_cloudpicklelayer:1"
+    if model_type == 'image':
+           model_layer = "arn:aws:lambda:us-east-1:517169013426:layer:keras_image:1"
+    elif model_type == 'text':
+           model_layer = "arn:aws:lambda:us-east-1:517169013426:layer:tabular_layer:2"
+           keras_layer = 'arn:aws:lambda:us-east-1:517169013426:layer:keras_preprocesor:1'
+    elif model_type == 'tabular' or model_type == 'timeseries':
+            model_layer = "arn:aws:lambda:us-east-1:517169013426:layer:tabular_cloudpicklelayer:1"
     elif model_type.lower() == 'audio':
       model_layer = "arn:aws:lambda:us-east-1:517169013426:layer:librosa_nosklearn:9"
-    else :
+    elif model_type.lower() == 'video':
+      model_layer = "arn:aws:lambda:us-east-1:517169013426:layer:videolayer:3"
+    else:
         print("no matching model data type to load correct python package zip file (lambda layer)")
 
-    #cloud_layer = "arn:aws:lambda:us-east-1:517169013426:layer:tabular_cloudpicklelayer:1"
+    # cloud_layer = "arn:aws:lambda:us-east-1:517169013426:layer:tabular_cloudpicklelayer:1"
     # dill_layer ="arn:aws:lambda:us-east-1:517169013426:layer:dill:3"
 
   # Update note:  dyndb data to add.  apiname. (include username too)
@@ -65,17 +67,17 @@ def create_prediction_api(my_credentials, model_filepath, unique_model_id, model
     # Update note:  dyndb data to add.  api_id and resourceid "Resource": "arn:aws:execute-api:us-east-1:517169013426:iu3q9io652/prod/OPTIONS/m"
 
     response3 = user_client.get_resources(restApiId=api_id)
-    resourceidlist=response3['items']
+    resourceidlist = response3['items']
 
-    # Python3 code to iterate over a list 
-    api_id_data = {}   
-    # Using for loop 
-    for i in resourceidlist: 
+    # Python3 code to iterate over a list
+    api_id_data = {}
+    # Using for loop
+    for i in resourceidlist:
         api_id_data.update({i['path']: i['id']})
 
-    resource_id_parent=api_id_data['/']
-    resource_id=api_id_data['/m']
-    resource_id_eval=api_id_data['/eval']
+    resource_id_parent = api_id_data['/']
+    resource_id = api_id_data['/m']
+    resource_id_eval = api_id_data['/eval']
 
     import tempfile
     from zipfile import ZipFile
@@ -85,7 +87,6 @@ def create_prediction_api(my_credentials, model_filepath, unique_model_id, model
     # create temporary folder
     temp_dir = tempfile.gettempdir()
 
-    
     # write main handlers
     if model_type == 'text' and categorical == 'TRUE':
         with open('./aimodelshare/main/1.txt', 'r') as txt_file:  # this is for keras_image_color
@@ -161,6 +162,16 @@ def create_prediction_api(my_credentials, model_filepath, unique_model_id, model
         with open(os.path.join(temp_dir, 'main.py'), 'w') as file:
             file.write(newdata)
 
+
+    elif model_type.lower() == 'video' and categorical == 'TRUE':
+        with open('./aimodelshare/main/8.txt', 'r') as txt_file:
+            data = txt_file.read()
+            from string import Template
+            t = Template(data)
+            newdata = t.substitute(
+                bucket_name=bucket_name, unique_model_id=unique_model_id, labels=labels)
+        with open(os.path.join(temp_dir, 'main.py'), 'w') as file:
+            file.write(newdata)
     with zipfile.ZipFile(os.path.join(temp_dir, 'archive.zip'), 'a') as z:
         z.write(os.path.join(temp_dir, 'main.py'), 'main.py')
 
@@ -309,8 +320,8 @@ def create_prediction_api(my_credentials, model_filepath, unique_model_id, model
 
     lambdaclient = user_session.client('lambda')
 
-##!!!  this is f'd.  looks like aishwarya hasn't fixed the reference to other layers!  It's a good start, but we should add a subfunction to return
-## the correct layer from an externally stored list (save arns to a github repo and allow them to be imported here at some point.)
+# !!!  this is f'd.  looks like aishwarya hasn't fixed the reference to other layers!  It's a good start, but we should add a subfunction to return
+# the correct layer from an externally stored list (save arns to a github repo and allow them to be imported here at some point.)
     layers = []
     layers.append(model_layer)
     if model_type =='text':
