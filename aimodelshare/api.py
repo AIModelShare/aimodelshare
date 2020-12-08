@@ -10,7 +10,7 @@ import shutil
 import time
 import functools
 from zipfile import ZipFile, ZIP_STORED, ZipInfo
-
+from aimodelshare.tools import find_redis_version
 
 def create_prediction_api(my_credentials, model_filepath, unique_model_id, model_type,categorical, labels):
 
@@ -32,13 +32,12 @@ def create_prediction_api(my_credentials, model_filepath, unique_model_id, model
            keras_layer ='arn:aws:lambda:us-east-1:517169013426:layer:keras_preprocesor:1'
     elif model_type == 'tabular' or model_type =='timeseries':
             model_layer ="arn:aws:lambda:us-east-1:517169013426:layer:tabular_cloudpicklelayer:1"
-    elif model_type.lower() == 'audio':
+    elif model_type == 'audio':
       model_layer = "arn:aws:lambda:us-east-1:517169013426:layer:librosa_nosklearn:9"
     else :
         print("no matching model data type to load correct python package zip file (lambda layer)")
 
-    #cloud_layer = "arn:aws:lambda:us-east-1:517169013426:layer:tabular_cloudpicklelayer:1"
-    # dill_layer ="arn:aws:lambda:us-east-1:517169013426:layer:dill:3"
+   
 
   # Update note:  dyndb data to add.  apiname. (include username too)
 
@@ -219,6 +218,7 @@ def create_prediction_api(my_credentials, model_filepath, unique_model_id, model
 #!!! 2. update lambda creation code and iam policy attachements/apigateway integrations next.
 
     # Create and/or update roles for lambda function you will create below
+    lambdaclient = user_session.client('lambda')
     lambdarole1 = {u'Version': u'2012-10-17', u'Statement': [
         {u'Action': u'sts:AssumeRole', u'Effect': u'Allow', u'Principal': {u'Service': u'lambda.amazonaws.com'}}]}
     lambdarolename = 'myService-dev-us-east-1-lambdaRole'
@@ -226,7 +226,27 @@ def create_prediction_api(my_credentials, model_filepath, unique_model_id, model
     roles = user_session.client('iam').list_roles()
 
     lambdafxnname = 'modfunction'+str(random.randint(1, 1000000))
-    lambdaauthfxnname = 'redisAccess'
+    #lambdaauthfxnname = 'redisAccess'
+    redis_version =-1 
+    try:
+        redis_version = find_redis_version(lambdaclient)
+        #print("current auth function version: "+ str(redis_version))  
+    except Exception as e:
+        print(e)
+        #redis_version =1 
+    #redislambda_suffix = str(redis_version)
+    if redis_version==1:
+        #lambda name : redisAccess
+        redis_version = ""
+    elif redis_version ==0:
+        redis_version = ""
+        ####### UPLOAD AUTH FXN CODE(REDIS LAMBDA)
+    elif redis_version ==-1:
+        print("something wrong with find_redis_version")
+    redis_version = str(redis_version)
+       
+
+    lambdaauthfxnname = "redisAccess"+ redis_version
     lambdaevalfxnname = 'evalfunction'+str(random.randint(1, 1000000))
 
     if str(roles['Roles']).find("myService-dev-us-east-1-lambdaRole") > 0:
@@ -307,7 +327,7 @@ def create_prediction_api(my_credentials, model_filepath, unique_model_id, model
             RoleName=lambdarolename,
         )
 
-    lambdaclient = user_session.client('lambda')
+    
 
 ##!!!  this is f'd.  looks like aishwarya hasn't fixed the reference to other layers!  It's a good start, but we should add a subfunction to return
 ## the correct layer from an externally stored list (save arns to a github repo and allow them to be imported here at some point.)
@@ -335,23 +355,43 @@ def create_prediction_api(my_credentials, model_filepath, unique_model_id, model
 
     fxn_list = lambdaclient.list_functions()
     stmt_id = 'apigateway-prod-'+str(random.randint(1, 1000000))
-    if str(fxn_list.items()).find("redisAccess") > 0:
+    #if str(fxn_list.items()).find("redisAccess") > 0:
+        #### only gets first 50 lambda functions not all
+        
+    #else:
+       
+        # UPLOAD AUTH FXN CODE(REDIS LAMBDA)
+   
+    # this is the current redis lambda fxn name in use
+    try:
+        # try adding permissions to the current redis lambda in use
         response7 = lambdaclient.add_permission(
+        FunctionName=lambdaauthfxnname,
+        StatementId=stmt_id,
+        Action='lambda:InvokeFunction',
+        Principal='apigateway.amazonaws.com',
+        SourceArn='arn:aws:execute-api:us-east-1:'+account_number+":"+api_id+'/*/*',
+        )
+    except botocore.exceptions.ClientError as error:
+        if error.response['Error']['Code'] == 'PolicyLengthExceededException':
+            logger.warn('Policy length exceeded for Authorization lambda. Creating another redis lambda...')
+            lambdaauthfxnname = 'redisAccess'+str(redis_version+1)
+
+            ########### UPLOAD AUTH FXN CODE FOR NEW REDIS LAMBDA with version+1 lambda name suffix
+            response7 = lambdaclient.add_permission(
             FunctionName=lambdaauthfxnname,
             StatementId=stmt_id,
             Action='lambda:InvokeFunction',
             Principal='apigateway.amazonaws.com',
             SourceArn='arn:aws:execute-api:us-east-1:'+account_number+":"+api_id+'/*/*',
-        )
-    else:
-        # upload authfxn code first
-        response7 = lambdaclient.add_permission(
-            FunctionName=lambdaauthfxnname,
-            StatementId=stmt_id,
-            Action='lambda:InvokeFunction',
-            Principal='apigateway.amazonaws.com',
-            SourceArn='arn:aws:execute-api:us-east-1:'+account_number+":"+api_id+'/*/*',
-        )
+            )
+            
+        else:
+            raise error
+    
+
+
+  
     # Update note:  dyndb data to add.  lambdafxnname
 
     # change api name below?

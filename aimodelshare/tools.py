@@ -101,3 +101,24 @@ def _get_extension_from_filepath(Filepath):
   file_name, file_extension = os.path.splitext(Filename)
   return file_extension
 
+def find_redis_version(lambdaclient,lambdaauthfxnname='redisAccess'):
+    #Lambda Auth function name is of the type : redisAccess or redisAccess2
+    i=0
+    version =-1
+    while version<0:
+        try:
+            i+=1
+            if i==1:
+                response_2 = lambdaclient.get_function(
+                             FunctionName=lambdaauthfxnname
+                                                     )
+            else:
+                fname = lambdaauthfxnname+str(i)
+                response_2 = lambdaclient.get_function(
+                             FunctionName=fname
+                                                     )
+            #i+=1
+        except:
+            version =i-1
+    return version 
+

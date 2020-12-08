@@ -89,10 +89,9 @@ def _upload_preprocessor(preprocessor, client, bucket, model_id, model_version):
     from zipfile import ZipFile
     dir_zip = preprocessor
 
-    #zipObj = ZipFile(os.path.join("./preprocessor.zip"), 'a')
-    #/Users/aishwarya/Downloads/aimodelshare-master
     client["client"].upload_file(dir_zip, bucket, model_id + "/preprocessor_v" + str(model_version)+ ".zip")
   except Exception as e:
+    print("An Error occurred while uploading preprocessor.")
     print(e)
 
 def _extract_model_metadata(model, eval_metrics=None):
