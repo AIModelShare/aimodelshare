@@ -1,4 +1,3 @@
-import numpy as np
 # data wrangling
 import pandas as pd
 import numpy as np
@@ -15,17 +14,19 @@ from skl2onnx import convert_sklearn
 import keras2onnx
 from keras2onnx import convert_keras
 from torch.onnx import export
+from onnx.tools.net_drawer import GetPydotGraph, GetOpNodeProducer
+
 
 # os etc
 import os
 import ast
 import tempfile
+import json
 
 
 def _extract_onnx_metadata(onnx_model, framework):
     '''Extracts model metadata from ONNX file.'''
 
-    
     try:
         # get model graph
         graph = onnx_model.graph
@@ -34,24 +35,53 @@ def _extract_onnx_metadata(onnx_model, framework):
         metadata_onnx = {}
 
         # get input shape
-        metadata_onnx["input_shape"] = graph.input[0].type.tensor_type.shape.dim[1]
+        metadata_onnx["input_shape"] = graph.input[0].type.tensor_type.shape.dim[1].dim_value
 
         # get output shape
-        metadata_onnx["output_shape"] = graph.output[0].type.tensor_type.shape.dim[1]  
+        metadata_onnx["output_shape"] = graph.output[0].type.tensor_type.shape.dim[1].dim_value 
 
-        # get layers
-        layers = [i.op_type for i in graph.node]
+        # get layers & activations 
+        layer_nodes = ['MatMul']
+        activation_nodes = ['Relu', 'Softmax']
+    
+        layers = []
+        activations = []
+        
+        for op_id, op in enumerate(graph.node):
+
+            if op.op_type in layer_nodes:
+                layers.append(op.op_type)
+
+            if op.op_type in activation_nodes:
+                activations.append(op.op_type)
+                
+                
+        # get shapes and parameters
+        layers_shapes = []
+        layers_n_params = []
+
+        for layer_id, layer in enumerate(reversed(graph.initializer)):
+
+            if(len(layer.dims)== 2):
+                layers_shapes.append(layer.dims[1])
+
+                n_params = layer.dims[0] * layer.dims[1] + layer.dims[1]
+                layers_n_params.append(n_params)
+                
 
         # get model architecture stats
         model_architecture = {'layers_number': len(layers),
                           'layers_sequence': layers,
                           'layers_summary': {i:layers.count(i) for i in set(layers)},
-                          'layers_n_params': [np.product(i.dims) for i in graph.initializer],
-                          'layers_shapes': [i.dims for i in graph.initializer],
-                          #'activations_sequence': activations,
-                          #'activations_summary': {i:activations.count(i) for i in set(activations)}
+                          'layers_n_params': layers_n_params,
+                          'layers_shapes': layers_shapes,
+                          'activations_sequence': activations,
+                          'activations_summary': {i:activations.count(i) for i in set(activations)}
                          }
-    except Exception as e:\
+        
+        metadata_onnx["model_architecture"] = model_architecture
+        
+    except Exception as e:
         print(e)
 
     return metadata_onnx
@@ -111,7 +141,7 @@ def _sklearn_to_onnx(model, initial_types, transfer_learning=None,
         metadata['eval_metrics'] = None  
         
         # add metadata from onnx object
-        metadata['metadata_onnx'] = _extract_onnx_metadata(onx, framework='sklearn')
+        metadata['metadata_onnx'] = str(_extract_onnx_metadata(onx, framework='sklearn'))
 
         meta = onx.metadata_props.add()
         meta.key = 'model_metadata'
@@ -171,32 +201,41 @@ def _keras_to_onnx(model, transfer_learning=None,
         metadata['model_state'] = None
         
         # extract model architecture metadata 
-        layers = [x.__class__.__name__ for x in model.layers]
-        
+        layers = []
+        layers_n_params = []
+        layers_shapes = []
         activations = []
-        for i in model.layers:        
+        
+        for i in model.layers: 
+            
+            if i.__class__.__name__ != 'Activation':
+                
+                layers.append(i.__class__.__name__)
+                layers_n_params.append(i.count_params())
+                layers_shapes.append(i.output_shape)
 
             try:
-                activations.append(i.activation.__name__)
+                if i.activation.__name__ != 'linear':
+                    activations.append(i.activation.__name__)
             except:
                 activations.append(None)
 
         model_architecture = {'layers_number': len(layers),
                               'layers_sequence': layers,
                               'layers_summary': {i:layers.count(i) for i in set(layers)},
-                              'layers_n_params': [x.count_params() for x in model.layers],
-                              'layers_shapes': [x.output_shape for x in model.layers],
-                              #'activations_sequence': activations,
-                              #'activations_summary': {i:activations.count(i) for i in set(activations)}
+                              'layers_n_params': layers_n_params,
+                              'layers_shapes': layers_shapes,
+                              'activations_sequence': activations,
+                              'activations_summary': {i:activations.count(i) for i in set(activations)}
                              }
                               
-        metadata['model_architecture'] = model_architecture
+        metadata['model_architecture'] = str(model_architecture)
             
         # placeholder, needs evaluation engine
         metadata['eval_metrics'] = None
         
         # add metadata from onnx object
-        metadata['metadata_onnx'] = _extract_onnx_metadata(onx, framework='keras')
+        metadata['metadata_onnx'] = str(_extract_onnx_metadata(onx, framework='keras'))
         
         # add metadata dict to onnx object
         meta = onx.metadata_props.add()
@@ -298,13 +337,13 @@ def _pytorch_to_onnx(model, model_input, transfer_learning=None,
                       #'activations_summary': {i:activations.count(i) for i in set(activations)}
                      }
         
-        metadata['model_architecture'] = None
+        metadata['model_architecture'] = str(model_architecture)
         
         # placeholder, needs evaluation engine
         metadata['eval_metrics'] = None
         
         # add metadata from onnx object
-        metadata['metadata_onnx'] = _extract_onnx_metadata(onx, framework='pytorch')
+        metadata['metadata_onnx'] = str(_extract_onnx_metadata(onx, framework='pytorch'))
         
         # add metadata dict to onnx object
         meta = onx.metadata_props.add()
@@ -388,10 +427,12 @@ def model_to_onnx(model, framework, model_input=None, initial_types=None,
                                 transfer_learning=transfer_learning, 
                                 deep_learning=deep_learning, 
                                 task_type=task_type)
+        
     elif framework == 'keras':
         onnx = _keras_to_onnx(model, transfer_learning=transfer_learning, 
                               deep_learning=deep_learning, 
                               task_type=task_type)
+        
     elif framework == 'pytorch':
         onnx = _pytorch_to_onnx(model, model_input=model_input,
                                 transfer_learning=transfer_learning, 
@@ -403,8 +444,10 @@ def model_to_onnx(model, framework, model_input=None, initial_types=None,
 
 
 def _get_metadata(onnx_model):
-    '''Fetches previously extracted model metadata from ONNX object'''
+    '''Fetches previously extracted model metadata from ONNX object
+    and returns model metadata dict.'''
     
+    # double check this 
     assert(isinstance(onnx_model, onnx.onnx_ml_pb2.ModelProto)), \
      "Please pass a onnx model object."
     
@@ -416,6 +459,20 @@ def _get_metadata(onnx_model):
         for i in onnx_meta:
             onnx_meta_dict[i.key] = i.value
 
+        onnx_meta_dict = ast.literal_eval(onnx_meta_dict['model_metadata'])
+        
+        if onnx_meta_dict['model_config'] != None and \
+        onnx_meta_dict['ml_framework'] != 'pytorch':
+            onnx_meta_dict['model_config'] = ast.literal_eval(onnx_meta_dict['model_config'])
+        
+        if onnx_meta_dict['model_architecture'] != None:
+            onnx_meta_dict['model_architecture'] = ast.literal_eval(onnx_meta_dict['model_architecture'])
+            
+        if onnx_meta_dict['metadata_onnx'] != None:
+            onnx_meta_dict['metadata_onnx'] = ast.literal_eval(onnx_meta_dict['metadata_onnx'])
+        
+        onnx_meta_dict['model_image'] = onnx_to_image(onnx_model)
+
     except Exception as e:
     
         print(e)
@@ -423,3 +480,61 @@ def _get_metadata(onnx_model):
         onnx_meta_dict = ast.literal_eval(onnx_meta_dict)
         
     return onnx_meta_dict
+
+
+
+def _model_summary(meta_dict, from_onnx=False):
+    '''Creates model summary table from model metadata dict.'''
+    
+    assert(isinstance(meta_dict, dict)), \
+    "Please pass valid metadata dict."
+    
+    assert('model_architecture' in meta_dict.keys()), \
+    "Please make sure model architecture data is included."
+    
+    
+    if from_onnx == False:
+        architecture = meta_dict["model_architecture"] 
+
+        model_summary = pd.DataFrame({'Layer':architecture['layers_sequence'],
+                                      'Activation':architecture['activations_sequence'],
+                                      'Shape':architecture['layers_shapes'],
+                                      'Params':architecture['layers_n_params']})
+        
+    if from_onnx == True:
+        architecture = meta_dict['metadata_onnx']["model_architecture"]
+        
+        model_summary = pd.DataFrame({'Layer':architecture['layers_sequence'],
+                              'Activation':architecture['activations_sequence'],
+                              'Shape':architecture['layers_shapes'],
+                              'Params':architecture['layers_n_params']})
+        
+    
+    return model_summary
+
+
+
+def onnx_to_image(model):
+    '''Creates model graph image in pydot format.'''
+    
+    OP_STYLE = {
+    'shape': 'box',
+    'color': '#0F9D58',
+    'style': 'filled',
+    'fontcolor': '#FFFFFF'
+    }
+    
+    pydot_graph = GetPydotGraph(
+        model.graph,
+        name=model.graph.name,
+        rankdir='TB',
+        node_producer=GetOpNodeProducer(
+            embed_docstring=False,
+            **OP_STYLE
+        )
+    )
+    
+    return pydot_graph
+
+
+
