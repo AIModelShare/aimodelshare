@@ -33,7 +33,7 @@ def create_prediction_api(my_credentials, model_filepath, unique_model_id, model
     elif model_type == 'tabular' or model_type =='timeseries':
             model_layer ="arn:aws:lambda:us-east-1:517169013426:layer:tabular_cloudpicklelayer:1"
     elif model_type == 'audio':
-      model_layer = "arn:aws:lambda:us-east-1:517169013426:layer:librosa_nosklearn:9"
+      		model_layer = "arn:aws:lambda:us-east-1:517169013426:layer:librosa_nosklearn:9"
     else :
         print("no matching model data type to load correct python package zip file (lambda layer)")
 
@@ -233,20 +233,24 @@ def create_prediction_api(my_credentials, model_filepath, unique_model_id, model
         #print("current auth function version: "+ str(redis_version))  
     except Exception as e:
         print(e)
-        #redis_version =1 
-    #redislambda_suffix = str(redis_version)
+        
+
+    redis_suffix = str(redis_version)
     if redis_version==1:
         #lambda name : redisAccess
-        redis_version = ""
+        redis_suffix = ""
     elif redis_version ==0:
-        redis_version = ""
+        redis_suffix = ""
+
         ####### UPLOAD AUTH FXN CODE(REDIS LAMBDA)
     elif redis_version ==-1:
-        print("something wrong with find_redis_version")
-    redis_version = str(redis_version)
-       
+        print("something wrong with finding_redis_version")
 
-    lambdaauthfxnname = "redisAccess"+ redis_version
+    #redis_suffix = str(redis_version)
+    #print("redisAcess")
+    #print(redis_version)   
+
+    lambdaauthfxnname = "redisAccess"+ redis_suffix
     lambdaevalfxnname = 'evalfunction'+str(random.randint(1, 1000000))
 
     if str(roles['Roles']).find("myService-dev-us-east-1-lambdaRole") > 0:
@@ -355,14 +359,7 @@ def create_prediction_api(my_credentials, model_filepath, unique_model_id, model
 
     fxn_list = lambdaclient.list_functions()
     stmt_id = 'apigateway-prod-'+str(random.randint(1, 1000000))
-    #if str(fxn_list.items()).find("redisAccess") > 0:
-        #### only gets first 50 lambda functions not all
-        
-    #else:
-       
-        # UPLOAD AUTH FXN CODE(REDIS LAMBDA)
-   
-    # this is the current redis lambda fxn name in use
+    
     try:
         # try adding permissions to the current redis lambda in use
         response7 = lambdaclient.add_permission(
@@ -374,9 +371,15 @@ def create_prediction_api(my_credentials, model_filepath, unique_model_id, model
         )
     except botocore.exceptions.ClientError as error:
         if error.response['Error']['Code'] == 'PolicyLengthExceededException':
-            logger.warn('Policy length exceeded for Authorization lambda. Creating another redis lambda...')
-            lambdaauthfxnname = 'redisAccess'+str(redis_version+1)
+            print('Policy length exceeded for Authorization lambda. Creating another redis lambda...')
+            if redis_version ==0:
+            	#redis_suffix =""
+            	lambdaauthfxnname = 'redisAccess'
+            else :
+				lambdaauthfxnname = 'redisAccess'+str(redis_version+1)
 
+            
+            launch_new_redis(lambdaclient,lambdaauthfxnname,account_number,lambdarolename)
             ########### UPLOAD AUTH FXN CODE FOR NEW REDIS LAMBDA with version+1 lambda name suffix
             response7 = lambdaclient.add_permission(
             FunctionName=lambdaauthfxnname,
@@ -385,6 +388,7 @@ def create_prediction_api(my_credentials, model_filepath, unique_model_id, model
             Principal='apigateway.amazonaws.com',
             SourceArn='arn:aws:execute-api:us-east-1:'+account_number+":"+api_id+'/*/*',
             )
+            #print(response7)
             
         else:
             raise error
@@ -681,6 +685,15 @@ def create_prediction_api(my_credentials, model_filepath, unique_model_id, model
             },
             "body": json.dumps(result)}
 
+def launch_new_redis(lambdaclient,lambdaauthfxnname,account_number,lambdarolename):
+	layer=['arn:aws:lambda:us-east-1:517169013426:layer:redisAccessfxn_layer:27']
+	response = lambdaclient.create_function(FunctionName=lambdaauthfxnname, Runtime='python3.6', Role='arn:aws:iam::'+account_number+':role/'+lambdarolename, Handler='main.handler',
+                                             Code={
+                                                 'S3Bucket': 'aimodelshare-redis-upload',
+                                                 'S3Key': 'redis.zip'
+                                             }, Timeout=10, MemorySize=512,Layers=layer)
+
+    #print(response)
 
 def get_api_json():
     apijson = '''{
