@@ -16,7 +16,6 @@ from keras2onnx import convert_keras
 from torch.onnx import export
 from onnx.tools.net_drawer import GetPydotGraph, GetOpNodeProducer
 
-
 # os etc
 import os
 import ast
@@ -41,14 +40,14 @@ def _extract_onnx_metadata(onnx_model, framework):
         metadata_onnx["output_shape"] = graph.output[0].type.tensor_type.shape.dim[1].dim_value 
 
         # get layers & activations 
-        layer_nodes = ['MatMul']
+        layer_nodes = ['MatMul', 'Gemm']
         activation_nodes = ['Relu', 'Softmax']
     
         layers = []
         activations = []
         
         for op_id, op in enumerate(graph.node):
-
+            
             if op.op_type in layer_nodes:
                 layers.append(op.op_type)
 
@@ -59,13 +58,22 @@ def _extract_onnx_metadata(onnx_model, framework):
         # get shapes and parameters
         layers_shapes = []
         layers_n_params = []
-
-        for layer_id, layer in enumerate(reversed(graph.initializer)):
-
-            if(len(layer.dims)== 2):
+        
+        if framework == 'keras':
+        initializer = list(reversed(graph.initializer))
+        for layer_id, layer in enumerate(initializer):
+            if(len(layer.dims)>= 2):
                 layers_shapes.append(layer.dims[1])
+                n_params = int(np.prod(layer.dims) + initializer[layer_id-1].dims)
 
-                n_params = layer.dims[0] * layer.dims[1] + layer.dims[1]
+                layers_n_params.append(n_params)
+            
+        elif framework == 'pytorch':
+        initializer = graph.initializer
+        for layer_id, layer in enumerate(initializer):
+            if(len(layer.dims)>= 2):
+                layers_shapes.append(layer.dims[0])
+                n_params = int(np.prod(layer.dims) + initializer[layer_id-1].dims)
                 layers_n_params.append(n_params)
                 
 
@@ -304,28 +312,29 @@ def _pytorch_to_onnx(model, model_input, transfer_learning=None,
         metadata['model_state'] = str(model.state_dict())
         
         # extract model architecture metadata
-        layers = [j._get_name() for i, j  in model.__dict__['_modules'].items()]
+        activation_names = ['ReLU', 'Softmax']   #placeholder
+        layer_names = []
         
+        layers = []
         layers_shapes = []
-        for i, j  in model.__dict__['_modules'].items():
-            try:
-                layers_shapes.append(j.out_features)
-            except:
-                layers_shapes.append(0)
-                
         n_params = []
-        for i, j  in model.__dict__['_modules'].items():
-            try:
-                weights = np.prod(j._parameters['weight'].shape)
-            except:
-                weights = 0
 
-            try:
-                bias = np.prod(j._parameters['bias'].shape)
-            except:
-                bias = 0
+                  
+        for i, j  in model.__dict__['_modules'].items():
+            
+            if j._get_name() not in activation_names:
                 
-            n_params.append(weights+bias)
+                layers.append(j._get_name())
+                layers_shapes.append(j.out_features)
+                weights = np.prod(j._parameters['weight'].shape)
+                bias = np.prod(j._parameters['bias'].shape)
+                n_params.append(weights+bias)
+ 
+        
+        activations = []
+        for i, j in model.__dict__['_modules'].items():
+            if str(j).split('(')[0] in activation_names:
+                activations.append(str(j).split('(')[0])
         
         
         model_architecture = {'layers_number': len(layers),
@@ -333,8 +342,8 @@ def _pytorch_to_onnx(model, model_input, transfer_learning=None,
                       'layers_summary': {i:layers.count(i) for i in set(layers)},
                       'layers_n_params': n_params,
                       'layers_shapes': layers_shapes,
-                      #'activations_sequence': activations,
-                      #'activations_summary': {i:activations.count(i) for i in set(activations)}
+                      'activations_sequence': activations,
+                      'activations_summary': {i:activations.count(i) for i in set(activations)}
                      }
         
         metadata['model_architecture'] = str(model_architecture)
@@ -491,27 +500,19 @@ def _model_summary(meta_dict, from_onnx=False):
     
     assert('model_architecture' in meta_dict.keys()), \
     "Please make sure model architecture data is included."
-    
-    
-    if from_onnx == False:
-        architecture = meta_dict["model_architecture"] 
 
-        model_summary = pd.DataFrame({'Layer':architecture['layers_sequence'],
-                                      'Activation':architecture['activations_sequence'],
-                                      'Shape':architecture['layers_shapes'],
-                                      'Params':architecture['layers_n_params']})
-        
     if from_onnx == True:
         architecture = meta_dict['metadata_onnx']["model_architecture"]
+    else:
+        architecture = meta_dict["model_architecture"] 
+       
         
-        model_summary = pd.DataFrame({'Layer':architecture['layers_sequence'],
-                              'Activation':architecture['activations_sequence'],
-                              'Shape':architecture['layers_shapes'],
-                              'Params':architecture['layers_n_params']})
+    model_summary = pd.DataFrame({'Layer':architecture['layers_sequence'],
+                          'Activation':architecture['activations_sequence'],
+                          'Shape':architecture['layers_shapes'],
+                          'Params':architecture['layers_n_params']})
         
-    
     return model_summary
-
 
 
 def onnx_to_image(model):
