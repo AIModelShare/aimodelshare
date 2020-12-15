@@ -26,71 +26,70 @@ import json
 def _extract_onnx_metadata(onnx_model, framework):
     '''Extracts model metadata from ONNX file.'''
 
-    try:
-        # get model graph
-        graph = onnx_model.graph
+    # get model graph
+    graph = onnx_model.graph
 
-        # initialize metadata dict
-        metadata_onnx = {}
+    # initialize metadata dict
+    metadata_onnx = {}
 
-        # get input shape
-        metadata_onnx["input_shape"] = graph.input[0].type.tensor_type.shape.dim[1].dim_value
+    # get input shape
+    metadata_onnx["input_shape"] = graph.input[0].type.tensor_type.shape.dim[1].dim_value
 
-        # get output shape
-        metadata_onnx["output_shape"] = graph.output[0].type.tensor_type.shape.dim[1].dim_value 
+    # get output shape
+    metadata_onnx["output_shape"] = graph.output[0].type.tensor_type.shape.dim[1].dim_value 
 
-        # get layers & activations 
-        layer_nodes = ['MatMul', 'Gemm']
-        activation_nodes = ['Relu', 'Softmax']
-    
-        layers = []
-        activations = []
-        
-        for op_id, op in enumerate(graph.node):
-            
-            if op.op_type in layer_nodes:
-                layers.append(op.op_type)
+    # get layers & activations 
+    layer_nodes = ['MatMul', 'Gemm', 'Conv']
+    activation_nodes = ['Relu', 'Softmax']
 
-            if op.op_type in activation_nodes:
-                activations.append(op.op_type)
-                
-                
-        # get shapes and parameters
-        layers_shapes = []
-        layers_n_params = []
-        
-        if framework == 'keras':
+    layers = []
+    activations = []
+
+    for op_id, op in enumerate(graph.node):
+
+        if op.op_type in layer_nodes:
+            layers.append(op.op_type)
+        #else:
+            #layers.append(None)
+
+        if op.op_type in activation_nodes:
+            activations.append(op.op_type)
+        #else:
+            #activations.append(None)
+
+
+    # get shapes and parameters
+    layers_shapes = []
+    layers_n_params = []
+
+    if framework == 'keras':
         initializer = list(reversed(graph.initializer))
         for layer_id, layer in enumerate(initializer):
             if(len(layer.dims)>= 2):
                 layers_shapes.append(layer.dims[1])
                 n_params = int(np.prod(layer.dims) + initializer[layer_id-1].dims)
-
                 layers_n_params.append(n_params)
-            
-        elif framework == 'pytorch':
+
+    elif framework == 'pytorch':
         initializer = graph.initializer
         for layer_id, layer in enumerate(initializer):
             if(len(layer.dims)>= 2):
                 layers_shapes.append(layer.dims[0])
                 n_params = int(np.prod(layer.dims) + initializer[layer_id-1].dims)
                 layers_n_params.append(n_params)
-                
 
-        # get model architecture stats
-        model_architecture = {'layers_number': len(layers),
-                          'layers_sequence': layers,
-                          'layers_summary': {i:layers.count(i) for i in set(layers)},
-                          'layers_n_params': layers_n_params,
-                          'layers_shapes': layers_shapes,
-                          'activations_sequence': activations,
-                          'activations_summary': {i:activations.count(i) for i in set(activations)}
-                         }
-        
-        metadata_onnx["model_architecture"] = model_architecture
-        
-    except Exception as e:
-        print(e)
+
+    # get model architecture stats
+    model_architecture = {'layers_number': len(layers),
+                      'layers_sequence': layers,
+                      'layers_summary': {i:layers.count(i) for i in set(layers)},
+                      'layers_n_params': layers_n_params,
+                      'layers_shapes': layers_shapes,
+                      'activations_sequence': activations,
+                      'activations_summary': {i:activations.count(i) for i in set(activations)}
+                     }
+
+    metadata_onnx["model_architecture"] = model_architecture
 
     return metadata_onnx
 
@@ -168,91 +167,87 @@ def _keras_to_onnx(model, transfer_learning=None,
     # check whether this is a fitted keras model
     # isinstance...
     
-    try:
-        # convert to onnx
-        onx = convert_keras(model)
-        
-        # generate metadata dict 
-        metadata = {}
-        
-        # placeholders, need to be generated elsewhere
-        metadata['model_id'] = None
-        metadata['data_id'] = None
-        metadata['preprocessor_id'] = None
-        
-        # infer ml framework from function call
-        metadata['ml_framework'] = 'keras'
-        
-        # get model type from model object
-        metadata['model_type'] =  str(model.__class__.__name__)
-        
-        # get transfer learning bool from user input
-        metadata['transfer_learning'] = transfer_learning
-        
-        # get deep learning bool from user input
-        metadata['deep_learning'] = deep_learning
-        
-        # get task type from user input
-        metadata['task_type'] = task_type
-        
-        # placeholders, need to be inferred from data 
-        metadata['target_distribution'] = None
-        metadata['input_type'] = None
-        metadata['input_shape'] = None
-        metadata['input_dtypes'] = None       
-        metadata['input_distribution'] = None
-        
-        # get model config dict from keras model object
-        metadata['model_config'] = str(model.get_config())
-        
-        # get model state from pytorch model object
-        metadata['model_state'] = None
-        
-        # extract model architecture metadata 
-        layers = []
-        layers_n_params = []
-        layers_shapes = []
-        activations = []
-        
-        for i in model.layers: 
-            
-            if i.__class__.__name__ != 'Activation':
-                
-                layers.append(i.__class__.__name__)
-                layers_n_params.append(i.count_params())
-                layers_shapes.append(i.output_shape)
+    # convert to onnx
+    onx = convert_keras(model)
 
-            try:
-                if i.activation.__name__ != 'linear':
-                    activations.append(i.activation.__name__)
-            except:
-                activations.append(None)
+    # generate metadata dict 
+    metadata = {}
 
-        model_architecture = {'layers_number': len(layers),
-                              'layers_sequence': layers,
-                              'layers_summary': {i:layers.count(i) for i in set(layers)},
-                              'layers_n_params': layers_n_params,
-                              'layers_shapes': layers_shapes,
-                              'activations_sequence': activations,
-                              'activations_summary': {i:activations.count(i) for i in set(activations)}
-                             }
-                              
-        metadata['model_architecture'] = str(model_architecture)
-            
-        # placeholder, needs evaluation engine
-        metadata['eval_metrics'] = None
-        
-        # add metadata from onnx object
-        metadata['metadata_onnx'] = str(_extract_onnx_metadata(onx, framework='keras'))
-        
-        # add metadata dict to onnx object
-        meta = onx.metadata_props.add()
-        meta.key = 'model_metadata'
-        meta.value = str(metadata)
-    
-    except Exception as e:
-        print(e)
-        
+    # placeholders, need to be generated elsewhere
+    metadata['model_id'] = None
+    metadata['data_id'] = None
+    metadata['preprocessor_id'] = None
+
+    # infer ml framework from function call
+    metadata['ml_framework'] = 'keras'
+
+    # get model type from model object
+    metadata['model_type'] =  str(model.__class__.__name__)
+
+    # get transfer learning bool from user input
+    metadata['transfer_learning'] = transfer_learning
+
+    # get deep learning bool from user input
+    metadata['deep_learning'] = deep_learning
+
+    # get task type from user input
+    metadata['task_type'] = task_type
+
+    # placeholders, need to be inferred from data 
+    metadata['target_distribution'] = None
+    metadata['input_type'] = None
+    metadata['input_shape'] = None
+    metadata['input_dtypes'] = None       
+    metadata['input_distribution'] = None
+
+    # get model config dict from keras model object
+    metadata['model_config'] = str(model.get_config())
+
+    # get model state from pytorch model object
+    metadata['model_state'] = None
+
+    # extract model architecture metadata 
+    layers = []
+    layers_n_params = []
+    layers_shapes = []
+    activations = []
+
+    for i in model.layers: 
+
+        if i.__class__.__name__ != 'Activation':
+
+            layers.append(i.__class__.__name__)
+            layers_n_params.append(i.count_params())
+            layers_shapes.append(i.output_shape)
+
+        try:
+            if i.activation.__name__ != 'linear':
+                activations.append(i.activation.__name__)
+        except:
+            activations.append(None)
+
+    model_architecture = {'layers_number': len(layers),
+                          'layers_sequence': layers,
+                          'layers_summary': {i:layers.count(i) for i in set(layers)},
+                          'layers_n_params': layers_n_params,
+                          'layers_shapes': layers_shapes,
+                          'activations_sequence': activations,
+                          'activations_summary': {i:activations.count(i) for i in set(activations)}
+                         }
+
+    metadata['model_architecture'] = str(model_architecture)
+
+    # placeholder, needs evaluation engine
+    metadata['eval_metrics'] = None
+
+    # add metadata from onnx object
+    metadata['metadata_onnx'] = str(_extract_onnx_metadata(onx, framework='keras'))
+
+    # add metadata dict to onnx object
+    meta = onx.metadata_props.add()
+    meta.key = 'model_metadata'
+    meta.value = str(metadata)
+
     return onx
 
 
@@ -263,105 +258,102 @@ def _pytorch_to_onnx(model, model_input, transfer_learning=None,
 
     # TODO check whether this is a fitted pytorch model
     # isinstance...
-    
-    try:
-        # generate tempfile for onnx object 
-        temp_dir = tempfile.gettempdir()
-        temp_path = os.path.join(temp_dir, 'temp_file_name')
-        
-        # generate onnx file and save it to temporary path
-        export(model, model_input, temp_path)
-        
-        # load onnx file from temporary path
-        onx = onnx.load(temp_path)
-        
-        # generate metadata dict 
-        metadata = {}
-        
-        # placeholders, need to be generated elsewhere
-        metadata['model_id'] = None
-        metadata['data_id'] = None
-        metadata['preprocessor_id'] = None
-        
-        # infer ml framework from function call
-        metadata['ml_framework'] = 'pytorch'
-        
-        # get model type from model object
-        metadata['model_type'] = str(model.__class__).split('.')[-1].split("'")[0] + '()'
-        
-        # get transfer learning bool from user input
-        metadata['transfer_learning'] = transfer_learning 
-        
-        # get deep learning bool from user input
-        metadata['deep_learning'] = deep_learning
-        
-        # get task type from user input 
-        metadata['task_type'] = task_type
-       
-        # placeholders, need to be inferred from data 
-        metadata['target_distribution'] = None
-        metadata['input_type'] = None
-        metadata['input_shape'] = None
-        metadata['input_dtypes'] = None       
-        metadata['input_distribution'] = None
-        
-        # get model config dict from pytorch model object
-        metadata['model_config'] = str(model.__dict__)
-        
-        # get model state from pytorch model object
-        metadata['model_state'] = str(model.state_dict())
-        
-        # extract model architecture metadata
-        activation_names = ['ReLU', 'Softmax']   #placeholder
-        layer_names = []
-        
-        layers = []
-        layers_shapes = []
-        n_params = []
 
-                  
-        for i, j  in model.__dict__['_modules'].items():
-            
-            if j._get_name() not in activation_names:
-                
-                layers.append(j._get_name())
-                layers_shapes.append(j.out_features)
-                weights = np.prod(j._parameters['weight'].shape)
-                bias = np.prod(j._parameters['bias'].shape)
-                n_params.append(weights+bias)
- 
-        
-        activations = []
-        for i, j in model.__dict__['_modules'].items():
-            if str(j).split('(')[0] in activation_names:
-                activations.append(str(j).split('(')[0])
-        
-        
-        model_architecture = {'layers_number': len(layers),
-                      'layers_sequence': layers,
-                      'layers_summary': {i:layers.count(i) for i in set(layers)},
-                      'layers_n_params': n_params,
-                      'layers_shapes': layers_shapes,
-                      'activations_sequence': activations,
-                      'activations_summary': {i:activations.count(i) for i in set(activations)}
-                     }
-        
-        metadata['model_architecture'] = str(model_architecture)
-        
-        # placeholder, needs evaluation engine
-        metadata['eval_metrics'] = None
-        
-        # add metadata from onnx object
-        metadata['metadata_onnx'] = str(_extract_onnx_metadata(onx, framework='pytorch'))
-        
-        # add metadata dict to onnx object
-        meta = onx.metadata_props.add()
-        meta.key = 'model_metadata'
-        meta.value = str(metadata)
+    # generate tempfile for onnx object 
+    temp_dir = tempfile.gettempdir()
+    temp_path = os.path.join(temp_dir, 'temp_file_name')
+
+    # generate onnx file and save it to temporary path
+    export(model, model_input, temp_path)
+
+    # load onnx file from temporary path
+    onx = onnx.load(temp_path)
+
+    # generate metadata dict 
+    metadata = {}
+
+    # placeholders, need to be generated elsewhere
+    metadata['model_id'] = None
+    metadata['data_id'] = None
+    metadata['preprocessor_id'] = None
+
+    # infer ml framework from function call
+    metadata['ml_framework'] = 'pytorch'
+
+    # get model type from model object
+    metadata['model_type'] = str(model.__class__).split('.')[-1].split("'")[0] + '()'
+
+    # get transfer learning bool from user input
+    metadata['transfer_learning'] = transfer_learning 
+
+    # get deep learning bool from user input
+    metadata['deep_learning'] = deep_learning
+
+    # get task type from user input 
+    metadata['task_type'] = task_type
+
+    # placeholders, need to be inferred from data 
+    metadata['target_distribution'] = None
+    metadata['input_type'] = None
+    metadata['input_shape'] = None
+    metadata['input_dtypes'] = None       
+    metadata['input_distribution'] = None
+
+    # get model config dict from pytorch model object
+    metadata['model_config'] = str(model.__dict__)
+
+    # get model state from pytorch model object
+    metadata['model_state'] = str(model.state_dict())
+
+    # extract model architecture metadata
+    activation_names = ['ReLU', 'Softmax']   #placeholder
+    layer_names = []
+
+    layers = []
+    layers_shapes = []
+    n_params = []
+
+
+    for i, j  in model.__dict__['_modules'].items():
+
+        if j._get_name() not in activation_names:
+
+            layers.append(j._get_name())
+            layers_shapes.append(j.out_features)
+            weights = np.prod(j._parameters['weight'].shape)
+            bias = np.prod(j._parameters['bias'].shape)
+            n_params.append(weights+bias)
+
+
+    activations = []
+    for i, j in model.__dict__['_modules'].items():
+        if str(j).split('(')[0] in activation_names:
+            activations.append(str(j).split('(')[0])
+
+
+    model_architecture = {'layers_number': len(layers),
+                  'layers_sequence': layers,
+                  'layers_summary': {i:layers.count(i) for i in set(layers)},
+                  'layers_n_params': n_params,
+                  'layers_shapes': layers_shapes,
+                  'activations_sequence': activations,
+                  'activations_summary': {i:activations.count(i) for i in set(activations)}
+                 }
+
+    metadata['model_architecture'] = str(model_architecture)
+
+    # placeholder, needs evaluation engine
+    metadata['eval_metrics'] = None
+
+    # add metadata from onnx object
+    metadata['metadata_onnx'] = str(_extract_onnx_metadata(onx, framework='pytorch'))
+
+    # add metadata dict to onnx object
+    meta = onx.metadata_props.add()
+    meta.key = 'model_metadata'
+    meta.value = str(metadata)
     
-    except Exception as e:
-        print(e)
-        
+
     return onx
 
 
