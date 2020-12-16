@@ -120,7 +120,7 @@ def take_user_info_and_generate_api(model_filepath, my_credentials, model_type, 
         runtime_data["runtime_preprocessor"] = runtime_preprocessor_type
 
 
-        if(y_test==None):
+        if(any(y_test==None)):
             pass
         else:
             ytest_path = os.path.join(temp_dir, "ytest.pkl")
