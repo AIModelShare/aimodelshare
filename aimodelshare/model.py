@@ -324,23 +324,23 @@ def submit_model(
     #  }}}
 
     # Update model version and sample data {{{
-    data_types = None
-    data_columns = None
-    if sample_data is not None and isinstance(sample_data, pd.DataFrame):
-        data_types = list(sample_data.dtypes.values.astype(str))
-        data_columns = list(sample_data.columns)
+    #data_types = None
+    #data_columns = None
+    #if sample_data is not None and isinstance(sample_data, pd.DataFrame):
+    #    data_types = list(sample_data.dtypes.values.astype(str))
+    #    data_columns = list(sample_data.columns)
 
-    kwargs = {
-        "delete": "FALSE",
-        "versionupdateget": "FALSE",
-        "versionupdateput": "TRUE",
-        "version": model_version,
-        "input_feature_dtypes": data_types,
-        "input_feature_names": data_columns,
-    }
-    response, error = run_function_on_lambda(apiurl, aws_token, **kwargs)
-    if error is not None:
-        raise error
+    #kwargs = {
+    #    "delete": "FALSE",
+    #    "versionupdateget": "FALSE",
+    #    "versionupdateput": "TRUE",
+    #    "version": model_version,
+    #    "input_feature_dtypes": data_types,
+    #    "input_feature_names": data_columns,
+    #}
+    #response, error = run_function_on_lambda(apiurl, aws_token, **kwargs)
+    #if error is not None:
+    #    raise error
     # }}}
 
     return True
