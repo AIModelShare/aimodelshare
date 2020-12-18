@@ -379,7 +379,7 @@ def create_prediction_api(my_credentials, model_filepath, unique_model_id, model
 				lambdaauthfxnname = 'redisAccess'+str(redis_version+1)
 
 			
-			launch_new_redis(lambdaclient,lambdaauthfxnname,account_number,lambdarolename)
+			launch_new_redis(lambdaclient,lambdaauthfxnname,account_number,lambdarolename,redis_version)
 			########### UPLOAD AUTH FXN CODE FOR NEW REDIS LAMBDA with version+1 lambda name suffix
 			response7 = lambdaclient.add_permission(
 			FunctionName=lambdaauthfxnname,
@@ -685,13 +685,22 @@ def create_prediction_api(my_credentials, model_filepath, unique_model_id, model
 			},
 			"body": json.dumps(result)}
 
-def launch_new_redis(lambdaclient,lambdaauthfxnname,account_number,lambdarolename):
-	layer=['arn:aws:lambda:us-east-1:517169013426:layer:redisAccessfxn_layer:27']
-	response = lambdaclient.create_function(FunctionName=lambdaauthfxnname, Runtime='python3.6', Role='arn:aws:iam::'+account_number+':role/'+lambdarolename, Handler='main.handler',
+def launch_new_redis(lambdaclient,lambdaauthfxnname,account_number,lambdarolename,redis_version):
+	if redis_version>0:
+		prev_response = lambdaclient.list_versions_by_function(
+    	FunctionName='redisAccess'+str(redis_version)
+		)
+		Vpc_config= prev_response['Versions'][0]['VpcConfig']
+		layer = prev_response['Versions'][0]['Layers'][0]['Arn']
+
+
+
+	#layer=['arn:aws:lambda:us-east-1:517169013426:layer:redisAccessfxn_layer:27']
+		response = lambdaclient.create_function(FunctionName=lambdaauthfxnname, Runtime='python3.6', Role='arn:aws:iam::'+account_number+':role/'+lambdarolename, Handler='main.handler',
 											 Code={
 												 'S3Bucket': 'aimodelshare-redis-upload',
 												 'S3Key': 'redis.zip'
-											 }, Timeout=10, MemorySize=512,Layers=layer)
+											 }, Timeout=10, MemorySize=512,VpcConfig=Vpc_config,Layers=[layer])
 
 	#print(response)
 
