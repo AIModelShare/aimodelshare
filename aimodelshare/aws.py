@@ -84,7 +84,7 @@ def run_function_on_lambda(url, token, **kwargs):
 
     headers_with_authentication = {
         "content-type": "application/json",
-        "Authorization": token["token"],
+        "authorizationToken": token["token"],
     }
 
     response = requests.post(
@@ -97,7 +97,7 @@ def run_function_on_lambda(url, token, **kwargs):
         return (
             None,
             AWSAccessError(
-                "Could not execute function on the lambda."
+                "Error:"
                 + "Please make sure your api url and token are correct."
             ),
         )
