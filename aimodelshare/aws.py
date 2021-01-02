@@ -88,7 +88,7 @@ def run_function_on_lambda(url, token, **kwargs):
     }
 
     response = requests.post(
-        "https://bbfgxopv21.execute-api.us-east-1.amazonaws.com/dev/todos",
+        "https://bhrdesksak.execute-api.us-east-1.amazonaws.com/dev/modeldata",
         json=kwargs,
         headers=headers_with_authentication,
     )
