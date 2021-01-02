@@ -235,10 +235,10 @@ def send_model_data_to_dyndb_and_return_api(api_info, my_credentials, private, c
                 "input_shape": input_shape
                 }
     # Get the response
-    headers_with_authentication = {'Content-Type': 'application/json', 'Authorization': returned_jwt_token, 'Access-Control-Allow-Headers':
+    headers_with_authentication = {'Content-Type': 'application/json', 'authorizationToken': returned_jwt_token, 'Access-Control-Allow-Headers':
                                    'Content-Type,X-Amz-Date,authorizationToken,Access-Control-Allow-Origin,X-Api-Key,X-Amz-Security-Token,Authorization', 'Access-Control-Allow-Origin': '*'}
     # modeltoapi lambda function invoked through below url to return new prediction api in response
-    requests.post("https://bbfgxopv21.execute-api.us-east-1.amazonaws.com/dev/todos",
+    requests.post("https://bhrdesksak.execute-api.us-east-1.amazonaws.com/dev/modeldata",
                   json=bodydata, headers=headers_with_authentication)
     start = api_info[2]
     end = datetime.datetime.now()
