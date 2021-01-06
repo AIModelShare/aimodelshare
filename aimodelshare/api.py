@@ -838,8 +838,46 @@ def get_api_json():
 		  }
 			  }'''
     return apijson
+    
+def full_deletion(model_id, s3_bucket_name,user_sess,api_id):
+    """
+    user_sess : boto3 session for authorised users {boto3.session.Session(aws_access_key_id=AI_MODELSHARE_AccessKeyId, aws_secret_access_key=AI_MODELSHARE_SecretAccessKey, region_name=region)}
+    s3_bucket_name : user's AImodelshare s3 bucket name extracted from my_credentials {my_credentials["bucket_name"]}
+    model_id : s3 path prefix to denote model subfolder in the bucket. previously generated unique model id like-'24071bc6ec6f11eaacf93af9d3ccdd9a'
+    api_id : api id where the aimodelshare model is hosted. - '09adl4fohc'
+    """
+    # delete s3 bucket
+    s3 = user_sess.resource('s3') 
+    bucket = s3.Bucket(s3_bucket_name)
+    bucket.objects.filter(Prefix= model_id+'/').delete()
+    # get api resources
+    api = user_sess.client('apigateway')
+    resources = api.get_resources(
+        restApiId=api_id
+        )
+    #get lambda arn from POST 
+    resource_id =resources['items'][0]['id'])
+    integration = api.get_integration(
+        restApiId=api_id,
+        resourceId=resource_id,
+        httpMethod='POST'
+    )
+    uri=integration['uri']
+    ans1=uri.split('functions/')
+    lambda_arn = ans1[1].split('/invocations')[0]
+    # delete lambda
+    lambda_response = client.delete_function(
+        FunctionName=lambda_arn
+    )
+    # delete api
+    api_response = client.delete_rest_api(
+        restApiId=api_id
+    )
+
+
 
 
 __all__ = [
     get_api_json,
+    create_prediction_api
 ]
