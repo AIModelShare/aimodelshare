@@ -196,6 +196,34 @@ def _update_leaderboard(
         return err
     # }}}
 
+def update_runtime_model(user_sess,bucket_name,model_id,new_model_version):
+    """
+    user_sess : boto3 session for authorised users {boto3.session.Session(aws_access_key_id=AI_MODELSHARE_AccessKeyId, aws_secret_access_key=AI_MODELSHARE_SecretAccessKey, region_name=region)}
+    bucket_name : user's AImodelshare master bucket name {my_credentials["bucket_name"]}
+    model_id : s3 path prefix to denote model subfolder in the bucket. previously generated unique model id like-'24071bc6ec6f11eaacf93af9d3ccdd9a'
+    new_model_version : file name for the new model file version{assuming it already exists in the bucket}  - 'predictionmodel_1.onnx'
+    """
+    s3 = user_sess.resource('s3')
+    # extract subfolder objects specific to the model id
+    folder = s3.meta.client.list_objects(Bucket=bucket_name, Prefix=model_id+"/")
+    bucket = s3.Bucket(bucket_name)
+    file_list = [file['Key'] for file in folder['Contents']]
+    s3 = boto3.resource('s3')
+    source_key = model_id+"/"+new_model_version
+    copy_source = {
+          'Bucket': bucket_name,
+          'Key': source_key
+        }
+    if source_key in file_list:
+        # copy the new model file resource with runtime_model as the file name to overwrite runtime_model.onnx file
+        response = bucket.copy(copy_source, model_id+"/"+'runtime_model.onnx')
+    else:
+        # the file resource to be the new runtime_model is not available
+        print(new_model_version+" file not found")
+   
+
+
+
 
 def submit_model(
     modelpath,
