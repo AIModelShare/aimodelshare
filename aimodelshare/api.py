@@ -85,11 +85,19 @@ def create_prediction_api(my_credentials, model_filepath, unique_model_id, model
     # create temporary folder
     temp_dir = tempfile.gettempdir()
 
-    
+    try:
+    	import importlib.resources as pkg_resources
+
+    except ImportError:
+    	# Try backported to PY<37 `importlib_resources`.
+    	import importlib_resources as pkg_resources
+
+    from . import main  # relative-import the *package* containing the templates
+
+
     # write main handlers
     if model_type == 'text' and categorical == 'TRUE':
-        with open('./aimodelshare/main/1.txt', 'r') as txt_file:  # this is for keras_image_color
-            data = txt_file.read()
+            data = pkg_resources.read_text(main, '1')
             from string import Template
             t = Template(data)
             newdata = t.substitute(
@@ -97,8 +105,7 @@ def create_prediction_api(my_credentials, model_filepath, unique_model_id, model
         with open(os.path.join(temp_dir, 'main.py'), 'w') as file:
             file.write(newdata)
     elif model_type == 'text' and categorical == 'FALSE':
-        with open('./aimodelshare/main/1B.txt', 'r') as txt_file:  # this is for keras_image_color
-            data = txt_file.read()
+            data = pkg_resources.read_text(main, '1B')
             from string import Template
             t = Template(data)
             newdata = t.substitute(
@@ -106,8 +113,7 @@ def create_prediction_api(my_credentials, model_filepath, unique_model_id, model
         with open(os.path.join(temp_dir, 'main.py'), 'w') as file:
             file.write(newdata)
     elif model_type == 'image' and categorical == 'TRUE':
-        with open('./aimodelshare/main/2.txt', 'r') as txt_file:  # this is for keras_image_color
-            data = txt_file.read()
+            data = pkg_resources.read_text(main, '2')
             from string import Template
             t = Template(data)
             newdata = t.substitute(
@@ -115,8 +121,7 @@ def create_prediction_api(my_credentials, model_filepath, unique_model_id, model
         with open(os.path.join(temp_dir, 'main.py'), 'w') as file:
             file.write(newdata)
     elif model_type == 'image' and categorical == 'FALSE':
-        with open('./aimodelshare/main/3.txt', 'r') as txt_file:  # this is for keras_image_color
-            data = txt_file.read()
+            data = pkg_resources.read_text(main, '3')
             from string import Template
             t = Template(data)
             newdata = t.substitute(
@@ -124,8 +129,7 @@ def create_prediction_api(my_credentials, model_filepath, unique_model_id, model
         with open(os.path.join(temp_dir, 'main.py'), 'w') as file:
             file.write(newdata)
     elif all([model_type == 'tabular', categorical == 'TRUE']):
-        with open('./aimodelshare/main/4.txt', 'r') as txt_file:  # this is for keras_image_color
-            data = txt_file.read()
+            data = pkg_resources.read_text(main, '4')
             from string import Template
             t = Template(data)
             newdata = t.substitute(
@@ -133,8 +137,7 @@ def create_prediction_api(my_credentials, model_filepath, unique_model_id, model
         with open(os.path.join(temp_dir, 'main.py'), 'w') as file:
             file.write(newdata)
     elif all([model_type == 'tabular', categorical == 'FALSE']):
-        with open('./aimodelshare/main/5.txt', 'r') as txt_file:  # this is for keras_image_color
-            data = txt_file.read()
+            data = pkg_resources.read_text(main, '5')
             from string import Template
             t = Template(data)
             newdata = t.substitute(
@@ -142,8 +145,7 @@ def create_prediction_api(my_credentials, model_filepath, unique_model_id, model
         with open(os.path.join(temp_dir, 'main.py'), 'w') as file:
             file.write(newdata)
     elif model_type.lower() == 'timeseries' and categorical == 'FALSE':
-        with open('./aimodelshare/main/6.txt', 'r') as txt_file:
-            data = txt_file.read()
+            data = pkg_resources.read_text(main, '6')
             from string import Template
             t = Template(data)
             newdata = t.substitute(
@@ -152,8 +154,7 @@ def create_prediction_api(my_credentials, model_filepath, unique_model_id, model
             file.write(newdata)
 
     elif model_type.lower() == 'audio' and categorical == 'TRUE':
-        with open('./aimodelshare/main/7.txt', 'r') as txt_file:
-            data = txt_file.read()
+            data = pkg_resources.read_text(main, '7')
             from string import Template
             t = Template(data)
             newdata = t.substitute(
