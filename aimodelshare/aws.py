@@ -15,7 +15,7 @@ def get_aws_token(user_name, user_pass):
 
     try:
         response = provider_client.initiate_auth(
-            ClientId="25vssbned2bbaoi1q7rs4i914u",
+            ClientId="7ptv9f8pt36elmg0e4v9v7jo9t",
             AuthFlow="USER_PASSWORD_AUTH",
             AuthParameters={"USERNAME": user_name, "PASSWORD": user_pass},
         )
