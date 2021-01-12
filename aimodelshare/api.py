@@ -97,7 +97,7 @@ def create_prediction_api(my_credentials, model_filepath, unique_model_id, model
 
     # write main handlers
     if model_type == 'text' and categorical == 'TRUE':
-            data = pkg_resources.read_text(main, '1')
+            data = pkg_resources.read_text(main, '1.txt')
             from string import Template
             t = Template(data)
             newdata = t.substitute(
@@ -105,7 +105,7 @@ def create_prediction_api(my_credentials, model_filepath, unique_model_id, model
             with open(os.path.join(temp_dir, 'main.py'), 'w') as file:
                 file.write(newdata)
     elif model_type == 'text' and categorical == 'FALSE':
-            data = pkg_resources.read_text(main, '1B')
+            data = pkg_resources.read_text(main, '1B.txt')
             from string import Template
             t = Template(data)
             newdata = t.substitute(
@@ -113,7 +113,7 @@ def create_prediction_api(my_credentials, model_filepath, unique_model_id, model
             with open(os.path.join(temp_dir, 'main.py'), 'w') as file:
                 file.write(newdata)
     elif model_type == 'image' and categorical == 'TRUE':
-            data = pkg_resources.read_text(main, '2')
+            data = pkg_resources.read_text(main, '2.txt')
             from string import Template
             t = Template(data)
             newdata = t.substitute(
@@ -121,7 +121,7 @@ def create_prediction_api(my_credentials, model_filepath, unique_model_id, model
             with open(os.path.join(temp_dir, 'main.py'), 'w') as file:
                 file.write(newdata)
     elif model_type == 'image' and categorical == 'FALSE':
-            data = pkg_resources.read_text(main, '3')
+            data = pkg_resources.read_text(main, '3.txt')
             from string import Template
             t = Template(data)
             newdata = t.substitute(
@@ -129,7 +129,7 @@ def create_prediction_api(my_credentials, model_filepath, unique_model_id, model
             with open(os.path.join(temp_dir, 'main.py'), 'w') as file:
                 file.write(newdata)
     elif all([model_type == 'tabular', categorical == 'TRUE']):
-            data = pkg_resources.read_text(main, '4')
+            data = pkg_resources.read_text(main, '4.txt')
             from string import Template
             t = Template(data)
             newdata = t.substitute(
@@ -137,7 +137,7 @@ def create_prediction_api(my_credentials, model_filepath, unique_model_id, model
             with open(os.path.join(temp_dir, 'main.py'), 'w') as file:
                 file.write(newdata)
     elif all([model_type == 'tabular', categorical == 'FALSE']):
-            data = pkg_resources.read_text(main, '5')
+            data = pkg_resources.read_text(main, '5.txt')
             from string import Template
             t = Template(data)
             newdata = t.substitute(
@@ -145,7 +145,7 @@ def create_prediction_api(my_credentials, model_filepath, unique_model_id, model
             with open(os.path.join(temp_dir, 'main.py'), 'w') as file:
                 file.write(newdata)
     elif model_type.lower() == 'timeseries' and categorical == 'FALSE':
-            data = pkg_resources.read_text(main, '6')
+            data = pkg_resources.read_text(main, '6.txt')
             from string import Template
             t = Template(data)
             newdata = t.substitute(
@@ -154,7 +154,7 @@ def create_prediction_api(my_credentials, model_filepath, unique_model_id, model
                 file.write(newdata)
 
     elif model_type.lower() == 'audio' and categorical == 'TRUE':
-            data = pkg_resources.read_text(main, '7')
+            data = pkg_resources.read_text(main, '7.txt')
             from string import Template
             t = Template(data)
             newdata = t.substitute(
