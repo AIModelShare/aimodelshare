@@ -102,56 +102,56 @@ def create_prediction_api(my_credentials, model_filepath, unique_model_id, model
             t = Template(data)
             newdata = t.substitute(
                 bucket_name=bucket_name, unique_model_id=unique_model_id, labels=labels)
-        with open(os.path.join(temp_dir, 'main.py'), 'w') as file:
-            file.write(newdata)
+            with open(os.path.join(temp_dir, 'main.py'), 'w') as file:
+		    file.write(newdata)
     elif model_type == 'text' and categorical == 'FALSE':
             data = pkg_resources.read_text(main, '1B')
             from string import Template
             t = Template(data)
             newdata = t.substitute(
                 bucket_name=bucket_name, unique_model_id=unique_model_id)
-        with open(os.path.join(temp_dir, 'main.py'), 'w') as file:
-            file.write(newdata)
+            with open(os.path.join(temp_dir, 'main.py'), 'w') as file:
+		    file.write(newdata)
     elif model_type == 'image' and categorical == 'TRUE':
             data = pkg_resources.read_text(main, '2')
             from string import Template
             t = Template(data)
             newdata = t.substitute(
                 bucket_name=bucket_name, unique_model_id=unique_model_id, labels=labels)
-        with open(os.path.join(temp_dir, 'main.py'), 'w') as file:
-            file.write(newdata)
+            with open(os.path.join(temp_dir, 'main.py'), 'w') as file:
+		    file.write(newdata)
     elif model_type == 'image' and categorical == 'FALSE':
             data = pkg_resources.read_text(main, '3')
             from string import Template
             t = Template(data)
             newdata = t.substitute(
                 bucket_name=bucket_name, unique_model_id=unique_model_id)
-        with open(os.path.join(temp_dir, 'main.py'), 'w') as file:
-            file.write(newdata)
+            with open(os.path.join(temp_dir, 'main.py'), 'w') as file:
+		    file.write(newdata)
     elif all([model_type == 'tabular', categorical == 'TRUE']):
             data = pkg_resources.read_text(main, '4')
             from string import Template
             t = Template(data)
             newdata = t.substitute(
                 bucket_name=bucket_name, unique_model_id=unique_model_id, labels=labels)
-        with open(os.path.join(temp_dir, 'main.py'), 'w') as file:
-            file.write(newdata)
+            with open(os.path.join(temp_dir, 'main.py'), 'w') as file:
+		    file.write(newdata)
     elif all([model_type == 'tabular', categorical == 'FALSE']):
             data = pkg_resources.read_text(main, '5')
             from string import Template
             t = Template(data)
             newdata = t.substitute(
                 bucket_name=bucket_name, unique_model_id=unique_model_id)
-        with open(os.path.join(temp_dir, 'main.py'), 'w') as file:
-            file.write(newdata)
+            with open(os.path.join(temp_dir, 'main.py'), 'w') as file:
+		    file.write(newdata)
     elif model_type.lower() == 'timeseries' and categorical == 'FALSE':
             data = pkg_resources.read_text(main, '6')
             from string import Template
             t = Template(data)
             newdata = t.substitute(
                 bucket_name=bucket_name, unique_model_id=unique_model_id)
-        with open(os.path.join(temp_dir, 'main.py'), 'w') as file:
-            file.write(newdata)
+            with open(os.path.join(temp_dir, 'main.py'), 'w') as file:
+		    file.write(newdata)
 
     elif model_type.lower() == 'audio' and categorical == 'TRUE':
             data = pkg_resources.read_text(main, '7')
@@ -159,8 +159,8 @@ def create_prediction_api(my_credentials, model_filepath, unique_model_id, model
             t = Template(data)
             newdata = t.substitute(
                 bucket_name=bucket_name, unique_model_id=unique_model_id, labels=labels)
-        with open(os.path.join(temp_dir, 'main.py'), 'w') as file:
-            file.write(newdata)
+            with open(os.path.join(temp_dir, 'main.py'), 'w') as file:
+		    file.write(newdata)
 
     with zipfile.ZipFile(os.path.join(temp_dir, 'archive.zip'), 'a') as z:
         z.write(os.path.join(temp_dir, 'main.py'), 'main.py')
