@@ -181,23 +181,21 @@ def create_prediction_api(my_credentials, model_filepath, unique_model_id, model
 
 # Upload model eval lambda function zipfile to user's model file folder on s3
     if categorical == 'TRUE':
-        with open('./aimodelshare/main/eval_classification.txt', 'r') as txt_file:
-            data = txt_file.read()
+            data = pkg_resources.read_text(main, 'eval_classification.txt')
             from string import Template
             t = Template(data)
             newdata = t.substitute(
                 bucket_name=bucket_name, unique_model_id=unique_model_id)
-        with open(os.path.join(temp_dir, 'main.py'), 'w') as file:
-            file.write(newdata)
+            with open(os.path.join(temp_dir, 'main.py'), 'w') as file:
+                file.write(newdata)
     elif categorical == 'FALSE':
-        with open('./aimodelshare/main/eval_regression.txt', 'r') as txt_file:
-            data = txt_file.read()
+            data = pkg_resources.read_text(main, 'eval_regression.txt')
             from string import Template
             t = Template(data)
             newdata = t.substitute(
                 bucket_name=bucket_name, unique_model_id=unique_model_id)
-        with open(os.path.join(temp_dir, 'main.py'), 'w') as file:
-            file.write(newdata)
+            with open(os.path.join(temp_dir, 'main.py'), 'w') as file:
+                file.write(newdata)
     with zipfile.ZipFile(os.path.join(temp_dir, 'archive2.zip'), 'a') as z:
         z.write(os.path.join(temp_dir, 'main.py'), 'main.py')
 
