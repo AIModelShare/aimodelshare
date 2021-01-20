@@ -3,9 +3,11 @@ import numpy as np
 import pandas as pd
 
 from aimodelshare.aws import run_function_on_lambda
+from aimodelshare.aimsonnx import _get_layer_names
 
 
-def get_leaderboard(apiurl, aws_token, aws_client, category="classification"):
+def get_leaderboard(apiurl, aws_token, aws_client, category="classification", 
+	verbose=3, columns=None):
     # Get bucket and model_id for user {{{
     response, error = run_function_on_lambda(
         apiurl, aws_token, **{"delete": "FALSE", "versionupdateget": "TRUE"}
@@ -27,6 +29,20 @@ def get_leaderboard(apiurl, aws_token, aws_client, category="classification"):
 
         leaderboard = pd.read_csv(leaderboard["Body"], sep="\t")
 
+        if columns:
+        	clf =["accuracy", "f1_score", "precision", "recall"]
+        	reg = ['mse', 'rmse', 'mae', 'r2']
+        	other = ['timestamp']
+        	leaderboard = leaderboard.filter(clf+reg+columns+other)
+
+        leaderboard = leaderboard.loc[:,leaderboard.fillna('x').sum() != 0]
+
+        if verbose == 1:
+        	leaderboard = leaderboard.filter(regex=("^(?!.*(_layers|_act))"))
+        elif verbose == 2:
+        	leaderboard = leaderboard.filter(regex=("^(?!.*_act)"))
+
+
     except Exception as err:
         raise err
     # }}}
@@ -34,8 +50,12 @@ def get_leaderboard(apiurl, aws_token, aws_client, category="classification"):
     # Specifying problem wise columns {{{
     if category == "classification":
         sort_cols = ["accuracy", "f1_score", "precision", "recall"]
+        #leaderboard = leaderboard.drop(columns = ['mse', 'rmse', 'mae', 'r2'])
+
     else:
         sort_cols = ["-mae", "r2"]
+        #leaderboard = leaderboard.drop(columns = ["accuracy", "f1_score", "precision", "recall"])
+
     # }}}
 
     # Sorting leaderboard {{{
@@ -59,8 +79,12 @@ def get_leaderboard(apiurl, aws_token, aws_client, category="classification"):
 
 def stylize_leaderboard(leaderboard, category="classficiation"):
     # Dropping some columns {{{
-    drop_cols = ["layers", "timestamp"]
+    drop_cols = ["timestamp"]
     leaderboard = leaderboard.drop(drop_cols, axis=1)
+
+    #truncate model config info
+    leaderboard.model_config = leaderboard.model_config.map(lambda x: x[0:30]+'...')
+
     # }}}
 
     # Setting default properties {{{

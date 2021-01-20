@@ -11,6 +11,8 @@ from datetime import datetime
 from aimodelshare.aws import run_function_on_lambda
 from aimodelshare.aws import get_token
 
+from aimodelshare.aimsonnx import _get_leaderboard_data
+
 
 def _get_file_list(client, bucket, model_id):
     #  Reading file list {{{
@@ -105,7 +107,7 @@ def _extract_model_metadata(model, eval_metrics=None):
         metadata = dict()
 
     metadata["num_nodes"] = len(graph.node)
-    metadata["depth"] = len(graph.initializer)
+    metadata["depth_test"] = len(graph.initializer)
     metadata["num_params"] = sum(np.product(node.dims) for node in graph.initializer)
 
     # layers = ""
@@ -145,6 +147,10 @@ def _extract_model_metadata(model, eval_metrics=None):
 
     return metadata
 
+
+
+
+
 def _update_leaderboard(
     modelpath, eval_metrics, client, token, bucket, model_id, model_version
 ):
@@ -153,7 +159,7 @@ def _update_leaderboard(
         raise FileNotFoundError(f"The model file at {modelpath} does not exist")
 
     model = onnx.load(modelpath)
-    metadata = _extract_model_metadata(model, eval_metrics)
+    metadata = _get_leaderboard_data(model, eval_metrics)
     # }}}
 
     # Adding extra details to metadata {{{
