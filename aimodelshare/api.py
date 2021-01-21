@@ -32,6 +32,8 @@ def create_prediction_api(my_credentials, model_filepath, unique_model_id, model
            keras_layer ='arn:aws:lambda:us-east-1:517169013426:layer:keras_preprocesor:1'
     elif model_type == 'tabular' or model_type =='timeseries':
             model_layer ="arn:aws:lambda:us-east-1:517169013426:layer:tabular_cloudpicklelayer:1"
+    elif model_type.lower() == 'audio':
+      model_layer = "arn:aws:lambda:us-east-1:517169013426:layer:librosa_nosklearn:9"
     else :
         print("no matching model data type to load correct python package zip file (lambda layer)")
 
@@ -83,71 +85,82 @@ def create_prediction_api(my_credentials, model_filepath, unique_model_id, model
     # create temporary folder
     temp_dir = tempfile.gettempdir()
 
-    
+    try:
+    	import importlib.resources as pkg_resources
+
+    except ImportError:
+    	# Try backported to PY<37 `importlib_resources`.
+    	import importlib_resources as pkg_resources
+
+    from . import main  # relative-import the *package* containing the templates
+
+
     # write main handlers
     if model_type == 'text' and categorical == 'TRUE':
-        with open('./aimodelshare/main/1.txt', 'r') as txt_file:  # this is for keras_image_color
-            data = txt_file.read()
+            data = pkg_resources.read_text(main, '1.txt')
             from string import Template
             t = Template(data)
             newdata = t.substitute(
                 bucket_name=bucket_name, unique_model_id=unique_model_id, labels=labels)
-        with open(os.path.join(temp_dir, 'main.py'), 'w') as file:
-            file.write(newdata)
+            with open(os.path.join(temp_dir, 'main.py'), 'w') as file:
+                file.write(newdata)
     elif model_type == 'text' and categorical == 'FALSE':
-        with open('./aimodelshare/main/1B.txt', 'r') as txt_file:  # this is for keras_image_color
-            data = txt_file.read()
+            data = pkg_resources.read_text(main, '1B.txt')
             from string import Template
             t = Template(data)
             newdata = t.substitute(
                 bucket_name=bucket_name, unique_model_id=unique_model_id)
-        with open(os.path.join(temp_dir, 'main.py'), 'w') as file:
-            file.write(newdata)
+            with open(os.path.join(temp_dir, 'main.py'), 'w') as file:
+                file.write(newdata)
     elif model_type == 'image' and categorical == 'TRUE':
-        with open('./aimodelshare/main/2.txt', 'r') as txt_file:  # this is for keras_image_color
-            data = txt_file.read()
+            data = pkg_resources.read_text(main, '2.txt')
             from string import Template
             t = Template(data)
             newdata = t.substitute(
                 bucket_name=bucket_name, unique_model_id=unique_model_id, labels=labels)
-        with open(os.path.join(temp_dir, 'main.py'), 'w') as file:
-            file.write(newdata)
+            with open(os.path.join(temp_dir, 'main.py'), 'w') as file:
+                file.write(newdata)
     elif model_type == 'image' and categorical == 'FALSE':
-        with open('./aimodelshare/main/3.txt', 'r') as txt_file:  # this is for keras_image_color
-            data = txt_file.read()
+            data = pkg_resources.read_text(main, '3.txt')
             from string import Template
             t = Template(data)
             newdata = t.substitute(
                 bucket_name=bucket_name, unique_model_id=unique_model_id)
-        with open(os.path.join(temp_dir, 'main.py'), 'w') as file:
-            file.write(newdata)
+            with open(os.path.join(temp_dir, 'main.py'), 'w') as file:
+                file.write(newdata)
     elif all([model_type == 'tabular', categorical == 'TRUE']):
-        with open('./aimodelshare/main/4.txt', 'r') as txt_file:  # this is for keras_image_color
-            data = txt_file.read()
+            data = pkg_resources.read_text(main, '4.txt')
             from string import Template
             t = Template(data)
             newdata = t.substitute(
                 bucket_name=bucket_name, unique_model_id=unique_model_id, labels=labels)
-        with open(os.path.join(temp_dir, 'main.py'), 'w') as file:
-            file.write(newdata)
+            with open(os.path.join(temp_dir, 'main.py'), 'w') as file:
+                file.write(newdata)
     elif all([model_type == 'tabular', categorical == 'FALSE']):
-        with open('./aimodelshare/main/5.txt', 'r') as txt_file:  # this is for keras_image_color
-            data = txt_file.read()
+            data = pkg_resources.read_text(main, '5.txt')
             from string import Template
             t = Template(data)
             newdata = t.substitute(
                 bucket_name=bucket_name, unique_model_id=unique_model_id)
-        with open(os.path.join(temp_dir, 'main.py'), 'w') as file:
-            file.write(newdata)
+            with open(os.path.join(temp_dir, 'main.py'), 'w') as file:
+                file.write(newdata)
     elif model_type.lower() == 'timeseries' and categorical == 'FALSE':
-        with open('./aimodelshare/main/6.txt', 'r') as txt_file:
-            data = txt_file.read()
+            data = pkg_resources.read_text(main, '6.txt')
             from string import Template
             t = Template(data)
             newdata = t.substitute(
                 bucket_name=bucket_name, unique_model_id=unique_model_id)
-        with open(os.path.join(temp_dir, 'main.py'), 'w') as file:
-            file.write(newdata)
+            with open(os.path.join(temp_dir, 'main.py'), 'w') as file:
+                file.write(newdata)
+
+    elif model_type.lower() == 'audio' and categorical == 'TRUE':
+            data = pkg_resources.read_text(main, '7.txt')
+            from string import Template
+            t = Template(data)
+            newdata = t.substitute(
+                bucket_name=bucket_name, unique_model_id=unique_model_id, labels=labels)
+            with open(os.path.join(temp_dir, 'main.py'), 'w') as file:
+                file.write(newdata)
 
     with zipfile.ZipFile(os.path.join(temp_dir, 'archive.zip'), 'a') as z:
         z.write(os.path.join(temp_dir, 'main.py'), 'main.py')
@@ -168,23 +181,21 @@ def create_prediction_api(my_credentials, model_filepath, unique_model_id, model
 
 # Upload model eval lambda function zipfile to user's model file folder on s3
     if categorical == 'TRUE':
-        with open('./aimodelshare/main/eval_classification.txt', 'r') as txt_file:
-            data = txt_file.read()
+            data = pkg_resources.read_text(main, 'eval_classification.txt')
             from string import Template
             t = Template(data)
             newdata = t.substitute(
                 bucket_name=bucket_name, unique_model_id=unique_model_id)
-        with open(os.path.join(temp_dir, 'main.py'), 'w') as file:
-            file.write(newdata)
+            with open(os.path.join(temp_dir, 'main.py'), 'w') as file:
+                file.write(newdata)
     elif categorical == 'FALSE':
-        with open('./aimodelshare/main/eval_regression.txt', 'r') as txt_file:
-            data = txt_file.read()
+            data = pkg_resources.read_text(main, 'eval_regression.txt')
             from string import Template
             t = Template(data)
             newdata = t.substitute(
                 bucket_name=bucket_name, unique_model_id=unique_model_id)
-        with open(os.path.join(temp_dir, 'main.py'), 'w') as file:
-            file.write(newdata)
+            with open(os.path.join(temp_dir, 'main.py'), 'w') as file:
+                file.write(newdata)
     with zipfile.ZipFile(os.path.join(temp_dir, 'archive2.zip'), 'a') as z:
         z.write(os.path.join(temp_dir, 'main.py'), 'main.py')
 

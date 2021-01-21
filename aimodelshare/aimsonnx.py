@@ -679,6 +679,3 @@ def _get_layer_names():
     layer_list = [i for i in layer_list if i.lower() not in [i.lower() for i in activation_list]]
 
     return layer_list, activation_list
-
-
-
