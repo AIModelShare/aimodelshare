@@ -504,8 +504,8 @@ def _get_metadata(onnx_model):
     and returns model metadata dict.'''
     
     # double check this 
-    assert(isinstance(onnx_model, onnx.onnx_ml_pb2.ModelProto)), \
-     "Please pass a onnx model object."
+    #assert(isinstance(onnx_model, onnx.onnx_ml_pb2.ModelProto)), \
+     #"Please pass a onnx model object."
     
     try: 
         onnx_meta = onnx_model.metadata_props
