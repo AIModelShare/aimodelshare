@@ -35,7 +35,7 @@ def get_leaderboard(apiurl, aws_token, aws_client, category="classification",
         	other = ['timestamp']
         	leaderboard = leaderboard.filter(clf+reg+columns+other)
 
-        leaderboard = leaderboard.loc[:,leaderboard.fillna('x').sum() != 0]
+        leaderboard = leaderboard.replace(0,np.nan).dropna(axis=1,how="all")
 
         if verbose == 1:
         	leaderboard = leaderboard.filter(regex=("^(?!.*(_layers|_act))"))
