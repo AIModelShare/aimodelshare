@@ -4,6 +4,7 @@ import numpy as np
 
 # ml frameworks
 import sklearn
+from sklearn.model_selection import GridSearchCV, RandomizedSearchCV
 import keras 
 import torch
 
@@ -103,8 +104,14 @@ def _sklearn_to_onnx(model, initial_types, transfer_learning=None,
     '''Extracts metadata from sklearn model object.'''
     
     # check whether this is a fitted sklearn model
-    sklearn.utils.validation.check_is_fitted(model)
-    
+    # sklearn.utils.validation.check_is_fitted(model)
+
+    # deal with pipelines and parameter search 
+    if isinstance(model, (GridSearchCV, RandomizedSearchCV)):
+        model = model.best_estimator_
+
+    if isinstance(model, sklearn.pipeline.Pipeline):
+        model = model.steps[-1][1]
 
     # convert to onnx
     onx = convert_sklearn(model, initial_types=initial_types)
@@ -125,7 +132,7 @@ def _sklearn_to_onnx(model, initial_types, transfer_learning=None,
     metadata['model_type'] = model_type
     
     # get transfer learning bool from user input
-    metadata['transfer_learning'] = transfer_learning 
+    metadata['transfer_learning'] = transfer_learning
 
     # get deep learning bool from user input
     metadata['deep_learning'] = deep_learning
