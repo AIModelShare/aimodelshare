@@ -593,8 +593,8 @@ def _get_metadata(onnx_model):
     and returns model metadata dict.'''
     
     # double check this 
-    assert(isinstance(onnx_model, onnx.onnx_ml_pb2.ModelProto)), \
-     "Please pass a onnx model object."
+    #assert(isinstance(onnx_model, onnx.onnx_ml_pb2.ModelProto)), \
+     #"Please pass a onnx model object."
     
     try: 
         onnx_meta = onnx_model.metadata_props
@@ -776,8 +776,6 @@ def instantiate_model(apiurl, aws_token, aws_client, version=None):
         raise err
 
     # get model config 
-    #print(master_table.model_config[master_table.version == model_id])
-
     model_config = ast.literal_eval(master_table.model_config[master_table.version == version].iloc[0])
 
     if master_table.ml_framework[master_table.version == version].iloc[0] == 'sklearn':
@@ -815,7 +813,6 @@ def _get_layer_names():
     layer_list = [i for i in layer_list if i.lower() not in [i.lower() for i in activation_list]]
 
     return layer_list, activation_list
-
 
 def _get_sklearn_modules():
     
