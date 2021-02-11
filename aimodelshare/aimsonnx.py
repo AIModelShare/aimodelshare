@@ -168,7 +168,7 @@ def _misc_to_onnx(model, initial_types, transfer_learning=None,
     # metadata['metadata_onnx'] = str(_extract_onnx_metadata(onx, framework='sklearn'))
     metadata['metadata_onnx'] = None
 
-    meta = onnx.metadata_props.add()
+    meta = onx.metadata_props.add()
     meta.key = 'model_metadata'
     meta.value = str(metadata)
 
