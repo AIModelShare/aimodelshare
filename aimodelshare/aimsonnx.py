@@ -7,6 +7,7 @@ import sklearn
 from sklearn.model_selection import GridSearchCV, RandomizedSearchCV
 import keras 
 import torch
+import xgboost
 
 # onnx modules
 import onnx
@@ -16,6 +17,12 @@ import keras2onnx
 from keras2onnx import convert_keras
 from torch.onnx import export
 from onnx.tools.net_drawer import GetPydotGraph, GetOpNodeProducer
+import importlib
+import onnxmltools
+
+
+# aims modules
+from aimodelshare.aws import run_function_on_lambda
 
 # os etc
 import os
@@ -97,6 +104,76 @@ def _extract_onnx_metadata(onnx_model, framework):
     metadata_onnx["model_architecture"] = model_architecture
 
     return metadata_onnx
+
+
+
+def _misc_to_onnx(model, initial_types, transfer_learning=None,
+                    deep_learning=None, task_type=None):
+
+    # generate metadata dict 
+    metadata = {}
+    
+    # placeholders, need to be generated elsewhere
+    metadata['model_id'] = None
+    metadata['data_id'] = None
+    metadata['preprocessor_id'] = None
+    
+    # infer ml framework from function call
+    if isinstance(model, (xgboost.XGBClassifier, xgboost.XGBRegressor)):
+        metadata['ml_framework'] = 'xgboost'
+        onx = onnxmltools.convert.convert_xgboost(model, initial_types=initial_types)
+
+    # also integrate lightGBM 
+    
+    # get model type from model object
+    model_type = str(model).split('(')[0]
+    metadata['model_type'] = model_type
+    
+    # get transfer learning bool from user input
+    metadata['transfer_learning'] = transfer_learning
+
+    # get deep learning bool from user input
+    metadata['deep_learning'] = deep_learning
+    
+    # get task type from user input
+    metadata['task_type'] = task_type
+    
+    # placeholders, need to be inferred from data 
+    metadata['target_distribution'] = None
+    metadata['input_type'] = None
+    metadata['input_shape'] = None
+    metadata['input_dtypes'] = None       
+    metadata['input_distribution'] = None
+    
+    # get model config dict from sklearn model object
+    metadata['model_config'] = str(model.get_params())
+
+    # get model state from sklearn model object
+    metadata['model_state'] = None
+
+
+    model_architecture = {}
+
+    if hasattr(model, 'coef_'):
+        model_architecture['layers_n_params'] = [len(model.coef_.flatten())]
+    if hasattr(model, 'solver'):
+        model_architecture['optimizer'] = model.solver
+
+    metadata['model_architecture'] = str(model_architecture)
+
+    # placeholder, needs evaluation engine
+    metadata['eval_metrics'] = None  
+    
+    # add metadata from onnx object
+    # metadata['metadata_onnx'] = str(_extract_onnx_metadata(onx, framework='sklearn'))
+    metadata['metadata_onnx'] = None
+
+    meta = onx.metadata_props.add()
+    meta.key = 'model_metadata'
+    meta.value = str(metadata)
+
+    return onx
+
 
 
 def _sklearn_to_onnx(model, initial_types, transfer_learning=None,
@@ -455,9 +532,9 @@ def model_to_onnx(model, framework, model_input=None, initial_types=None,
     '''
 
     # assert that framework exists
-    frameworks = ['sklearn', 'keras', 'pytorch']
+    frameworks = ['sklearn', 'keras', 'pytorch', 'xgboost']
     assert framework in frameworks, \
-    'Please choose "sklearn", "keras", or "pytorch".'
+    'Please choose "sklearn", "keras", "pytorch", or "xgboost".'
     
     # assert model input type THIS IS A PLACEHOLDER
     if model_input != None:
@@ -487,6 +564,11 @@ def model_to_onnx(model, framework, model_input=None, initial_types=None,
 
     if framework == 'sklearn':
         onnx = _sklearn_to_onnx(model, initial_types=initial_types, 
+                                transfer_learning=transfer_learning, 
+                                deep_learning=deep_learning, 
+                                task_type=task_type)
+    elif framework == 'xgboost':
+        onnx = _misc_to_onnx(model, initial_types=initial_types, 
                                 transfer_learning=transfer_learning, 
                                 deep_learning=deep_learning, 
                                 task_type=task_type)
@@ -591,7 +673,7 @@ def _get_leaderboard_data(onnx_model, eval_metrics=None):
         metadata['model_config'] = metadata_raw['model_config']
 
     # get sklearn model metrics
-    elif metadata_raw['ml_framework'] == 'sklearn':
+    elif metadata_raw['ml_framework'] == 'sklearn' or metadata_raw['ml_framework'] == 'xgboost':
         metadata['depth'] = 0
 
         try:
@@ -667,6 +749,51 @@ def onnx_to_image(model):
     
     return pydot_graph
 
+def instantiate_model(apiurl, aws_token, aws_client, version=None):
+
+    # Get bucket and model_id for user
+    response, error = run_function_on_lambda(
+        apiurl, aws_token, **{"delete": "FALSE", "versionupdateget": "TRUE"}
+    )
+    if error is not None:
+        raise error
+
+    _, bucket, model_id = json.loads(response.content.decode("utf-8"))
+
+    # Get mastertable
+    try:
+        master_table = aws_client["client"].get_object(
+            Bucket=bucket, Key=model_id + "/model_eval_data_mastertable.csv"
+        )
+
+        assert (
+            master_table["ResponseMetadata"]["HTTPStatusCode"] == 200
+        ), "There was a problem in accessing the leaderboard file"
+
+        master_table = pd.read_csv(master_table["Body"], sep="\t")
+
+    except Exception as err:
+        raise err
+
+    # get model config 
+    model_config = ast.literal_eval(master_table.model_config[master_table.version == version].iloc[0])
+
+    if master_table.ml_framework[master_table.version == version].iloc[0] == 'sklearn':
+
+        model_type = master_table.model_type[master_table.version == version].iloc[0]
+
+        models_modules_dict = _get_sklearn_modules()
+        module = models_modules_dict[model_type]
+        model_class = getattr(importlib.import_module(module), model_type)
+        model = model_class(**model_config)
+
+
+    if master_table.ml_framework[master_table.version == version].iloc[0] == 'keras':
+
+        model = keras.Sequential().from_config(model_config)
+
+    return model 
+
 
 def _get_layer_names():
 
@@ -686,3 +813,22 @@ def _get_layer_names():
     layer_list = [i for i in layer_list if i.lower() not in [i.lower() for i in activation_list]]
 
     return layer_list, activation_list
+
+def _get_sklearn_modules():
+    
+    import sklearn
+
+    sklearn_modules = ['ensemble', 'gaussian_process', 'isotonic',
+                       'linear_model', 'mixture', 'multiclass', 'naive_bayes', 
+                       'neighbors', 'neural_network', 'svm', 'tree']
+
+    models_modules_dict = {}
+
+    for i in sklearn_modules:
+        models_list = [j for j in dir(eval('sklearn.'+i)) if callable(getattr(eval('sklearn.'+i), j))]
+        models_list = [j for j in models_list if re.match('^[A-Z]', j)]
+
+        for k in models_list: 
+            models_modules_dict[k] = 'sklearn.'+i
+    
+    return models_modules_dict
