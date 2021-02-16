@@ -6,6 +6,83 @@ import json
 from aimodelshare.exceptions import AuthorizationError, AWSAccessError
 
 
+def set_credentials(credential_file=None, type="submit_model", apiurl="apiurl",manual=False):
+  #TODO:
+  #1. When user runs set_credentials() with no args the function should immediately use the manual entry approach.
+  #2.
+  
+  import os
+  import getpass
+  flag = False
+  set_creds = []
+
+  if any([manual == True,credential_file==None]):
+    user = getpass.getpass(prompt="AI Modelshare Username:")
+    os.environ["username"] = user
+    pw = getpass.getpass(prompt="AI Modelshare Password:")
+    os.environ["password"] = pw
+    set_creds.extend(["username", "password"])
+  
+  else: 
+    f = open(credential_file)
+
+    for line in f:
+      if "aimodelshare_creds" in line or "AIMODELSHARE_CREDS" in line:
+        for line in f:
+          if line == "\n":
+            break
+          try:
+            value = line.split("=", 1)[1].strip()
+            value = value[1:-1]
+            key = line.split("=", 1)[0].strip()
+            os.environ[key.lower()] = value
+            set_creds.append(key.lower())
+    
+          except LookupError: 
+            print(* "Warning: Review format of", credential_file, ". Format should be variablename = 'variable_value'")
+            break
+  
+  if any([manual == True,credential_file==None]):
+    flag = True
+    access_key = getpass.getpass(prompt="AWS_ACCESS_KEY_ID:")
+    os.environ["AWS_ACCESS_KEY_ID"] = access_key
+
+    secret_key = getpass.getpass(prompt="AWS_SECRET_ACCESS_KEY:")
+    os.environ["AWS_SECRET_ACCESS_KEY"] = secret_key
+
+    region = getpass.getpass(prompt="AWS_REGION:")
+    os.environ["AWS_REGION"] = region
+    set_creds.extend(["AWS_ACCESS_KEY_ID", "AWS_SECRET_ACCESS_KEY", "AWS_REGION"])
+
+  else:  
+    f = open(credential_file)
+    for line in f:
+      if (apiurl in line) and ((type in line) or (type.upper() in line)):
+        flag = True
+        for line in f:
+          if line == "\n":
+            break
+          try:
+            value = line.split("=", 1)[1].strip()
+            value = value[1:-1]
+            key = line.split("=", 1)[0].strip()
+            os.environ[key.upper()] = value
+            set_creds.append(key.upper())
+          except LookupError: 
+            print(* "Warning: Review format of", credential_file, ". Format should be variablename = 'variable_value'.")
+            break
+  if not flag: 
+    return "Error: apiurl and/or type not found in "+str(credential_file)+". Please correct entries and resubmit."
+
+  try:
+    f.close()    
+  except:
+    pass
+  success = "Your "+type+" credentials for "+apiurl+"have been set successfully."
+  return success
+
+
+
 def get_aws_token(user_name, user_pass):
     config = botocore.config.Config(signature_version=botocore.UNSIGNED)
 
