@@ -201,4 +201,5 @@ __all__ = [
     get_aws_client,
     run_function_on_lambda,
     get_s3_iam_client,
+    set_credentials
 ]
