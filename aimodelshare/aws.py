@@ -78,7 +78,7 @@ def set_credentials(credential_file=None, type="submit_model", apiurl="apiurl",m
     f.close()    
   except:
     pass
-  success = "Your "+type+" credentials for "+apiurl+"have been set successfully."
+  success = "Your "+type+" credentials for "+apiurl+" have been set successfully."
   return success
 
 
