@@ -28,16 +28,21 @@ def create_prediction_api(my_credentials, model_filepath, unique_model_id, model
     if model_type=='image' :
            model_layer ="arn:aws:lambda:us-east-1:517169013426:layer:keras_image:1"
            eval_layer ="arn:aws:lambda:us-east-1:517169013426:layer:tabular_cloudpicklelayer:1"
+           auth_layer ="arn:aws:lambda:us-east-1:517169013426:layer:redissearch:1"
     elif model_type=='text':
            model_layer ="arn:aws:lambda:us-east-1:517169013426:layer:tabular_layer:2"
            keras_layer ='arn:aws:lambda:us-east-1:517169013426:layer:keras_preprocesor:1'
            eval_layer ="arn:aws:lambda:us-east-1:517169013426:layer:tabular_cloudpicklelayer:1"
+           auth_layer ="arn:aws:lambda:us-east-1:517169013426:layer:redissearch:1"
     elif model_type == 'tabular' or model_type =='timeseries':
             model_layer ="arn:aws:lambda:us-east-1:517169013426:layer:tabular_cloudpicklelayer:1"
             eval_layer ="arn:aws:lambda:us-east-1:517169013426:layer:tabular_cloudpicklelayer:1"
+            auth_layer ="arn:aws:lambda:us-east-1:517169013426:layer:redissearch:1"
+
     elif model_type.lower() == 'audio':
       model_layer = "arn:aws:lambda:us-east-1:517169013426:layer:librosa_nosklearn:9"
       eval_layer ="arn:aws:lambda:us-east-1:517169013426:layer:tabular_cloudpicklelayer:1"
+      auth_layer ="arn:aws:lambda:us-east-1:517169013426:layer:redissearch:1"
     else :
         print("no matching model data type to load correct python package zip file (lambda layer)")
 
