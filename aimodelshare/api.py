@@ -233,7 +233,7 @@ def create_prediction_api(my_credentials, model_filepath, unique_model_id, model
     roles = user_session.client('iam').list_roles()
 
     lambdafxnname = 'modfunction'+str(random.randint(1, 1000000))
-    lambdaauthfxnname = 'redisAccess'
+    lambdaauthfxnname = 'redisAccess'+str(random.randint(1, 1000000))
     lambdaevalfxnname = 'evalfunction'+str(random.randint(1, 1000000))
 
     if str(roles['Roles']).find("myService-dev-us-east-1-lambdaRole") > 0:
