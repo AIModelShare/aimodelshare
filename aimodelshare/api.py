@@ -50,40 +50,9 @@ def create_prediction_api(my_credentials, model_filepath, unique_model_id, model
 
   # Update note:  dyndb data to add.  apiname. (include username too)
 
-    api_name = 'modapi'+str(random.randint(1, 1000000))
+
     account_number = user_session.client(
         'sts').get_caller_identity().get('Account')
-
-  # Update note:  change apiname in apijson from modapi890799 to randomly generated apiname?  or aimodelshare generic name?
-    api_json = get_api_json()
-    user_client = boto3.client('apigateway', aws_access_key_id=str(
-        AI_MODELSHARE_AccessKeyId), aws_secret_access_key=str(AI_MODELSHARE_SecretAccessKey), region_name=str(region))
-
-    response2 = user_client.import_rest_api(
-        failOnWarnings=True,
-        parameters={
-            'endpointConfigurationTypes': 'REGIONAL'
-        },
-        body=api_json
-    )
-    api_id = response2['id']
-
- # Update note:  dyndb data to add.  api_id and resourceid "Resource": "arn:aws:execute-api:us-east-1:517169013426:iu3q9io652/prod/OPTIONS/m"
-
-    # Update note:  dyndb data to add.  api_id and resourceid "Resource": "arn:aws:execute-api:us-east-1:517169013426:iu3q9io652/prod/OPTIONS/m"
-
-    response3 = user_client.get_resources(restApiId=api_id)
-    resourceidlist=response3['items']
-
-    # Python3 code to iterate over a list 
-    api_id_data = {}   
-    # Using for loop 
-    for i in resourceidlist: 
-        api_id_data.update({i['path']: i['id']})
-
-    resource_id_parent=api_id_data['/']
-    resource_id=api_id_data['/m']
-    resource_id_eval=api_id_data['/eval']
 
     import tempfile
     from zipfile import ZipFile
@@ -378,7 +347,45 @@ def create_prediction_api(my_credentials, model_filepath, unique_model_id, model
 
 
 #add create api about here
+#TODO: 
+    api_name = 'modapi'+str(random.randint(1, 1000000))	
+  # Update note:  change apiname in apijson from modapi890799 to randomly generated apiname?  or aimodelshare generic name?
+    data = get_api_json()
+    from string import Template
+    t = Template(data)
+    api_json = t.substitute(
+                lambda_arn=response6authfxn['FunctionArn'])
 
+
+
+    user_client = boto3.client('apigateway', aws_access_key_id=str(
+        AI_MODELSHARE_AccessKeyId), aws_secret_access_key=str(AI_MODELSHARE_SecretAccessKey), region_name=str(region))
+
+    response2 = user_client.import_rest_api(
+        failOnWarnings=True,
+        parameters={
+            'endpointConfigurationTypes': 'REGIONAL'
+        },
+        body=api_json
+    )
+    api_id = response2['id']
+
+ # Update note:  dyndb data to add.  api_id and resourceid "Resource": "arn:aws:execute-api:us-east-1:517169013426:iu3q9io652/prod/OPTIONS/m"
+
+    # Update note:  dyndb data to add.  api_id and resourceid "Resource": "arn:aws:execute-api:us-east-1:517169013426:iu3q9io652/prod/OPTIONS/m"
+
+    response3 = user_client.get_resources(restApiId=api_id)
+    resourceidlist=response3['items']
+
+    # Python3 code to iterate over a list 
+    api_id_data = {}   
+    # Using for loop 
+    for i in resourceidlist: 
+        api_id_data.update({i['path']: i['id']})
+
+    resource_id_parent=api_id_data['/']
+    resource_id=api_id_data['/m']
+    resource_id_eval=api_id_data['/eval']
 
 
 # NEXT: update permissions
@@ -854,7 +861,7 @@ def get_api_json():
 				"in": "header",
 				"x-amazon-apigateway-authtype": "custom",
 				"x-amazon-apigateway-authorizer": {
-				  "authorizerUri": "arn:aws:apigateway:us-east-1:lambda:path/2015-03-31/functions/arn:aws:lambda:us-east-1:517169013426:function:redisAccess/invocations",
+				  "authorizerUri":lambda_arn,
 				  "authorizerResultTtlInSeconds": 0,
 				  "type": "token"
 				}
