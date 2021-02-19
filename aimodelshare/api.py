@@ -337,28 +337,24 @@ def create_prediction_api(my_credentials, model_filepath, unique_model_id, model
                                               'S3Bucket': bucket_name,
                                               'S3Key':  unique_model_id+"/"+'archiveeval.zip'
                                           }, Timeout=10, MemorySize=512, Layers=eval_layer)  # ADD ANOTHER LAYER ARN .. THE ONE SPECIFIC TO MODEL TYPE
+    response6authfxn = lambdaclient.create_function(FunctionName=lambdaauthfxnname, Runtime='python3.6', Role='arn:aws:iam::'+account_number+':role/'+lambdarolename, Handler='main.handler',
+                                          Code={
+                                              'S3Bucket': bucket_name,
+                                              'S3Key':  unique_model_id+"/"+'archiveeval.zip'
+                                          }, Timeout=10, MemorySize=512, Layers=auth_layer)  # ADD ANOTHER LAYER ARN .. THE ONE SPECIFIC TO MODEL TYPE
 
 # NEXT: update permissions
 
     fxn_list = lambdaclient.list_functions()
     stmt_id = 'apigateway-prod-'+str(random.randint(1, 1000000))
-    if str(fxn_list.items()).find("redisAccess") > 0:
-        response7 = lambdaclient.add_permission(
+    # upload authfxn code first
+    response7_1 = lambdaclient.add_permission(
             FunctionName=lambdaauthfxnname,
             StatementId=stmt_id,
             Action='lambda:InvokeFunction',
             Principal='apigateway.amazonaws.com',
             SourceArn='arn:aws:execute-api:us-east-1:'+account_number+":"+api_id+'/*/*',
-        )
-    else:
-        # upload authfxn code first
-        response7 = lambdaclient.add_permission(
-            FunctionName=lambdaauthfxnname,
-            StatementId=stmt_id,
-            Action='lambda:InvokeFunction',
-            Principal='apigateway.amazonaws.com',
-            SourceArn='arn:aws:execute-api:us-east-1:'+account_number+":"+api_id+'/*/*',
-        )
+    )
     # Update note:  dyndb data to add.  lambdafxnname
 
     # change api name below?
