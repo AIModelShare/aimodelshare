@@ -223,6 +223,39 @@ def create_prediction_api(my_credentials, model_filepath, unique_model_id, model
     os.remove(os.path.join(temp_dir,'main.py'))
 
 
+# Upload model eval lambda function zipfile to user's model file folder on s3
+    if categorical == 'TRUE':
+            data = pkg_resources.read_text(main, 'authorization.txt')
+            from string import Template
+            t = Template(data)
+            with open(os.path.join(temp_dir, 'main.py'), 'w') as file:
+                file.write(data)
+    elif categorical == 'FALSE':
+            data = pkg_resources.read_text(main, 'authorization.txt')
+            from string import Template
+            t = Template(data)
+            with open(os.path.join(temp_dir, 'main.py'), 'w') as file:
+                file.write(data)
+    with zipfile.ZipFile(os.path.join(temp_dir, 'archive3.zip'), 'a') as z:
+        z.write(os.path.join(temp_dir, 'main.py'), 'main.py')
+
+    # preprocessor upload
+
+# Upload lambda function zipfile to user's model file folder on s3
+    try:
+        # This should go to developer's account from my account
+        s3_client = user_session.client('s3')
+        s3_client.upload_file(os.path.join(
+            temp_dir, 'archive2.zip'), bucket_name,  unique_model_id+"/"+'archiveauth.zip')
+
+    except Exception as e:
+        print(e)
+
+    os.remove(os.path.join(temp_dir, 'archive.zip'))
+    os.remove(os.path.join(temp_dir, 'archivetest.zip'))
+    os.remove(os.path.join(temp_dir, 'archive2.zip'))
+    os.remove(os.path.join(temp_dir, 'archive3.zip'))
+    os.remove(os.path.join(temp_dir,'main.py'))
 #!!! 2. update lambda creation code and iam policy attachements/apigateway integrations next.
 
     # Create and/or update roles for lambda function you will create below
@@ -340,8 +373,13 @@ def create_prediction_api(my_credentials, model_filepath, unique_model_id, model
     response6authfxn = lambdaclient.create_function(FunctionName=lambdaauthfxnname, Runtime='python3.6', Role='arn:aws:iam::'+account_number+':role/'+lambdarolename, Handler='main.handler',
                                           Code={
                                               'S3Bucket': bucket_name,
-                                              'S3Key':  unique_model_id+"/"+'archiveeval.zip'
+                                              'S3Key':  unique_model_id+"/"+'archiveauth.zip'
                                           }, Timeout=10, MemorySize=512, Layers=auth_layer)  # ADD ANOTHER LAYER ARN .. THE ONE SPECIFIC TO MODEL TYPE
+
+
+#add create api about here
+
+
 
 # NEXT: update permissions
 
