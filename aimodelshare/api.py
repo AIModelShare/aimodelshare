@@ -220,7 +220,6 @@ def create_prediction_api(my_credentials, model_filepath, unique_model_id, model
     except Exception as e:
         print(e)
 
-    os.remove(os.path.join(temp_dir, 'archive.zip'))
     os.remove(os.path.join(temp_dir, 'archivetest.zip'))
     os.remove(os.path.join(temp_dir, 'archive2.zip'))
     os.remove(os.path.join(temp_dir, 'archive3.zip'))
