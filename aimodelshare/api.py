@@ -732,9 +732,7 @@ def create_prediction_api(my_credentials, model_filepath, unique_model_id, model
         }, ]
     )
 
-    response12 = user_session.client('apigateway').create_deployment(
-        restApiId=api_id,
-        stageName='prod')
+
 
     responseauthfxnapigateway = user_session.client('apigateway').create_authorizer(
         restApiId=api_id,
@@ -785,6 +783,9 @@ def create_prediction_api(my_credentials, model_filepath, unique_model_id, model
                 'path': '/authorizerId',
                 'value': authorizerid
             }])
+    response12 = user_session.client('apigateway').create_deployment(
+        restApiId=api_id,
+        stageName='prod')
 
 
     result = 'https://'+api_id + '.execute-api.'+region+'.amazonaws.com/prod/m'
