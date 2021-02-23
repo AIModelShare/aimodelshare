@@ -13,7 +13,33 @@ from zipfile import ZipFile, ZIP_STORED, ZipInfo
 
 
 def create_prediction_api(my_credentials, model_filepath, unique_model_id, model_type,categorical, labels):
+    import os
+    if os.path.exists(os.path.join(temp_dir, 'archive.zip')):
+      os.remove(os.path.join(temp_dir, 'archive.zip'))
+    else:
+      pass
+    if os.path.exists(os.path.join(temp_dir, 'archivetest.zip')):
+      os.remove(os.path.join(temp_dir, 'archivetest.zip'))
+    else:
+      pass 	
 
+    if os.path.exists(os.path.join(temp_dir, 'archive2.zip')):
+      os.remove(os.path.join(temp_dir, 'archive2.zip'))
+    else:
+      pass         
+
+    if os.path.exists(os.path.join(temp_dir, 'archive3.zip')):
+      os.remove(os.path.join(temp_dir, 'archive3.zip'))
+    else:
+      pass 
+    if os.path.exists(os.path.join(temp_dir,'main.py')):
+      os.remove(os.path.join(temp_dir,'main.py'))
+    else:
+      pass 
+    if os.path.exists(os.path.join(temp_dir,'ytest.pkl')):
+      os.remove(os.path.join(temp_dir,'ytest.pkl'))
+    else:
+      pass  
     AI_MODELSHARE_AccessKeyId = my_credentials["AI_MODELSHARE_AccessKeyId"]
     AI_MODELSHARE_SecretAccessKey = my_credentials["AI_MODELSHARE_SecretAccessKey"]
     region = my_credentials["region"]
