@@ -223,7 +223,7 @@ def create_prediction_api(my_credentials, model_filepath, unique_model_id, model
         # This should go to developer's account from my account
         s3_client = user_session.client('s3')
         s3_client.upload_file(os.path.join(
-            temp_dir, 'archive2.zip'), bucket_name,  unique_model_id+"/"+'archiveauth.zip')
+            temp_dir, 'archive3.zip'), bucket_name,  unique_model_id+"/"+'archiveauth.zip')
 
     except Exception as e:
         print(e)
