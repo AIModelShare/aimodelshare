@@ -14,7 +14,7 @@ from zipfile import ZipFile, ZIP_STORED, ZipInfo
 def create_prediction_api(my_credentials, model_filepath, unique_model_id, model_type,categorical, labels):
     from zipfile import ZipFile
     import zipfile
-
+    import tempfile
     # create temporary folder
     temp_dir = tempfile.gettempdir()
     import os
