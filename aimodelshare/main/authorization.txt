@@ -3,7 +3,7 @@ from __future__ import print_function
 import re
 
 
-def lambda_handler(event, context):
+def handler(event, context):
     print("Client token: " + event['authorizationToken'])
     print("Method ARN: " + event['methodArn'])
 
