@@ -13,6 +13,11 @@ from zipfile import ZipFile, ZIP_STORED, ZipInfo
 
 
 def create_prediction_api(my_credentials, model_filepath, unique_model_id, model_type,categorical, labels):
+    from zipfile import ZipFile
+    import zipfile
+
+    # create temporary folder
+    temp_dir = tempfile.gettempdir()
     import os
     if os.path.exists(os.path.join(temp_dir, 'archive.zip')):
       os.remove(os.path.join(temp_dir, 'archive.zip'))
@@ -79,14 +84,6 @@ def create_prediction_api(my_credentials, model_filepath, unique_model_id, model
 
     account_number = user_session.client(
         'sts').get_caller_identity().get('Account')
-
-    import tempfile
-    from zipfile import ZipFile
-    import zipfile
-    import os
-
-    # create temporary folder
-    temp_dir = tempfile.gettempdir()
 
     try:
     	import importlib.resources as pkg_resources
