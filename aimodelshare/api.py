@@ -191,10 +191,7 @@ def create_prediction_api(my_credentials, model_filepath, unique_model_id, model
         print(e)
 
     import os
-    if os.path.exists(os.path.join(temp_dir, 'archive.zip')):
-      os.remove(os.path.join(temp_dir, 'archive.zip'))
-    else:
-      pass 	
+
     if os.path.exists(os.path.join(temp_dir,'main.py')):
       os.remove(os.path.join(temp_dir,'main.py'))
     else:
@@ -229,6 +226,10 @@ def create_prediction_api(my_credentials, model_filepath, unique_model_id, model
         print(e)
     
     import os
+    if os.path.exists(os.path.join(temp_dir, 'archive.zip')):
+      os.remove(os.path.join(temp_dir, 'archive.zip'))
+    else:
+      pass
     if os.path.exists(os.path.join(temp_dir, 'archivetest.zip')):
       os.remove(os.path.join(temp_dir, 'archivetest.zip'))
     else:
