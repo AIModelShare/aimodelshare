@@ -396,12 +396,12 @@ def create_prediction_api(my_credentials, model_filepath, unique_model_id, model
                                           Code={
                                               'S3Bucket': bucket_name,
                                               'S3Key':  unique_model_id+"/"+'archiveeval.zip'
-                                          }, Timeout=10, MemorySize=512, Layers=eval_layer)  # ADD ANOTHER LAYER ARN .. THE ONE SPECIFIC TO MODEL TYPE
+                                          }, Timeout=10, MemorySize=512, Layers=[eval_layer])  # ADD ANOTHER LAYER ARN .. THE ONE SPECIFIC TO MODEL TYPE
     response6authfxn = lambdaclient.create_function(FunctionName=lambdaauthfxnname, Runtime='python3.6', Role='arn:aws:iam::'+account_number+':role/'+lambdarolename, Handler='main.handler',
                                           Code={
                                               'S3Bucket': bucket_name,
                                               'S3Key':  unique_model_id+"/"+'archiveauth.zip'
-                                          }, Timeout=10, MemorySize=512, Layers=auth_layer)  # ADD ANOTHER LAYER ARN .. THE ONE SPECIFIC TO MODEL TYPE
+                                          }, Timeout=10, MemorySize=512, Layers=[auth_layer])  # ADD ANOTHER LAYER ARN .. THE ONE SPECIFIC TO MODEL TYPE
 
 
 #add create api about here
