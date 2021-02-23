@@ -101,8 +101,7 @@ def create_prediction_api(my_credentials, model_filepath, unique_model_id, model
       # Try backported to PY<37 `importlib_resources`.
       import importlib_resources as pkg_resources
 
-    import main  # relative-import the *package* containing the templates
-
+    from . import main  # relative-import the *package* containing the templates
 
     # write main handlers
     if model_type == 'text' and categorical == 'TRUE':
