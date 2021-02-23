@@ -240,10 +240,6 @@ def create_prediction_api(my_credentials, model_filepath, unique_model_id, model
     else:
       pass         
 
-    if os.path.exists(os.path.join(temp_dir, 'archive2.zip')):
-      os.remove(os.path.join(temp_dir, 'archive2.zip'))
-    else:
-      pass 
     if os.path.exists(os.path.join(temp_dir, 'archive3.zip')):
       os.remove(os.path.join(temp_dir, 'archive3.zip'))
     else:
