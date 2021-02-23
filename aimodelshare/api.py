@@ -1,4 +1,3 @@
-# code version #2: build on #1, without testing above yet.  create eval lambda, add policy updates
 import json
 import os
 import random
@@ -52,47 +51,57 @@ def create_prediction_api(my_credentials, model_filepath, unique_model_id, model
     bucket_name = my_credentials["bucket_name"]
     model_type = model_type.lower()
     categorical = categorical.upper()
-  # Wait for 5 seconds to ensure aws iam user on user account has time to load into aws's system
+    # Wait for 5 seconds to ensure aws iam user on user account has time to load into aws's system
     time.sleep(5)
+
+
     user_session = boto3.session.Session(aws_access_key_id=AI_MODELSHARE_AccessKeyId,
-                                         aws_secret_access_key=AI_MODELSHARE_SecretAccessKey, region_name=region)
+                                          aws_secret_access_key=AI_MODELSHARE_SecretAccessKey, region_name=region)
     if model_type=='image' :
-           model_layer ="arn:aws:lambda:us-east-1:517169013426:layer:keras_image:1"
-           eval_layer ="arn:aws:lambda:us-east-1:517169013426:layer:tabular_cloudpicklelayer:1"
-           auth_layer ="arn:aws:lambda:us-east-1:517169013426:layer:redissearch:1"
+            model_layer ="arn:aws:lambda:us-east-1:517169013426:layer:keras_image:1"
+            eval_layer ="arn:aws:lambda:us-east-1:517169013426:layer:tabular_cloudpicklelayer:1"
+            auth_layer ="arn:aws:lambda:us-east-1:517169013426:layer:aimsauth_layer:2"
     elif model_type=='text':
-           model_layer ="arn:aws:lambda:us-east-1:517169013426:layer:tabular_layer:2"
-           keras_layer ='arn:aws:lambda:us-east-1:517169013426:layer:keras_preprocesor:1'
-           eval_layer ="arn:aws:lambda:us-east-1:517169013426:layer:tabular_cloudpicklelayer:1"
-           auth_layer ="arn:aws:lambda:us-east-1:517169013426:layer:redissearch:1"
+            model_layer ="arn:aws:lambda:us-east-1:517169013426:layer:tabular_layer:2"
+            keras_layer ='arn:aws:lambda:us-east-1:517169013426:layer:keras_preprocesor:1'
+            eval_layer ="arn:aws:lambda:us-east-1:517169013426:layer:tabular_cloudpicklelayer:1"
+            auth_layer ="arn:aws:lambda:us-east-1:517169013426:layer:aimsauth_layer:2"
     elif model_type == 'tabular' or model_type =='timeseries':
-           model_layer ="arn:aws:lambda:us-east-1:517169013426:layer:tabular_cloudpicklelayer:1"
-           eval_layer ="arn:aws:lambda:us-east-1:517169013426:layer:tabular_cloudpicklelayer:1"
-           auth_layer ="arn:aws:lambda:us-east-1:517169013426:layer:redissearch:1"
+            model_layer ="arn:aws:lambda:us-east-1:517169013426:layer:tabular_cloudpicklelayer:1"
+            eval_layer ="arn:aws:lambda:us-east-1:517169013426:layer:tabular_cloudpicklelayer:1"
+            auth_layer ="arn:aws:lambda:us-east-1:517169013426:layer:aimsauth_layer:2"
     elif model_type.lower() == 'audio':
-           model_layer = "arn:aws:lambda:us-east-1:517169013426:layer:librosa_nosklearn:9"
-           eval_layer ="arn:aws:lambda:us-east-1:517169013426:layer:tabular_cloudpicklelayer:1"
-           auth_layer ="arn:aws:lambda:us-east-1:517169013426:layer:redissearch:1"
+            model_layer = "arn:aws:lambda:us-east-1:517169013426:layer:librosa_nosklearn:9"
+            eval_layer ="arn:aws:lambda:us-east-1:517169013426:layer:tabular_cloudpicklelayer:1"
+            auth_layer ="arn:aws:lambda:us-east-1:517169013426:layer:aimsauth_layer:2"
     else :
         print("no matching model data type to load correct python package zip file (lambda layer)")
 
     #cloud_layer = "arn:aws:lambda:us-east-1:517169013426:layer:tabular_cloudpicklelayer:1"
     # dill_layer ="arn:aws:lambda:us-east-1:517169013426:layer:dill:3"
 
-  # Update note:  dyndb data to add.  apiname. (include username too)
+    # Update note:  dyndb data to add.  apiname. (include username too)
 
 
     account_number = user_session.client(
         'sts').get_caller_identity().get('Account')
 
+    import tempfile
+    from zipfile import ZipFile
+    import zipfile
+    import os
+
+    # create temporary folder
+    temp_dir = tempfile.gettempdir()
+
     try:
-    	import importlib.resources as pkg_resources
+      import importlib.resources as pkg_resources
 
     except ImportError:
-    	# Try backported to PY<37 `importlib_resources`.
-    	import importlib_resources as pkg_resources
+      # Try backported to PY<37 `importlib_resources`.
+      import importlib_resources as pkg_resources
 
-    from . import main  # relative-import the *package* containing the templates
+    import main  # relative-import the *package* containing the templates
 
 
     # write main handlers
@@ -165,10 +174,10 @@ def create_prediction_api(my_credentials, model_filepath, unique_model_id, model
     with zipfile.ZipFile(os.path.join(temp_dir, 'archive.zip'), 'a') as z:
         z.write(os.path.join(temp_dir, 'main.py'), 'main.py')
 
-	
+
     # preprocessor upload
 
-# Upload lambda function zipfile to user's model file folder on s3
+    # Upload lambda function zipfile to user's model file folder on s3
     try:
         # This should go to developer's account from my account
         s3_client = user_session.client('s3')
@@ -177,7 +186,7 @@ def create_prediction_api(my_credentials, model_filepath, unique_model_id, model
 
     except Exception as e:
         print(e)
-    
+
     if os.path.exists(os.path.join(temp_dir,'main.py')):
       os.remove(os.path.join(temp_dir,'main.py'))
     else:
@@ -186,8 +195,9 @@ def create_prediction_api(my_credentials, model_filepath, unique_model_id, model
     if os.path.exists(os.path.join(temp_dir,'archive.zip')):
       os.remove(os.path.join(temp_dir,'archive.zip'))
     else:
-      pass 
-# Upload model eval lambda function zipfile to user's model file folder on s3
+      pass   
+
+    # Upload model eval lambda function zipfile to user's model file folder on s3
     if categorical == 'TRUE':
             data = pkg_resources.read_text(main, 'eval_classification.txt')
             from string import Template
@@ -209,7 +219,7 @@ def create_prediction_api(my_credentials, model_filepath, unique_model_id, model
 
     # preprocessor upload
 
-# Upload lambda function zipfile to user's model file folder on s3
+    # Upload lambda function zipfile to user's model file folder on s3
     try:
         # This should go to developer's account from my account
         s3_client = user_session.client('s3')
@@ -224,28 +234,28 @@ def create_prediction_api(my_credentials, model_filepath, unique_model_id, model
     if os.path.exists(os.path.join(temp_dir,'main.py')):
       os.remove(os.path.join(temp_dir,'main.py'))
     else:
-      pass  
+      pass         
 
     if os.path.exists(os.path.join(temp_dir,'archive2.zip')):
       os.remove(os.path.join(temp_dir,'archive2.zip'))
     else:
-      pass        
+      pass  
 
-# Upload model eval lambda function zipfile to user's model file folder on s3
+    # Upload model eval lambda function zipfile to user's model file folder on s3
     if categorical == 'TRUE':
-        newdata = pkg_resources.read_text(main, 'authorization.txt')
-        with open(os.path.join(temp_dir, 'main.py'), 'w') as file:
-            file.write(newdata)
+            newdata = pkg_resources.read_text(main, 'authorization.txt')
+            with open(os.path.join(temp_dir, 'main.py'), 'w') as file:
+                file.write(newdata)
     elif categorical == 'FALSE':
-        newdata = pkg_resources.read_text(main, 'authorization.txt')
-        with open(os.path.join(temp_dir, 'main.py'), 'w') as file:
-            file.write(newdata)
+            newdata = pkg_resources.read_text(main, 'authorization.txt')
+            with open(os.path.join(temp_dir, 'main.py'), 'w') as file:
+                file.write(newdata)
     with zipfile.ZipFile(os.path.join(temp_dir, 'archive3.zip'), 'a') as z:
         z.write(os.path.join(temp_dir, 'main.py'), 'main.py')
 
     # preprocessor upload
 
-# Upload lambda function zipfile to user's model file folder on s3
+    # Upload lambda function zipfile to user's model file folder on s3
     try:
         # This should go to developer's account from my account
         s3_client = user_session.client('s3')
@@ -254,7 +264,7 @@ def create_prediction_api(my_credentials, model_filepath, unique_model_id, model
 
     except Exception as e:
         print(e)
-    
+
     import os
     if os.path.exists(os.path.join(temp_dir, 'archive.zip')):
       os.remove(os.path.join(temp_dir, 'archive.zip'))
@@ -278,12 +288,7 @@ def create_prediction_api(my_credentials, model_filepath, unique_model_id, model
       os.remove(os.path.join(temp_dir,'main.py'))
     else:
       pass 
-    if os.path.exists(os.path.join(temp_dir,'ytest.pkl')):
-      os.remove(os.path.join(temp_dir,'ytest.pkl'))
-    else:
-      pass 
 
-#!!! 2. update lambda creation code and iam policy attachements/apigateway integrations next.
 
     # Create and/or update roles for lambda function you will create below
     lambdarole1 = {u'Version': u'2012-10-17', u'Statement': [
@@ -376,8 +381,8 @@ def create_prediction_api(my_credentials, model_filepath, unique_model_id, model
 
     lambdaclient = user_session.client('lambda')
 
-##!!!  this is f'd.  looks like aishwarya hasn't fixed the reference to other layers!  It's a good start, but we should add a subfunction to return
-## the correct layer from an externally stored list (save arns to a github repo and allow them to be imported here at some point.)
+    ##!!!  this is f'd.  looks like aishwarya hasn't fixed the reference to other layers!  It's a good start, but we should add a subfunction to return
+    ## the correct layer from an externally stored list (save arns to a github repo and allow them to be imported here at some point.)
     layers = []
     layers.append(model_layer)
     if model_type =='text':
@@ -387,10 +392,10 @@ def create_prediction_api(my_credentials, model_filepath, unique_model_id, model
     # layers.append(keras_layer)
 
     response6 = lambdaclient.create_function(FunctionName=lambdafxnname, Runtime='python3.6', Role='arn:aws:iam::'+account_number+':role/'+lambdarolename, Handler='main.handler',
-                                             Code={
-                                                 'S3Bucket': bucket_name,
-                                                 'S3Key':  unique_model_id+"/"+'archivetest.zip'
-                                             }, Timeout=10, MemorySize=512, Layers=layers)  # ADD ANOTHER LAYER ARN .. THE ONE SPECIFIC TO MODEL TYPE
+                                              Code={
+                                                  'S3Bucket': bucket_name,
+                                                  'S3Key':  unique_model_id+"/"+'archivetest.zip'
+                                              }, Timeout=10, MemorySize=512, Layers=layers)  # ADD ANOTHER LAYER ARN .. THE ONE SPECIFIC TO MODEL TYPE
 
     response6evalfxn = lambdaclient.create_function(FunctionName=lambdaevalfxnname, Runtime='python3.6', Role='arn:aws:iam::'+account_number+':role/'+lambdarolename, Handler='main.handler',
                                           Code={
@@ -403,18 +408,11 @@ def create_prediction_api(my_credentials, model_filepath, unique_model_id, model
                                               'S3Key':  unique_model_id+"/"+'archiveauth.zip'
                                           }, Timeout=10, MemorySize=512, Layers=[auth_layer])  # ADD ANOTHER LAYER ARN .. THE ONE SPECIFIC TO MODEL TYPE
 
-
-#add create api about here
-#TODO: 
+    #add create api about here
+    #TODO: 
     api_name = 'modapi'+str(random.randint(1, 1000000))	
-  # Update note:  change apiname in apijson from modapi890799 to randomly generated apiname?  or aimodelshare generic name?
-    data = get_api_json()
-    from string import Template
-    t = Template(data)
-    api_json = t.substitute(
-                lambda_arn=response6authfxn['FunctionArn'])
-
-
+    # Update note:  change apiname in apijson from modapi890799 to randomly generated apiname?  or aimodelshare generic name?
+    api_json= get_api_json()
 
     user_client = boto3.client('apigateway', aws_access_key_id=str(
         AI_MODELSHARE_AccessKeyId), aws_secret_access_key=str(AI_MODELSHARE_SecretAccessKey), region_name=str(region))
@@ -428,7 +426,9 @@ def create_prediction_api(my_credentials, model_filepath, unique_model_id, model
     )
     api_id = response2['id']
 
- # Update note:  dyndb data to add.  api_id and resourceid "Resource": "arn:aws:execute-api:us-east-1:517169013426:iu3q9io652/prod/OPTIONS/m"
+
+
+    # Update note:  dyndb data to add.  api_id and resourceid "Resource": "arn:aws:execute-api:us-east-1:517169013426:iu3q9io652/prod/OPTIONS/m"
 
     # Update note:  dyndb data to add.  api_id and resourceid "Resource": "arn:aws:execute-api:us-east-1:517169013426:iu3q9io652/prod/OPTIONS/m"
 
@@ -446,7 +446,7 @@ def create_prediction_api(my_credentials, model_filepath, unique_model_id, model
     resource_id_eval=api_id_data['/eval']
 
 
-# NEXT: update permissions
+    # NEXT: update permissions
 
     fxn_list = lambdaclient.list_functions()
     stmt_id = 'apigateway-prod-'+str(random.randint(1, 1000000))
@@ -617,8 +617,7 @@ def create_prediction_api(my_credentials, model_filepath, unique_model_id, model
             "value": '{"Version": "2012-10-17","Statement": [{"Effect": "Allow","Principal": "*","Action": "execute-api:Invoke","Resource": "arn:aws:execute-api:'+region+':'+account_number+':'+api_id+'/prod/OPTIONS/*"}]}'
         }, ]
     )
-
-# start here to update eval fxn integration with api resource_id_eval, lambdaevalfxnname
+    # start here to update eval fxn integration with api resource_id_eval, lambdaevalfxnname
     if str(roles['Roles']).find("lambda_invoke_function_assume_apigw_role") > 0:
         response11 = user_session.client('apigateway').put_integration(
             restApiId=api_id,
@@ -738,6 +737,57 @@ def create_prediction_api(my_credentials, model_filepath, unique_model_id, model
         restApiId=api_id,
         stageName='prod')
 
+    responseauthfxnapigateway = user_session.client('apigateway').create_authorizer(
+        restApiId=api_id,
+        name='aimscustomauthfxn',
+        type='TOKEN',
+        authorizerUri="arn:aws:apigateway:"+region+":lambda:path/2015-03-31/functions/arn:aws:lambda:"+region+":"+account_number+":function:"+lambdaauthfxnname+"/invocations",
+        identitySource="method.request.header.authorizationToken",
+        authorizerResultTtlInSeconds=0
+        
+    )
+
+    responseauthfxnapigateway = user_session.client('apigateway').get_authorizers(
+        restApiId=api_id
+    )
+
+    authorizerid=responseauthfxnapigateway['items'][0]['id']
+
+    response_modmthd_addauth = user_session.client('apigateway').update_method(
+        restApiId=api_id,
+        resourceId=resource_id,
+        httpMethod='POST',
+        patchOperations=[
+            {
+                'op': 'replace',
+                'path': '/authorizationType',
+                'value': 'CUSTOM',
+                'from': 'NONE'
+            },
+            {
+                'op': 'replace',
+                'path': '/authorizerId',
+                'value': authorizerid
+            }])
+
+    response_evalmthd_addauth = user_session.client('apigateway').update_method(
+        restApiId=api_id,
+        resourceId=resource_id_eval,
+        httpMethod='POST',
+        patchOperations=[
+            {
+                'op': 'replace',
+                'path': '/authorizationType',
+                'value': 'CUSTOM',
+                'from': 'NONE'
+            },
+            {
+                'op': 'replace',
+                'path': '/authorizerId',
+                'value': authorizerid
+            }])
+
+
     result = 'https://'+api_id + '.execute-api.'+region+'.amazonaws.com/prod/m'
 
     return {"statusCode": 200,
@@ -749,202 +799,165 @@ def create_prediction_api(my_credentials, model_filepath, unique_model_id, model
 
 
 def get_api_json():
-    apijson = '''{
-				"openapi": "3.0.1",
-				"info": {
-				  "title": "modapi36146",
-				  "description": "This is a copy of my first API",
-				  "version": "2020-05-12T21:25:38Z"
-				},
-				"servers": [
-				  {
-					"url": "https://zm2yl9jj88.execute-api.us-east-1.amazonaws.com/{basePath}",
-					"variables": {
-					  "basePath": {
-						"default": "/prod"
-					  }
-					}
-				  }
-				],
-				"paths": {
-				  "/m": {
-					"post": {
-					  "responses": {
-						"200": {
-						  "description": "200 response",
-						  "headers": {
-							"Access-Control-Allow-Origin": {
-							  "schema": {
-								"type": "string"
-							  }
-							}
-						  },
-						  "content": {
-							"application/json": {
-							  "schema": {
-								"$ref": "#/components/schemas/outputmodel"
-							  }
-							}
-						  }
-						}
-					  },
-				"security": [
-				  {
-					"redisAccessauth": []
-				  }
-				]
-					},
-					"options": {
-					  "responses": {
-						"200": {
-						  "description": "200 response",
-						  "headers": {
-							"Access-Control-Allow-Origin": {
-							  "schema": {
-								"type": "string"
-							  }
-							},
-							"Access-Control-Allow-Methods": {
-							  "schema": {
-								"type": "string"
-							  }
-							},
-							"Access-Control-Allow-Headers": {
-							  "schema": {
-								"type": "string"
-							  }
-							}
-						  },
-						  "content": {
-							"application/json": {
-							  "schema": {
-								"$ref": "#/components/schemas/Empty"
-							  }
-							}
-						  }
-						}
-					  },
-				"security": [
-				  {
-					"testauth2frombotonext8": []
-				  }
-				]
-					}
-				  },
-                	 "/eval": {
-					"post": {
-					  "responses": {
-						"200": {
-						  "description": "200 response",
-						  "headers": {
-							"Access-Control-Allow-Origin": {
-							  "schema": {
-								"type": "string"
-							  }
-							}
-						  },
-						  "content": {
-							"application/json": {
-							  "schema": {
-								"$ref": "#/components/schemas/outputmodel"
-							  }
-							}
-						  }
-						}
-					  },
-				"security": [
-				  {
-					"redisAccessauth": []
-				  }
-				]
-					},
-					"options": {
-					  "responses": {
-						"200": {
-						  "description": "200 response",
-						  "headers": {
-							"Access-Control-Allow-Origin": {
-							  "schema": {
-								"type": "string"
-							  }
-							},
-							"Access-Control-Allow-Methods": {
-							  "schema": {
-								"type": "string"
-							  }
-							},
-							"Access-Control-Allow-Headers": {
-							  "schema": {
-								"type": "string"
-							  }
-							}
-						  },
-						  "content": {
-							"application/json": {
-							  "schema": {
-								"$ref": "#/components/schemas/Empty"
-							  }
-							}
-						  }
-						}
-					  },
-				"security": [
-				  {
-					"testauth2frombotonext8": []
-				  }
-				]
-					}
-				  }
-				},
-				"components": {
-				  "schemas": {
-					"Empty": {
-					  "title": "Empty Schema",
-					  "type": "object"
-					},
-					"outputmodel": {
-					  "title": "Output",
-					  "type": "object",
-					  "properties": {
-						"body": {
-						  "type": "string"
-						}
-					  }
-					}
-				  },
-			"securitySchemes": {
-			  "redisAccessauth": {
-				"type": "apiKey",
-				"name": "authorizationToken",
-				"in": "header",
-				"x-amazon-apigateway-authtype": "custom",
-				"x-amazon-apigateway-authorizer": {
-				  "authorizerUri":lambda_arn,
-				  "authorizerResultTtlInSeconds": 0,
-				  "type": "token"
-				}
-			  }
-			}
-				}},
-		   "x-amazon-apigateway-policy": {
-			"Version": "2012-10-17",
-			"Statement": [
-			  {
-				"Effect": "Deny",
-				"Principal": "*",
-				"Action": "execute-api:Invoke",
-				"Resource": "arn:aws:execute-api:us-east-1:517169013426:0eq0w2nmmb/*",
-				"Condition": {
-				  "IpAddress": {
-					"aws:SourceIp": "11"
-				  }
-				}
-			  }
-			]
-		  }
-			  }'''
+    apijson = '''
+        {
+          "openapi": "3.0.1",
+          "info": {
+            "title": "modapi36146",
+            "description": "This is a copy of my first API",
+            "version": "2020-05-12T21:25:38Z"
+          },
+          "servers": [
+            {
+              "url": "https://8nee9nskdb.execute-api.us-east-1.amazonaws.com/{basePath}",
+              "variables": {
+                "basePath": {
+                  "default": "/prod"
+                }
+              }
+            }
+          ],
+          "paths": {
+            "/eval": {
+              "post": {
+                "responses": {
+                  "200": {
+                    "description": "200 response",
+                    "headers": {
+                      "Access-Control-Allow-Origin": {
+                        "schema": {
+                          "type": "string"
+                        }
+                      }
+                    },
+                    "content": {
+                      "application/json": {
+                        "schema": {
+                          "$ref": "#/components/schemas/outputmodel"
+                        }
+                      }
+                    }
+                  }
+                }
+              },
+              "options": {
+                "responses": {
+                  "200": {
+                    "description": "200 response",
+                    "headers": {
+                      "Access-Control-Allow-Origin": {
+                        "schema": {
+                          "type": "string"
+                        }
+                      },
+                      "Access-Control-Allow-Methods": {
+                        "schema": {
+                          "type": "string"
+                        }
+                      },
+                      "Access-Control-Allow-Headers": {
+                        "schema": {
+                          "type": "string"
+                        }
+                      }
+                    },
+                    "content": {
+                      "application/json": {
+                        "schema": {
+                          "$ref": "#/components/schemas/Empty"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            "/m": {
+              "post": {
+                "responses": {
+                  "200": {
+                    "description": "200 response",
+                    "headers": {
+                      "Access-Control-Allow-Origin": {
+                        "schema": {
+                          "type": "string"
+                        }
+                      }
+                    },
+                    "content": {
+                      "application/json": {
+                        "schema": {
+                          "$ref": "#/components/schemas/outputmodel"
+                        }
+                      }
+                    }
+                  }
+                }
+              },
+              "options": {
+                "responses": {
+                  "200": {
+                    "description": "200 response",
+                    "headers": {
+                      "Access-Control-Allow-Origin": {
+                        "schema": {
+                          "type": "string"
+                        }
+                      },
+                      "Access-Control-Allow-Methods": {
+                        "schema": {
+                          "type": "string"
+                        }
+                      },
+                      "Access-Control-Allow-Headers": {
+                        "schema": {
+                          "type": "string"
+                        }
+                      }
+                    },
+                    "content": {
+                      "application/json": {
+                        "schema": {
+                          "$ref": "#/components/schemas/Empty"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "components": {
+            "schemas": {
+              "Empty": {
+                "title": "Empty Schema",
+                "type": "object"
+              },
+              "outputmodel": {
+                "title": "Output",
+                "type": "object",
+                "properties": {
+                  "body": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          },
+          "x-amazon-apigateway-policy": {
+            "Version": "2012-10-17",
+            "Statement": [
+              {
+                "Effect": "Allow",
+                "Principal": "*",
+                "Action": "execute-api:Invoke",
+                "Resource": "arn:aws:execute-api:us-east-1:517169013426:8nee9nskdb/prod/OPTIONS/*"
+              }
+            ]
+          }
+        }
+                '''
     return apijson
-
 
 __all__ = [
     get_api_json,
