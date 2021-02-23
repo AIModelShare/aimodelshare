@@ -751,7 +751,7 @@ def create_prediction_api(my_credentials, model_filepath, unique_model_id, model
     authorizerid=responseauthfxnapigateway['items'][0]['id']
 
     stmt_idauth = 'apigateway-prod-'+str(random.randint(1, 1000000))
-    response70 = lambdaclient.add_permission(
+    response70 = user_session.client('lambda').add_permission(
         FunctionName=lambdaauthfxnname,
         StatementId=stmt_idauth,
         Action='lambda:InvokeFunction',
