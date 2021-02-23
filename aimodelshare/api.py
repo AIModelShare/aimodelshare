@@ -750,6 +750,16 @@ def create_prediction_api(my_credentials, model_filepath, unique_model_id, model
 
     authorizerid=responseauthfxnapigateway['items'][0]['id']
 
+    stmt_idauth = 'apigateway-prod-'+str(random.randint(1, 1000000))
+    response70 = lambdaclient.add_permission(
+        FunctionName=lambdaauthfxnname,
+        StatementId=stmt_idauth,
+        Action='lambda:InvokeFunction',
+        Principal='apigateway.amazonaws.com',
+        SourceArn='arn:aws:execute-api:'+region+':' +
+        account_number+':'+api_id+'/authorizers/'+authorizerid,
+    )    
+    
     response_modmthd_addauth = user_session.client('apigateway').update_method(
         restApiId=api_id,
         resourceId=resource_id,
