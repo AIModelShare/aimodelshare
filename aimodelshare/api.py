@@ -142,6 +142,7 @@ def create_prediction_api(my_credentials, model_filepath, unique_model_id, model
     with zipfile.ZipFile(os.path.join(temp_dir, 'archive.zip'), 'a') as z:
         z.write(os.path.join(temp_dir, 'main.py'), 'main.py')
 
+	
     # preprocessor upload
 
 # Upload lambda function zipfile to user's model file folder on s3
@@ -157,7 +158,12 @@ def create_prediction_api(my_credentials, model_filepath, unique_model_id, model
     if os.path.exists(os.path.join(temp_dir,'main.py')):
       os.remove(os.path.join(temp_dir,'main.py'))
     else:
-      pass     
+      pass  
+
+    if os.path.exists(os.path.join(temp_dir,'archive.zip')):
+      os.remove(os.path.join(temp_dir,'archive.zip'))
+    else:
+      pass 
 # Upload model eval lambda function zipfile to user's model file folder on s3
     if categorical == 'TRUE':
             data = pkg_resources.read_text(main, 'eval_classification.txt')
@@ -195,7 +201,12 @@ def create_prediction_api(my_credentials, model_filepath, unique_model_id, model
     if os.path.exists(os.path.join(temp_dir,'main.py')):
       os.remove(os.path.join(temp_dir,'main.py'))
     else:
-      pass         
+      pass  
+
+    if os.path.exists(os.path.join(temp_dir,'archive2.zip')):
+      os.remove(os.path.join(temp_dir,'archive2.zip'))
+    else:
+      pass        
 
 # Upload model eval lambda function zipfile to user's model file folder on s3
     if categorical == 'TRUE':
@@ -246,6 +257,10 @@ def create_prediction_api(my_credentials, model_filepath, unique_model_id, model
       pass 
     if os.path.exists(os.path.join(temp_dir,'main.py')):
       os.remove(os.path.join(temp_dir,'main.py'))
+    else:
+      pass 
+    if os.path.exists(os.path.join(temp_dir,'ytest.pkl')):
+      os.remove(os.path.join(temp_dir,'ytest.pkl'))
     else:
       pass 
 
