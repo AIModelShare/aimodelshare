@@ -38,7 +38,7 @@ def _custom_upload_policy(bucket_name, unique_model_id):
     "Version": "2012-10-17",
     "Statement": [
         {
-            "Sid": "AllowUserToSeeBucketListInTheConsole"str(unique_model_id),
+            "Sid": "AllowUserToSeeBucketListInTheConsole"+str(unique_model_id),
             "Action": [
                 "s3:ListAllMyBuckets",
                 "s3:GetBucketLocation"
@@ -70,7 +70,7 @@ def _custom_upload_policy(bucket_name, unique_model_id):
             }
         },
         {
-            "Sid": "AllowListingOfUserFolder"str(unique_model_id),
+            "Sid": "AllowListingOfUserFolder"+str(unique_model_id),
             "Action": [
                 "s3:ListBucket"
             ],
