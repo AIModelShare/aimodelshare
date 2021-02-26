@@ -292,7 +292,6 @@ def create_prediction_api(my_credentials, model_filepath, unique_model_id, model
     # Create and/or update roles for lambda function you will create below
     lambdarole1 = {u'Version': u'2012-10-17', u'Statement': [
         {u'Action': u'sts:AssumeRole', u'Effect': u'Allow', u'Principal': {u'Service': u'lambda.amazonaws.com'}}]}
-    lambdarolename = 'myService-dev-us-east-1-lambdaRole'
 
     roles = user_session.client('iam').list_roles()
 
@@ -307,7 +306,7 @@ def create_prediction_api(my_credentials, model_filepath, unique_model_id, model
             lambdafxnname +
             ':*:*"],"Effect": "Allow"},{"Action": ["s3:GetObject"],"Resource": ["arn:aws:s3:::' +
             bucket_name+'/*"],"Effect": "Allow"}]}',
-            PolicyName='S3AccessandcloudwatchlogPolicy',
+            PolicyName='S3AccessandcloudwatchlogPolicy'+str(random.randint(1, 1000000)),
             RoleName=lambdarolename,
         )
     else:
@@ -322,7 +321,7 @@ def create_prediction_api(my_credentials, model_filepath, unique_model_id, model
             lambdafxnname +
             ':*:*"],"Effect": "Allow"},{"Action": ["s3:GetObject"],"Resource": ["arn:aws:s3:::' +
             bucket_name+'/*"],"Effect": "Allow"}]}',
-            PolicyName='S3AccessandcloudwatchlogPolicy',
+            PolicyName='S3AccessandcloudwatchlogPolicy'+str(random.randint(1, 1000000)),
             RoleName=lambdarolename,
         )
     if str(roles['Roles']).find("myService-dev-us-east-1-lambdaRole") > 0:
@@ -333,7 +332,7 @@ def create_prediction_api(my_credentials, model_filepath, unique_model_id, model
             lambdaauthfxnname +
             ':*:*"],"Effect": "Allow"},{"Action": ["s3:GetObject"],"Resource": ["arn:aws:s3:::' +
             bucket_name+'/*"],"Effect": "Allow"}]}',
-            PolicyName='S3AccessandcloudwatchlogPolicy',
+            PolicyName='S3AccessandcloudwatchlogPolicy'+str(random.randint(1, 1000000)),
             RoleName=lambdarolename,
         )
     else:
@@ -348,7 +347,7 @@ def create_prediction_api(my_credentials, model_filepath, unique_model_id, model
             lambdaauthfxnname +
             ':*:*"],"Effect": "Allow"},{"Action": ["s3:GetObject"],"Resource": ["arn:aws:s3:::' +
             bucket_name+'/*"],"Effect": "Allow"}]}',
-            PolicyName='S3AccessandcloudwatchlogPolicy',
+            PolicyName='S3AccessandcloudwatchlogPolicy'+str(random.randint(1, 1000000)),
             RoleName=lambdarolename,
         )
     if str(roles['Roles']).find("myService-dev-us-east-1-lambdaRole") > 0:
@@ -359,7 +358,7 @@ def create_prediction_api(my_credentials, model_filepath, unique_model_id, model
             lambdaevalfxnname +
             ':*:*"],"Effect": "Allow"},{"Action": ["s3:GetObject"],"Resource": ["arn:aws:s3:::' +
             bucket_name+'/*"],"Effect": "Allow"}]}',
-            PolicyName='S3AccessandcloudwatchlogPolicy',
+            PolicyName='S3AccessandcloudwatchlogPolicy'+str(random.randint(1, 1000000)),
             RoleName=lambdarolename,
         )
     else:
@@ -374,7 +373,7 @@ def create_prediction_api(my_credentials, model_filepath, unique_model_id, model
             lambdaevalfxnname +
             ':*:*"],"Effect": "Allow"},{"Action": ["s3:GetObject"],"Resource": ["arn:aws:s3:::' +
             bucket_name+'/*"],"Effect": "Allow"}]}',
-            PolicyName='S3AccessandcloudwatchlogPolicy',
+            PolicyName='S3AccessandcloudwatchlogPolicy'+str(random.randint(1, 1000000)),
             RoleName=lambdarolename,
         )
 
