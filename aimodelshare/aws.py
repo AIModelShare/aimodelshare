@@ -6,22 +6,17 @@ import json
 from aimodelshare.exceptions import AuthorizationError, AWSAccessError
 
 
-def set_credentials(credential_file=None, type="submit_model", apiurl="apiurl",manual=False):
-  #TODO:
-  #1. When user runs set_credentials() with no args the function should immediately use the manual entry approach.
-  #2.
-  
+def set_credentials(credential_file=None, type="submit_model", apiurl="apiurl", manual = True):
   import os
   import getpass
+  import aimodelshare as ai
   flag = False
-  set_creds = []
 
-  if any([manual == True,credential_file==None]):
+  if any([manual == True, credential_file==None]):
     user = getpass.getpass(prompt="AI Modelshare Username:")
     os.environ["username"] = user
     pw = getpass.getpass(prompt="AI Modelshare Password:")
     os.environ["password"] = pw
-    set_creds.extend(["username", "password"])
   
   else: 
     f = open(credential_file)
@@ -36,13 +31,20 @@ def set_credentials(credential_file=None, type="submit_model", apiurl="apiurl",m
             value = value[1:-1]
             key = line.split("=", 1)[0].strip()
             os.environ[key.lower()] = value
-            set_creds.append(key.lower())
-    
+
           except LookupError: 
             print(* "Warning: Review format of", credential_file, ". Format should be variablename = 'variable_value'")
             break
   
-  if any([manual == True,credential_file==None]):
+  #Validate Username & Password
+  try: 
+    token=ai.aws.get_aws_token(os.environ.get("username"), os.environ.get("password"))
+    print("AI Modelshare Login Credentials set successfully.")
+  except: 
+    print("Credential confirmation unsuccessful. Check username & password and try again.")
+    return
+      
+  if  any([manual == True,credential_file==None]):
     flag = True
     access_key = getpass.getpass(prompt="AWS_ACCESS_KEY_ID:")
     os.environ["AWS_ACCESS_KEY_ID"] = access_key
@@ -52,7 +54,6 @@ def set_credentials(credential_file=None, type="submit_model", apiurl="apiurl",m
 
     region = getpass.getpass(prompt="AWS_REGION:")
     os.environ["AWS_REGION"] = region
-    set_creds.extend(["AWS_ACCESS_KEY_ID", "AWS_SECRET_ACCESS_KEY", "AWS_REGION"])
 
   else:  
     f = open(credential_file)
@@ -67,19 +68,29 @@ def set_credentials(credential_file=None, type="submit_model", apiurl="apiurl",m
             value = value[1:-1]
             key = line.split("=", 1)[0].strip()
             os.environ[key.upper()] = value
-            set_creds.append(key.upper())
           except LookupError: 
             print(* "Warning: Review format of", credential_file, ". Format should be variablename = 'variable_value'.")
             break
-  if not flag: 
-    return "Error: apiurl and/or type not found in "+str(credential_file)+". Please correct entries and resubmit."
+  
+  # Validate AWS Creds (submit_model)
+  import boto3
+  try: 
+    client = boto3.client('sts', aws_access_key_id=os.environ.get("AWS_ACCESS_KEY_ID"), aws_secret_access_key=os.environ.get("AWS_SECRET_ACCESS_KEY"))
+    details = client.get_caller_identity()
+    print("AWS credentials set successfully.")
+  except: 
+    print("AWS credential confirmation unsuccessful. Check AWS_ACCESS_KEY_ID & AWS_SECRET_ACCESS_KEY and try again.")
+    return
 
+  if not flag: 
+    print("Error: apiurl or type not found in"+str(credential_file)+". Please correct entries and resubmit.")
+  
   try:
-    f.close()    
+    f.close()
   except:
     pass
-  success = "Your "+type+" credentials for "+apiurl+" have been set successfully."
-  return success
+
+  return
 
 
 

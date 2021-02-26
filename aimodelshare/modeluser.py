@@ -53,20 +53,23 @@ def create_user_getkeyandpassword(jwt_aws_token, aws_key, aws_password, region):
     ts = form_timestamp(time.time())
     bucket_name = 'aimodelshare' + username.lower()
     master_name = 'aimodelshare' + username.lower()
+
+    from botocore.client import ClientError
+
     try:
-      #check if bucket exist and you have access
-      s3.meta.client.head_bucket(Bucket=bucket_name)
-      
-    except :
-    
-      try :
+        s3['resource'].meta.client.head_bucket(Bucket=bucket_name)
+        bucket_exists=False
+    except:
+        bucket_exists=True
+
+    if bucket_exists!=True:
         #bucket doesnot exist then create it
         bucket = s3["client"].create_bucket(ACL ='private',Bucket=bucket_name)
 
-      except :
+    else :
         #bucket exists but you have no access
         #add versioning
-        s3_resource = boto3.resource('s3')
+        s3_resource = s3['resource']
         version =0 
         
         for bucket in s3_resource.buckets.all(): 
@@ -75,13 +78,13 @@ def create_user_getkeyandpassword(jwt_aws_token, aws_key, aws_password, region):
 
         for i in range(1,version):
           #check if any version of bucket name exists in the user's buckets
-          if bucket_name+'-'+str(i) in s3["client"].buckets.all():
+          if bucket_name+'-'+str(i) in s3_resource.buckets.all():
             bucket_name = bucket_name+'-'+str(i)
 
         if bucket_name == master_name:
           bucket_name= bucket_name+'-'+str(version)
 
-      my_policy = _custom_s3_policy(bucket_name)
+    my_policy = _custom_s3_policy(bucket_name)
     #sub_bucket = 'aimodelshare' + username.lower() + ts.replace("_","")
     iam_username = 'AI_MODELSHARE_' + ts
 
