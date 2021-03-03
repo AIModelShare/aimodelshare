@@ -10,6 +10,7 @@ from datetime import datetime
 
 from aimodelshare.aws import run_function_on_lambda
 from aimodelshare.aws import get_token
+from aimodelshare.aws import get_aws_token
 
 from aimodelshare.aimsonnx import _get_leaderboard_data
 
@@ -310,8 +311,8 @@ def submit_model(
     else: 
             pass
     
-    token=get_token(aws_token['username'],aws_token['password'])
-    headers = { 'Content-Type':'application/json', 'authorizationToken': token, } 
+    token=get_aws_token(aws_token['username'],aws_token['password'])
+    headers = { 'Content-Type':'application/json', 'authorizationToken': token['token'], } 
     apiurl_eval=apiurl[:-1]+"eval"
     prediction = requests.post(apiurl_eval,headers=headers,data=json.dumps(prediction_submission)) 
 
