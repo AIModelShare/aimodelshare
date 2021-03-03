@@ -12,7 +12,7 @@ def set_credentials(credential_file=None, type="submit_model", apiurl="apiurl", 
   import aimodelshare as ai
   flag = False
 
-  if any([manual == True, credential_file==None]):
+  if all([manual == True, credential_file==None]):
     user = getpass.getpass(prompt="AI Modelshare Username:")
     os.environ["username"] = user
     pw = getpass.getpass(prompt="AI Modelshare Password:")
@@ -44,7 +44,7 @@ def set_credentials(credential_file=None, type="submit_model", apiurl="apiurl", 
     print("Credential confirmation unsuccessful. Check username & password and try again.")
     return
       
-  if  any([manual == True,credential_file==None]):
+  if  all([manual == True,credential_file==None]):
     flag = True
     access_key = getpass.getpass(prompt="AWS_ACCESS_KEY_ID:")
     os.environ["AWS_ACCESS_KEY_ID"] = access_key
