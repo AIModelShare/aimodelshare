@@ -8,6 +8,7 @@ from sklearn.model_selection import GridSearchCV, RandomizedSearchCV
 import keras 
 import torch
 import xgboost
+import tensorflow as tf
 
 # onnx modules
 import onnx
@@ -288,6 +289,20 @@ def _keras_to_onnx(model, transfer_learning=None,
 
     # check whether this is a fitted keras model
     # isinstance...
+
+
+    # handle keras models in sklearn wrapper
+    if isinstance(model, (GridSearchCV, RandomizedSearchCV)):
+        model = model.best_estimator_
+
+    if isinstance(model, sklearn.pipeline.Pipeline):
+        model = model.steps[-1][1]
+
+    sklearn_wrappers = (tf.python.keras.wrappers.scikit_learn.KerasClassifier,
+                    tf.python.keras.wrappers.scikit_learn.KerasRegressor)
+
+    if isinstance(model, sklearn_wrappers):
+        model = model.model
     
     # convert to onnx
     onx = convert_keras(model)
@@ -719,7 +734,7 @@ def _model_summary(meta_dict, from_onnx=False):
        
         
     model_summary = pd.DataFrame({'Layer':architecture['layers_sequence'],
-                          'Activation':architecture['activations_sequence'],
+                          #'Activation':architecture['activations_sequence'],
                           'Shape':architecture['layers_shapes'],
                           'Params':architecture['layers_n_params']})
         
@@ -748,6 +763,131 @@ def onnx_to_image(model):
     )
     
     return pydot_graph
+
+def inspect_model(apiurl, aws_token, aws_client, version=None):
+
+    onnx_model = _get_onnx_from_bucket(apiurl, aws_token, aws_client, version=version)
+
+    meta_dict = _get_metadata(onnx_model)
+
+    if meta_dict['ml_framework'] == 'keras':
+        inspect_pd = _model_summary(meta_dict)
+        
+    elif meta_dict['ml_framework'] in ['sklearn', 'xgboost']:
+        model_config = meta_dict["model_config"]
+        model_config = ast.literal_eval(model_config)
+        inspect_pd = pd.DataFrame({'param_name': model_config.keys(),
+                                   'param_value': model_config.values()})
+    
+    return inspect_pd
+    
+
+def compare_models(apiurl, aws_token, aws_client, version_list=None, by_model_type=None, best_model=None):
+    
+    if not isinstance(version_list, list):
+        raise Exception("Argument 'version' must be a list.")
+    
+    models_dict = {}
+    
+    for i in version_list: 
+        
+        onnx_model = _get_onnx_from_bucket(apiurl, aws_token, aws_client, version=i)
+        meta_dict = _get_metadata(onnx_model)
+        
+        models_dict[i] = meta_dict
+        
+    ml_framework_list = [models_dict[i]['ml_framework'] for i in models_dict]
+    model_type_list = [models_dict[i]['model_type'] for i in models_dict]
+    
+    if not all(x==ml_framework_list[0] for x in ml_framework_list):
+        raise Exception("Incongruent frameworks. Please compare models from the same ML frameworks.")
+        
+    if not all(x==model_type_list[0] for x in model_type_list):
+        raise Exception("Incongruent model types. Please compare models of the same model type.")
+    
+    if ml_framework_list[0] == 'sklearn':
+        
+        model_type = model_type_list[0]
+        model_class = model_from_string(model_type)
+        default = model_class()
+        default_config = default.get_params()
+        
+        comp_pd = pd.DataFrame({'param_name': default_config.keys(),
+                           'param_value': default_config.values()})
+        
+        for i in version_list: 
+            
+            temp_pd = inspect_model(apiurl, aws_token, aws_client, version=i)
+            comp_pd = pd.concat([comp_pd, temp_pd.drop(columns='param_name')], axis=1)
+        
+        comp_pd.columns = ['param_name', 'model_default'] + ["Model_"+str(i) for i in version_list]
+        
+        df_styled = comp_pd.style.apply(lambda x: ["background: tomato" if v != x.iloc[0] else "" for v in x], 
+                                        axis = 1, subset=comp_pd.columns[1:])
+
+        
+    if ml_framework_list[0] == 'keras':
+
+        comp_pd = pd.DataFrame()
+
+        for i in version_list: 
+
+            temp_pd = inspect_model(apiurl, aws_token, aws_client, version=i)
+
+            temp_pd = temp_pd.add_prefix('Model_'+str(i)+'_')    
+            comp_pd = pd.concat([comp_pd, temp_pd], axis=1)
+        
+        df_styled = comp_pd.style.apply(lambda x: ["background: tomato" if v == 'Dense' else "" for v in x], 
+                                axis = 1)
+        
+        df_styled = df_styled.apply(lambda x: ["background: yellow" if v == 'Dropout' else "" for v in x], 
+                                axis = 1)
+        
+        df_styled = df_styled.apply(lambda x: ["background: yellow" if v == 'Conv2D' else "" for v in x], 
+                                axis = 1)
+    
+    return df_styled
+
+
+
+def _get_onnx_from_bucket(apiurl, aws_token, aws_client, version=None):
+
+    # generate name of onnx model in bucket
+    onnx_model_name = "/onnx_model_v{version}.onnx".format(version = version)
+
+    # Get bucket and model_id for user
+    response, error = run_function_on_lambda(
+        apiurl, aws_token, **{"delete": "FALSE", "versionupdateget": "TRUE"}
+    )
+    if error is not None:
+        raise error
+
+    _, bucket, model_id = json.loads(response.content.decode("utf-8"))
+
+    try:
+        onnx_string = aws_client["client"].get_object(
+            Bucket=bucket, Key=model_id + onnx_model_name
+        )
+
+        onnx_string = onnx_string['Body'].read()
+
+    except Exception as err:
+        raise err
+
+    # generate tempfile for onnx object 
+    temp_dir = tempfile.gettempdir()
+    temp_path = os.path.join(temp_dir, 'temp_file_name')
+
+    # save onnx to temporary path
+    with open(temp_path, "wb") as f:
+        f.write(onnx_string)
+
+    # load onnx file from temporary path
+    onx = onnx.load(temp_path)
+
+    return onx
+
+
 
 def instantiate_model(apiurl, aws_token, aws_client, version=None):
 
@@ -782,9 +922,7 @@ def instantiate_model(apiurl, aws_token, aws_client, version=None):
 
         model_type = master_table.model_type[master_table.version == version].iloc[0]
 
-        models_modules_dict = _get_sklearn_modules()
-        module = models_modules_dict[model_type]
-        model_class = getattr(importlib.import_module(module), model_type)
+        model_class = model_from_string(model_type)
         model = model_class(**model_config)
 
 
@@ -792,7 +930,7 @@ def instantiate_model(apiurl, aws_token, aws_client, version=None):
 
         model = keras.Sequential().from_config(model_config)
 
-    return model 
+    return model
 
 
 def _get_layer_names():
@@ -832,3 +970,10 @@ def _get_sklearn_modules():
             models_modules_dict[k] = 'sklearn.'+i
     
     return models_modules_dict
+
+
+def model_from_string(model_type):
+    models_modules_dict = _get_sklearn_modules()
+    module = models_modules_dict[model_type]
+    model_class = getattr(importlib.import_module(module), model_type)
+    return model_class
