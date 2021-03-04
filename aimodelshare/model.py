@@ -247,7 +247,7 @@ def submit_model(
     sample_data:
     -----------------
     Returns
-    response:   True if the model is submitted sucessfully
+    response:   Model version if the model is submitted sucessfully
                 error  if there is any error while submitting models
     
     """
@@ -350,7 +350,7 @@ def submit_model(
     #    raise error
     # }}}
 
-    return True
+    return "Your model has been submitted as model version "+model_version 
 
 
 __all__ = [
