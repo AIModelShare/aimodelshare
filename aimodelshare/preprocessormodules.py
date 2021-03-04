@@ -88,7 +88,7 @@ def export_preprocessor(preprocessor_fxn,directory, globs=globals()):
       function_objects=list(inspect.getclosurevars(preprocessor_fxn).globals.keys())
 
       import sys
-      modulenames = ["sklearn"]
+      modulenames = ["sklearn","keras","tensorflow","cv2","resize","pytorch"]
       function_objects_nomodules = [i for i in function_objects if i not in list(modulenames)]
 
       def savetopickle(function_objects_listelement):
@@ -101,6 +101,8 @@ def export_preprocessor(preprocessor_fxn,directory, globs=globals()):
       # take savedpreprocessorobjectslist pkl files saved to tempdir to zipfile
       import pickle
       import string
+
+      
       for i in savedpreprocessorobjectslist: 
           objectname=str(i)+".pkl"
           zipObj.write(os.path.join(temp_dir,objectname),objectname)
@@ -120,7 +122,6 @@ def export_preprocessor(preprocessor_fxn,directory, globs=globals()):
 
     except Exception as e:
         print(e)
-
 
 def upload_preprocessor(preprocessor_path, client, bucket, model_id, model_version):
 
