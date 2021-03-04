@@ -350,7 +350,7 @@ def submit_model(
     #    raise error
     # }}}
 
-    return "Your model has been submitted as model version "+model_version 
+    return "Your model has been submitted as model version "+str(model_version) 
 
 
 __all__ = [
