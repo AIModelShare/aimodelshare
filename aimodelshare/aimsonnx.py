@@ -31,6 +31,7 @@ import ast
 import tempfile
 import json
 import re
+import pickle
 
 
 def _extract_onnx_metadata(onnx_model, framework):
@@ -227,6 +228,18 @@ def _sklearn_to_onnx(model, initial_types, transfer_learning=None,
     
     # get model config dict from sklearn model object
     metadata['model_config'] = str(model.get_params())
+
+    # get weights for pretrained models 
+    temp_dir = tempfile.gettempdir()
+    temp_path = os.path.join(temp_dir, 'temp_file_name')
+
+    with open(temp_path, 'wb') as f:
+        pickle.dump(model, f)
+
+    with open(temp_path, "rb") as f:
+        pkl_str = f.read()
+
+    metadata['model_weights'] = pkl_str
     
     # get model state from sklearn model object
     metadata['model_state'] = None
@@ -339,6 +352,12 @@ def _keras_to_onnx(model, transfer_learning=None,
 
     # get model config dict from keras model object
     metadata['model_config'] = str(model.get_config())
+
+    # get model weights from keras object 
+    def to_list(x):
+        return x.tolist()
+
+    metadata['model_weights'] = str(list(map(to_list, model.get_weights())))
 
     # get model state from pytorch model object
     metadata['model_state'] = None
@@ -782,7 +801,8 @@ def inspect_model(apiurl, aws_token, aws_client, version=None):
     return inspect_pd
     
 
-def compare_models(apiurl, aws_token, aws_client, version_list=None, by_model_type=None, best_model=None):
+def compare_models(apiurl, aws_token, aws_client, version_list=None, 
+    by_model_type=None, best_model=None, verbose=3):
     
     if not isinstance(version_list, list):
         raise Exception("Argument 'version' must be a list.")
@@ -833,6 +853,8 @@ def compare_models(apiurl, aws_token, aws_client, version_list=None, by_model_ty
         for i in version_list: 
 
             temp_pd = inspect_model(apiurl, aws_token, aws_client, version=i)
+
+            temp_pd = temp_pd.iloc[:,0:verbose]
 
             temp_pd = temp_pd.add_prefix('Model_'+str(i)+'_')    
             comp_pd = pd.concat([comp_pd, temp_pd], axis=1)
@@ -888,47 +910,51 @@ def _get_onnx_from_bucket(apiurl, aws_token, aws_client, version=None):
     return onx
 
 
+def instantiate_model(apiurl, aws_token, aws_client, version=None, trained=False):
 
-def instantiate_model(apiurl, aws_token, aws_client, version=None):
-
-    # Get bucket and model_id for user
-    response, error = run_function_on_lambda(
-        apiurl, aws_token, **{"delete": "FALSE", "versionupdateget": "TRUE"}
-    )
-    if error is not None:
-        raise error
-
-    _, bucket, model_id = json.loads(response.content.decode("utf-8"))
-
-    # Get mastertable
-    try:
-        master_table = aws_client["client"].get_object(
-            Bucket=bucket, Key=model_id + "/model_eval_data_mastertable.csv"
-        )
-
-        assert (
-            master_table["ResponseMetadata"]["HTTPStatusCode"] == 200
-        ), "There was a problem in accessing the leaderboard file"
-
-        master_table = pd.read_csv(master_table["Body"], sep="\t")
-
-    except Exception as err:
-        raise err
+    onnx_model = _get_onnx_from_bucket(apiurl, aws_token, aws_client, version=version)
+    meta_dict = _get_metadata(onnx_model)
 
     # get model config 
-    model_config = ast.literal_eval(master_table.model_config[master_table.version == version].iloc[0])
+    model_config = ast.literal_eval(meta_dict['model_config'])
+    ml_framework = meta_dict['ml_framework']
+    
+    if ml_framework == 'sklearn':
 
-    if master_table.ml_framework[master_table.version == version].iloc[0] == 'sklearn':
+        if trained == False:
+            model_type = meta_dict['model_type']
+            model_class = model_from_string(model_type)
+            model = model_class(**model_config)
 
-        model_type = master_table.model_type[master_table.version == version].iloc[0]
+        if trained == True:
+            
+            model_pkl = meta_dict['model_weights']
 
-        model_class = model_from_string(model_type)
-        model = model_class(**model_config)
+            temp_dir = tempfile.gettempdir()
+            temp_path = os.path.join(temp_dir, 'temp_file_name')
+
+            with open(temp_path, "wb") as f:
+                f.write(model_pkl)
+
+            with open(temp_path, 'rb') as f:
+                model = pickle.load(f)
 
 
-    if master_table.ml_framework[master_table.version == version].iloc[0] == 'keras':
+    if ml_framework == 'keras':
 
-        model = keras.Sequential().from_config(model_config)
+        if trained == False:
+            model = keras.Sequential().from_config(model_config)
+
+        if trained == True: 
+            model = keras.Sequential().from_config(model_config)
+            model_weights = ast.literal_eval(meta_dict['model_weights'])
+
+            def to_array(x):
+                return np.array(x, dtype="float32")
+
+            model_weights = list(map(to_array, model_weights))
+
+            model.set_weights(model_weights)
 
     return model
 
