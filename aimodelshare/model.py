@@ -305,7 +305,8 @@ def submit_model(
     else: 
             pass
     
-    ###### CHANGES HERE: 
+    ###### CHANGES HERE:
+    ### TODO: Add warning if username or pass is not set 
     aws_token=get_aws_token(os.environ.get("username"), os.environ.get("password"))
     headers = { 'Content-Type':'application/json', 'authorizationToken': aws_token['token'], } 
     apiurl_eval=apiurl[:-1]+"eval"
