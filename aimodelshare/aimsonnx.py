@@ -749,11 +749,13 @@ def onnx_to_image(model):
     
     return pydot_graph
 
-def instantiate_model(apiurl, aws_token, aws_client, version=None):
+def instantiate_model(apiurl, version=None):
+    aws_client=ai.aws.get_aws_client(aws_key=os.environ.get('AWS_ACCESS_KEY_ID'), aws_secret=os.environ.get('AWS_SECRET_ACCESS_KEY'), aws_region=os.environ.get('AWS_REGION'))
+    ### TODO: Add Warning if missing ^^ 
 
     # Get bucket and model_id for user
     response, error = run_function_on_lambda(
-        apiurl, aws_token, **{"delete": "FALSE", "versionupdateget": "TRUE"}
+        apiurl, **{"delete": "FALSE", "versionupdateget": "TRUE"}
     )
     if error is not None:
         raise error
