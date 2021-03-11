@@ -240,11 +240,20 @@ def submit_model(
                 error  if there is any error while submitting models
     
     """
-    ##### THIS IS NEW: 
+    ##### THIS IS NEW:
+    # Confirm that creds are loaded, print warning if not
+    if all(["AWS_ACCESS_KEY_ID" in os.environ, 
+            "AWS_SECRET_ACCESS_KEY" in os.environ,
+            "AWS_REGION" in os.environ,
+           "username" in os.environ, 
+           "password" in os.environ]):
+        pass
+    else:
+        return print("'Submit Model' unsuccessful. Please provide credentials with set_credentials().")
+    
     aws_client=ai.aws.get_aws_client(aws_key=os.environ.get('AWS_ACCESS_KEY_ID'), 
                                    aws_secret=os.environ.get('AWS_SECRET_ACCESS_KEY'), 
                                    aws_region=os.environ.get('AWS_REGION'))
-    ## TODO: Add Warning if something is not set 
     
     # Get bucket and model_id for user {{{
     response, error = run_function_on_lambda(
@@ -306,7 +315,6 @@ def submit_model(
             pass
     
     ###### CHANGES HERE:
-    ### TODO: Add warning if username or pass is not set 
     aws_token=get_aws_token(os.environ.get("username"), os.environ.get("password"))
     headers = { 'Content-Type':'application/json', 'authorizationToken': aws_token['token'], } 
     apiurl_eval=apiurl[:-1]+"eval"

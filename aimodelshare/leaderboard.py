@@ -7,11 +7,20 @@ from aimodelshare.aimsonnx import _get_layer_names
 
 
 def get_leaderboard(apiurl, category="classification", verbose=3, columns=None):
+    # Confirm that creds are loaded, print warning if not
+    if all(["AWS_ACCESS_KEY_ID" in os.environ, 
+            "AWS_SECRET_ACCESS_KEY" in os.environ,
+            "AWS_REGION" in os.environ,
+           "username" in os.environ, 
+           "password" in os.environ]):
+        pass
+    else:
+        return print("Get Leaderboard unsuccessful. Please provide credentials with set_credentials().")
 
     aws_client=ai.aws.get_aws_client(aws_key=os.environ.get('AWS_ACCESS_KEY_ID'), 
                                    aws_secret=os.environ.get('AWS_SECRET_ACCESS_KEY'), 
                                    aws_region=os.environ.get('AWS_REGION'))
-    ## TODO: Add Warning if any creds are not set## 
+    
     # Get bucket and model_id for user {{{
     response, error = run_function_on_lambda(
         apiurl, **{"delete": "FALSE", "versionupdateget": "TRUE"}
