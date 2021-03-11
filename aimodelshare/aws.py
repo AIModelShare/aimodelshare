@@ -94,7 +94,7 @@ def set_credentials(credential_file=None, type="submit_model", apiurl="apiurl", 
 
 
 
-def get_aws_token(user_name, user_pass):
+def get_aws_token():
     config = botocore.config.Config(signature_version=botocore.UNSIGNED)
 
     provider_client = boto3.client(
@@ -105,13 +105,13 @@ def get_aws_token(user_name, user_pass):
         response = provider_client.initiate_auth(
             ClientId="7ptv9f8pt36elmg0e4v9v7jo9t",
             AuthFlow="USER_PASSWORD_AUTH",
-            AuthParameters={"USERNAME": user_name, "PASSWORD": user_pass},
+             AuthParameters={"USERNAME": os.getenv('username'), "PASSWORD": os.getenv('password')},
         )
 
     except Exception as err:
         raise AuthorizationError("Could not authorize user. " + str(err))
 
-    return {"username": user_name,"password": user_pass, "token": response["AuthenticationResult"]["IdToken"]}
+    return {"username": user_name,"token": response["AuthenticationResult"]["IdToken"]}
 
 
 def get_aws_client(aws_key=None, aws_secret=None, aws_region=None):
@@ -122,7 +122,7 @@ def get_aws_client(aws_key=None, aws_secret=None, aws_region=None):
         else os.environ.get("AWS_SECRET_ACCESS_KEY")
     )
     region = (
-        aws_region if aws_region is not None else os.environ.get("AWS_DEFAULT_REGION")
+        aws_region if aws_region is not None else os.environ.get("AWS_REGION") #changed
     )
 
     if any([key is None, secret is None, region is None]):
@@ -146,7 +146,7 @@ def get_s3_iam_client(aws_key=None,aws_password=None, aws_region=None):
         if aws_password is not None
         else os.environ.get("AWS_SECRET_ACCESS_KEY"))
   region = (
-        aws_region if aws_region is not None else os.environ.get("AWS_DEFAULT_REGION"))
+        aws_region if aws_region is not None else os.environ.get("AWS_REGION")) #changed
 
   if any([key is None, password is None, region is None]):
         raise AuthorizationError("Please set your aws credentials before creating your prediction API.")
@@ -166,7 +166,8 @@ def get_s3_iam_client(aws_key=None,aws_password=None, aws_region=None):
   return s3,iam,region
 
 
-def run_function_on_lambda(url, token, **kwargs):
+def run_function_on_lambda(url, **kwargs):
+    token = get_aws_token()
     kwargs["apideveloper"] = token["username"]
     kwargs["apiurl"] = url
 
