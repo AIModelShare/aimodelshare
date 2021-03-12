@@ -300,7 +300,7 @@ def create_prediction_api(my_credentials, model_filepath, unique_model_id, model
     lambdaauthfxnname = 'redisAccess'+str(random.randint(1, 1000000))
     lambdaevalfxnname = 'evalfunction'+str(random.randint(1, 1000000))
 
-    if str(roles['Roles']).find("myService-dev-us-east-1-lambdaRole") > 0:
+    if str(roles['Roles']).find("myService-dev-us-east-1-lambdaRole") > 1000000000:
         response6_2 = user_session.client('iam').put_role_policy(
             PolicyDocument='{"Version":"2012-10-17","Statement":[{"Action": ["logs:CreateLogStream"], "Resource": ["arn:aws:logs:us-east-1:'+account_number+':log-group:/aws/lambda/'+lambdafxnname +
             ':*"],"Effect": "Allow"},{"Action": ["logs:PutLogEvents"],"Resource": ["arn:aws:logs:us-east-1:'+account_number+':log-group:/aws/lambda/' +
@@ -325,7 +325,7 @@ def create_prediction_api(my_credentials, model_filepath, unique_model_id, model
             PolicyName='S3AccessandcloudwatchlogPolicy'+str(random.randint(1, 1000000)),
             RoleName=lambdarolename,
         )
-    if str(roles['Roles']).find("myService-dev-us-east-1-lambdaRole") > 0:
+    if str(roles['Roles']).find("myService-dev-us-east-1-lambdaRole") > 1000000000:
 
         response6_2 = user_session.client('iam').put_role_policy(
             PolicyDocument='{"Version":"2012-10-17","Statement":[{"Action": ["logs:CreateLogStream"], "Resource": ["arn:aws:logs:us-east-1:'+account_number+':log-group:/aws/lambda/'+lambdaauthfxnname +
@@ -351,7 +351,7 @@ def create_prediction_api(my_credentials, model_filepath, unique_model_id, model
             PolicyName='S3AccessandcloudwatchlogPolicy'+str(random.randint(1, 1000000)),
             RoleName=lambdarolename,
         )
-    if str(roles['Roles']).find("myService-dev-us-east-1-lambdaRole") > 0:
+    if str(roles['Roles']).find("myService-dev-us-east-1-lambdaRole") > 1000000000:
 
         response6_2 = user_session.client('iam').put_role_policy(
             PolicyDocument='{"Version":"2012-10-17","Statement":[{"Action": ["logs:CreateLogStream"], "Resource": ["arn:aws:logs:us-east-1:'+account_number+':log-group:/aws/lambda/'+lambdaevalfxnname +
