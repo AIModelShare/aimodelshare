@@ -295,7 +295,7 @@ def create_prediction_api(my_credentials, model_filepath, unique_model_id, model
 
     roles = user_session.client('iam').list_roles()
     
-    lambdarolename = 'myService-dev-us-east-1-lambdaRole'
+    lambdarolename = 'myService-dev-us-east-1-lambdaRole'+str(random.randint(1, 1000000))
     lambdafxnname = 'modfunction'+str(random.randint(1, 1000000))
     lambdaauthfxnname = 'redisAccess'+str(random.randint(1, 1000000))
     lambdaevalfxnname = 'evalfunction'+str(random.randint(1, 1000000))
