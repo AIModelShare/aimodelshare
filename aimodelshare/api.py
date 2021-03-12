@@ -337,11 +337,6 @@ def create_prediction_api(my_credentials, model_filepath, unique_model_id, model
             RoleName=lambdarolename,
         )
     else:
-        response6 = user_session.resource('iam').create_role(
-            AssumeRolePolicyDocument=json.dumps(lambdarole1),
-            Path='/',
-            RoleName=lambdarolename,
-        )
         response6_2 = user_session.client('iam').put_role_policy(
             PolicyDocument='{"Version":"2012-10-17","Statement":[{"Action": ["logs:CreateLogStream"], "Resource": ["arn:aws:logs:us-east-1:'+account_number+':log-group:/aws/lambda/'+lambdaauthfxnname +
             ':*"],"Effect": "Allow"},{"Action": ["logs:PutLogEvents"],"Resource": ["arn:aws:logs:us-east-1:'+account_number+':log-group:/aws/lambda/' +
@@ -363,11 +358,6 @@ def create_prediction_api(my_credentials, model_filepath, unique_model_id, model
             RoleName=lambdarolename,
         )
     else:
-        response6 = user_session.resource('iam').create_role(
-            AssumeRolePolicyDocument=json.dumps(lambdarole1),
-            Path='/',
-            RoleName=lambdarolename,
-        )
         response6_2 = user_session.client('iam').put_role_policy(
             PolicyDocument='{"Version":"2012-10-17","Statement":[{"Action": ["logs:CreateLogStream"], "Resource": ["arn:aws:logs:us-east-1:'+account_number+':log-group:/aws/lambda/'+lambdaevalfxnname +
             ':*"],"Effect": "Allow"},{"Action": ["logs:PutLogEvents"],"Resource": ["arn:aws:logs:us-east-1:'+account_number+':log-group:/aws/lambda/' +
