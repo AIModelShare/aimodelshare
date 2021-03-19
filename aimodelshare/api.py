@@ -52,7 +52,7 @@ def create_prediction_api(my_credentials, model_filepath, unique_model_id, model
     model_type = model_type.lower()
     categorical = categorical.upper()
     # Wait for 5 seconds to ensure aws iam user on user account has time to load into aws's system
-    time.sleep(5)
+    #time.sleep(5)
 
 
     user_session = boto3.session.Session(aws_access_key_id=AI_MODELSHARE_AccessKeyId,
@@ -356,6 +356,7 @@ def create_prediction_api(my_credentials, model_filepath, unique_model_id, model
 
     # if model_type=='sklearn_text' or  model_type=='keras_text' or model_type=='flubber_text' or model_type =='text':
     # layers.append(keras_layer)
+    time.sleep(10)
 
     response6 = lambdaclient.create_function(FunctionName=lambdafxnname, Runtime='python3.6', Role='arn:aws:iam::'+account_number+':role/'+lambdarolename, Handler='main.handler',
                                               Code={
