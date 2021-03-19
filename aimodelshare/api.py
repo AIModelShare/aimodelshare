@@ -74,6 +74,10 @@ def create_prediction_api(my_credentials, model_filepath, unique_model_id, model
             model_layer = "arn:aws:lambda:us-east-1:517169013426:layer:librosa_nosklearn:9"
             eval_layer ="arn:aws:lambda:us-east-1:517169013426:layer:tabular_cloudpicklelayer:1"
             auth_layer ="arn:aws:lambda:us-east-1:517169013426:layer:aimsauth_layer:2"
+    elif model_type.lower() == 'video':
+            model_layer = "arn:aws:lambda:us-east-1:517169013426:layer:videolayer:3"
+            eval_layer ="arn:aws:lambda:us-east-1:517169013426:layer:tabular_cloudpicklelayer:1"
+            auth_layer ="arn:aws:lambda:us-east-1:517169013426:layer:aimsauth_layer:2"
     else :
         print("no matching model data type to load correct python package zip file (lambda layer)")
 
@@ -160,7 +164,6 @@ def create_prediction_api(my_credentials, model_filepath, unique_model_id, model
                 bucket_name=bucket_name, unique_model_id=unique_model_id)
             with open(os.path.join(temp_dir, 'main.py'), 'w') as file:
                 file.write(newdata)
-
     elif model_type.lower() == 'audio' and categorical == 'TRUE':
             data = pkg_resources.read_text(main, '7.txt')
             from string import Template
@@ -169,7 +172,14 @@ def create_prediction_api(my_credentials, model_filepath, unique_model_id, model
                 bucket_name=bucket_name, unique_model_id=unique_model_id, labels=labels)
             with open(os.path.join(temp_dir, 'main.py'), 'w') as file:
                 file.write(newdata)
-
+    elif model_type.lower() == 'video' and categorical == 'TRUE':
+            data = pkg_resources.read_text(main, '8.txt')
+            from string import Template
+            t = Template(data)
+            newdata = t.substitute(
+                bucket_name=bucket_name, unique_model_id=unique_model_id, labels=labels)
+            with open(os.path.join(temp_dir, 'main.py'), 'w') as file:
+                file.write(newdata)
     with zipfile.ZipFile(os.path.join(temp_dir, 'archive.zip'), 'a') as z:
         z.write(os.path.join(temp_dir, 'main.py'), 'main.py')
 
