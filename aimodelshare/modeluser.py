@@ -72,22 +72,7 @@ def create_user_getkeyandpassword(jwt_aws_token, aws_key, aws_password, region):
         bucket = s3["client"].create_bucket(ACL ='private',Bucket=bucket_name)
 
     else :
-        #bucket exists but you have no access
-        #add versioning
-        s3_resource = s3['resource']
-        version =0 
-        
-        for bucket in s3_resource.buckets.all(): 
-          if bucket.name.startswith(bucket_name+'-'):
-             version+=1
-
-        for i in range(1,version):
-          #check if any version of bucket name exists in the user's buckets
-          if bucket_name+'-'+str(i) in s3_resource.buckets.all():
-            bucket_name = bucket_name+'-'+str(i)
-
-        if bucket_name == master_name:
-          bucket_name= bucket_name+'-'+str(version)
+        pass 
 
     my_policy = _custom_s3_policy(bucket_name)
     #sub_bucket = 'aimodelshare' + username.lower() + ts.replace("_","")
