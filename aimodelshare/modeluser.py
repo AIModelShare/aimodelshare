@@ -51,8 +51,13 @@ def create_user_getkeyandpassword(jwt_aws_token, aws_key, aws_password, region):
     now = datetime.datetime.now()
     year = datetime.date.today().year
     ts = form_timestamp(time.time())
-    bucket_name = 'aimodelshare' + username.lower()
-    master_name = 'aimodelshare' + username.lower()
+    
+    user_session = boto3.session.Session(aws_access_key_id=aws_key,
+                                          aws_secret_access_key=aws_password, region_name=region)    
+    account_number = user_session.client(
+        'sts').get_caller_identity().get('Account')    
+    bucket_name = 'aimodelshare' + username.lower()+str(account_number)
+    master_name = 'aimodelshare' + username.lower()+str(account_number)
 
     from botocore.client import ClientError
 
