@@ -6,12 +6,13 @@ import json
 from aimodelshare.exceptions import AuthorizationError, AWSAccessError
 
 
-def set_credentials(credential_file=None, type="submit_model", apiurl="apiurl", manual = True):
+def set_credentials(credential_file=None, type="deploy_model", apiurl="apiurl", manual = True):
   import os
   import getpass
   import aimodelshare as ai
   flag = False
 
+  # Set AI Modelshare Username & Password
   if all([manual == True, credential_file==None]):
     user = getpass.getpass(prompt="AI Modelshare Username:")
     os.environ["username"] = user
@@ -38,12 +39,13 @@ def set_credentials(credential_file=None, type="submit_model", apiurl="apiurl", 
   
   #Validate Username & Password
   try: 
-    token=ai.aws.get_aws_token()
+    token=ai.aws.get_aws_token(os.environ.get("username"), os.environ.get("password"))
     print("AI Model Share login credentials set successfully.")
   except: 
     print("Credential confirmation unsuccessful. Check username & password and try again.")
     return
-      
+  
+  # Set AWS Creds Manually (submit or deploy)
   if  all([manual == True,credential_file==None]):
     flag = True
     access_key = getpass.getpass(prompt="AWS_ACCESS_KEY_ID:")
@@ -55,23 +57,41 @@ def set_credentials(credential_file=None, type="submit_model", apiurl="apiurl", 
     region = getpass.getpass(prompt="AWS_REGION:")
     os.environ["AWS_REGION"] = region
 
+  # Set AWS creds from file
   else:  
     f = open(credential_file)
-    for line in f:
-      if (apiurl in line) and ((type in line) or (type.upper() in line)):
-        flag = True
-        for line in f:
-          if line == "\n":
-            break
-          try:
-            value = line.split("=", 1)[1].strip()
-            value = value[1:-1]
-            key = line.split("=", 1)[0].strip()
-            os.environ[key.upper()] = value
-          except LookupError: 
-            print(* "Warning: Review format of", credential_file, ". Format should be variablename = 'variable_value'.")
-            break
-  
+    if type == "submit_model": 
+      for line in f:
+        if (apiurl in line) and ((type in line) or (type.upper() in line)): ## searches on apiurl AND type
+          flag = True
+          for line in f:
+            if line == "\n":
+              break
+            try:
+              value = line.split("=", 1)[1].strip()
+              value = value[1:-1]
+              key = line.split("=", 1)[0].strip()
+              os.environ[key.upper()] = value
+            except LookupError: 
+              print(* "Warning: Review format of", credential_file, ". Format should be variablename = 'variable_value'.")
+              break
+
+    elif type == "deploy_model": 
+      for line in f:
+        if ((type in line) or (type.upper() in line)):  ## only searches on type
+          flag = True
+          for line in f:
+            if line == "\n":
+              break
+            try:
+              value = line.split("=", 1)[1].strip()
+              value = value[1:-1]
+              key = line.split("=", 1)[0].strip()
+              os.environ[key.upper()] = value
+            except LookupError: 
+              print(* "Warning: Review format of", credential_file, ". Format should be variablename = 'variable_value'.")
+              break
+
   # Validate AWS Creds (submit_model)
   import boto3
   try: 
@@ -81,7 +101,12 @@ def set_credentials(credential_file=None, type="submit_model", apiurl="apiurl", 
   except: 
     print("AWS credential confirmation unsuccessful. Check AWS_ACCESS_KEY_ID & AWS_SECRET_ACCESS_KEY and try again.")
     return
-
+  
+  # Set Environment Variables for deploy models
+  if type == "deploy_model":
+    get_jwt_token(os.environ.get("username"), os.environ.get("password"))
+    create_user_getkeyandpassword()
+    
   if not flag: 
     print("Error: apiurl or type not found in"+str(credential_file)+". Please correct entries and resubmit.")
   
