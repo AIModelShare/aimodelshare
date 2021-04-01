@@ -11,7 +11,7 @@ import functools
 from zipfile import ZipFile, ZIP_STORED, ZipInfo
 
 
-def create_prediction_api(my_credentials, model_filepath, unique_model_id, model_type,categorical, labels):
+def create_prediction_api(model_filepath, unique_model_id, model_type,categorical, labels):
     from zipfile import ZipFile
     import zipfile
     import tempfile
@@ -43,20 +43,16 @@ def create_prediction_api(my_credentials, model_filepath, unique_model_id, model
     if os.path.exists(os.path.join(temp_dir,'ytest.pkl')):
       os.remove(os.path.join(temp_dir,'ytest.pkl'))
     else:
-      pass  
-    AI_MODELSHARE_AccessKeyId = my_credentials["AI_MODELSHARE_AccessKeyId"]
-    AI_MODELSHARE_SecretAccessKey = my_credentials["AI_MODELSHARE_SecretAccessKey"]
-    region = my_credentials["region"]
-    username = my_credentials["username"]
-    bucket_name = my_credentials["bucket_name"]
+      pass 
     model_type = model_type.lower()
     categorical = categorical.upper()
     # Wait for 5 seconds to ensure aws iam user on user account has time to load into aws's system
     #time.sleep(5)
 
 
-    user_session = boto3.session.Session(aws_access_key_id=AI_MODELSHARE_AccessKeyId,
-                                          aws_secret_access_key=AI_MODELSHARE_SecretAccessKey, region_name=region)
+    user_session = boto3.session.Session(aws_access_key_id=os.environ.get("AI_MODELSHARE_ACCESS_KEY_ID"),
+                                          aws_secret_access_key = os.environ.get("AI_MODELSHARE_SECRET_ACCESS_KEY"), 
+                                         region_name=os.environ.get("AWS_REGION"))
     if model_type=='image' :
             model_layer ="arn:aws:lambda:us-east-1:517169013426:layer:keras_image:1"
             eval_layer ="arn:aws:lambda:us-east-1:517169013426:layer:tabular_cloudpicklelayer:1"
@@ -113,7 +109,7 @@ def create_prediction_api(my_credentials, model_filepath, unique_model_id, model
             from string import Template
             t = Template(data)
             newdata = t.substitute(
-                bucket_name=bucket_name, unique_model_id=unique_model_id, labels=labels)
+                bucket_name=os.environ.get("BUCKET_NAME"), unique_model_id=unique_model_id, labels=labels)
             with open(os.path.join(temp_dir, 'main.py'), 'w') as file:
                 file.write(newdata)
     elif model_type == 'text' and categorical == 'FALSE':
@@ -121,7 +117,7 @@ def create_prediction_api(my_credentials, model_filepath, unique_model_id, model
             from string import Template
             t = Template(data)
             newdata = t.substitute(
-                bucket_name=bucket_name, unique_model_id=unique_model_id)
+                bucket_name=os.environ.get("BUCKET_NAME"), unique_model_id=unique_model_id)
             with open(os.path.join(temp_dir, 'main.py'), 'w') as file:
                 file.write(newdata)
     elif model_type == 'image' and categorical == 'TRUE':
@@ -129,7 +125,7 @@ def create_prediction_api(my_credentials, model_filepath, unique_model_id, model
             from string import Template
             t = Template(data)
             newdata = t.substitute(
-                bucket_name=bucket_name, unique_model_id=unique_model_id, labels=labels)
+                bucket_name=os.environ.get("BUCKET_NAME"), unique_model_id=unique_model_id, labels=labels)
             with open(os.path.join(temp_dir, 'main.py'), 'w') as file:
                 file.write(newdata)
     elif model_type == 'image' and categorical == 'FALSE':
@@ -137,7 +133,7 @@ def create_prediction_api(my_credentials, model_filepath, unique_model_id, model
             from string import Template
             t = Template(data)
             newdata = t.substitute(
-                bucket_name=bucket_name, unique_model_id=unique_model_id)
+                bucket_name=os.environ.get("BUCKET_NAME"), unique_model_id=unique_model_id)
             with open(os.path.join(temp_dir, 'main.py'), 'w') as file:
                 file.write(newdata)
     elif all([model_type == 'tabular', categorical == 'TRUE']):
@@ -145,7 +141,7 @@ def create_prediction_api(my_credentials, model_filepath, unique_model_id, model
             from string import Template
             t = Template(data)
             newdata = t.substitute(
-                bucket_name=bucket_name, unique_model_id=unique_model_id, labels=labels)
+                bucket_name=os.environ.get("BUCKET_NAME"), unique_model_id=unique_model_id, labels=labels)
             with open(os.path.join(temp_dir, 'main.py'), 'w') as file:
                 file.write(newdata)
     elif all([model_type == 'tabular', categorical == 'FALSE']):
@@ -153,7 +149,7 @@ def create_prediction_api(my_credentials, model_filepath, unique_model_id, model
             from string import Template
             t = Template(data)
             newdata = t.substitute(
-                bucket_name=bucket_name, unique_model_id=unique_model_id)
+                bucket_name=os.environ.get("BUCKET_NAME"), unique_model_id=unique_model_id)
             with open(os.path.join(temp_dir, 'main.py'), 'w') as file:
                 file.write(newdata)
     elif model_type.lower() == 'timeseries' and categorical == 'FALSE':
@@ -161,7 +157,7 @@ def create_prediction_api(my_credentials, model_filepath, unique_model_id, model
             from string import Template
             t = Template(data)
             newdata = t.substitute(
-                bucket_name=bucket_name, unique_model_id=unique_model_id)
+                bucket_name=os.environ.get("BUCKET_NAME"), unique_model_id=unique_model_id)
             with open(os.path.join(temp_dir, 'main.py'), 'w') as file:
                 file.write(newdata)
     elif model_type.lower() == 'audio' and categorical == 'TRUE':
@@ -169,7 +165,7 @@ def create_prediction_api(my_credentials, model_filepath, unique_model_id, model
             from string import Template
             t = Template(data)
             newdata = t.substitute(
-                bucket_name=bucket_name, unique_model_id=unique_model_id, labels=labels)
+                bucket_name=os.environ.get("BUCKET_NAME"), unique_model_id=unique_model_id, labels=labels)
             with open(os.path.join(temp_dir, 'main.py'), 'w') as file:
                 file.write(newdata)
     elif model_type.lower() == 'video' and categorical == 'TRUE':
@@ -177,7 +173,7 @@ def create_prediction_api(my_credentials, model_filepath, unique_model_id, model
             from string import Template
             t = Template(data)
             newdata = t.substitute(
-                bucket_name=bucket_name, unique_model_id=unique_model_id, labels=labels)
+                bucket_name=os.environ.get("BUCKET_NAME"), unique_model_id=unique_model_id, labels=labels)
             with open(os.path.join(temp_dir, 'main.py'), 'w') as file:
                 file.write(newdata)
     with zipfile.ZipFile(os.path.join(temp_dir, 'archive.zip'), 'a') as z:
@@ -191,7 +187,7 @@ def create_prediction_api(my_credentials, model_filepath, unique_model_id, model
         # This should go to developer's account from my account
         s3_client = user_session.client('s3')
         s3_client.upload_file(os.path.join(
-            temp_dir, 'archive.zip'), bucket_name,  unique_model_id+"/"+'archivetest.zip')
+            temp_dir, 'archive.zip'), os.environ.get("BUCKET_NAME"),  unique_model_id+"/"+'archivetest.zip')
 
     except Exception as e:
         print(e)
@@ -212,7 +208,7 @@ def create_prediction_api(my_credentials, model_filepath, unique_model_id, model
             from string import Template
             t = Template(data)
             newdata = t.substitute(
-                bucket_name=bucket_name, unique_model_id=unique_model_id)
+                bucket_name=os.environ.get("BUCKET_NAME"), unique_model_id=unique_model_id)
             with open(os.path.join(temp_dir, 'main.py'), 'w') as file:
                 file.write(newdata)
     elif categorical == 'FALSE':
@@ -220,7 +216,7 @@ def create_prediction_api(my_credentials, model_filepath, unique_model_id, model
             from string import Template
             t = Template(data)
             newdata = t.substitute(
-                bucket_name=bucket_name, unique_model_id=unique_model_id)
+                bucket_name=os.environ.get("BUCKET_NAME"), unique_model_id=unique_model_id)
             with open(os.path.join(temp_dir, 'main.py'), 'w') as file:
                 file.write(newdata)
     with zipfile.ZipFile(os.path.join(temp_dir, 'archive2.zip'), 'a') as z:
@@ -233,7 +229,7 @@ def create_prediction_api(my_credentials, model_filepath, unique_model_id, model
         # This should go to developer's account from my account
         s3_client = user_session.client('s3')
         s3_client.upload_file(os.path.join(
-            temp_dir, 'archive2.zip'), bucket_name,  unique_model_id+"/"+'archiveeval.zip')
+            temp_dir, 'archive2.zip'), os.environ.get("BUCKET_NAME"),  unique_model_id+"/"+'archiveeval.zip')
 
     except Exception as e:
         print(e)
@@ -269,7 +265,7 @@ def create_prediction_api(my_credentials, model_filepath, unique_model_id, model
         # This should go to developer's account from my account
         s3_client = user_session.client('s3')
         s3_client.upload_file(os.path.join(
-            temp_dir, 'archive3.zip'), bucket_name,  unique_model_id+"/"+'archiveauth.zip')
+            temp_dir, 'archive3.zip'), os.environ.get("BUCKET_NAME"),  unique_model_id+"/"+'archiveauth.zip')
 
     except Exception as e:
         print(e)
@@ -320,7 +316,7 @@ def create_prediction_api(my_credentials, model_filepath, unique_model_id, model
             ':*"],"Effect": "Allow"},{"Action": ["logs:PutLogEvents"],"Resource": ["arn:aws:logs:us-east-1:'+account_number+':log-group:/aws/lambda/' +
             lambdafxnname +
             ':*:*"],"Effect": "Allow"},{"Action": ["s3:GetObject"],"Resource": ["arn:aws:s3:::' +
-            bucket_name+'/*"],"Effect": "Allow"}]}',
+            os.environ.get("BUCKET_NAME")+'/*"],"Effect": "Allow"}]}',
             PolicyName='S3AccessandcloudwatchlogPolicy'+str(random.randint(1, 1000000)),
             RoleName=lambdarolename,
         )
@@ -330,7 +326,7 @@ def create_prediction_api(my_credentials, model_filepath, unique_model_id, model
             ':*"],"Effect": "Allow"},{"Action": ["logs:PutLogEvents"],"Resource": ["arn:aws:logs:us-east-1:'+account_number+':log-group:/aws/lambda/' +
             lambdaauthfxnname +
             ':*:*"],"Effect": "Allow"},{"Action": ["s3:GetObject"],"Resource": ["arn:aws:s3:::' +
-            bucket_name+'/*"],"Effect": "Allow"}]}',
+            os.environ.get("BUCKET_NAME")+'/*"],"Effect": "Allow"}]}',
             PolicyName='S3AccessandcloudwatchlogPolicy'+str(random.randint(1, 1000000)),
             RoleName=lambdarolename,
         )
@@ -340,7 +336,7 @@ def create_prediction_api(my_credentials, model_filepath, unique_model_id, model
             ':*"],"Effect": "Allow"},{"Action": ["logs:PutLogEvents"],"Resource": ["arn:aws:logs:us-east-1:'+account_number+':log-group:/aws/lambda/' +
             lambdaevalfxnname +
             ':*:*"],"Effect": "Allow"},{"Action": ["s3:GetObject"],"Resource": ["arn:aws:s3:::' +
-            bucket_name+'/*"],"Effect": "Allow"}]}',
+            os.environ.get("BUCKET_NAME")+'/*"],"Effect": "Allow"}]}',
             PolicyName='S3AccessandcloudwatchlogPolicy'+str(random.randint(1, 1000000)),
             RoleName=lambdarolename,
         )
@@ -360,18 +356,18 @@ def create_prediction_api(my_credentials, model_filepath, unique_model_id, model
 
     response6 = lambdaclient.create_function(FunctionName=lambdafxnname, Runtime='python3.6', Role='arn:aws:iam::'+account_number+':role/'+lambdarolename, Handler='main.handler',
                                               Code={
-                                                  'S3Bucket': bucket_name,
+                                                  'S3Bucket': os.environ.get("BUCKET_NAME"),
                                                   'S3Key':  unique_model_id+"/"+'archivetest.zip'
                                               }, Timeout=10, MemorySize=512, Layers=layers)  # ADD ANOTHER LAYER ARN .. THE ONE SPECIFIC TO MODEL TYPE
 
     response6evalfxn = lambdaclient.create_function(FunctionName=lambdaevalfxnname, Runtime='python3.6', Role='arn:aws:iam::'+account_number+':role/'+lambdarolename, Handler='main.handler',
                                           Code={
-                                              'S3Bucket': bucket_name,
+                                              'S3Bucket': os.environ.get("BUCKET_NAME"),
                                               'S3Key':  unique_model_id+"/"+'archiveeval.zip'
                                           }, Timeout=10, MemorySize=512, Layers=[eval_layer])  # ADD ANOTHER LAYER ARN .. THE ONE SPECIFIC TO MODEL TYPE
     response6authfxn = lambdaclient.create_function(FunctionName=lambdaauthfxnname, Runtime='python3.6', Role='arn:aws:iam::'+account_number+':role/'+lambdarolename, Handler='main.handler',
                                           Code={
-                                              'S3Bucket': bucket_name,
+                                              'S3Bucket': os.environ.get("BUCKET_NAME"),
                                               'S3Key':  unique_model_id+"/"+'archiveauth.zip'
                                           }, Timeout=10, MemorySize=512, Layers=[auth_layer])  # ADD ANOTHER LAYER ARN .. THE ONE SPECIFIC TO MODEL TYPE
 
@@ -382,7 +378,7 @@ def create_prediction_api(my_credentials, model_filepath, unique_model_id, model
     api_json= get_api_json()
 
     user_client = boto3.client('apigateway', aws_access_key_id=str(
-        AI_MODELSHARE_AccessKeyId), aws_secret_access_key=str(AI_MODELSHARE_SecretAccessKey), region_name=str(region))
+        os.environ.get("AI_MODELSHARE_ACCESS_KEY_ID")), aws_secret_access_key=str(os.environ.get("AI_MODELSHARE_SECRET_ACCESS_KEY")), region_name=str(os.environ.get("AWS_REGION")))
 
     response2 = user_client.import_rest_api(
         failOnWarnings=True,
@@ -581,7 +577,7 @@ def create_prediction_api(my_credentials, model_filepath, unique_model_id, model
         patchOperations=[{
             "op": "replace",
             "path": "/policy",
-            "value": '{"Version": "2012-10-17","Statement": [{"Effect": "Allow","Principal": "*","Action": "execute-api:Invoke","Resource": "arn:aws:execute-api:'+region+':'+account_number+':'+api_id+'/prod/OPTIONS/*"}]}'
+            "value": '{"Version": "2012-10-17","Statement": [{"Effect": "Allow","Principal": "*","Action": "execute-api:Invoke","Resource": "arn:aws:execute-api:'+os.environ.get("AWS_REGION")+':'+account_number+':'+api_id+'/prod/OPTIONS/*"}]}'
         }, ]
     )
     # start here to update eval fxn integration with api resource_id_eval, lambdaevalfxnname
@@ -696,7 +692,7 @@ def create_prediction_api(my_credentials, model_filepath, unique_model_id, model
         patchOperations=[{
             "op": "replace",
             "path": "/policy",
-            "value": '{"Version": "2012-10-17","Statement": [{"Effect": "Allow","Principal": "*","Action": "execute-api:Invoke","Resource": "arn:aws:execute-api:'+region+':'+account_number+':'+api_id+'/prod/OPTIONS/*"}]}'
+            "value": '{"Version": "2012-10-17","Statement": [{"Effect": "Allow","Principal": "*","Action": "execute-api:Invoke","Resource": "arn:aws:execute-api:'+ os.environ.get("AWS_REGION") +':'+account_number+':'+api_id+'/prod/OPTIONS/*"}]}'
         }, ]
     )
 
@@ -706,7 +702,7 @@ def create_prediction_api(my_credentials, model_filepath, unique_model_id, model
         restApiId=api_id,
         name='aimscustomauthfxn',
         type='TOKEN',
-        authorizerUri="arn:aws:apigateway:"+region+":lambda:path/2015-03-31/functions/arn:aws:lambda:"+region+":"+account_number+":function:"+lambdaauthfxnname+"/invocations",
+        authorizerUri="arn:aws:apigateway:"+ os.environ.get("AWS_REGION") +":lambda:path/2015-03-31/functions/arn:aws:lambda:"+os.environ.get("AWS_REGION")+":"+account_number+":function:"+lambdaauthfxnname+"/invocations",
         identitySource="method.request.header.authorizationToken",
         authorizerResultTtlInSeconds=0
         
@@ -724,7 +720,7 @@ def create_prediction_api(my_credentials, model_filepath, unique_model_id, model
         StatementId=stmt_idauth,
         Action='lambda:InvokeFunction',
         Principal='apigateway.amazonaws.com',
-        SourceArn='arn:aws:execute-api:'+region+':' +
+        SourceArn='arn:aws:execute-api:'+os.environ.get("AWS_REGION")+':' +
         account_number+':'+api_id+'/authorizers/'+authorizerid,
     )    
     
@@ -766,7 +762,7 @@ def create_prediction_api(my_credentials, model_filepath, unique_model_id, model
         stageName='prod')
 
 
-    result = 'https://'+api_id + '.execute-api.'+region+'.amazonaws.com/prod/m'
+    result = 'https://'+api_id + '.execute-api.'+os.environ.get("AWS_REGION")+'.amazonaws.com/prod/m'
 
     return {"statusCode": 200,
             "headers": {
@@ -936,19 +932,14 @@ def get_api_json():
         }
                 '''
     return apijson
-    AI_MODELSHARE_AccessKeyId = my_credentials["AI_MODELSHARE_AccessKeyId"]
-    AI_MODELSHARE_SecretAccessKey = my_credentials["AI_MODELSHARE_SecretAccessKey"]
-    region = my_credentials["region"]
-    username = my_credentials["username"]
-    bucket_name = my_credentials["bucket_name"]
     model_type = model_type.lower()
     categorical = categorical.upper()
     # Wait for 5 seconds to ensure aws iam user on user account has time to load into aws's system
     time.sleep(5)
 
 
-    user_session = boto3.session.Session(aws_access_key_id=AI_MODELSHARE_AccessKeyId,
-                                          aws_secret_access_key=AI_MODELSHARE_SecretAccessKey, region_name=region)
+    user_session = boto3.session.Session(aws_access_key_id=os.environ.get("AI_MODELSHARE_ACCESS_KEY_ID"),
+                                          aws_secret_access_key=os.environ.get("AI_MODELSHARE_SECRET_ACCESS_KEY"), region_name=os.environ.get("AWS_REGION"))
     if model_type=='image' :
             model_layer ="arn:aws:lambda:us-east-1:517169013426:layer:keras_image:1"
             eval_layer ="arn:aws:lambda:us-east-1:517169013426:layer:tabular_cloudpicklelayer:1"
@@ -1001,7 +992,7 @@ def get_api_json():
             from string import Template
             t = Template(data)
             newdata = t.substitute(
-                bucket_name=bucket_name, unique_model_id=unique_model_id, labels=labels)
+                bucket_name=os.environ.get("BUCKET_NAME"), unique_model_id=unique_model_id, labels=labels)
             with open(os.path.join(temp_dir, 'main.py'), 'w') as file:
                 file.write(newdata)
     elif model_type == 'text' and categorical == 'FALSE':
@@ -1009,7 +1000,7 @@ def get_api_json():
             from string import Template
             t = Template(data)
             newdata = t.substitute(
-                bucket_name=bucket_name, unique_model_id=unique_model_id)
+                bucket_name=os.environ.get("BUCKET_NAME"), unique_model_id=unique_model_id)
             with open(os.path.join(temp_dir, 'main.py'), 'w') as file:
                 file.write(newdata)
     elif model_type == 'image' and categorical == 'TRUE':
@@ -1017,7 +1008,7 @@ def get_api_json():
             from string import Template
             t = Template(data)
             newdata = t.substitute(
-                bucket_name=bucket_name, unique_model_id=unique_model_id, labels=labels)
+                bucket_name=os.environ.get("BUCKET_NAME"), unique_model_id=unique_model_id, labels=labels)
             with open(os.path.join(temp_dir, 'main.py'), 'w') as file:
                 file.write(newdata)
     elif model_type == 'image' and categorical == 'FALSE':
@@ -1025,7 +1016,7 @@ def get_api_json():
             from string import Template
             t = Template(data)
             newdata = t.substitute(
-                bucket_name=bucket_name, unique_model_id=unique_model_id)
+                bucket_name=os.environ.get("BUCKET_NAME"), unique_model_id=unique_model_id)
             with open(os.path.join(temp_dir, 'main.py'), 'w') as file:
                 file.write(newdata)
     elif all([model_type == 'tabular', categorical == 'TRUE']):
@@ -1033,7 +1024,7 @@ def get_api_json():
             from string import Template
             t = Template(data)
             newdata = t.substitute(
-                bucket_name=bucket_name, unique_model_id=unique_model_id, labels=labels)
+                bucket_name=os.environ.get("BUCKET_NAME"), unique_model_id=unique_model_id, labels=labels)
             with open(os.path.join(temp_dir, 'main.py'), 'w') as file:
                 file.write(newdata)
     elif all([model_type == 'tabular', categorical == 'FALSE']):
@@ -1041,7 +1032,7 @@ def get_api_json():
             from string import Template
             t = Template(data)
             newdata = t.substitute(
-                bucket_name=bucket_name, unique_model_id=unique_model_id)
+                bucket_name=os.environ.get("BUCKET_NAME"), unique_model_id=unique_model_id)
             with open(os.path.join(temp_dir, 'main.py'), 'w') as file:
                 file.write(newdata)
     elif model_type.lower() == 'timeseries' and categorical == 'FALSE':
@@ -1049,7 +1040,7 @@ def get_api_json():
             from string import Template
             t = Template(data)
             newdata = t.substitute(
-                bucket_name=bucket_name, unique_model_id=unique_model_id)
+                bucket_name=os.environ.get("BUCKET_NAME"), unique_model_id=unique_model_id)
             with open(os.path.join(temp_dir, 'main.py'), 'w') as file:
                 file.write(newdata)
 
@@ -1058,7 +1049,7 @@ def get_api_json():
             from string import Template
             t = Template(data)
             newdata = t.substitute(
-                bucket_name=bucket_name, unique_model_id=unique_model_id, labels=labels)
+                bucket_name=os.environ.get("BUCKET_NAME"), unique_model_id=unique_model_id, labels=labels)
             with open(os.path.join(temp_dir, 'main.py'), 'w') as file:
                 file.write(newdata)
 
@@ -1073,7 +1064,7 @@ def get_api_json():
         # This should go to developer's account from my account
         s3_client = user_session.client('s3')
         s3_client.upload_file(os.path.join(
-            temp_dir, 'archive.zip'), bucket_name,  unique_model_id+"/"+'archivetest.zip')
+            temp_dir, 'archive.zip'), os.environ.get("BUCKET_NAME"),  unique_model_id+"/"+'archivetest.zip')
 
     except Exception as e:
         print(e)
@@ -1094,7 +1085,7 @@ def get_api_json():
             from string import Template
             t = Template(data)
             newdata = t.substitute(
-                bucket_name=bucket_name, unique_model_id=unique_model_id)
+                bucket_name=os.environ.get("BUCKET_NAME"), unique_model_id=unique_model_id)
             with open(os.path.join(temp_dir, 'main.py'), 'w') as file:
                 file.write(newdata)
     elif categorical == 'FALSE':
@@ -1102,7 +1093,7 @@ def get_api_json():
             from string import Template
             t = Template(data)
             newdata = t.substitute(
-                bucket_name=bucket_name, unique_model_id=unique_model_id)
+                bucket_name=os.environ.get("BUCKET_NAME"), unique_model_id=unique_model_id)
             with open(os.path.join(temp_dir, 'main.py'), 'w') as file:
                 file.write(newdata)
     with zipfile.ZipFile(os.path.join(temp_dir, 'archive2.zip'), 'a') as z:
@@ -1115,7 +1106,7 @@ def get_api_json():
         # This should go to developer's account from my account
         s3_client = user_session.client('s3')
         s3_client.upload_file(os.path.join(
-            temp_dir, 'archive2.zip'), bucket_name,  unique_model_id+"/"+'archiveeval.zip')
+            temp_dir, 'archive2.zip'), os.environ.get("BUCKET_NAME"),  unique_model_id+"/"+'archiveeval.zip')
 
     except Exception as e:
         print(e)
@@ -1151,7 +1142,7 @@ def get_api_json():
         # This should go to developer's account from my account
         s3_client = user_session.client('s3')
         s3_client.upload_file(os.path.join(
-            temp_dir, 'archive3.zip'), bucket_name,  unique_model_id+"/"+'archiveauth.zip')
+            temp_dir, 'archive3.zip'), os.environ.get("BUCKET_NAME"),  unique_model_id+"/"+'archiveauth.zip')
 
     except Exception as e:
         print(e)
@@ -1198,7 +1189,7 @@ def get_api_json():
             ':*"],"Effect": "Allow"},{"Action": ["logs:PutLogEvents"],"Resource": ["arn:aws:logs:us-east-1:'+account_number+':log-group:/aws/lambda/' +
             lambdafxnname +
             ':*:*"],"Effect": "Allow"},{"Action": ["s3:GetObject"],"Resource": ["arn:aws:s3:::' +
-            bucket_name+'/*"],"Effect": "Allow"}]}',
+            os.environ.get("BUCKET_NAME")+'/*"],"Effect": "Allow"}]}',
             PolicyName='S3AccessandcloudwatchlogPolicy'+str(random.randint(1, 1000000)),
             RoleName=lambdarolename,
         )
@@ -1213,7 +1204,7 @@ def get_api_json():
             ':*"],"Effect": "Allow"},{"Action": ["logs:PutLogEvents"],"Resource": ["arn:aws:logs:us-east-1:'+account_number+':log-group:/aws/lambda/' +
             lambdafxnname +
             ':*:*"],"Effect": "Allow"},{"Action": ["s3:GetObject"],"Resource": ["arn:aws:s3:::' +
-            bucket_name+'/*"],"Effect": "Allow"}]}',
+            os.environ.get("BUCKET_NAME")+'/*"],"Effect": "Allow"}]}',
             PolicyName='S3AccessandcloudwatchlogPolicy'+str(random.randint(1, 1000000)),
             RoleName=lambdarolename,
         )
@@ -1224,7 +1215,7 @@ def get_api_json():
             ':*"],"Effect": "Allow"},{"Action": ["logs:PutLogEvents"],"Resource": ["arn:aws:logs:us-east-1:'+account_number+':log-group:/aws/lambda/' +
             lambdaauthfxnname +
             ':*:*"],"Effect": "Allow"},{"Action": ["s3:GetObject"],"Resource": ["arn:aws:s3:::' +
-            bucket_name+'/*"],"Effect": "Allow"}]}',
+            os.environ.get("BUCKET_NAME")+'/*"],"Effect": "Allow"}]}',
             PolicyName='S3AccessandcloudwatchlogPolicy'+str(random.randint(1, 1000000)),
             RoleName=lambdarolename,
         )
@@ -1234,7 +1225,7 @@ def get_api_json():
             ':*"],"Effect": "Allow"},{"Action": ["logs:PutLogEvents"],"Resource": ["arn:aws:logs:us-east-1:'+account_number+':log-group:/aws/lambda/' +
             lambdaauthfxnname +
             ':*:*"],"Effect": "Allow"},{"Action": ["s3:GetObject"],"Resource": ["arn:aws:s3:::' +
-            bucket_name+'/*"],"Effect": "Allow"}]}',
+            os.environ.get("BUCKET_NAME")+'/*"],"Effect": "Allow"}]}',
             PolicyName='S3AccessandcloudwatchlogPolicy'+str(random.randint(1, 1000000)),
             RoleName=lambdarolename,
         )
@@ -1245,7 +1236,7 @@ def get_api_json():
             ':*"],"Effect": "Allow"},{"Action": ["logs:PutLogEvents"],"Resource": ["arn:aws:logs:us-east-1:'+account_number+':log-group:/aws/lambda/' +
             lambdaevalfxnname +
             ':*:*"],"Effect": "Allow"},{"Action": ["s3:GetObject"],"Resource": ["arn:aws:s3:::' +
-            bucket_name+'/*"],"Effect": "Allow"}]}',
+            os.environ.get("BUCKET_NAME")+'/*"],"Effect": "Allow"}]}',
             PolicyName='S3AccessandcloudwatchlogPolicy'+str(random.randint(1, 1000000)),
             RoleName=lambdarolename,
         )
@@ -1255,7 +1246,7 @@ def get_api_json():
             ':*"],"Effect": "Allow"},{"Action": ["logs:PutLogEvents"],"Resource": ["arn:aws:logs:us-east-1:'+account_number+':log-group:/aws/lambda/' +
             lambdaevalfxnname +
             ':*:*"],"Effect": "Allow"},{"Action": ["s3:GetObject"],"Resource": ["arn:aws:s3:::' +
-            bucket_name+'/*"],"Effect": "Allow"}]}',
+            os.environ.get("BUCKET_NAME")+'/*"],"Effect": "Allow"}]}',
             PolicyName='S3AccessandcloudwatchlogPolicy'+str(random.randint(1, 1000000)),
             RoleName=lambdarolename,
         )
@@ -1274,18 +1265,18 @@ def get_api_json():
 
     response6 = lambdaclient.create_function(FunctionName=lambdafxnname, Runtime='python3.6', Role='arn:aws:iam::'+account_number+':role/'+lambdarolename, Handler='main.handler',
                                               Code={
-                                                  'S3Bucket': bucket_name,
+                                                  'S3Bucket': os.environ.get("BUCKET_NAME"),
                                                   'S3Key':  unique_model_id+"/"+'archivetest.zip'
                                               }, Timeout=10, MemorySize=512, Layers=layers)  # ADD ANOTHER LAYER ARN .. THE ONE SPECIFIC TO MODEL TYPE
 
     response6evalfxn = lambdaclient.create_function(FunctionName=lambdaevalfxnname, Runtime='python3.6', Role='arn:aws:iam::'+account_number+':role/'+lambdarolename, Handler='main.handler',
                                           Code={
-                                              'S3Bucket': bucket_name,
+                                              'S3Bucket': os.environ.get("BUCKET_NAME"),
                                               'S3Key':  unique_model_id+"/"+'archiveeval.zip'
                                           }, Timeout=10, MemorySize=512, Layers=[eval_layer])  # ADD ANOTHER LAYER ARN .. THE ONE SPECIFIC TO MODEL TYPE
     response6authfxn = lambdaclient.create_function(FunctionName=lambdaauthfxnname, Runtime='python3.6', Role='arn:aws:iam::'+account_number+':role/'+lambdarolename, Handler='main.handler',
                                           Code={
-                                              'S3Bucket': bucket_name,
+                                              'S3Bucket': os.environ.get("BUCKET_NAME"),
                                               'S3Key':  unique_model_id+"/"+'archiveauth.zip'
                                           }, Timeout=10, MemorySize=512, Layers=[auth_layer])  # ADD ANOTHER LAYER ARN .. THE ONE SPECIFIC TO MODEL TYPE
 
@@ -1296,7 +1287,7 @@ def get_api_json():
     api_json= get_api_json()
 
     user_client = boto3.client('apigateway', aws_access_key_id=str(
-        AI_MODELSHARE_AccessKeyId), aws_secret_access_key=str(AI_MODELSHARE_SecretAccessKey), region_name=str(region))
+        os.environ.get("AI_MODELSHARE_ACCESS_KEY_ID")), aws_secret_access_key=str(os.environ.get("AI_MODELSHARE_SECRET_ACCESS_KEY")), region_name=str(os.environ.get("AWS_REGION")))
 
     response2 = user_client.import_rest_api(
         failOnWarnings=True,
@@ -1495,7 +1486,7 @@ def get_api_json():
         patchOperations=[{
             "op": "replace",
             "path": "/policy",
-            "value": '{"Version": "2012-10-17","Statement": [{"Effect": "Allow","Principal": "*","Action": "execute-api:Invoke","Resource": "arn:aws:execute-api:'+region+':'+account_number+':'+api_id+'/prod/OPTIONS/*"}]}'
+            "value": '{"Version": "2012-10-17","Statement": [{"Effect": "Allow","Principal": "*","Action": "execute-api:Invoke","Resource": "arn:aws:execute-api:'+os.environ.get("AWS_REGION")+':'+account_number+':'+api_id+'/prod/OPTIONS/*"}]}'
         }, ]
     )
     # start here to update eval fxn integration with api resource_id_eval, lambdaevalfxnname
@@ -1610,7 +1601,7 @@ def get_api_json():
         patchOperations=[{
             "op": "replace",
             "path": "/policy",
-            "value": '{"Version": "2012-10-17","Statement": [{"Effect": "Allow","Principal": "*","Action": "execute-api:Invoke","Resource": "arn:aws:execute-api:'+region+':'+account_number+':'+api_id+'/prod/OPTIONS/*"}]}'
+            "value": '{"Version": "2012-10-17","Statement": [{"Effect": "Allow","Principal": "*","Action": "execute-api:Invoke","Resource": "arn:aws:execute-api:'+os.environ.get("AWS_REGION")+':'+account_number+':'+api_id+'/prod/OPTIONS/*"}]}'
         }, ]
     )
 
@@ -1620,7 +1611,7 @@ def get_api_json():
         restApiId=api_id,
         name='aimscustomauthfxn',
         type='TOKEN',
-        authorizerUri="arn:aws:apigateway:"+region+":lambda:path/2015-03-31/functions/arn:aws:lambda:"+region+":"+account_number+":function:"+lambdaauthfxnname+"/invocations",
+        authorizerUri="arn:aws:apigateway:"+os.environ.get("AWS_REGION")+":lambda:path/2015-03-31/functions/arn:aws:lambda:"+os.environ.get("AWS_REGION")+":"+account_number+":function:"+lambdaauthfxnname+"/invocations",
         identitySource="method.request.header.authorizationToken",
         authorizerResultTtlInSeconds=0
         
@@ -1638,7 +1629,7 @@ def get_api_json():
         StatementId=stmt_idauth,
         Action='lambda:InvokeFunction',
         Principal='apigateway.amazonaws.com',
-        SourceArn='arn:aws:execute-api:'+region+':' +
+        SourceArn='arn:aws:execute-api:'+os.environ.get("AWS_REGION")+':' +
         account_number+':'+api_id+'/authorizers/'+authorizerid,
     )    
     
@@ -1680,7 +1671,7 @@ def get_api_json():
         stageName='prod')
 
 
-    result = 'https://'+api_id + '.execute-api.'+region+'.amazonaws.com/prod/m'
+    result = 'https://'+api_id + '.execute-api.'+os.environ.get("AWS_REGION")+'.amazonaws.com/prod/m'
 
     return {"statusCode": 200,
             "headers": {
