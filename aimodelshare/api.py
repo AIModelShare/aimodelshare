@@ -52,7 +52,7 @@ def create_prediction_api(my_credentials, model_filepath, unique_model_id, model
     model_type = model_type.lower()
     categorical = categorical.upper()
     # Wait for 5 seconds to ensure aws iam user on user account has time to load into aws's system
-    time.sleep(5)
+    #time.sleep(5)
 
 
     user_session = boto3.session.Session(aws_access_key_id=AI_MODELSHARE_AccessKeyId,
@@ -72,6 +72,10 @@ def create_prediction_api(my_credentials, model_filepath, unique_model_id, model
             auth_layer ="arn:aws:lambda:us-east-1:517169013426:layer:aimsauth_layer:2"
     elif model_type.lower() == 'audio':
             model_layer = "arn:aws:lambda:us-east-1:517169013426:layer:librosa_nosklearn:9"
+            eval_layer ="arn:aws:lambda:us-east-1:517169013426:layer:tabular_cloudpicklelayer:1"
+            auth_layer ="arn:aws:lambda:us-east-1:517169013426:layer:aimsauth_layer:2"
+    elif model_type.lower() == 'video':
+            model_layer = "arn:aws:lambda:us-east-1:517169013426:layer:videolayer:3"
             eval_layer ="arn:aws:lambda:us-east-1:517169013426:layer:tabular_cloudpicklelayer:1"
             auth_layer ="arn:aws:lambda:us-east-1:517169013426:layer:aimsauth_layer:2"
     else :
@@ -160,7 +164,6 @@ def create_prediction_api(my_credentials, model_filepath, unique_model_id, model
                 bucket_name=bucket_name, unique_model_id=unique_model_id)
             with open(os.path.join(temp_dir, 'main.py'), 'w') as file:
                 file.write(newdata)
-
     elif model_type.lower() == 'audio' and categorical == 'TRUE':
             data = pkg_resources.read_text(main, '7.txt')
             from string import Template
@@ -169,7 +172,14 @@ def create_prediction_api(my_credentials, model_filepath, unique_model_id, model
                 bucket_name=bucket_name, unique_model_id=unique_model_id, labels=labels)
             with open(os.path.join(temp_dir, 'main.py'), 'w') as file:
                 file.write(newdata)
-
+    elif model_type.lower() == 'video' and categorical == 'TRUE':
+            data = pkg_resources.read_text(main, '8.txt')
+            from string import Template
+            t = Template(data)
+            newdata = t.substitute(
+                bucket_name=bucket_name, unique_model_id=unique_model_id, labels=labels)
+            with open(os.path.join(temp_dir, 'main.py'), 'w') as file:
+                file.write(newdata)
     with zipfile.ZipFile(os.path.join(temp_dir, 'archive.zip'), 'a') as z:
         z.write(os.path.join(temp_dir, 'main.py'), 'main.py')
 
@@ -295,13 +305,17 @@ def create_prediction_api(my_credentials, model_filepath, unique_model_id, model
 
     roles = user_session.client('iam').list_roles()
     
-    lambdarolename = 'myService-dev-us-east-1-lambdaRole'
+    lambdarolename = 'myService-dev-us-east-1-lambdaRole'+str(random.randint(1, 1000000))
     lambdafxnname = 'modfunction'+str(random.randint(1, 1000000))
     lambdaauthfxnname = 'redisAccess'+str(random.randint(1, 1000000))
     lambdaevalfxnname = 'evalfunction'+str(random.randint(1, 1000000))
 
-    if str(roles['Roles']).find(lambdarolename) > 0:
-        response6_2 = user_session.client('iam').put_role_policy(
+    response6 = user_session.resource('iam').create_role(
+            AssumeRolePolicyDocument=json.dumps(lambdarole1),
+            Path='/',
+            RoleName=lambdarolename,
+        )
+    response6_2 = user_session.client('iam').put_role_policy(
             PolicyDocument='{"Version":"2012-10-17","Statement":[{"Action": ["logs:CreateLogStream"], "Resource": ["arn:aws:logs:us-east-1:'+account_number+':log-group:/aws/lambda/'+lambdafxnname +
             ':*"],"Effect": "Allow"},{"Action": ["logs:PutLogEvents"],"Resource": ["arn:aws:logs:us-east-1:'+account_number+':log-group:/aws/lambda/' +
             lambdafxnname +
@@ -310,24 +324,8 @@ def create_prediction_api(my_credentials, model_filepath, unique_model_id, model
             PolicyName='S3AccessandcloudwatchlogPolicy'+str(random.randint(1, 1000000)),
             RoleName=lambdarolename,
         )
-    else:
-        response6 = user_session.resource('iam').create_role(
-            AssumeRolePolicyDocument=json.dumps(lambdarole1),
-            Path='/',
-            RoleName=lambdarolename,
-        )
-        response6_2 = user_session.client('iam').put_role_policy(
-            PolicyDocument='{"Version":"2012-10-17","Statement":[{"Action": ["logs:CreateLogStream"], "Resource": ["arn:aws:logs:us-east-1:'+account_number+':log-group:/aws/lambda/'+lambdafxnname +
-            ':*"],"Effect": "Allow"},{"Action": ["logs:PutLogEvents"],"Resource": ["arn:aws:logs:us-east-1:'+account_number+':log-group:/aws/lambda/' +
-            lambdafxnname +
-            ':*:*"],"Effect": "Allow"},{"Action": ["s3:GetObject"],"Resource": ["arn:aws:s3:::' +
-            bucket_name+'/*"],"Effect": "Allow"}]}',
-            PolicyName='S3AccessandcloudwatchlogPolicy'+str(random.randint(1, 1000000)),
-            RoleName=lambdarolename,
-        )
-    if str(roles['Roles']).find(lambdarolename) > 0:
 
-        response6_2 = user_session.client('iam').put_role_policy(
+    response6_2 = user_session.client('iam').put_role_policy(
             PolicyDocument='{"Version":"2012-10-17","Statement":[{"Action": ["logs:CreateLogStream"], "Resource": ["arn:aws:logs:us-east-1:'+account_number+':log-group:/aws/lambda/'+lambdaauthfxnname +
             ':*"],"Effect": "Allow"},{"Action": ["logs:PutLogEvents"],"Resource": ["arn:aws:logs:us-east-1:'+account_number+':log-group:/aws/lambda/' +
             lambdaauthfxnname +
@@ -336,39 +334,8 @@ def create_prediction_api(my_credentials, model_filepath, unique_model_id, model
             PolicyName='S3AccessandcloudwatchlogPolicy'+str(random.randint(1, 1000000)),
             RoleName=lambdarolename,
         )
-    else:
-        response6 = user_session.resource('iam').create_role(
-            AssumeRolePolicyDocument=json.dumps(lambdarole1),
-            Path='/',
-            RoleName=lambdarolename,
-        )
-        response6_2 = user_session.client('iam').put_role_policy(
-            PolicyDocument='{"Version":"2012-10-17","Statement":[{"Action": ["logs:CreateLogStream"], "Resource": ["arn:aws:logs:us-east-1:'+account_number+':log-group:/aws/lambda/'+lambdaauthfxnname +
-            ':*"],"Effect": "Allow"},{"Action": ["logs:PutLogEvents"],"Resource": ["arn:aws:logs:us-east-1:'+account_number+':log-group:/aws/lambda/' +
-            lambdaauthfxnname +
-            ':*:*"],"Effect": "Allow"},{"Action": ["s3:GetObject"],"Resource": ["arn:aws:s3:::' +
-            bucket_name+'/*"],"Effect": "Allow"}]}',
-            PolicyName='S3AccessandcloudwatchlogPolicy'+str(random.randint(1, 1000000)),
-            RoleName=lambdarolename,
-        )
-    if str(roles['Roles']).find(lambdarolename) > 0:
 
-        response6_2 = user_session.client('iam').put_role_policy(
-            PolicyDocument='{"Version":"2012-10-17","Statement":[{"Action": ["logs:CreateLogStream"], "Resource": ["arn:aws:logs:us-east-1:'+account_number+':log-group:/aws/lambda/'+lambdaevalfxnname +
-            ':*"],"Effect": "Allow"},{"Action": ["logs:PutLogEvents"],"Resource": ["arn:aws:logs:us-east-1:'+account_number+':log-group:/aws/lambda/' +
-            lambdaevalfxnname +
-            ':*:*"],"Effect": "Allow"},{"Action": ["s3:GetObject"],"Resource": ["arn:aws:s3:::' +
-            bucket_name+'/*"],"Effect": "Allow"}]}',
-            PolicyName='S3AccessandcloudwatchlogPolicy'+str(random.randint(1, 1000000)),
-            RoleName=lambdarolename,
-        )
-    else:
-        response6 = user_session.resource('iam').create_role(
-            AssumeRolePolicyDocument=json.dumps(lambdarole1),
-            Path='/',
-            RoleName=lambdarolename,
-        )
-        response6_2 = user_session.client('iam').put_role_policy(
+    response6_2 = user_session.client('iam').put_role_policy(
             PolicyDocument='{"Version":"2012-10-17","Statement":[{"Action": ["logs:CreateLogStream"], "Resource": ["arn:aws:logs:us-east-1:'+account_number+':log-group:/aws/lambda/'+lambdaevalfxnname +
             ':*"],"Effect": "Allow"},{"Action": ["logs:PutLogEvents"],"Resource": ["arn:aws:logs:us-east-1:'+account_number+':log-group:/aws/lambda/' +
             lambdaevalfxnname +
@@ -389,6 +356,7 @@ def create_prediction_api(my_credentials, model_filepath, unique_model_id, model
 
     # if model_type=='sklearn_text' or  model_type=='keras_text' or model_type=='flubber_text' or model_type =='text':
     # layers.append(keras_layer)
+    time.sleep(10)
 
     response6 = lambdaclient.create_function(FunctionName=lambdafxnname, Runtime='python3.6', Role='arn:aws:iam::'+account_number+':role/'+lambdarolename, Handler='main.handler',
                                               Code={
