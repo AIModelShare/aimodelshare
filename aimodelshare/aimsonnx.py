@@ -5,7 +5,6 @@ import numpy as np
 # ml frameworks
 import sklearn
 from sklearn.model_selection import GridSearchCV, RandomizedSearchCV
-import keras 
 import torch
 import xgboost
 import tensorflow as tf
@@ -14,8 +13,7 @@ import tensorflow as tf
 import onnx
 import skl2onnx
 from skl2onnx import convert_sklearn
-import keras2onnx
-from keras2onnx import convert_keras
+import tf2onnx
 from torch.onnx import export
 from onnx.tools.net_drawer import GetPydotGraph, GetOpNodeProducer
 import importlib
@@ -32,7 +30,6 @@ import tempfile
 import json
 import re
 import pickle
-
 
 def _extract_onnx_metadata(onnx_model, framework):
     '''Extracts model metadata from ONNX file.'''
@@ -311,14 +308,24 @@ def _keras_to_onnx(model, transfer_learning=None,
     if isinstance(model, sklearn.pipeline.Pipeline):
         model = model.steps[-1][1]
 
-    sklearn_wrappers = (tf.python.keras.wrappers.scikit_learn.KerasClassifier,
-                    tf.python.keras.wrappers.scikit_learn.KerasRegressor)
+    sklearn_wrappers = (tf.keras.wrappers.scikit_learn.KerasClassifier,
+                    tf.keras.wrappers.scikit_learn.KerasRegressor)
 
     if isinstance(model, sklearn_wrappers):
         model = model.model
     
     # convert to onnx
-    onx = convert_keras(model)
+    #onx = convert_keras(model)
+    # generate tempfile for onnx object 
+    temp_dir = os.path.join(tempfile.gettempdir(), 'test')
+    temp_dir = tempfile.gettempdir()
+
+    model.save(temp_dir)
+    output_path = os.path.join(temp_dir, 'temp.onnx')
+    modelstringtest="python -m tf2onnx.convert --saved-model "+temp_dir+" --output "+output_path
+    os.system(modelstringtest)
+    onx = onnx.load(output_path)
+
 
     # generate metadata dict 
     metadata = {}
@@ -943,10 +950,10 @@ def instantiate_model(apiurl, aws_token, aws_client, version=None, trained=False
     if ml_framework == 'keras':
 
         if trained == False:
-            model = keras.Sequential().from_config(model_config)
+            model = tf.keras.Sequential().from_config(model_config)
 
         if trained == True: 
-            model = keras.Sequential().from_config(model_config)
+            model = tf.keras.Sequential().from_config(model_config)
             model_weights = ast.literal_eval(meta_dict['model_weights'])
 
             def to_array(x):
@@ -961,8 +968,8 @@ def instantiate_model(apiurl, aws_token, aws_client, version=None, trained=False
 
 def _get_layer_names():
 
-    activation_list = [i for i in dir(keras.activations)]
-    activation_list = [i for i in activation_list if callable(getattr(keras.activations, i))]
+    activation_list = [i for i in dir(tf.keras.activations)]
+    activation_list = [i for i in activation_list if callable(getattr(tf.keras.activations, i))]
     activation_list = [i for i in activation_list if  not i.startswith("_")]
     activation_list.remove('deserialize')
     activation_list.remove('get')
@@ -970,8 +977,8 @@ def _get_layer_names():
     activation_list = activation_list+['ReLU', 'Softmax', 'LeakyReLU', 'PReLU', 'ELU', 'ThresholdedReLU']
 
 
-    layer_list = [i for i in dir(keras.layers)]
-    layer_list = [i for i in dir(keras.layers) if callable(getattr(keras.layers, i))]
+    layer_list = [i for i in dir(tf.keras.layers)]
+    layer_list = [i for i in dir(tf.keras.layers) if callable(getattr(tf.keras.layers, i))]
     layer_list = [i for i in layer_list if not i.startswith("_")]
     layer_list = [i for i in layer_list if re.match('^[A-Z]', i)]
     layer_list = [i for i in layer_list if i.lower() not in [i.lower() for i in activation_list]]
@@ -1003,3 +1010,4 @@ def model_from_string(model_type):
     module = models_modules_dict[model_type]
     model_class = getattr(importlib.import_module(module), model_type)
     return model_class
+
