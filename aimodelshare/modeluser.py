@@ -30,34 +30,29 @@ def get_jwt_token(username, password):
         AuthFlow='USER_PASSWORD_AUTH',
         AuthParameters={'USERNAME': username,'PASSWORD': password})
 
-      jwt_aws_token={"username": username, "authorizationToken": response["AuthenticationResult"]["IdToken"]}
+      os.environ["JWT_AUTHORIZATION_TOKEN"] = response["AuthenticationResult"]["IdToken"]
 
     except :
       err = "Username or password does not exist.  Please enter new username or password."+"\n"
       err += "Sign up at AImodelshare.com/register."
       raise AuthorizationError(err)
 
-    return jwt_aws_token
+    return 
 
 
 
-def create_user_getkeyandpassword(jwt_aws_token, aws_key, aws_password, region):
-
-    username = jwt_aws_token["username"]
-    returned_jwt_token = jwt_aws_token["authorizationToken"]
-    s3, iam, region = get_s3_iam_client(aws_key, aws_password, region)
+def create_user_getkeyandpassword():
+    
+    s3, iam, region = get_s3_iam_client(os.environ.get("AWS_ACCESS_KEY_ID"), 
+                                        os.environ.get("AWS_SECRET_ACCESS_KEY"), 
+                                        os.environ.get("AWS_REGION"))
 
     #create s3 bucket and iam user
     now = datetime.datetime.now()
     year = datetime.date.today().year
     ts = form_timestamp(time.time())
-    
-    user_session = boto3.session.Session(aws_access_key_id=aws_key,
-                                          aws_secret_access_key=aws_password, region_name=region)    
-    account_number = user_session.client(
-        'sts').get_caller_identity().get('Account')    
-    bucket_name = 'aimodelshare' + username.lower()+str(account_number)
-    master_name = 'aimodelshare' + username.lower()+str(account_number)
+    bucket_name = 'aimodelshare' + os.environ.get("username").lower()
+    master_name = 'aimodelshare' + os.environ.get("username").lower()
 
     from botocore.client import ClientError
 
@@ -72,7 +67,22 @@ def create_user_getkeyandpassword(jwt_aws_token, aws_key, aws_password, region):
         bucket = s3["client"].create_bucket(ACL ='private',Bucket=bucket_name)
 
     else :
-        pass 
+        #bucket exists but you have no access
+        #add versioning
+        s3_resource = s3['resource']
+        version =0 
+        
+        for bucket in s3_resource.buckets.all(): 
+          if bucket.name.startswith(bucket_name+'-'):
+             version+=1
+
+        for i in range(1,version):
+          #check if any version of bucket name exists in the user's buckets
+          if bucket_name+'-'+str(i) in s3_resource.buckets.all():
+            bucket_name = bucket_name+'-'+str(i)
+
+        if bucket_name == master_name:
+          bucket_name= bucket_name+'-'+str(version)
 
     my_policy = _custom_s3_policy(bucket_name)
     #sub_bucket = 'aimodelshare' + username.lower() + ts.replace("_","")
@@ -88,8 +98,8 @@ def create_user_getkeyandpassword(jwt_aws_token, aws_key, aws_password, region):
       )
     except Exception as err:
       raise err
-    AI_MODELSHARE_AccessKeyId = iam_response['AccessKey']['AccessKeyId']
-    AI_MODELSHARE_SecretAccessKey = iam_response['AccessKey']['SecretAccessKey']
+    os.environ["AI_MODELSHARE_ACCESS_KEY_ID"] = iam_response['AccessKey']['AccessKeyId']
+    os.environ["AI_MODELSHARE_SECRET_ACCESS_KEY"] = iam_response['AccessKey']['SecretAccessKey']
     
     #create and attach policy for the s3 bucket
     my_managed_policy = _custom_s3_policy(bucket_name)
@@ -104,11 +114,12 @@ def create_user_getkeyandpassword(jwt_aws_token, aws_key, aws_password, region):
           PolicyArn=policy_arn
       )
     
-    return {"now":now,"iamusername":iam_username, "username":username,"AI_MODELSHARE_AccessKeyId":AI_MODELSHARE_AccessKeyId,
-            "AI_MODELSHARE_SecretAccessKey":AI_MODELSHARE_SecretAccessKey,"returned_jwt_token":returned_jwt_token,"aws_key":aws_key,
-            "aws_password":aws_password,"region":region,"policy_arn":policy_arn,"policy_name":policy_name,"bucket_name":bucket_name}
-
-
+    os.environ["IAM_USERNAME"] = iam_username
+    os.environ["POLICY_ARN"] = policy_arn
+    os.environ["POLICY_NAME"] = policy_name
+    os.environ["BUCKET_NAME"] = bucket_name
+ 
+    return 
 
 
 __all__ = [
