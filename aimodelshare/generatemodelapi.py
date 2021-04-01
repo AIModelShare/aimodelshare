@@ -18,7 +18,7 @@ from aimodelshare.preprocessormodules import upload_preprocessor
 from aimodelshare.model import _get_predictionmodel_key, _extract_model_metadata
 
 
-def take_user_info_and_generate_api(model_filepath, my_credentials, model_type, categorical,labels, preprocessor_filepath,y_test=None):
+def take_user_info_and_generate_api(model_filepath, model_type, categorical,labels, preprocessor_filepath,y_test=None):
     """
     Generates an api using model parameters and user credentials, from the user
 
@@ -36,8 +36,6 @@ def take_user_info_and_generate_api(model_filepath, my_credentials, model_type, 
                             "./preprocessor.zip" 
                             searches for an exported zip preprocessor file in the current directory
                             file is generated using export_preprocessor function from the AI Modelshare library 
-    my_credentials :  dict 
-                    value - User credentials generated and authenticated,  using aws credentials and aimodelshare username,password
     model_type :  string 
                 values - [ 'text' , 'image' , 'tabular' , 'timeseries' ]
                 Type of model data 
@@ -67,21 +65,13 @@ def take_user_info_and_generate_api(model_filepath, my_credentials, model_type, 
 
     # create temporary folder
     temp_dir = tempfile.gettempdir()
-    # unpack user credentials
-    username = my_credentials["username"]
-    AI_MODELSHARE_AccessKeyId = my_credentials["AI_MODELSHARE_AccessKeyId"]
-    AI_MODELSHARE_SecretAccessKey = my_credentials["AI_MODELSHARE_SecretAccessKey"]
-    iamusername = my_credentials["iamusername"]
-    returned_jwt_token = my_credentials["returned_jwt_token"]
-    aws_key = my_credentials["aws_key"]
-    aws_password = my_credentials["aws_password"]
-    region = my_credentials["region"]
-    bucket_name = my_credentials["bucket_name"]
+   
+
     now = datetime.datetime.now()
-    s3, iam, region = get_s3_iam_client(aws_key, aws_password, region)
+    s3, iam, region = get_s3_iam_client(os.environ.get("AWS_ACCESS_KEY_ID"), os.environ.get("AWS_SECRET_ACCESS_KEY"), os.environ.get("AWS_REGION"))
     s3["client"].create_bucket(
         ACL='private',
-        Bucket=bucket_name)
+        Bucket=os.environ.get("BUCKET_NAME"))
     # model upload
     Filepath = model_filepath
     model = onnx.load(model_filepath)
@@ -94,17 +84,17 @@ def take_user_info_and_generate_api(model_filepath, my_credentials, model_type, 
     file_key, versionfile_key = _get_predictionmodel_key(
         unique_model_id, file_extension)
     try:
-        s3["client"].upload_file(Filepath, bucket_name,  file_key)
-        s3["client"].upload_file(Filepath, bucket_name,  versionfile_key)
+        s3["client"].upload_file(Filepath, os.environ.get("BUCKET_NAME"),  file_key)
+        s3["client"].upload_file(Filepath, os.environ.get("BUCKET_NAME"),  versionfile_key)
 
         # preprocessor upload
-        #s3["client"].upload_file(tab_imports, bucket_name,  'tabular_imports.pkl')
-        #s3["client"].upload_file(img_imports, bucket_name,  'image_imports.pkl')
+        #s3["client"].upload_file(tab_imports, os.environ.get("BUCKET_NAME"),  'tabular_imports.pkl')
+        #s3["client"].upload_file(img_imports, os.environ.get("BUCKET_NAME"),  'image_imports.pkl')
         # preprocessor upload
 
         # ADD model/Preprocessor VERSION
         response = upload_preprocessor(
-            preprocessor_filepath, s3, bucket_name, unique_model_id, 1)
+            preprocessor_filepath, s3, os.environ.get("BUCKET_NAME"), unique_model_id, 1)
         preprocessor_file_extension = _get_extension_from_filepath(
             preprocessor_filepath)
         # write runtime JSON
@@ -127,14 +117,14 @@ def take_user_info_and_generate_api(model_filepath, my_credentials, model_type, 
             import pickle
             #ytest data to load to s3
             pickle.dump( list(y_test),open(ytest_path,"wb"))
-            s3["client"].upload_file(ytest_path, bucket_name,  unique_model_id + "/ytest.pkl")
+            s3["client"].upload_file(ytest_path, os.environ.get("BUCKET_NAME"),  unique_model_id + "/ytest.pkl")
             
         #runtime_data = {"runtime_model": {"name": "runtime_model.onnx"},"runtime_preprocessor": runtime_preprocessor_type }
         json_string = json.dumps(runtime_data, sort_keys=False)
         with open(json_path, 'w') as outfile:
             outfile.write(json_string)
         s3["client"].upload_file(
-            json_path, bucket_name, unique_model_id + "/runtime_data.json"
+            json_path, os.environ.get("BUCKET_NAME"), unique_model_id + "/runtime_data.json"
         )
         os.remove(json_path)
     except Exception as err:
@@ -142,15 +132,15 @@ def take_user_info_and_generate_api(model_filepath, my_credentials, model_type, 
             "There was a problem with model/preprocessor upload. "+str(err))
 
     #headers = {'content-type': 'application/json'}
-    apiurl = create_prediction_api(my_credentials, model_filepath, unique_model_id,
+    apiurl = create_prediction_api(model_filepath, unique_model_id,
                                    model_type, categorical, labels)
 
     finalresult = [apiurl["body"], apiurl["statusCode"],
-                   now, unique_model_id, bucket_name, input_shape]
+                   now, unique_model_id, os.environ.get("BUCKET_NAME"), input_shape]
     return finalresult
 
 
-def send_model_data_to_dyndb_and_return_api(api_info, my_credentials, private, categorical, preprocessor_filepath, variablename_and_type_data="default"):
+def send_model_data_to_dyndb_and_return_api(api_info, private, categorical, preprocessor_filepath, variablename_and_type_data="default"):
     """
     Updates dynamodb with model data taken as input from user along with already generated api info
     -----------
@@ -159,8 +149,6 @@ def send_model_data_to_dyndb_and_return_api(api_info, my_credentials, private, c
               length 5
               api and s3 bucket information 
               returned from take_user_info_and_generate_api function
-    my_credentials :  dict 
-                    value - User credentials generated and authenticated,  using aws credentials and aimodelshare username,password
     private :   string, default="FALSE"
               TRUE if model and its corresponding data is not public
               FALSE if model and its corresponding data is public            
@@ -194,16 +182,6 @@ def send_model_data_to_dyndb_and_return_api(api_info, my_credentials, private, c
     aishare_apicalls = 0
     print("   ")
     # unpack user credentials
-    username = my_credentials["username"]
-    returned_jwt_token = my_credentials["returned_jwt_token"]
-    aws_key = my_credentials["aws_key"]
-    aws_password = my_credentials["aws_password"]
-    AI_MODELSHARE_AccessKeyId = my_credentials["AI_MODELSHARE_AccessKeyId"]
-    AI_MODELSHARE_SecretAccessKey = my_credentials["AI_MODELSHARE_SecretAccessKey"]
-    region = my_credentials["region"]
-    iamusername = my_credentials['iamusername']
-    policy_name = my_credentials['policy_name']
-    policy_arn = my_credentials['policy_arn']
     unique_model_id = api_info[3]
     bucket_name = api_info[4]
     input_shape = api_info[5]
@@ -215,7 +193,7 @@ def send_model_data_to_dyndb_and_return_api(api_info, my_credentials, private, c
         preprocessor_filepath)
     bodydata = {"id": int(math.log(1/((time.time()*1000000)))*100000000000000),
                 "unique_model_id": unique_model_id,
-                "apideveloper": username,  # change this to first and last name
+                "apideveloper": os.environ.get("username"),  # change this to first and last name
                 "apimodeldescription": aishare_modeldescription,
                 "apimodelevaluation": aishare_modelevaluation,
                 "apimodeltype": aishare_modeltype,
@@ -235,7 +213,7 @@ def send_model_data_to_dyndb_and_return_api(api_info, my_credentials, private, c
                 "input_shape": input_shape
                 }
     # Get the response
-    headers_with_authentication = {'Content-Type': 'application/json', 'authorizationToken': returned_jwt_token, 'Access-Control-Allow-Headers':
+    headers_with_authentication = {'Content-Type': 'application/json', 'authorizationToken': os.environ.get("JWT_AUTHORIZATION_TOKEN"), 'Access-Control-Allow-Headers':
                                    'Content-Type,X-Amz-Date,authorizationToken,Access-Control-Allow-Origin,X-Api-Key,X-Amz-Security-Token,Authorization', 'Access-Control-Allow-Origin': '*'}
     # modeltoapi lambda function invoked through below url to return new prediction api in response
     requests.post("https://bhrdesksak.execute-api.us-east-1.amazonaws.com/dev/modeldata",
@@ -245,18 +223,18 @@ def send_model_data_to_dyndb_and_return_api(api_info, my_credentials, private, c
     difference = (end - start).total_seconds()
     finalresult2 = "Your AI Model Share API was created in " + \
         str(int(difference)) + " seconds." + " API Url: " + api_info[0]
-    s3, iam, region = get_s3_iam_client(aws_key, aws_password, region)
+    s3, iam, region = get_s3_iam_client(os.environ.get("AWS_ACCESS_KEY_ID"), os.environ.get("AWS_SECRET_ACCESS_KEY"), os.environ.get("AWS_REGION"))
     policy_response = iam["client"].get_policy(
-        PolicyArn=policy_arn
+        PolicyArn=os.environ.get("POLICY_ARN")
     )
     user_policy = iam["resource"].UserPolicy(
-        iamusername, policy_response['Policy']['PolicyName'])
+        os.environ.get("IAM_USERNAME"), policy_response['Policy']['PolicyName'])
     response = iam["client"].detach_user_policy(
-        UserName=iamusername,
-        PolicyArn=policy_arn
+        UserName= os.environ.get("IAM_USERNAME"),
+        PolicyArn=os.environ.get("POLICY_ARN")
     )
     # add new policy that only allows file upload to bucket
-    policy = iam["resource"].Policy(policy_arn)
+    policy = iam["resource"].Policy(os.environ.get("POLICY_ARN"))
     response = policy.delete()
     s3upload_policy = _custom_upload_policy(bucket_name, unique_model_id)
     s3uploadpolicy_name = 'temporaryaccessAImodelsharePolicy' + \
@@ -265,18 +243,18 @@ def send_model_data_to_dyndb_and_return_api(api_info, my_credentials, private, c
         PolicyName=s3uploadpolicy_name,
         PolicyDocument=json.dumps(s3upload_policy)
     )
-    user = iam["resource"].User(iamusername)
+    user = iam["resource"].User(os.environ.get("IAM_USERNAME"))
     response = user.attach_policy(
         PolicyArn=s3uploadpolicy_response['Policy']['Arn']
     )
     finalresultteams3info = "Your team members can submit improved models to your prediction api using the update_model_version() function. \nTo upload new models and/or preprocessors to this model team members should use the following awskey/password/region:\n\n aws_key = " + \
-        AI_MODELSHARE_AccessKeyId+", aws_password = " + AI_MODELSHARE_SecretAccessKey + " region = " + \
-        region+".  \n\nThis aws key/password combination limits team members to file upload access only."
+        os.environ.get("AI_MODELSHARE_ACCESS_KEY_ID") + ", aws_password = " + os.environ.get("AI_MODELSHARE_SECRET_ACCESS_KEY") + " region = " + \
+        os.environ.get("AWS_REGION") +".  \n\nThis aws key/password combination limits team members to file upload access only."
     api_info = finalresult2+"\n"+finalresultteams3info
     return print(api_info)
 
 
-def model_to_api(model_filepath, my_credentials, model_type, private, categorical, trainingdata, y_train,preprocessor_filepath, y_test=None):
+def model_to_api(model_filepath, model_type, private, categorical, trainingdata, y_train,preprocessor_filepath, y_test=None):
     """
       Launches a live prediction REST API for deploying ML models using model parameters and user credentials, provided by the user
       Inputs : 8
@@ -286,9 +264,6 @@ def model_to_api(model_filepath, my_credentials, model_type, private, categorica
       -----------
       Parameters 
       
-      my_credentials :  dict 
-                        value - user credentials generated and authenticated,  
-                        using user's aws credentials and aimodelshare username,password
       model_filepath :  string ends with '.onnx'
                         value - Absolute path to model file 
                         [REQUIRED] to be set by the user
@@ -347,12 +322,11 @@ def model_to_api(model_filepath, my_credentials, model_type, private, categorica
             labels = list(set(y_train.to_frame()['tags'].tolist()))
     else:
         labels = "no data"
-    api_info = take_user_info_and_generate_api(
-        model_filepath, my_credentials, model_type, categorical, labels,preprocessor_filepath,y_test)
+    api_info = take_user_info_and_generate_api( 
+        model_filepath, model_type, categorical, labels,preprocessor_filepath,y_test)
     print_api_info = send_model_data_to_dyndb_and_return_api(
-        api_info, my_credentials, private, categorical,preprocessor_filepath, variablename_and_type_data)
+        api_info, private, categorical,preprocessor_filepath, variablename_and_type_data)
     return print_api_info
-
 
 __all__ = [
     take_user_info_and_generate_api,
