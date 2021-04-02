@@ -240,7 +240,6 @@ def submit_model(
                 error  if there is any error while submitting models
     
     """
-    ##### THIS IS NEW:
     # Confirm that creds are loaded, print warning if not
     if all(["AWS_ACCESS_KEY_ID" in os.environ, 
             "AWS_SECRET_ACCESS_KEY" in os.environ,
@@ -314,8 +313,7 @@ def submit_model(
     else: 
             pass
     
-    ###### CHANGES HERE:
-    aws_token=get_aws_token(os.environ.get("username"), os.environ.get("password"))
+    aws_token=get_aws_token()
     headers = { 'Content-Type':'application/json', 'authorizationToken': aws_token['token'], } 
     apiurl_eval=apiurl[:-1]+"eval"
     prediction = requests.post(apiurl_eval,headers=headers,data=json.dumps(prediction_submission)) 
