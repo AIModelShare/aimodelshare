@@ -293,7 +293,7 @@ def _sklearn_to_onnx(model, initial_types, transfer_learning=None,
 
 
 
-def _tfkeras_to_onnx(model, transfer_learning=None,
+def _keras_to_onnx(model, transfer_learning=None,
                   deep_learning=None, task_type=None):
     '''Extracts metadata from keras model object.'''
 
@@ -613,7 +613,7 @@ def model_to_onnx(model, framework, model_input=None, initial_types=None,
                                 task_type=task_type)
         
     elif framework == 'keras':
-        onnx = _tfkeras_to_onnx(model, transfer_learning=transfer_learning, 
+        onnx = _keras_to_onnx(model, transfer_learning=transfer_learning, 
                               deep_learning=deep_learning, 
                               task_type=task_type)
         
