@@ -6,12 +6,13 @@ import json
 from aimodelshare.exceptions import AuthorizationError, AWSAccessError
 
 
-def set_credentials(credential_file=None, type="submit_model", apiurl="apiurl", manual = True):
+def set_credentials(credential_file=None, type="deploy_model", apiurl="apiurl", manual = True):
   import os
   import getpass
   import aimodelshare as ai
   flag = False
 
+  # Set AI Modelshare Username & Password
   if all([manual == True, credential_file==None]):
     user = getpass.getpass(prompt="AI Modelshare Username:")
     os.environ["username"] = user
@@ -43,7 +44,8 @@ def set_credentials(credential_file=None, type="submit_model", apiurl="apiurl", 
   except: 
     print("Credential confirmation unsuccessful. Check username & password and try again.")
     return
-      
+  
+  # Set AWS Creds Manually (submit or deploy)
   if  all([manual == True,credential_file==None]):
     flag = True
     access_key = getpass.getpass(prompt="AWS_ACCESS_KEY_ID:")
@@ -55,23 +57,41 @@ def set_credentials(credential_file=None, type="submit_model", apiurl="apiurl", 
     region = getpass.getpass(prompt="AWS_REGION:")
     os.environ["AWS_REGION"] = region
 
+  # Set AWS creds from file
   else:  
     f = open(credential_file)
-    for line in f:
-      if (apiurl in line) and ((type in line) or (type.upper() in line)):
-        flag = True
-        for line in f:
-          if line == "\n":
-            break
-          try:
-            value = line.split("=", 1)[1].strip()
-            value = value[1:-1]
-            key = line.split("=", 1)[0].strip()
-            os.environ[key.upper()] = value
-          except LookupError: 
-            print(* "Warning: Review format of", credential_file, ". Format should be variablename = 'variable_value'.")
-            break
-  
+    if type == "submit_model": 
+      for line in f:
+        if (apiurl in line) and ((type in line) or (type.upper() in line)): ## searches on apiurl AND type
+          flag = True
+          for line in f:
+            if line == "\n":
+              break
+            try:
+              value = line.split("=", 1)[1].strip()
+              value = value[1:-1]
+              key = line.split("=", 1)[0].strip()
+              os.environ[key.upper()] = value
+            except LookupError: 
+              print(* "Warning: Review format of", credential_file, ". Format should be variablename = 'variable_value'.")
+              break
+
+    elif type == "deploy_model": 
+      for line in f:
+        if ((type in line) or (type.upper() in line)):  ## only searches on type
+          flag = True
+          for line in f:
+            if line == "\n":
+              break
+            try:
+              value = line.split("=", 1)[1].strip()
+              value = value[1:-1]
+              key = line.split("=", 1)[0].strip()
+              os.environ[key.upper()] = value
+            except LookupError: 
+              print(* "Warning: Review format of", credential_file, ". Format should be variablename = 'variable_value'.")
+              break
+
   # Validate AWS Creds (submit_model)
   import boto3
   try: 
@@ -81,7 +101,12 @@ def set_credentials(credential_file=None, type="submit_model", apiurl="apiurl", 
   except: 
     print("AWS credential confirmation unsuccessful. Check AWS_ACCESS_KEY_ID & AWS_SECRET_ACCESS_KEY and try again.")
     return
-
+  
+  # Set Environment Variables for deploy models
+  if type == "deploy_model":
+    get_jwt_token(os.environ.get("username"), os.environ.get("password"))
+    create_user_getkeyandpassword()
+    
   if not flag: 
     print("Error: apiurl or type not found in"+str(credential_file)+". Please correct entries and resubmit.")
   
@@ -94,7 +119,7 @@ def set_credentials(credential_file=None, type="submit_model", apiurl="apiurl", 
 
 
 
-def get_aws_token(user_name, user_pass):
+def get_aws_token():
     config = botocore.config.Config(signature_version=botocore.UNSIGNED)
 
     provider_client = boto3.client(
@@ -105,13 +130,13 @@ def get_aws_token(user_name, user_pass):
         response = provider_client.initiate_auth(
             ClientId="7ptv9f8pt36elmg0e4v9v7jo9t",
             AuthFlow="USER_PASSWORD_AUTH",
-            AuthParameters={"USERNAME": user_name, "PASSWORD": user_pass},
+             AuthParameters={"USERNAME": os.getenv('username'), "PASSWORD": os.getenv('password')},
         )
 
     except Exception as err:
         raise AuthorizationError("Could not authorize user. " + str(err))
 
-    return {"username": user_name,"password": user_pass, "token": response["AuthenticationResult"]["IdToken"]}
+    return {"username": os.getenv('username'),"token": response["AuthenticationResult"]["IdToken"]}
 
 
 def get_aws_client(aws_key=None, aws_secret=None, aws_region=None):
@@ -122,7 +147,7 @@ def get_aws_client(aws_key=None, aws_secret=None, aws_region=None):
         else os.environ.get("AWS_SECRET_ACCESS_KEY")
     )
     region = (
-        aws_region if aws_region is not None else os.environ.get("AWS_DEFAULT_REGION")
+        aws_region if aws_region is not None else os.environ.get("AWS_REGION") #changed
     )
 
     if any([key is None, secret is None, region is None]):
@@ -146,7 +171,7 @@ def get_s3_iam_client(aws_key=None,aws_password=None, aws_region=None):
         if aws_password is not None
         else os.environ.get("AWS_SECRET_ACCESS_KEY"))
   region = (
-        aws_region if aws_region is not None else os.environ.get("AWS_DEFAULT_REGION"))
+        aws_region if aws_region is not None else os.environ.get("AWS_REGION")) #changed
 
   if any([key is None, password is None, region is None]):
         raise AuthorizationError("Please set your aws credentials before creating your prediction API.")
@@ -166,7 +191,8 @@ def get_s3_iam_client(aws_key=None,aws_password=None, aws_region=None):
   return s3,iam,region
 
 
-def run_function_on_lambda(url, token, **kwargs):
+def run_function_on_lambda(url, **kwargs):
+    token = get_aws_token()
     kwargs["apideveloper"] = token["username"]
     kwargs["apiurl"] = url
 

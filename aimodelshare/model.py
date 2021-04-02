@@ -207,8 +207,6 @@ def _update_leaderboard(
 def submit_model(
     modelpath,
     apiurl,
-    aws_token,
-    aws_client,
     prediction_submission=None,
     preprocessor=None,
     sample_data=None,
@@ -226,15 +224,6 @@ def submit_model(
     apiurl :    string 
                 value - url to the live prediction REST API generated for the user's model 
                 "https://example.execute-api.us-east-1.amazonaws.com/prod/m"
-    aws_token:  dict
-                value - aws token returned after authenticating user's AI Modelshare credentials
-                {"username": exampleuser, "token": SASXCCVVFRRGIHMLMMJMHJMJLYL}
-    aws_client: dict
-                value - aws s3 client and resource using boto3
-                s3 client handles model submission
-                s3 resource points to s3 bucket where user can submit models
-                {"client": example_client, "resource": example_resource}
-
     prediction_submission:   one hot encoded y_pred
                     value - predictions for test data
                     [REQUIRED] for evaluation metriicts of the submitted model
@@ -251,10 +240,24 @@ def submit_model(
                 error  if there is any error while submitting models
     
     """
-
+    ##### THIS IS NEW:
+    # Confirm that creds are loaded, print warning if not
+    if all(["AWS_ACCESS_KEY_ID" in os.environ, 
+            "AWS_SECRET_ACCESS_KEY" in os.environ,
+            "AWS_REGION" in os.environ,
+           "username" in os.environ, 
+           "password" in os.environ]):
+        pass
+    else:
+        return print("'Submit Model' unsuccessful. Please provide credentials with set_credentials().")
+    
+    aws_client=ai.aws.get_aws_client(aws_key=os.environ.get('AWS_ACCESS_KEY_ID'), 
+                                   aws_secret=os.environ.get('AWS_SECRET_ACCESS_KEY'), 
+                                   aws_region=os.environ.get('AWS_REGION'))
+    
     # Get bucket and model_id for user {{{
     response, error = run_function_on_lambda(
-        apiurl, aws_token, **{"delete": "FALSE", "versionupdateget": "TRUE"}
+        apiurl, **{"delete": "FALSE", "versionupdateget": "TRUE"}
     )
     if error is not None:
         raise error
@@ -311,8 +314,9 @@ def submit_model(
     else: 
             pass
     
-    token=get_aws_token(aws_token['username'],aws_token['password'])
-    headers = { 'Content-Type':'application/json', 'authorizationToken': token['token'], } 
+    ###### CHANGES HERE:
+    aws_token=get_aws_token(os.environ.get("username"), os.environ.get("password"))
+    headers = { 'Content-Type':'application/json', 'authorizationToken': aws_token['token'], } 
     apiurl_eval=apiurl[:-1]+"eval"
     prediction = requests.post(apiurl_eval,headers=headers,data=json.dumps(prediction_submission)) 
 
