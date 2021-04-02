@@ -8,12 +8,14 @@ from sklearn.model_selection import GridSearchCV, RandomizedSearchCV
 import torch
 import xgboost
 import tensorflow as tf
+import keras
 
 # onnx modules
 import onnx
 import skl2onnx
 from skl2onnx import convert_sklearn
 import tf2onnx
+from keras2onnx import convert_keras
 from torch.onnx import export
 from onnx.tools.net_drawer import GetPydotGraph, GetOpNodeProducer
 import importlib
