@@ -153,7 +153,7 @@ def _extract_model_metadata(model, eval_metrics=None):
 
 
 def _update_leaderboard(
-    modelpath, eval_metrics, client, token, bucket, model_id, model_version
+    modelpath, eval_metrics, client, bucket, model_id, model_version
 ):
     # Loading the model and its metadata {{{
     if not os.path.exists(modelpath):
@@ -164,7 +164,7 @@ def _update_leaderboard(
     # }}}
 
     # Adding extra details to metadata {{{
-    metadata["username"] = token["username"]
+    metadata["username"] = os.environ.get("username")
     metadata["timestamp"] = str(datetime.now())
     metadata["version"] = model_version
     # }}}
@@ -313,8 +313,7 @@ def submit_model(
     else: 
             pass
     
-    aws_token=get_aws_token()
-    headers = { 'Content-Type':'application/json', 'authorizationToken': aws_token['token'], } 
+    headers = { 'Content-Type':'application/json', 'authorizationToken': os.environ.get("AWS_TOKEN"), } 
     apiurl_eval=apiurl[:-1]+"eval"
     prediction = requests.post(apiurl_eval,headers=headers,data=json.dumps(prediction_submission)) 
 
@@ -326,7 +325,7 @@ def submit_model(
 
     # Upload model metrics and metadata {{{
     err = _update_leaderboard(
-        modelpath, eval_metrics, aws_client, aws_token, bucket, model_id, model_version
+        modelpath, eval_metrics, aws_client, bucket, model_id, model_version
     )
     if err is not None:
         raise err
