@@ -1,6 +1,7 @@
 import json
 import numpy as np
 import pandas as pd
+import os
 
 from aimodelshare.aws import run_function_on_lambda
 from aimodelshare.aimsonnx import _get_layer_names

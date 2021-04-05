@@ -790,9 +790,19 @@ def onnx_to_image(model):
     
     return pydot_graph
 
-def inspect_model(apiurl, aws_token, aws_client, version=None):
+def inspect_model(apiurl, version=None):
+    if all(["AWS_ACCESS_KEY_ID" in os.environ, 
+            "AWS_SECRET_ACCESS_KEY" in os.environ,
+            "AWS_REGION" in os.environ, 
+           "username" in os.environ, 
+           "password" in os.environ]):
+        pass
+    else:
+        return print("'Inspect Model' unsuccessful. Please provide credentials with set_credentials().")
 
-    onnx_model = _get_onnx_from_bucket(apiurl, aws_token, aws_client, version=version)
+    aws_client = get_aws_client() 
+
+    onnx_model = _get_onnx_from_bucket(apiurl, aws_client, version=version)
 
     meta_dict = _get_metadata(onnx_model)
 
@@ -808,17 +818,28 @@ def inspect_model(apiurl, aws_token, aws_client, version=None):
     return inspect_pd
     
 
-def compare_models(apiurl, aws_token, aws_client, version_list=None, 
+def compare_models(apiurl, version_list=None, 
     by_model_type=None, best_model=None, verbose=3):
     
     if not isinstance(version_list, list):
         raise Exception("Argument 'version' must be a list.")
+
+    if all(["AWS_ACCESS_KEY_ID" in os.environ, 
+            "AWS_SECRET_ACCESS_KEY" in os.environ,
+            "AWS_REGION" in os.environ, 
+           "username" in os.environ, 
+           "password" in os.environ]):
+        pass
+    else:
+        return print("'Compare Models' unsuccessful. Please provide credentials with set_credentials().")
+
+    aws_client = get_aws_client()
     
     models_dict = {}
     
     for i in version_list: 
         
-        onnx_model = _get_onnx_from_bucket(apiurl, aws_token, aws_client, version=i)
+        onnx_model = _get_onnx_from_bucket(apiurl, aws_client, version=i)
         meta_dict = _get_metadata(onnx_model)
         
         models_dict[i] = meta_dict
@@ -844,7 +865,7 @@ def compare_models(apiurl, aws_token, aws_client, version_list=None,
         
         for i in version_list: 
             
-            temp_pd = inspect_model(apiurl, aws_token, aws_client, version=i)
+            temp_pd = inspect_model(apiurl, version=i)
             comp_pd = pd.concat([comp_pd, temp_pd.drop(columns='param_name')], axis=1)
         
         comp_pd.columns = ['param_name', 'model_default'] + ["Model_"+str(i) for i in version_list]
@@ -859,7 +880,7 @@ def compare_models(apiurl, aws_token, aws_client, version_list=None,
 
         for i in version_list: 
 
-            temp_pd = inspect_model(apiurl, aws_token, aws_client, version=i)
+            temp_pd = inspect_model(apiurl, version=i)
 
             temp_pd = temp_pd.iloc[:,0:verbose]
 
@@ -879,14 +900,14 @@ def compare_models(apiurl, aws_token, aws_client, version_list=None,
 
 
 
-def _get_onnx_from_bucket(apiurl, aws_token, aws_client, version=None):
+def _get_onnx_from_bucket(apiurl, aws_client, version=None):
 
     # generate name of onnx model in bucket
     onnx_model_name = "/onnx_model_v{version}.onnx".format(version = version)
 
     # Get bucket and model_id for user
     response, error = run_function_on_lambda(
-        apiurl, aws_token, **{"delete": "FALSE", "versionupdateget": "TRUE"}
+        apiurl, **{"delete": "FALSE", "versionupdateget": "TRUE"}
     )
     if error is not None:
         raise error
@@ -917,9 +938,18 @@ def _get_onnx_from_bucket(apiurl, aws_token, aws_client, version=None):
     return onx
 
 
-def instantiate_model(apiurl, aws_token, aws_client, version=None, trained=False):
-
-    onnx_model = _get_onnx_from_bucket(apiurl, aws_token, aws_client, version=version)
+def instantiate_model(apiurl, version=None, trained=False):
+    if all(["AWS_ACCESS_KEY_ID" in os.environ, 
+            "AWS_SECRET_ACCESS_KEY" in os.environ,
+            "AWS_REGION" in os.environ, 
+            "username" in os.environ, 
+            "password" in os.environ]):
+          pass
+    else:
+          return print("'Instantiate Model' unsuccessful. Please provide credentials with set_credentials().")
+        
+    aws_client = get_aws_client()   
+    onnx_model = _get_onnx_from_bucket(apiurl, aws_client, version=version)
     meta_dict = _get_metadata(onnx_model)
 
     # get model config 
@@ -1606,97 +1636,3 @@ def onnx_to_image(model):
     )
     
     return pydot_graph
-
-def instantiate_model(apiurl, version=None):
-    if all(["AWS_ACCESS_KEY_ID" in os.environ, 
-            "AWS_SECRET_ACCESS_KEY" in os.environ,
-            "AWS_REGION" in os.environ, 
-           "username" in os.environ, 
-           "password" in os.environ]):
-        pass
-    else:
-        return print("'Instantiate Model' unsuccessful. Please provide credentials with set_credentials().")
-    
-    aws_client=ai.aws.get_aws_client(aws_key=os.environ.get('AWS_ACCESS_KEY_ID'), aws_secret=os.environ.get('AWS_SECRET_ACCESS_KEY'), aws_region=os.environ.get('AWS_REGION'))
-
-    # Get bucket and model_id for user
-    response, error = run_function_on_lambda(
-        apiurl, **{"delete": "FALSE", "versionupdateget": "TRUE"}
-    )
-    if error is not None:
-        raise error
-
-    _, bucket, model_id = json.loads(response.content.decode("utf-8"))
-
-    # Get mastertable
-    try:
-        master_table = aws_client["client"].get_object(
-            Bucket=bucket, Key=model_id + "/model_eval_data_mastertable.csv"
-        )
-
-        assert (
-            master_table["ResponseMetadata"]["HTTPStatusCode"] == 200
-        ), "There was a problem in accessing the leaderboard file"
-
-        master_table = pd.read_csv(master_table["Body"], sep="\t")
-
-    except Exception as err:
-        raise err
-
-    # get model config 
-    model_config = ast.literal_eval(master_table.model_config[master_table.version == version].iloc[0])
-
-    if master_table.ml_framework[master_table.version == version].iloc[0] == 'sklearn':
-
-        model_type = master_table.model_type[master_table.version == version].iloc[0]
-
-        models_modules_dict = _get_sklearn_modules()
-        module = models_modules_dict[model_type]
-        model_class = getattr(importlib.import_module(module), model_type)
-        model = model_class(**model_config)
-
-
-    if master_table.ml_framework[master_table.version == version].iloc[0] == 'keras':
-
-        model = keras.Sequential().from_config(model_config)
-
-    return model 
-
-
-def _get_layer_names():
-
-    activation_list = [i for i in dir(keras.activations)]
-    activation_list = [i for i in activation_list if callable(getattr(keras.activations, i))]
-    activation_list = [i for i in activation_list if  not i.startswith("_")]
-    activation_list.remove('deserialize')
-    activation_list.remove('get')
-    activation_list.remove('linear')
-    activation_list = activation_list+['ReLU', 'Softmax', 'LeakyReLU', 'PReLU', 'ELU', 'ThresholdedReLU']
-
-
-    layer_list = [i for i in dir(keras.layers)]
-    layer_list = [i for i in dir(keras.layers) if callable(getattr(keras.layers, i))]
-    layer_list = [i for i in layer_list if not i.startswith("_")]
-    layer_list = [i for i in layer_list if re.match('^[A-Z]', i)]
-    layer_list = [i for i in layer_list if i.lower() not in [i.lower() for i in activation_list]]
-
-    return layer_list, activation_list
-
-def _get_sklearn_modules():
-    
-    import sklearn
-
-    sklearn_modules = ['ensemble', 'gaussian_process', 'isotonic',
-                       'linear_model', 'mixture', 'multiclass', 'naive_bayes', 
-                       'neighbors', 'neural_network', 'svm', 'tree']
-
-    models_modules_dict = {}
-
-    for i in sklearn_modules:
-        models_list = [j for j in dir(eval('sklearn.'+i)) if callable(getattr(eval('sklearn.'+i), j))]
-        models_list = [j for j in models_list if re.match('^[A-Z]', j)]
-
-        for k in models_list: 
-            models_modules_dict[k] = 'sklearn.'+i
-    
-    return models_modules_dict

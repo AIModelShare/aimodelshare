@@ -4,9 +4,9 @@ import botocore
 import requests
 import json
 from aimodelshare.exceptions import AuthorizationError, AWSAccessError
+from aimodelshare.modeluser import get_jwt_token, create_user_getkeyandpassword
 
-
-def set_credentials(credential_file=None, type="deploy_model", apiurl="apiurl", manual = True):
+def set_credentials(credential_file=None, type="submit_model", apiurl="apiurl", manual = True):
   import os
   import getpass
   import aimodelshare as ai
@@ -39,7 +39,7 @@ def set_credentials(credential_file=None, type="deploy_model", apiurl="apiurl", 
   
   #Validate Username & Password
   try: 
-    token=ai.aws.get_aws_token(os.environ.get("username"), os.environ.get("password"))
+    os.environ["AWS_TOKEN"]=ai.aws.get_aws_token()
     print("AI Model Share login credentials set successfully.")
   except: 
     print("Credential confirmation unsuccessful. Check username & password and try again.")
@@ -136,7 +136,7 @@ def get_aws_token():
     except Exception as err:
         raise AuthorizationError("Could not authorize user. " + str(err))
 
-    return {"username": os.getenv('username'),"token": response["AuthenticationResult"]["IdToken"]}
+    return response["AuthenticationResult"]["IdToken"]
 
 
 def get_aws_client(aws_key=None, aws_secret=None, aws_region=None):
@@ -192,13 +192,12 @@ def get_s3_iam_client(aws_key=None,aws_password=None, aws_region=None):
 
 
 def run_function_on_lambda(url, **kwargs):
-    token = get_aws_token()
-    kwargs["apideveloper"] = token["username"]
+    kwargs["apideveloper"] = os.environ.get("username")
     kwargs["apiurl"] = url
 
     headers_with_authentication = {
         "content-type": "application/json",
-        "authorizationToken": token["token"],
+        "authorizationToken": os.environ.get("AWS_TOKEN"),
     }
 
     response = requests.post(
