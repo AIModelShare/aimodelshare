@@ -77,7 +77,12 @@ def _extract_onnx_metadata(onnx_model, framework):
         for layer_id, layer in enumerate(initializer):
             if(len(layer.dims)>= 2):
                 layers_shapes.append(layer.dims[1])
-                n_params = int(np.prod(layer.dims) + initializer[layer_id-1].dims)
+
+                try:
+                    n_params = int(np.prod(layer.dims) + initializer[layer_id-1].dims)
+                except:
+                    n_params = None
+
                 layers_n_params.append(n_params)
                 
 
@@ -1010,4 +1015,38 @@ def model_from_string(model_type):
     module = models_modules_dict[model_type]
     model_class = getattr(importlib.import_module(module), model_type)
     return model_class
+
+
+def check_y_test(apiurl, aws_token, aws_client):
+
+    ytest = "ytest.pkl"
+
+    # Get bucket and model_id for user
+    response, error = run_function_on_lambda(
+        apiurl, aws_token, **{"delete": "FALSE", "versionupdateget": "TRUE"}
+    )
+    if error is not None:
+        raise error
+
+    _, bucket, model_id = json.loads(response.content.decode("utf-8"))
+
+    try:
+        pkl_string = aws_client["client"].get_object(
+            Bucket=bucket, Key=model_id + ytest
+        )
+
+        pkl_string = pkl_string['Body'].read()
+
+    except Exception as err:
+        raise err
+
+    # generate tempfile for pkl object 
+    temp_dir = tempfile.gettempdir()
+    temp_path = os.path.join(temp_dir, 'temp_file_name')
+
+    # save onnx to temporary path
+    with open(temp_path, "wb") as f:
+        f.write(pkl_string)
+
+
 
