@@ -8,9 +8,7 @@ import json
 
 from datetime import datetime
 
-from aimodelshare.aws import run_function_on_lambda
-from aimodelshare.aws import get_token
-from aimodelshare.aws import get_aws_token
+from aimodelshare.aws import run_function_on_lambda, get_token, get_aws_token, get_aws_client
 
 from aimodelshare.aimsonnx import _get_leaderboard_data
 
@@ -250,9 +248,9 @@ def submit_model(
     else:
         return print("'Submit Model' unsuccessful. Please provide credentials with set_credentials().")
     
-    aws_client=ai.aws.get_aws_client(aws_key=os.environ.get('AWS_ACCESS_KEY_ID'), 
-                                   aws_secret=os.environ.get('AWS_SECRET_ACCESS_KEY'), 
-                                   aws_region=os.environ.get('AWS_REGION'))
+    aws_client=get_aws_client(aws_key=os.environ.get('AWS_ACCESS_KEY_ID'), 
+                              aws_secret=os.environ.get('AWS_SECRET_ACCESS_KEY'), 
+                              aws_region=os.environ.get('AWS_REGION'))
     
     # Get bucket and model_id for user {{{
     response, error = run_function_on_lambda(

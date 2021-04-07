@@ -4,12 +4,13 @@ import botocore
 import requests
 import json
 from aimodelshare.exceptions import AuthorizationError, AWSAccessError
-from aimodelshare.modeluser import get_jwt_token, create_user_getkeyandpassword
 
 def set_credentials(credential_file=None, type="submit_model", apiurl="apiurl", manual = True):
   import os
   import getpass
-  import aimodelshare as ai
+  from aimodelshare.aws import get_aws_token
+  from aimodelshare.modeluser import get_jwt_token, create_user_getkeyandpassword
+   ## avoids circular import, but is it bad?
   flag = False
 
   # Set AI Modelshare Username & Password
@@ -39,7 +40,7 @@ def set_credentials(credential_file=None, type="submit_model", apiurl="apiurl", 
   
   #Validate Username & Password
   try: 
-    os.environ["AWS_TOKEN"]=ai.aws.get_aws_token()
+    os.environ["AWS_TOKEN"]=get_aws_token()
     print("AI Model Share login credentials set successfully.")
   except: 
     print("Credential confirmation unsuccessful. Check username & password and try again.")
@@ -105,7 +106,7 @@ def set_credentials(credential_file=None, type="submit_model", apiurl="apiurl", 
   # Set Environment Variables for deploy models
   if type == "deploy_model":
     get_jwt_token(os.environ.get("username"), os.environ.get("password"))
-    create_user_getkeyandpassword()
+    create_user_getkeyandpassword()  
     
   if not flag: 
     print("Error: apiurl or type not found in"+str(credential_file)+". Please correct entries and resubmit.")

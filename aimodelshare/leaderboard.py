@@ -3,7 +3,7 @@ import numpy as np
 import pandas as pd
 import os
 
-from aimodelshare.aws import run_function_on_lambda
+from aimodelshare.aws import run_function_on_lambda, get_aws_client
 from aimodelshare.aimsonnx import _get_layer_names
 
 
@@ -18,9 +18,9 @@ def get_leaderboard(apiurl, category="classification", verbose=3, columns=None):
     else:
         return print("Get Leaderboard unsuccessful. Please provide credentials with set_credentials().")
 
-    aws_client=ai.aws.get_aws_client(aws_key=os.environ.get('AWS_ACCESS_KEY_ID'), 
-                                   aws_secret=os.environ.get('AWS_SECRET_ACCESS_KEY'), 
-                                   aws_region=os.environ.get('AWS_REGION'))
+    aws_client=get_aws_client(aws_key=os.environ.get('AWS_ACCESS_KEY_ID'), 
+                              aws_secret=os.environ.get('AWS_SECRET_ACCESS_KEY'), 
+                              aws_region=os.environ.get('AWS_REGION'))
     
     # Get bucket and model_id for user {{{
     response, error = run_function_on_lambda(
