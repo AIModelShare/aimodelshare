@@ -423,7 +423,8 @@ def _keras_to_onnx(model, transfer_learning=None,
     metadata['eval_metrics'] = None
 
     # add metadata from onnx object
-    metadata['metadata_onnx'] = str(_extract_onnx_metadata(onx, framework='keras'))
+    # metadata['metadata_onnx'] = str(_extract_onnx_metadata(onx, framework='keras'))
+    metadata['metadata_onnx'] = None
 
     # add metadata dict to onnx object
     meta = onx.metadata_props.add()
@@ -528,7 +529,8 @@ def _pytorch_to_onnx(model, model_input, transfer_learning=None,
     metadata['eval_metrics'] = None
 
     # add metadata from onnx object
-    metadata['metadata_onnx'] = str(_extract_onnx_metadata(onx, framework='pytorch'))
+    # metadata['metadata_onnx'] = str(_extract_onnx_metadata(onx, framework='pytorch'))
+    metadata['metadata_onnx'] = None
 
     # add metadata dict to onnx object
     meta = onx.metadata_props.add()
@@ -1010,66 +1012,6 @@ def model_from_string(model_type):
     module = models_modules_dict[model_type]
     model_class = getattr(importlib.import_module(module), model_type)
     return model_class
-    # get output shape
-    metadata_onnx["output_shape"] = graph.output[0].type.tensor_type.shape.dim[1].dim_value 
-    
-    # get layers and activations NEW
-    # match layers and nodes and initalizers in sinle object
-    # insert here....
-
-    # get layers & activations 
-    layer_nodes = ['MatMul', 'Gemm', 'Conv'] #add MaxPool, Transpose, Flatten
-    activation_nodes = ['Relu', 'Softmax']
-
-    layers = []
-    activations = []
-
-    for op_id, op in enumerate(graph.node):
-
-        if op.op_type in layer_nodes:
-            layers.append(op.op_type)
-            #if op.op_type == 'MaxPool':
-                #activations.append(None)
-            
-        if op.op_type in activation_nodes:
-            activations.append(op.op_type)
-
-
-    # get shapes and parameters
-    layers_shapes = []
-    layers_n_params = []
-
-    if framework == 'keras':
-        initializer = list(reversed(graph.initializer))
-        for layer_id, layer in enumerate(initializer):
-            if(len(layer.dims)>= 2):
-                layers_shapes.append(layer.dims[1])
-                n_params = int(np.prod(layer.dims) + initializer[layer_id-1].dims)
-                layers_n_params.append(n_params)
-                
-
-    elif framework == 'pytorch':
-        initializer = graph.initializer
-        for layer_id, layer in enumerate(initializer):
-            if(len(layer.dims)>= 2):
-                layers_shapes.append(layer.dims[0])
-                n_params = int(np.prod(layer.dims) + initializer[layer_id-1].dims)
-                layers_n_params.append(n_params)
-
-
-    # get model architecture stats
-    model_architecture = {'layers_number': len(layers),
-                      'layers_sequence': layers,
-                      'layers_summary': {i:layers.count(i) for i in set(layers)},
-                      'layers_n_params': layers_n_params,
-                      'layers_shapes': layers_shapes,
-                      'activations_sequence': activations,
-                      'activations_summary': {i:activations.count(i) for i in set(activations)}
-                     }
-
-    metadata_onnx["model_architecture"] = model_architecture
-
-    return metadata_onnx
 
 
 
@@ -1126,112 +1068,6 @@ def _misc_to_onnx(model, initial_types, transfer_learning=None,
         model_architecture['optimizer'] = model.solver
 
     metadata['model_architecture'] = str(model_architecture)
-
-    # placeholder, needs evaluation engine
-    metadata['eval_metrics'] = None  
-    
-    # add metadata from onnx object
-    # metadata['metadata_onnx'] = str(_extract_onnx_metadata(onx, framework='sklearn'))
-    metadata['metadata_onnx'] = None
-
-    meta = onx.metadata_props.add()
-    meta.key = 'model_metadata'
-    meta.value = str(metadata)
-
-    return onx
-
-
-
-def _sklearn_to_onnx(model, initial_types, transfer_learning=None,
-                    deep_learning=None, task_type=None):
-    '''Extracts metadata from sklearn model object.'''
-    
-    # check whether this is a fitted sklearn model
-    # sklearn.utils.validation.check_is_fitted(model)
-
-    # deal with pipelines and parameter search 
-    if isinstance(model, (GridSearchCV, RandomizedSearchCV)):
-        model = model.best_estimator_
-
-    if isinstance(model, sklearn.pipeline.Pipeline):
-        model = model.steps[-1][1]
-
-    # convert to onnx
-    onx = convert_sklearn(model, initial_types=initial_types)
-            
-    # generate metadata dict 
-    metadata = {}
-    
-    # placeholders, need to be generated elsewhere
-    metadata['model_id'] = None
-    metadata['data_id'] = None
-    metadata['preprocessor_id'] = None
-    
-    # infer ml framework from function call
-    metadata['ml_framework'] = 'sklearn'
-    
-    # get model type from model object
-    model_type = str(model).split('(')[0]
-    metadata['model_type'] = model_type
-    
-    # get transfer learning bool from user input
-    metadata['transfer_learning'] = transfer_learning
-
-    # get deep learning bool from user input
-    metadata['deep_learning'] = deep_learning
-    
-    # get task type from user input
-    metadata['task_type'] = task_type
-    
-    # placeholders, need to be inferred from data 
-    metadata['target_distribution'] = None
-    metadata['input_type'] = None
-    metadata['input_shape'] = None
-    metadata['input_dtypes'] = None       
-    metadata['input_distribution'] = None
-    
-    # get model config dict from sklearn model object
-    metadata['model_config'] = str(model.get_params())
-    
-    # get model state from sklearn model object
-    metadata['model_state'] = None
-
-    # get model architecture    
-    if model_type == 'MLPClassifier' or model_type == 'MLPRegressor':
-
-        if model_type == 'MLPClassifier':
-            loss = 'log-loss'
-        if model_type == 'MLPRegressor':
-            loss = 'squared-loss'
-
-        n_params = []
-        layer_dims = [model.n_features_in_] + model.hidden_layer_sizes + [model.n_outputs_]
-        for i in range(len(layer_dims)-1):
-            n_params.append(layer_dims[i]*layer_dims[i+1] + layer_dims[i+1])
-
-        # insert data into model architecture dict 
-        model_architecture = {'layers_number': len(model.hidden_layer_sizes),
-                              'layers_sequence': ['Dense']*len(model.hidden_layer_sizes),
-                              'layers_summary': {'Dense': len(model.hidden_layer_sizes)},
-                              'layers_n_params': n_params, #double check 
-                              'layers_shapes': model.hidden_layer_sizes,
-                              'activations_sequence': [model.activation]*len(model.hidden_layer_sizes),
-                              'activations_summary': {model.activation: len(model.hidden_layer_sizes)},
-                              'loss': loss,
-                              'optimizer': model.solver
-                             }
-
-        metadata['model_architecture'] = str(model_architecture)
-
-    else:
-        model_architecture = {}
-
-        if hasattr(model, 'coef_'):
-            model_architecture['layers_n_params'] = [len(model.coef_.flatten())]
-        if hasattr(model, 'solver'):
-            model_architecture['optimizer'] = model.solver
-
-        metadata['model_architecture'] = str(model_architecture)
 
     # placeholder, needs evaluation engine
     metadata['eval_metrics'] = None  
@@ -1343,7 +1179,7 @@ def _pytorch_to_onnx(model, model_input, transfer_learning=None,
     metadata['eval_metrics'] = None
 
     # add metadata from onnx object
-    metadata['metadata_onnx'] = str(_extract_onnx_metadata(onx, framework='pytorch'))
+    # metadata['metadata_onnx'] = str(_extract_onnx_metadata(onx, framework='pytorch'))
 
     # add metadata dict to onnx object
     meta = onx.metadata_props.add()
