@@ -426,9 +426,10 @@ def _keras_to_onnx(model, transfer_learning=None,
     metadata['eval_metrics'] = None
 
     # add metadata from onnx object
-    metadata['metadata_onnx'] = str(_extract_onnx_metadata(onx, framework='keras'))
-
+    # metadata['metadata_onnx'] = str(_extract_onnx_metadata(onx, framework='keras'))
+    metadata['metadata_onnx'] = None
     # add metadata dict to onnx object
+    
     meta = onx.metadata_props.add()
     meta.key = 'model_metadata'
     meta.value = str(metadata)
@@ -531,7 +532,8 @@ def _pytorch_to_onnx(model, model_input, transfer_learning=None,
     metadata['eval_metrics'] = None
 
     # add metadata from onnx object
-    metadata['metadata_onnx'] = str(_extract_onnx_metadata(onx, framework='pytorch'))
+    # metadata['metadata_onnx'] = str(_extract_onnx_metadata(onx, framework='pytorch'))
+    metadata['metadata_onnx'] = None
 
     # add metadata dict to onnx object
     meta = onx.metadata_props.add()
