@@ -41,7 +41,8 @@ def set_credentials(credential_file=None, type="deploy_model", apiurl="apiurl", 
   
   #Validate Username & Password
   try: 
-    os.environ["AWS_TOKEN"]=get_aws_token()
+    os.environ["AWS_TOKEN"]=get_aws_token()['token']
+
     print("AI Model Share login credentials set successfully.")
   except: 
     print("Credential confirmation unsuccessful. Check username & password and try again.")
