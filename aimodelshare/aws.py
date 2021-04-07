@@ -5,7 +5,8 @@ import requests
 import json
 from aimodelshare.exceptions import AuthorizationError, AWSAccessError
 
-def set_credentials(credential_file=None, type="submit_model", apiurl="apiurl", manual = True):
+
+def set_credentials(credential_file=None, type="deploy_model", apiurl="apiurl", manual = True):
   import os
   import getpass
   from aimodelshare.aws import get_aws_token
@@ -137,7 +138,7 @@ def get_aws_token():
     except Exception as err:
         raise AuthorizationError("Could not authorize user. " + str(err))
 
-    return response["AuthenticationResult"]["IdToken"]
+    return {"username": os.getenv('username'),"token": response["AuthenticationResult"]["IdToken"]}
 
 
 def get_aws_client(aws_key=None, aws_secret=None, aws_region=None):
@@ -193,12 +194,13 @@ def get_s3_iam_client(aws_key=None,aws_password=None, aws_region=None):
 
 
 def run_function_on_lambda(url, **kwargs):
-    kwargs["apideveloper"] = os.environ.get("username")
+    token = get_aws_token()
+    kwargs["apideveloper"] = token["username"]
     kwargs["apiurl"] = url
 
     headers_with_authentication = {
         "content-type": "application/json",
-        "authorizationToken": os.environ.get("AWS_TOKEN"),
+        "authorizationToken": token["token"],
     }
 
     response = requests.post(

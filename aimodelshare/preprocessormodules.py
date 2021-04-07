@@ -32,7 +32,7 @@ def import_preprocessor(filepath):
       pickle_file_list=[]
       for file in os.listdir(temp_dir):
           if file.endswith(".pkl"):
-              pickle_file_list.append(os.path.join(folderpath, file))
+              pickle_file_list.append(os.path.join(temp_dir, file))
       for i in pickle_file_list: 
           objectname=str(os.path.basename(i)).replace(".pkl","")
           objects={objectname:""}
