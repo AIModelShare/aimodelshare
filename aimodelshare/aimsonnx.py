@@ -23,7 +23,7 @@ import onnxmltools
 
 
 # aims modules
-from aimodelshare.aws import run_function_on_lambda
+from aimodelshare.aws import run_function_on_lambda, get_aws_client
 
 # os etc
 import os
