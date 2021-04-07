@@ -560,7 +560,6 @@ def model_to_onnx(model, framework, model_input=None, initial_types=None,
     
     model_input: array_like, default=None
     Required when framework="pytorch".
-
     initial_types: initial types tuple, default=None
     Required when framework="sklearn".
      
@@ -576,7 +575,6 @@ def model_to_onnx(model, framework, model_input=None, initial_types=None,
     
     Returns:
     ONNX object with model metadata saved in metadata props
-
     '''
 
     # assert that framework exists
@@ -1049,6 +1047,3 @@ def check_y_test(apiurl, aws_token, aws_client):
     # save onnx to temporary path
     with open(temp_path, "wb") as f:
         f.write(pkl_string)
-
-
-
