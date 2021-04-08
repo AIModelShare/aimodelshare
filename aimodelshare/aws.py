@@ -11,7 +11,8 @@ def set_credentials(credential_file=None, type="deploy_model", apiurl="apiurl", 
   import getpass
   from aimodelshare.aws import get_aws_token
   from aimodelshare.modeluser import get_jwt_token, create_user_getkeyandpassword
-   ## avoids circular import, but is it bad?
+
+  ##TODO: Require that "type" is provided, to ensure correct env vars get loaded
   flag = False
 
   # Set AI Modelshare Username & Password
@@ -41,7 +42,7 @@ def set_credentials(credential_file=None, type="deploy_model", apiurl="apiurl", 
   
   #Validate Username & Password
   try: 
-    os.environ["AWS_TOKEN"]=get_aws_token()['token']
+    os.environ["AWS_TOKEN"]=get_aws_token()
 
     print("AI Model Share login credentials set successfully.")
   except: 
@@ -95,7 +96,7 @@ def set_credentials(credential_file=None, type="deploy_model", apiurl="apiurl", 
               print(* "Warning: Review format of", credential_file, ". Format should be variablename = 'variable_value'.")
               break
 
-  # Validate AWS Creds (submit_model)
+  # Validate AWS Creds 
   import boto3
   try: 
     client = boto3.client('sts', aws_access_key_id=os.environ.get("AWS_ACCESS_KEY_ID"), aws_secret_access_key=os.environ.get("AWS_SECRET_ACCESS_KEY"))
@@ -139,7 +140,7 @@ def get_aws_token():
     except Exception as err:
         raise AuthorizationError("Could not authorize user. " + str(err))
 
-    return {"username": os.getenv('username'),"token": response["AuthenticationResult"]["IdToken"]}
+    return response["AuthenticationResult"]["IdToken"]
 
 
 def get_aws_client(aws_key=None, aws_secret=None, aws_region=None):
@@ -195,13 +196,12 @@ def get_s3_iam_client(aws_key=None,aws_password=None, aws_region=None):
 
 
 def run_function_on_lambda(url, **kwargs):
-    token = get_aws_token()
-    kwargs["apideveloper"] = token["username"]
+    kwargs["apideveloper"] = os.environ.get("username")
     kwargs["apiurl"] = url
 
     headers_with_authentication = {
         "content-type": "application/json",
-        "authorizationToken": token["token"],
+        "authorizationToken": os.environ.get("AWS_TOKEN"),
     }
 
     response = requests.post(
