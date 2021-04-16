@@ -21,7 +21,7 @@ import onnxmltools
 
 
 # aims modules
-from aimodelshare.aws import run_function_on_lambda
+from aimodelshare.aws import run_function_on_lambda, get_aws_client
 
 # os etc
 import os
@@ -795,9 +795,19 @@ def onnx_to_image(model):
     
     return pydot_graph
 
-def inspect_model(apiurl, aws_token, aws_client, version=None):
+def inspect_model(apiurl, version=None):
+    if all(["AWS_ACCESS_KEY_ID" in os.environ, 
+            "AWS_SECRET_ACCESS_KEY" in os.environ,
+            "AWS_REGION" in os.environ, 
+           "username" in os.environ, 
+           "password" in os.environ]):
+        pass
+    else:
+        return print("'Inspect Model' unsuccessful. Please provide credentials with set_credentials().")
 
-    onnx_model = _get_onnx_from_bucket(apiurl, aws_token, aws_client, version=version)
+    aws_client = get_aws_client() 
+
+    onnx_model = _get_onnx_from_bucket(apiurl, aws_client, version=version)
 
     meta_dict = _get_metadata(onnx_model)
 
@@ -813,17 +823,28 @@ def inspect_model(apiurl, aws_token, aws_client, version=None):
     return inspect_pd
     
 
-def compare_models(apiurl, aws_token, aws_client, version_list=None, 
+def compare_models(apiurl, version_list=None, 
     by_model_type=None, best_model=None, verbose=3):
     
     if not isinstance(version_list, list):
         raise Exception("Argument 'version' must be a list.")
     
+    if all(["AWS_ACCESS_KEY_ID" in os.environ, 
+            "AWS_SECRET_ACCESS_KEY" in os.environ,
+            "AWS_REGION" in os.environ, 
+           "username" in os.environ, 
+           "password" in os.environ]):
+        pass
+    else:
+        return print("'Compare Models' unsuccessful. Please provide credentials with set_credentials().")
+
+    aws_client = get_aws_client()
+    
     models_dict = {}
     
     for i in version_list: 
         
-        onnx_model = _get_onnx_from_bucket(apiurl, aws_token, aws_client, version=i)
+        onnx_model = _get_onnx_from_bucket(apiurl, aws_client, version=i)
         meta_dict = _get_metadata(onnx_model)
         
         models_dict[i] = meta_dict
@@ -849,7 +870,7 @@ def compare_models(apiurl, aws_token, aws_client, version_list=None,
         
         for i in version_list: 
             
-            temp_pd = inspect_model(apiurl, aws_token, aws_client, version=i)
+            temp_pd = inspect_model(apiurl, version=i)
             comp_pd = pd.concat([comp_pd, temp_pd.drop(columns='param_name')], axis=1)
         
         comp_pd.columns = ['param_name', 'model_default'] + ["Model_"+str(i) for i in version_list]
@@ -864,7 +885,7 @@ def compare_models(apiurl, aws_token, aws_client, version_list=None,
 
         for i in version_list: 
 
-            temp_pd = inspect_model(apiurl, aws_token, aws_client, version=i)
+            temp_pd = inspect_model(apiurl, version=i)
 
             temp_pd = temp_pd.iloc[:,0:verbose]
 
@@ -884,14 +905,14 @@ def compare_models(apiurl, aws_token, aws_client, version_list=None,
 
 
 
-def _get_onnx_from_bucket(apiurl, aws_token, aws_client, version=None):
+def _get_onnx_from_bucket(apiurl, aws_client, version=None):
 
     # generate name of onnx model in bucket
     onnx_model_name = "/onnx_model_v{version}.onnx".format(version = version)
 
     # Get bucket and model_id for user
     response, error = run_function_on_lambda(
-        apiurl, aws_token, **{"delete": "FALSE", "versionupdateget": "TRUE"}
+        apiurl, **{"delete": "FALSE", "versionupdateget": "TRUE"}
     )
     if error is not None:
         raise error
@@ -922,9 +943,18 @@ def _get_onnx_from_bucket(apiurl, aws_token, aws_client, version=None):
     return onx
 
 
-def instantiate_model(apiurl, aws_token, aws_client, version=None, trained=False):
+def instantiate_model(apiurl, version=None, trained=False):
+    if all(["AWS_ACCESS_KEY_ID" in os.environ, 
+            "AWS_SECRET_ACCESS_KEY" in os.environ,
+            "AWS_REGION" in os.environ, 
+            "username" in os.environ, 
+            "password" in os.environ]):
+        pass
+    else:
+        return print("'Instantiate Model' unsuccessful. Please provide credentials with set_credentials().")
 
-    onnx_model = _get_onnx_from_bucket(apiurl, aws_token, aws_client, version=version)
+    aws_client = get_aws_client()   
+    onnx_model = _get_onnx_from_bucket(apiurl, aws_client, version=version)
     meta_dict = _get_metadata(onnx_model)
 
     # get model config 
