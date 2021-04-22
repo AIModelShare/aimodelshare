@@ -4,24 +4,32 @@ import numpy as np
 
 # ml frameworks
 import sklearn
-import keras 
+from sklearn.model_selection import GridSearchCV, RandomizedSearchCV
 import torch
+import xgboost
+import tensorflow as tf
 
 # onnx modules
 import onnx
 import skl2onnx
 from skl2onnx import convert_sklearn
-import keras2onnx
-from keras2onnx import convert_keras
+import tf2onnx
 from torch.onnx import export
 from onnx.tools.net_drawer import GetPydotGraph, GetOpNodeProducer
+import importlib
+import onnxmltools
+
+
+# aims modules
+from aimodelshare.aws import run_function_on_lambda, get_aws_client
 
 # os etc
 import os
 import ast
 import tempfile
 import json
-
+import re
+import pickle
 
 def _extract_onnx_metadata(onnx_model, framework):
     '''Extracts model metadata from ONNX file.'''
@@ -37,9 +45,13 @@ def _extract_onnx_metadata(onnx_model, framework):
 
     # get output shape
     metadata_onnx["output_shape"] = graph.output[0].type.tensor_type.shape.dim[1].dim_value 
+    
+    # get layers and activations NEW
+    # match layers and nodes and initalizers in sinle object
+    # insert here....
 
     # get layers & activations 
-    layer_nodes = ['MatMul', 'Gemm', 'Conv']
+    layer_nodes = ['MatMul', 'Gemm', 'Conv'] #add MaxPool, Transpose, Flatten
     activation_nodes = ['Relu', 'Softmax']
 
     layers = []
@@ -49,13 +61,11 @@ def _extract_onnx_metadata(onnx_model, framework):
 
         if op.op_type in layer_nodes:
             layers.append(op.op_type)
-        #else:
-            #layers.append(None)
-
+            #if op.op_type == 'MaxPool':
+                #activations.append(None)
+            
         if op.op_type in activation_nodes:
             activations.append(op.op_type)
-        #else:
-            #activations.append(None)
 
 
     # get shapes and parameters
@@ -67,8 +77,14 @@ def _extract_onnx_metadata(onnx_model, framework):
         for layer_id, layer in enumerate(initializer):
             if(len(layer.dims)>= 2):
                 layers_shapes.append(layer.dims[1])
-                n_params = int(np.prod(layer.dims) + initializer[layer_id-1].dims)
+
+                try:
+                    n_params = int(np.prod(layer.dims) + initializer[layer_id-1].dims)
+                except:
+                    n_params = None
+
                 layers_n_params.append(n_params)
+                
 
     elif framework == 'pytorch':
         initializer = graph.initializer
@@ -94,70 +110,192 @@ def _extract_onnx_metadata(onnx_model, framework):
     return metadata_onnx
 
 
+
+def _misc_to_onnx(model, initial_types, transfer_learning=None,
+                    deep_learning=None, task_type=None):
+
+    # generate metadata dict 
+    metadata = {}
+    
+    # placeholders, need to be generated elsewhere
+    metadata['model_id'] = None
+    metadata['data_id'] = None
+    metadata['preprocessor_id'] = None
+    
+    # infer ml framework from function call
+    if isinstance(model, (xgboost.XGBClassifier, xgboost.XGBRegressor)):
+        metadata['ml_framework'] = 'xgboost'
+        onx = onnxmltools.convert.convert_xgboost(model, initial_types=initial_types)
+
+    # also integrate lightGBM 
+    
+    # get model type from model object
+    model_type = str(model).split('(')[0]
+    metadata['model_type'] = model_type
+    
+    # get transfer learning bool from user input
+    metadata['transfer_learning'] = transfer_learning
+
+    # get deep learning bool from user input
+    metadata['deep_learning'] = deep_learning
+    
+    # get task type from user input
+    metadata['task_type'] = task_type
+    
+    # placeholders, need to be inferred from data 
+    metadata['target_distribution'] = None
+    metadata['input_type'] = None
+    metadata['input_shape'] = None
+    metadata['input_dtypes'] = None       
+    metadata['input_distribution'] = None
+    
+    # get model config dict from sklearn model object
+    metadata['model_config'] = str(model.get_params())
+
+    # get model state from sklearn model object
+    metadata['model_state'] = None
+
+
+    model_architecture = {}
+
+    if hasattr(model, 'coef_'):
+        model_architecture['layers_n_params'] = [len(model.coef_.flatten())]
+    if hasattr(model, 'solver'):
+        model_architecture['optimizer'] = model.solver
+
+    metadata['model_architecture'] = str(model_architecture)
+
+    # placeholder, needs evaluation engine
+    metadata['eval_metrics'] = None  
+    
+    # add metadata from onnx object
+    # metadata['metadata_onnx'] = str(_extract_onnx_metadata(onx, framework='sklearn'))
+    metadata['metadata_onnx'] = None
+
+    meta = onx.metadata_props.add()
+    meta.key = 'model_metadata'
+    meta.value = str(metadata)
+
+    return onx
+
+
+
 def _sklearn_to_onnx(model, initial_types, transfer_learning=None,
                     deep_learning=None, task_type=None):
     '''Extracts metadata from sklearn model object.'''
     
     # check whether this is a fitted sklearn model
-    sklearn.utils.validation.check_is_fitted(model)
-    
-    try:
-        # convert to onnx
-        onx = convert_sklearn(model, initial_types=initial_types)
-                
-        # generate metadata dict 
-        metadata = {}
-        
-        # placeholders, need to be generated elsewhere
-        metadata['model_id'] = None
-        metadata['data_id'] = None
-        metadata['preprocessor_id'] = None
-        
-        # infer ml framework from function call
-        metadata['ml_framework'] = 'sklearn'
-        
-        # get model type from model object
-        metadata['model_type'] = str(model)
-        
-        # get transfer learning bool from user input
-        metadata['transfer_learning'] = transfer_learning 
+    # sklearn.utils.validation.check_is_fitted(model)
 
-        # get deep learning bool from user input
-        metadata['deep_learning'] = deep_learning
-        
-        # get task type from user input
-        metadata['task_type'] = task_type
-        
-        # placeholders, need to be inferred from data 
-        metadata['target_distribution'] = None
-        metadata['input_type'] = None
-        metadata['input_shape'] = None
-        metadata['input_dtypes'] = None       
-        metadata['input_distribution'] = None
-        
-        # get model config dict from sklearn model object
-        metadata['model_config'] = str(model.get_params())
-        
-        # get model state from sklearn model object
-        metadata['model_state'] = None
-        
-        # TODO
-        metadata['model_architecture'] = None
-        
-        # placeholder, needs evaluation engine
-        metadata['eval_metrics'] = None  
-        
-        # add metadata from onnx object
-        metadata['metadata_onnx'] = str(_extract_onnx_metadata(onx, framework='sklearn'))
+    # deal with pipelines and parameter search 
+    if isinstance(model, (GridSearchCV, RandomizedSearchCV)):
+        model = model.best_estimator_
 
-        meta = onx.metadata_props.add()
-        meta.key = 'model_metadata'
-        meta.value = str(metadata)
+    if isinstance(model, sklearn.pipeline.Pipeline):
+        model = model.steps[-1][1]
+
+    # convert to onnx
+    onx = convert_sklearn(model, initial_types=initial_types)
+            
+    # generate metadata dict 
+    metadata = {}
     
-    except Exception as e:
-        print(e)
-        
+    # placeholders, need to be generated elsewhere
+    metadata['model_id'] = None
+    metadata['data_id'] = None
+    metadata['preprocessor_id'] = None
+    
+    # infer ml framework from function call
+    metadata['ml_framework'] = 'sklearn'
+    
+    # get model type from model object
+    model_type = str(model).split('(')[0]
+    metadata['model_type'] = model_type
+    
+    # get transfer learning bool from user input
+    metadata['transfer_learning'] = transfer_learning
+
+    # get deep learning bool from user input
+    metadata['deep_learning'] = deep_learning
+    
+    # get task type from user input
+    metadata['task_type'] = task_type
+    
+    # placeholders, need to be inferred from data 
+    metadata['target_distribution'] = None
+    metadata['input_type'] = None
+    metadata['input_shape'] = None
+    metadata['input_dtypes'] = None       
+    metadata['input_distribution'] = None
+    
+    # get model config dict from sklearn model object
+    metadata['model_config'] = str(model.get_params())
+
+    # get weights for pretrained models 
+    temp_dir = tempfile.gettempdir()
+    temp_path = os.path.join(temp_dir, 'temp_file_name')
+
+    with open(temp_path, 'wb') as f:
+        pickle.dump(model, f)
+
+    with open(temp_path, "rb") as f:
+        pkl_str = f.read()
+
+    metadata['model_weights'] = pkl_str
+    
+    # get model state from sklearn model object
+    metadata['model_state'] = None
+
+    # get model architecture    
+    if model_type == 'MLPClassifier' or model_type == 'MLPRegressor':
+
+        if model_type == 'MLPClassifier':
+            loss = 'log-loss'
+        if model_type == 'MLPRegressor':
+            loss = 'squared-loss'
+
+        n_params = []
+        layer_dims = [model.n_features_in_] + model.hidden_layer_sizes + [model.n_outputs_]
+        for i in range(len(layer_dims)-1):
+            n_params.append(layer_dims[i]*layer_dims[i+1] + layer_dims[i+1])
+
+        # insert data into model architecture dict 
+        model_architecture = {'layers_number': len(model.hidden_layer_sizes),
+                              'layers_sequence': ['Dense']*len(model.hidden_layer_sizes),
+                              'layers_summary': {'Dense': len(model.hidden_layer_sizes)},
+                              'layers_n_params': n_params, #double check 
+                              'layers_shapes': model.hidden_layer_sizes,
+                              'activations_sequence': [model.activation]*len(model.hidden_layer_sizes),
+                              'activations_summary': {model.activation: len(model.hidden_layer_sizes)},
+                              'loss': loss,
+                              'optimizer': model.solver
+                             }
+
+        metadata['model_architecture'] = str(model_architecture)
+
+    else:
+        model_architecture = {}
+
+        if hasattr(model, 'coef_'):
+            model_architecture['layers_n_params'] = [len(model.coef_.flatten())]
+        if hasattr(model, 'solver'):
+            model_architecture['optimizer'] = model.solver
+
+        metadata['model_architecture'] = str(model_architecture)
+
+    # placeholder, needs evaluation engine
+    metadata['eval_metrics'] = None  
+    
+    # add metadata from onnx object
+    # metadata['metadata_onnx'] = str(_extract_onnx_metadata(onx, framework='sklearn'))
+    metadata['metadata_onnx'] = None
+
+    meta = onx.metadata_props.add()
+    meta.key = 'model_metadata'
+    meta.value = str(metadata)
+
     return onx
+
 
 
 def _keras_to_onnx(model, transfer_learning=None,
@@ -166,9 +304,33 @@ def _keras_to_onnx(model, transfer_learning=None,
 
     # check whether this is a fitted keras model
     # isinstance...
+
+
+    # handle keras models in sklearn wrapper
+    if isinstance(model, (GridSearchCV, RandomizedSearchCV)):
+        model = model.best_estimator_
+
+    if isinstance(model, sklearn.pipeline.Pipeline):
+        model = model.steps[-1][1]
+
+    sklearn_wrappers = (tf.keras.wrappers.scikit_learn.KerasClassifier,
+                    tf.keras.wrappers.scikit_learn.KerasRegressor)
+
+    if isinstance(model, sklearn_wrappers):
+        model = model.model
     
     # convert to onnx
-    onx = convert_keras(model)
+    #onx = convert_keras(model)
+    # generate tempfile for onnx object 
+    temp_dir = os.path.join(tempfile.gettempdir(), 'test')
+    temp_dir = tempfile.gettempdir()
+
+    model.save(temp_dir)
+    output_path = os.path.join(temp_dir, 'temp.onnx')
+    modelstringtest="python -m tf2onnx.convert --saved-model "+temp_dir+" --output "+output_path
+    os.system(modelstringtest)
+    onx = onnx.load(output_path)
+
 
     # generate metadata dict 
     metadata = {}
@@ -203,36 +365,59 @@ def _keras_to_onnx(model, transfer_learning=None,
     # get model config dict from keras model object
     metadata['model_config'] = str(model.get_config())
 
+    # get model weights from keras object 
+    def to_list(x):
+        return x.tolist()
+
+    metadata['model_weights'] = str(list(map(to_list, model.get_weights())))
+
     # get model state from pytorch model object
     metadata['model_state'] = None
+    
+    # get list of current layer types 
+    layer_list, activation_list = _get_layer_names()
 
     # extract model architecture metadata 
     layers = []
     layers_n_params = []
     layers_shapes = []
     activations = []
-
+    
     for i in model.layers: 
-
-        if i.__class__.__name__ != 'Activation':
-
+        
+        # get layer names 
+        if i.__class__.__name__ in layer_list:
             layers.append(i.__class__.__name__)
             layers_n_params.append(i.count_params())
             layers_shapes.append(i.output_shape)
-
-        try:
-            if i.activation.__name__ != 'linear':
-                activations.append(i.activation.__name__)
-        except:
-            activations.append(None)
-
+        
+        # get activation names
+        if i.__class__.__name__ in activation_list: 
+            activations.append(i.__class__.__name__.lower())
+        if hasattr(i, 'activation') and i.activation.__name__ in activation_list:
+            activations.append(i.activation.__name__)
+            
+    if hasattr(model, 'loss'):
+        loss = model.loss.__class__.__name__
+    else:
+        loss = None
+        
+    if hasattr(model, 'optimizer'):
+        optimizer = model.optimizer.__class__.__name__
+    else:
+        optimizer = None 
+            
+    
+    # insert data into model architecture dict 
     model_architecture = {'layers_number': len(layers),
                           'layers_sequence': layers,
                           'layers_summary': {i:layers.count(i) for i in set(layers)},
                           'layers_n_params': layers_n_params,
                           'layers_shapes': layers_shapes,
                           'activations_sequence': activations,
-                          'activations_summary': {i:activations.count(i) for i in set(activations)}
+                          'activations_summary': {i:activations.count(i) for i in set(activations)},
+                          'loss':loss,
+                          'optimizer': optimizer
                          }
 
     metadata['model_architecture'] = str(model_architecture)
@@ -241,9 +426,10 @@ def _keras_to_onnx(model, transfer_learning=None,
     metadata['eval_metrics'] = None
 
     # add metadata from onnx object
-    metadata['metadata_onnx'] = str(_extract_onnx_metadata(onx, framework='keras'))
-
+    # metadata['metadata_onnx'] = str(_extract_onnx_metadata(onx, framework='keras'))
+    metadata['metadata_onnx'] = None
     # add metadata dict to onnx object
+    
     meta = onx.metadata_props.add()
     meta.key = 'model_metadata'
     meta.value = str(metadata)
@@ -346,7 +532,8 @@ def _pytorch_to_onnx(model, model_input, transfer_learning=None,
     metadata['eval_metrics'] = None
 
     # add metadata from onnx object
-    metadata['metadata_onnx'] = str(_extract_onnx_metadata(onx, framework='pytorch'))
+    # metadata['metadata_onnx'] = str(_extract_onnx_metadata(onx, framework='pytorch'))
+    metadata['metadata_onnx'] = None
 
     # add metadata dict to onnx object
     meta = onx.metadata_props.add()
@@ -373,7 +560,6 @@ def model_to_onnx(model, framework, model_input=None, initial_types=None,
     
     model_input: array_like, default=None
     Required when framework="pytorch".
-
     initial_types: initial types tuple, default=None
     Required when framework="sklearn".
      
@@ -389,13 +575,12 @@ def model_to_onnx(model, framework, model_input=None, initial_types=None,
     
     Returns:
     ONNX object with model metadata saved in metadata props
-
     '''
 
     # assert that framework exists
-    frameworks = ['sklearn', 'keras', 'pytorch']
+    frameworks = ['sklearn', 'keras', 'pytorch', 'xgboost']
     assert framework in frameworks, \
-    'Please choose "sklearn", "keras", or "pytorch".'
+    'Please choose "sklearn", "keras", "pytorch", or "xgboost".'
     
     # assert model input type THIS IS A PLACEHOLDER
     if model_input != None:
@@ -428,6 +613,11 @@ def model_to_onnx(model, framework, model_input=None, initial_types=None,
                                 transfer_learning=transfer_learning, 
                                 deep_learning=deep_learning, 
                                 task_type=task_type)
+    elif framework == 'xgboost':
+        onnx = _misc_to_onnx(model, initial_types=initial_types, 
+                                transfer_learning=transfer_learning, 
+                                deep_learning=deep_learning, 
+                                task_type=task_type)
         
     elif framework == 'keras':
         onnx = _keras_to_onnx(model, transfer_learning=transfer_learning, 
@@ -449,22 +639,22 @@ def _get_metadata(onnx_model):
     and returns model metadata dict.'''
     
     # double check this 
-    assert(isinstance(onnx_model, onnx.onnx_ml_pb2.ModelProto)), \
-     "Please pass a onnx model object."
+    #assert(isinstance(onnx_model, onnx.onnx_ml_pb2.ModelProto)), \
+     #"Please pass a onnx model object."
     
     try: 
         onnx_meta = onnx_model.metadata_props
 
-        onnx_meta_dict = {}
+        onnx_meta_dict = {'model_metadata': ''}
 
         for i in onnx_meta:
             onnx_meta_dict[i.key] = i.value
 
         onnx_meta_dict = ast.literal_eval(onnx_meta_dict['model_metadata'])
         
-        if onnx_meta_dict['model_config'] != None and \
-        onnx_meta_dict['ml_framework'] != 'pytorch':
-            onnx_meta_dict['model_config'] = ast.literal_eval(onnx_meta_dict['model_config'])
+        #if onnx_meta_dict['model_config'] != None and \
+        #onnx_meta_dict['ml_framework'] != 'pytorch':
+        #    onnx_meta_dict['model_config'] = ast.literal_eval(onnx_meta_dict['model_config'])
         
         if onnx_meta_dict['model_architecture'] != None:
             onnx_meta_dict['model_architecture'] = ast.literal_eval(onnx_meta_dict['model_architecture'])
@@ -484,6 +674,81 @@ def _get_metadata(onnx_model):
 
 
 
+def _get_leaderboard_data(onnx_model, eval_metrics=None):
+    
+    if eval_metrics is not None:
+        metadata = eval_metrics
+    else:
+        metadata = dict()
+        
+    metadata_raw = _get_metadata(onnx_model)
+
+    # get list of current layer types 
+    layer_list, activation_list = _get_layer_names()
+
+    # get general model info
+    metadata['ml_framework'] = metadata_raw['ml_framework']
+    metadata['transfer_learning'] = metadata_raw['transfer_learning']
+    metadata['deep_learning'] = metadata_raw['deep_learning']
+    metadata['model_type'] = metadata_raw['model_type']
+
+
+    # get neural network metrics
+    if metadata_raw['ml_framework'] == 'keras' or metadata_raw['model_type'] in ['MLPClassifier', 'MLPRegressor']:
+        metadata['depth'] = metadata_raw['model_architecture']['layers_number']
+        metadata['num_params'] = sum(metadata_raw['model_architecture']['layers_n_params'])
+
+        for i in layer_list:
+            if i in metadata_raw['model_architecture']['layers_summary']:
+                metadata[i.lower()+'_layers'] = metadata_raw['model_architecture']['layers_summary'][i]
+            else:
+                metadata[i.lower()+'_layers'] = 0
+
+        for i in activation_list:
+            if i in metadata_raw['model_architecture']['activations_summary']:
+                if i.lower()+'_act' in metadata:
+                    metadata[i.lower()+'_act'] += metadata_raw['model_architecture']['activations_summary'][i]
+                else:    
+                    metadata[i.lower()+'_act'] = metadata_raw['model_architecture']['activations_summary'][i]
+            else:
+                if i.lower()+'_act' not in metadata:
+                    metadata[i.lower()+'_act'] = 0
+                
+        metadata['loss'] = metadata_raw['model_architecture']['loss']
+        metadata['optimizer'] = metadata_raw['model_architecture']["optimizer"]
+        metadata['model_config'] = metadata_raw['model_config']
+
+    # get sklearn model metrics
+    elif metadata_raw['ml_framework'] == 'sklearn' or metadata_raw['ml_framework'] == 'xgboost':
+        metadata['depth'] = 0
+
+        try:
+            metadata['num_params'] = sum(metadata_raw['model_architecture']['layers_n_params'])
+        except:
+            metadata['num_params'] = 0
+
+        for i in layer_list:
+            metadata[i.lower()+'_layers'] = 0
+
+        for i in activation_list:
+            metadata[i.lower()+'_act'] = 0
+
+        metadata['loss'] = None
+
+        try:
+            metadata['optimizer'] = metadata_raw['model_architecture']['optimizer']
+        except:
+            metadata['optimizer'] = None
+
+        try:
+            metadata['model_config'] = metadata_raw['model_config']
+        except:
+            metadata['model_config'] = None
+    
+    return metadata
+    
+
+
 def _model_summary(meta_dict, from_onnx=False):
     '''Creates model summary table from model metadata dict.'''
     
@@ -500,11 +765,12 @@ def _model_summary(meta_dict, from_onnx=False):
        
         
     model_summary = pd.DataFrame({'Layer':architecture['layers_sequence'],
-                          'Activation':architecture['activations_sequence'],
+                          #'Activation':architecture['activations_sequence'],
                           'Shape':architecture['layers_shapes'],
                           'Params':architecture['layers_n_params']})
         
     return model_summary
+
 
 
 def onnx_to_image(model):
@@ -529,5 +795,285 @@ def onnx_to_image(model):
     
     return pydot_graph
 
+def inspect_model(apiurl, version=None):
+    if all(["AWS_ACCESS_KEY_ID" in os.environ, 
+            "AWS_SECRET_ACCESS_KEY" in os.environ,
+            "AWS_REGION" in os.environ, 
+           "username" in os.environ, 
+           "password" in os.environ]):
+        pass
+    else:
+        return print("'Inspect Model' unsuccessful. Please provide credentials with set_credentials().")
+
+    aws_client = get_aws_client() 
+
+    onnx_model = _get_onnx_from_bucket(apiurl, aws_client, version=version)
+
+    meta_dict = _get_metadata(onnx_model)
+
+    if meta_dict['ml_framework'] == 'keras':
+        inspect_pd = _model_summary(meta_dict)
+        
+    elif meta_dict['ml_framework'] in ['sklearn', 'xgboost']:
+        model_config = meta_dict["model_config"]
+        model_config = ast.literal_eval(model_config)
+        inspect_pd = pd.DataFrame({'param_name': model_config.keys(),
+                                   'param_value': model_config.values()})
+    
+    return inspect_pd
+    
+
+def compare_models(apiurl, version_list=None, 
+    by_model_type=None, best_model=None, verbose=3):
+    
+    if not isinstance(version_list, list):
+        raise Exception("Argument 'version' must be a list.")
+    
+    if all(["AWS_ACCESS_KEY_ID" in os.environ, 
+            "AWS_SECRET_ACCESS_KEY" in os.environ,
+            "AWS_REGION" in os.environ, 
+           "username" in os.environ, 
+           "password" in os.environ]):
+        pass
+    else:
+        return print("'Compare Models' unsuccessful. Please provide credentials with set_credentials().")
+
+    aws_client = get_aws_client()
+    
+    models_dict = {}
+    
+    for i in version_list: 
+        
+        onnx_model = _get_onnx_from_bucket(apiurl, aws_client, version=i)
+        meta_dict = _get_metadata(onnx_model)
+        
+        models_dict[i] = meta_dict
+        
+    ml_framework_list = [models_dict[i]['ml_framework'] for i in models_dict]
+    model_type_list = [models_dict[i]['model_type'] for i in models_dict]
+    
+    if not all(x==ml_framework_list[0] for x in ml_framework_list):
+        raise Exception("Incongruent frameworks. Please compare models from the same ML frameworks.")
+        
+    if not all(x==model_type_list[0] for x in model_type_list):
+        raise Exception("Incongruent model types. Please compare models of the same model type.")
+    
+    if ml_framework_list[0] == 'sklearn':
+        
+        model_type = model_type_list[0]
+        model_class = model_from_string(model_type)
+        default = model_class()
+        default_config = default.get_params()
+        
+        comp_pd = pd.DataFrame({'param_name': default_config.keys(),
+                           'param_value': default_config.values()})
+        
+        for i in version_list: 
+            
+            temp_pd = inspect_model(apiurl, version=i)
+            comp_pd = pd.concat([comp_pd, temp_pd.drop(columns='param_name')], axis=1)
+        
+        comp_pd.columns = ['param_name', 'model_default'] + ["Model_"+str(i) for i in version_list]
+        
+        df_styled = comp_pd.style.apply(lambda x: ["background: tomato" if v != x.iloc[0] else "" for v in x], 
+                                        axis = 1, subset=comp_pd.columns[1:])
+
+        
+    if ml_framework_list[0] == 'keras':
+
+        comp_pd = pd.DataFrame()
+
+        for i in version_list: 
+
+            temp_pd = inspect_model(apiurl, version=i)
+
+            temp_pd = temp_pd.iloc[:,0:verbose]
+
+            temp_pd = temp_pd.add_prefix('Model_'+str(i)+'_')    
+            comp_pd = pd.concat([comp_pd, temp_pd], axis=1)
+        
+        df_styled = comp_pd.style.apply(lambda x: ["background: tomato" if v == 'Dense' else "" for v in x], 
+                                axis = 1)
+        
+        df_styled = df_styled.apply(lambda x: ["background: yellow" if v == 'Dropout' else "" for v in x], 
+                                axis = 1)
+        
+        df_styled = df_styled.apply(lambda x: ["background: yellow" if v == 'Conv2D' else "" for v in x], 
+                                axis = 1)
+    
+    return df_styled
 
 
+
+def _get_onnx_from_bucket(apiurl, aws_client, version=None):
+
+    # generate name of onnx model in bucket
+    onnx_model_name = "/onnx_model_v{version}.onnx".format(version = version)
+
+    # Get bucket and model_id for user
+    response, error = run_function_on_lambda(
+        apiurl, **{"delete": "FALSE", "versionupdateget": "TRUE"}
+    )
+    if error is not None:
+        raise error
+
+    _, bucket, model_id = json.loads(response.content.decode("utf-8"))
+
+    try:
+        onnx_string = aws_client["client"].get_object(
+            Bucket=bucket, Key=model_id + onnx_model_name
+        )
+
+        onnx_string = onnx_string['Body'].read()
+
+    except Exception as err:
+        raise err
+
+    # generate tempfile for onnx object 
+    temp_dir = tempfile.gettempdir()
+    temp_path = os.path.join(temp_dir, 'temp_file_name')
+
+    # save onnx to temporary path
+    with open(temp_path, "wb") as f:
+        f.write(onnx_string)
+
+    # load onnx file from temporary path
+    onx = onnx.load(temp_path)
+
+    return onx
+
+
+def instantiate_model(apiurl, version=None, trained=False):
+    if all(["AWS_ACCESS_KEY_ID" in os.environ, 
+            "AWS_SECRET_ACCESS_KEY" in os.environ,
+            "AWS_REGION" in os.environ, 
+            "username" in os.environ, 
+            "password" in os.environ]):
+        pass
+    else:
+        return print("'Instantiate Model' unsuccessful. Please provide credentials with set_credentials().")
+
+    aws_client = get_aws_client()   
+    onnx_model = _get_onnx_from_bucket(apiurl, aws_client, version=version)
+    meta_dict = _get_metadata(onnx_model)
+
+    # get model config 
+    model_config = ast.literal_eval(meta_dict['model_config'])
+    ml_framework = meta_dict['ml_framework']
+    
+    if ml_framework == 'sklearn':
+
+        if trained == False:
+            model_type = meta_dict['model_type']
+            model_class = model_from_string(model_type)
+            model = model_class(**model_config)
+
+        if trained == True:
+            
+            model_pkl = meta_dict['model_weights']
+
+            temp_dir = tempfile.gettempdir()
+            temp_path = os.path.join(temp_dir, 'temp_file_name')
+
+            with open(temp_path, "wb") as f:
+                f.write(model_pkl)
+
+            with open(temp_path, 'rb') as f:
+                model = pickle.load(f)
+
+
+    if ml_framework == 'keras':
+
+        if trained == False:
+            model = tf.keras.Sequential().from_config(model_config)
+
+        if trained == True: 
+            model = tf.keras.Sequential().from_config(model_config)
+            model_weights = ast.literal_eval(meta_dict['model_weights'])
+
+            def to_array(x):
+                return np.array(x, dtype="float32")
+
+            model_weights = list(map(to_array, model_weights))
+
+            model.set_weights(model_weights)
+
+    return model
+
+
+def _get_layer_names():
+
+    activation_list = [i for i in dir(tf.keras.activations)]
+    activation_list = [i for i in activation_list if callable(getattr(tf.keras.activations, i))]
+    activation_list = [i for i in activation_list if  not i.startswith("_")]
+    activation_list.remove('deserialize')
+    activation_list.remove('get')
+    activation_list.remove('linear')
+    activation_list = activation_list+['ReLU', 'Softmax', 'LeakyReLU', 'PReLU', 'ELU', 'ThresholdedReLU']
+
+
+    layer_list = [i for i in dir(tf.keras.layers)]
+    layer_list = [i for i in dir(tf.keras.layers) if callable(getattr(tf.keras.layers, i))]
+    layer_list = [i for i in layer_list if not i.startswith("_")]
+    layer_list = [i for i in layer_list if re.match('^[A-Z]', i)]
+    layer_list = [i for i in layer_list if i.lower() not in [i.lower() for i in activation_list]]
+
+    return layer_list, activation_list
+
+def _get_sklearn_modules():
+    
+    import sklearn
+
+    sklearn_modules = ['ensemble', 'gaussian_process', 'isotonic',
+                       'linear_model', 'mixture', 'multiclass', 'naive_bayes', 
+                       'neighbors', 'neural_network', 'svm', 'tree']
+
+    models_modules_dict = {}
+
+    for i in sklearn_modules:
+        models_list = [j for j in dir(eval('sklearn.'+i)) if callable(getattr(eval('sklearn.'+i), j))]
+        models_list = [j for j in models_list if re.match('^[A-Z]', j)]
+
+        for k in models_list: 
+            models_modules_dict[k] = 'sklearn.'+i
+    
+    return models_modules_dict
+
+
+def model_from_string(model_type):
+    models_modules_dict = _get_sklearn_modules()
+    module = models_modules_dict[model_type]
+    model_class = getattr(importlib.import_module(module), model_type)
+    return model_class
+
+
+def check_y_test(apiurl, aws_token, aws_client):
+
+    ytest = "ytest.pkl"
+
+    # Get bucket and model_id for user
+    response, error = run_function_on_lambda(
+        apiurl, aws_token, **{"delete": "FALSE", "versionupdateget": "TRUE"}
+    )
+    if error is not None:
+        raise error
+
+    _, bucket, model_id = json.loads(response.content.decode("utf-8"))
+
+    try:
+        pkl_string = aws_client["client"].get_object(
+            Bucket=bucket, Key=model_id + ytest
+        )
+
+        pkl_string = pkl_string['Body'].read()
+
+    except Exception as err:
+        raise err
+
+    # generate tempfile for pkl object 
+    temp_dir = tempfile.gettempdir()
+    temp_path = os.path.join(temp_dir, 'temp_file_name')
+
+    # save onnx to temporary path
+    with open(temp_path, "wb") as f:
+        f.write(pkl_string)

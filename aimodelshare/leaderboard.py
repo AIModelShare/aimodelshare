@@ -1,14 +1,30 @@
 import json
 import numpy as np
 import pandas as pd
+import os
 
-from aimodelshare.aws import run_function_on_lambda
+from aimodelshare.aws import run_function_on_lambda, get_aws_client
+from aimodelshare.aimsonnx import _get_layer_names
 
 
-def get_leaderboard(apiurl, aws_token, aws_client, category="classification"):
+def get_leaderboard(apiurl, category="classification", verbose=3, columns=None):
+    # Confirm that creds are loaded, print warning if not
+    if all(["AWS_ACCESS_KEY_ID" in os.environ, 
+            "AWS_SECRET_ACCESS_KEY" in os.environ,
+            "AWS_REGION" in os.environ,
+           "username" in os.environ, 
+           "password" in os.environ]):
+        pass
+    else:
+        return print("Get Leaderboard unsuccessful. Please provide credentials with set_credentials().")
+
+    aws_client=get_aws_client(aws_key=os.environ.get('AWS_ACCESS_KEY_ID'), 
+                              aws_secret=os.environ.get('AWS_SECRET_ACCESS_KEY'), 
+                              aws_region=os.environ.get('AWS_REGION'))
+    
     # Get bucket and model_id for user {{{
     response, error = run_function_on_lambda(
-        apiurl, aws_token, **{"delete": "FALSE", "versionupdateget": "TRUE"}
+        apiurl, **{"delete": "FALSE", "versionupdateget": "TRUE"}
     )
     if error is not None:
         raise error
@@ -27,6 +43,20 @@ def get_leaderboard(apiurl, aws_token, aws_client, category="classification"):
 
         leaderboard = pd.read_csv(leaderboard["Body"], sep="\t")
 
+        if columns:
+        	clf =["accuracy", "f1_score", "precision", "recall"]
+        	reg = ['mse', 'rmse', 'mae', 'r2']
+        	other = ['timestamp']
+        	leaderboard = leaderboard.filter(clf+reg+columns+other)
+
+        leaderboard = leaderboard.replace(0,np.nan).dropna(axis=1,how="all")
+
+        if verbose == 1:
+        	leaderboard = leaderboard.filter(regex=("^(?!.*(_layers|_act))"))
+        elif verbose == 2:
+        	leaderboard = leaderboard.filter(regex=("^(?!.*_act)"))
+
+
     except Exception as err:
         raise err
     # }}}
@@ -34,8 +64,12 @@ def get_leaderboard(apiurl, aws_token, aws_client, category="classification"):
     # Specifying problem wise columns {{{
     if category == "classification":
         sort_cols = ["accuracy", "f1_score", "precision", "recall"]
+        #leaderboard = leaderboard.drop(columns = ['mse', 'rmse', 'mae', 'r2'])
+
     else:
         sort_cols = ["-mae", "r2"]
+        #leaderboard = leaderboard.drop(columns = ["accuracy", "f1_score", "precision", "recall"])
+
     # }}}
 
     # Sorting leaderboard {{{
@@ -59,8 +93,12 @@ def get_leaderboard(apiurl, aws_token, aws_client, category="classification"):
 
 def stylize_leaderboard(leaderboard, category="classficiation"):
     # Dropping some columns {{{
-    drop_cols = ["layers", "timestamp"]
+    drop_cols = ["timestamp"]
     leaderboard = leaderboard.drop(drop_cols, axis=1)
+
+    #truncate model config info
+    leaderboard.model_config = leaderboard.model_config.map(lambda x: x[0:30]+'...')
+
     # }}}
 
     # Setting default properties {{{

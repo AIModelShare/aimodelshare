@@ -112,7 +112,7 @@ def predict(event,model,preprocessor):
   print("The model expects input shape:", model.get_inputs()[0].shape)
   input_name = model.get_inputs()[0].name
 
-  res = model.run(None, {{input_name: input_data}})
+  res = model.run(None, {input_name: input_data})
  
   #extract predicted value
   
@@ -125,12 +125,12 @@ def predict(event,model,preprocessor):
 def handler(event, context):
 
     result = predict(event,model,preprocessor)
-    return {{"statusCode": 200,
-    "headers": {{
+    return {"statusCode": 200,
+    "headers": {
     "Access-Control-Allow-Origin" : "*",
     "Access-Control-Allow-Credentials": True,
     "Allow" : "GET, OPTIONS, POST",
     "Access-Control-Allow-Methods" : "GET, OPTIONS, POST",
     "Access-Control-Allow-Headers" : "*"
-    }},
-    "body" : json.dumps(result)}}
+    },
+    "body" : json.dumps(result)}

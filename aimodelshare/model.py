@@ -8,8 +8,9 @@ import json
 
 from datetime import datetime
 
-from aimodelshare.aws import run_function_on_lambda
-from aimodelshare.aws import get_token
+from aimodelshare.aws import run_function_on_lambda, get_token, get_aws_token, get_aws_client
+
+from aimodelshare.aimsonnx import _get_leaderboard_data
 
 
 def _get_file_list(client, bucket, model_id):
@@ -105,7 +106,7 @@ def _extract_model_metadata(model, eval_metrics=None):
         metadata = dict()
 
     metadata["num_nodes"] = len(graph.node)
-    metadata["depth"] = len(graph.initializer)
+    metadata["depth_test"] = len(graph.initializer)
     metadata["num_params"] = sum(np.product(node.dims) for node in graph.initializer)
 
     # layers = ""
@@ -145,19 +146,23 @@ def _extract_model_metadata(model, eval_metrics=None):
 
     return metadata
 
+
+
+
+
 def _update_leaderboard(
-    modelpath, eval_metrics, client, token, bucket, model_id, model_version
+    modelpath, eval_metrics, client, bucket, model_id, model_version
 ):
     # Loading the model and its metadata {{{
     if not os.path.exists(modelpath):
         raise FileNotFoundError(f"The model file at {modelpath} does not exist")
 
     model = onnx.load(modelpath)
-    metadata = _extract_model_metadata(model, eval_metrics)
+    metadata = _get_leaderboard_data(model, eval_metrics)
     # }}}
 
     # Adding extra details to metadata {{{
-    metadata["username"] = token["username"]
+    metadata["username"] = os.environ.get("username")
     metadata["timestamp"] = str(datetime.now())
     metadata["version"] = model_version
     # }}}
@@ -228,8 +233,6 @@ def update_runtime_model(user_sess,bucket_name,model_id,new_model_version):
 def submit_model(
     modelpath,
     apiurl,
-    aws_token,
-    aws_client,
     prediction_submission=None,
     preprocessor=None,
     sample_data=None,
@@ -247,15 +250,6 @@ def submit_model(
     apiurl :    string 
                 value - url to the live prediction REST API generated for the user's model 
                 "https://example.execute-api.us-east-1.amazonaws.com/prod/m"
-    aws_token:  dict
-                value - aws token returned after authenticating user's AI Modelshare credentials
-                {"username": exampleuser, "token": SASXCCVVFRRGIHMLMMJMHJMJLYL}
-    aws_client: dict
-                value - aws s3 client and resource using boto3
-                s3 client handles model submission
-                s3 resource points to s3 bucket where user can submit models
-                {"client": example_client, "resource": example_resource}
-
     prediction_submission:   one hot encoded y_pred
                     value - predictions for test data
                     [REQUIRED] for evaluation metriicts of the submitted model
@@ -268,14 +262,27 @@ def submit_model(
     sample_data:
     -----------------
     Returns
-    response:   True if the model is submitted sucessfully
+    response:   Model version if the model is submitted sucessfully
                 error  if there is any error while submitting models
     
     """
-
+    # Confirm that creds are loaded, print warning if not
+    if all(["AWS_ACCESS_KEY_ID" in os.environ, 
+            "AWS_SECRET_ACCESS_KEY" in os.environ,
+            "AWS_REGION" in os.environ,
+           "username" in os.environ, 
+           "password" in os.environ]):
+        pass
+    else:
+        return print("'Submit Model' unsuccessful. Please provide credentials with set_credentials().")
+    
+    aws_client=get_aws_client(aws_key=os.environ.get('AWS_ACCESS_KEY_ID'), 
+                              aws_secret=os.environ.get('AWS_SECRET_ACCESS_KEY'), 
+                              aws_region=os.environ.get('AWS_REGION'))
+    
     # Get bucket and model_id for user {{{
     response, error = run_function_on_lambda(
-        apiurl, aws_token, **{"delete": "FALSE", "versionupdateget": "TRUE"}
+        apiurl, **{"delete": "FALSE", "versionupdateget": "TRUE"}
     )
     if error is not None:
         raise error
@@ -332,8 +339,8 @@ def submit_model(
     else: 
             pass
     
-    token=get_token(aws_token['username'],aws_token['password'])
-    headers = { 'Content-Type':'application/json', 'authorizationToken': token, } 
+ 
+    headers = { 'Content-Type':'application/json', 'authorizationToken': os.environ.get("AWS_TOKEN"), } 
     apiurl_eval=apiurl[:-1]+"eval"
     prediction = requests.post(apiurl_eval,headers=headers,data=json.dumps(prediction_submission)) 
 
@@ -345,7 +352,7 @@ def submit_model(
 
     # Upload model metrics and metadata {{{
     err = _update_leaderboard(
-        modelpath, eval_metrics, aws_client, aws_token, bucket, model_id, model_version
+        modelpath, eval_metrics, aws_client, bucket, model_id, model_version
     )
     if err is not None:
         raise err
@@ -371,7 +378,7 @@ def submit_model(
     #    raise error
     # }}}
 
-    return True
+    return "Your model has been submitted as model version "+str(model_version) 
 
 
 __all__ = [
