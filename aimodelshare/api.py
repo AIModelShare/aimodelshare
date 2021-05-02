@@ -305,6 +305,9 @@ def create_prediction_api(model_filepath, unique_model_id, model_type,categorica
     lambdafxnname = 'modfunction'+str(random.randint(1, 1000000))
     lambdaauthfxnname = 'redisAccess'+str(random.randint(1, 1000000))
     lambdaevalfxnname = 'evalfunction'+str(random.randint(1, 1000000))
+    
+    onnx_size = os.path.getsize(model_filepath)//(1000*1024) + 350
+    lambda_size = max(onnx_size, 512)
 
     response6 = user_session.resource('iam').create_role(
             AssumeRolePolicyDocument=json.dumps(lambdarole1),
@@ -358,18 +361,18 @@ def create_prediction_api(model_filepath, unique_model_id, model_type,categorica
                                               Code={
                                                   'S3Bucket': os.environ.get("BUCKET_NAME"),
                                                   'S3Key':  unique_model_id+"/"+'archivetest.zip'
-                                              }, Timeout=10, MemorySize=512, Layers=layers)  # ADD ANOTHER LAYER ARN .. THE ONE SPECIFIC TO MODEL TYPE
+                                              }, Timeout=10, MemorySize=lambda_size, Layers=layers)  # ADD ANOTHER LAYER ARN .. THE ONE SPECIFIC TO MODEL TYPE
 
     response6evalfxn = lambdaclient.create_function(FunctionName=lambdaevalfxnname, Runtime='python3.6', Role='arn:aws:iam::'+account_number+':role/'+lambdarolename, Handler='main.handler',
                                           Code={
                                               'S3Bucket': os.environ.get("BUCKET_NAME"),
                                               'S3Key':  unique_model_id+"/"+'archiveeval.zip'
-                                          }, Timeout=10, MemorySize=512, Layers=[eval_layer])  # ADD ANOTHER LAYER ARN .. THE ONE SPECIFIC TO MODEL TYPE
+                                          }, Timeout=10, MemorySize=lambda_size, Layers=[eval_layer])  # ADD ANOTHER LAYER ARN .. THE ONE SPECIFIC TO MODEL TYPE
     response6authfxn = lambdaclient.create_function(FunctionName=lambdaauthfxnname, Runtime='python3.6', Role='arn:aws:iam::'+account_number+':role/'+lambdarolename, Handler='main.handler',
                                           Code={
                                               'S3Bucket': os.environ.get("BUCKET_NAME"),
                                               'S3Key':  unique_model_id+"/"+'archiveauth.zip'
-                                          }, Timeout=10, MemorySize=512, Layers=[auth_layer])  # ADD ANOTHER LAYER ARN .. THE ONE SPECIFIC TO MODEL TYPE
+                                          }, Timeout=10, MemorySize=lambda_size, Layers=[auth_layer])  # ADD ANOTHER LAYER ARN .. THE ONE SPECIFIC TO MODEL TYPE
 
     #add create api about here
     #TODO: 
@@ -1182,6 +1185,9 @@ def get_api_json():
     lambdafxnname = 'modfunction'+str(random.randint(1, 1000000))
     lambdaauthfxnname = 'redisAccess'+str(random.randint(1, 1000000))
     lambdaevalfxnname = 'evalfunction'+str(random.randint(1, 1000000))
+    
+    onnx_size = os.path.getsize(model_filepath)//(1000*1024) + 350
+    lambda_size = max(onnx_size, 512)
 
     if str(roles['Roles']).find(lambdarolename) > 0:
         response6_2 = user_session.client('iam').put_role_policy(
@@ -1267,18 +1273,18 @@ def get_api_json():
                                               Code={
                                                   'S3Bucket': os.environ.get("BUCKET_NAME"),
                                                   'S3Key':  unique_model_id+"/"+'archivetest.zip'
-                                              }, Timeout=10, MemorySize=512, Layers=layers)  # ADD ANOTHER LAYER ARN .. THE ONE SPECIFIC TO MODEL TYPE
+                                              }, Timeout=10, MemorySize=lambda_size, Layers=layers)  # ADD ANOTHER LAYER ARN .. THE ONE SPECIFIC TO MODEL TYPE
 
     response6evalfxn = lambdaclient.create_function(FunctionName=lambdaevalfxnname, Runtime='python3.6', Role='arn:aws:iam::'+account_number+':role/'+lambdarolename, Handler='main.handler',
                                           Code={
                                               'S3Bucket': os.environ.get("BUCKET_NAME"),
                                               'S3Key':  unique_model_id+"/"+'archiveeval.zip'
-                                          }, Timeout=10, MemorySize=512, Layers=[eval_layer])  # ADD ANOTHER LAYER ARN .. THE ONE SPECIFIC TO MODEL TYPE
+                                          }, Timeout=10, MemorySize=lambda_size, Layers=[eval_layer])  # ADD ANOTHER LAYER ARN .. THE ONE SPECIFIC TO MODEL TYPE
     response6authfxn = lambdaclient.create_function(FunctionName=lambdaauthfxnname, Runtime='python3.6', Role='arn:aws:iam::'+account_number+':role/'+lambdarolename, Handler='main.handler',
                                           Code={
                                               'S3Bucket': os.environ.get("BUCKET_NAME"),
                                               'S3Key':  unique_model_id+"/"+'archiveauth.zip'
-                                          }, Timeout=10, MemorySize=512, Layers=[auth_layer])  # ADD ANOTHER LAYER ARN .. THE ONE SPECIFIC TO MODEL TYPE
+                                          }, Timeout=10, MemorySize=lambda_size, Layers=[auth_layer])  # ADD ANOTHER LAYER ARN .. THE ONE SPECIFIC TO MODEL TYPE
 
     #add create api about here
     #TODO: 
