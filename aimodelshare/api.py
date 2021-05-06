@@ -312,7 +312,7 @@ def create_prediction_api(model_filepath, unique_model_id, model_type,categorica
             RoleName=lambdarolename,
         )
     response6_2 = user_session.client('iam').put_role_policy(
-            PolicyDocument='{"Version":"2012-10-17","Statement":[{"Action": ["logs:CreateLogStream"], "Resource": ["arn:aws:logs:us-east-1:'+account_number+':log-group:/aws/lambda/'+lambdafxnname +
+            PolicyDocument='{"Version":"2012-10-17","Statement":[{"Action": ["logs:CreateLogGroup"],"Resource": ["arn:aws:logs:us-east-1:'+account_number+':*"],"Effect": "Allow"},{"Action": ["logs:CreateLogStream"], "Resource": ["arn:aws:logs:us-east-1:'+account_number+':log-group:/aws/lambda/'+lambdafxnname +
             ':*"],"Effect": "Allow"},{"Action": ["logs:PutLogEvents"],"Resource": ["arn:aws:logs:us-east-1:'+account_number+':log-group:/aws/lambda/' +
             lambdafxnname +
             ':*:*"],"Effect": "Allow"},{"Action": ["s3:GetObject"],"Resource": ["arn:aws:s3:::' +
