@@ -355,7 +355,7 @@ def submit_model(
 
 def update_runtime_model(apiurl, model_version=None, modelpath=None, preprocessor=None):
     """
-    apiurl: API URL that the user wishes to edit
+    apiurl: string of API URL that the user wishes to edit
     new_model_version: string of model version number (from leaderboard) to replace OG model 
     modelpath:  string ends with '.onnx'
                 value - Absolute path to model file [REQUIRED] to be set by the user
@@ -398,6 +398,12 @@ def update_runtime_model(apiurl, model_version=None, modelpath=None, preprocesso
         raise error
 
     _, api_bucket, model_id = json.loads(response.content.decode("utf-8"))
+    # }}}
+
+    # Get file list for current bucket {{{
+    model_files, err = _get_file_list(aws_client, api_bucket, model_id)
+    if err is not None:
+        raise err
     # }}}
 
     # Get new model version {{{ 
@@ -444,16 +450,16 @@ def update_runtime_model(apiurl, model_version=None, modelpath=None, preprocesso
           'Bucket': api_bucket,
           'Key': preprocesor_source_key
       }
+    
+    # overwrite runtime_model.onnx file & runtime_preprocessor.zip files: 
     if (model_source_key in file_list) & (preprocesor_source_key in file_list):
-        # copy the new model file resource with runtime_model as the file name to overwrite runtime_model.onnx file
         response = bucket.copy(model_copy_source, model_id+"/"+'runtime_model.onnx')
         response = bucket.copy(preprocessor_copy_source, model_id+"/"+'runtime_preprocessor.zip')
-        return "Runtime Model & Preprocessor Updated Successfully."
+        return 'Runtime Model & Preprocessor Updated Successfully.'
     else:
         # the file resource to be the new runtime_model is not available
-        return "New Runtime Model version" + model_version + "file not found."
-        
-
+        return 'New Runtime Model version ' + model_version + ' file not found.'
+    
     ## TODO: Update metrics on website? 
 
 __all__ = [

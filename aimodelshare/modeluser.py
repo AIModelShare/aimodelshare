@@ -41,53 +41,42 @@ def get_jwt_token(username, password):
 
 
 
+
 def create_user_getkeyandpassword():
-    
     s3, iam, region = get_s3_iam_client(os.environ.get("AWS_ACCESS_KEY_ID"), 
                                         os.environ.get("AWS_SECRET_ACCESS_KEY"), 
                                         os.environ.get("AWS_REGION"))
-
+    
     #create s3 bucket and iam user
     now = datetime.datetime.now()
     year = datetime.date.today().year
     ts = form_timestamp(time.time())
-    bucket_name = 'aimodelshare' + os.environ.get("username").lower()
-    master_name = 'aimodelshare' + os.environ.get("username").lower()
-
+    
+    user_session = boto3.session.Session(aws_access_key_id=os.environ.get("AWS_ACCESS_KEY_ID"),
+                                         aws_secret_access_key=os.environ.get("AWS_SECRET_ACCESS_KEY"), 
+                                         region_name= os.environ.get("AWS_REGION"))    
+    
+    account_number = user_session.client(
+        'sts').get_caller_identity().get('Account')    
+    bucket_name = 'aimodelshare' + os.environ.get("username").lower()+str(account_number)
+    master_name = 'aimodelshare' + os.environ.get("username").lower()+str(account_number)
     from botocore.client import ClientError
-
     try:
         s3['resource'].meta.client.head_bucket(Bucket=bucket_name)
         bucket_exists=False
     except:
         bucket_exists=True
-
     if bucket_exists!=True:
         #bucket doesnot exist then create it
         bucket = s3["client"].create_bucket(ACL ='private',Bucket=bucket_name)
 
     else :
-        #bucket exists but you have no access
-        #add versioning
-        s3_resource = s3['resource']
-        version =0 
-        
-        for bucket in s3_resource.buckets.all(): 
-          if bucket.name.startswith(bucket_name+'-'):
-             version+=1
-
-        for i in range(1,version):
-          #check if any version of bucket name exists in the user's buckets
-          if bucket_name+'-'+str(i) in s3_resource.buckets.all():
-            bucket_name = bucket_name+'-'+str(i)
-
-        if bucket_name == master_name:
-          bucket_name= bucket_name+'-'+str(version)
+      pass
 
     my_policy = _custom_s3_policy(bucket_name)
     #sub_bucket = 'aimodelshare' + username.lower() + ts.replace("_","")
     iam_username = 'AI_MODELSHARE_' + ts
-
+    
     try:
       
       iam["client"].create_user(
@@ -120,6 +109,8 @@ def create_user_getkeyandpassword():
     os.environ["BUCKET_NAME"] = bucket_name
  
     return 
+
+
 
 
 __all__ = [
