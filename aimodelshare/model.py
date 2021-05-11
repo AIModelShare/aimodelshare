@@ -356,7 +356,7 @@ def submit_model(
 def update_runtime_model(apiurl, model_version=None, modelpath=None, preprocessor=None):
     """
     apiurl: string of API URL that the user wishes to edit
-    new_model_version: string of model version number (from leaderboard) to replace OG model 
+    new_model_version: string of model version number (from leaderboard) to replace original model 
     modelpath:  string ends with '.onnx'
                 value - Absolute path to model file [REQUIRED] to be set by the user
                 .onnx is the only accepted model file extension
@@ -460,9 +460,9 @@ def update_runtime_model(apiurl, model_version=None, modelpath=None, preprocesso
         # the file resource to be the new runtime_model is not available
         return 'New Runtime Model version ' + model_version + ' file not found.'
     
-    ## TODO: Update metrics on website? 
 
 __all__ = [
     submit_model,
-    _extract_model_metadata
+    _extract_model_metadata,
+    update_runtime_model
 ]

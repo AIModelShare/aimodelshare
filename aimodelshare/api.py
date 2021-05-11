@@ -1846,7 +1846,7 @@ def get_api_json():
 
 
     
-def full_deletion(apiurl):
+def delete_deployment(apiurl):
     """
     apiurl: string of API URL the user wishes to delete
 
@@ -1855,7 +1855,7 @@ def full_deletion(apiurl):
     from aimodelshare.aws import run_function_on_lambda
     
     # Provide Warning & Have user confirm deletion 
-    print("Running this function will permanently delete all resources tied to this deployment, including: the eval lambda and all models submitted to the model competition.")
+    print("Running this function will permanently delete all resources tied to this deployment, including the eval lambda and all models submitted to the model competition.")
     confirmation = input(prompt="To confirm, type 'permanently delete':")
     if confirmation.lower() == "permanently delete":
         pass
@@ -1870,7 +1870,7 @@ def full_deletion(apiurl):
            "password" in os.environ]):
         pass
     else:
-        return print("'Full Deletion' unsuccessful. Please provide credentials with set_credentials().")
+        return print("'Delete Deployment' unsuccessful. Please provide credentials with set_credentials().")
     
     # get api_id from apiurl
     api_url_trim = apiurl.split('https://')[1]
@@ -1893,7 +1893,8 @@ def full_deletion(apiurl):
     _, api_bucket, model_id = json.loads(response.content.decode("utf-8"))
     # }}} 
 
-    #Confirm username in bucket name  ## TODO: Check for "BUCKET_NAME", not username 
+    #Confirm username in bucket name
+    ## TODO: Update this check to more secure process
     if os.environ.get("username").lower() in api_bucket:
         pass
     else:
@@ -1965,5 +1966,6 @@ def full_deletion(apiurl):
 
 __all__ = [
     get_api_json,
-    create_prediction_api
+    create_prediction_api,
+    delete_deployment
 ]
