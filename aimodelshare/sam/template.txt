@@ -1,0 +1,15 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+
+Resources:
+  Lambda:
+    Type: AWS::Serverless::Function
+    Metadata:
+      Dockerfile: Dockerfile
+      DockerContext: ./app
+      DockerTag: $docker_tag
+    Properties:
+      PackageType: Image
+      FunctionName: $function_name
+      MemorySize: $memory_size
+      Timeout: $timeout

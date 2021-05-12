@@ -10,7 +10,6 @@ import time
 import functools
 from zipfile import ZipFile, ZIP_STORED, ZipInfo
 
-
 def create_prediction_api(model_filepath, unique_model_id, model_type,categorical, labels):
     from zipfile import ZipFile
     import zipfile
@@ -354,11 +353,14 @@ def create_prediction_api(model_filepath, unique_model_id, model_type,categorica
     # layers.append(keras_layer)
     time.sleep(10)
 
-    response6 = lambdaclient.create_function(FunctionName=lambdafxnname, Runtime='python3.6', Role='arn:aws:iam::'+account_number+':role/'+lambdarolename, Handler='main.handler',
-                                              Code={
-                                                  'S3Bucket': os.environ.get("BUCKET_NAME"),
-                                                  'S3Key':  unique_model_id+"/"+'archivetest.zip'
-                                              }, Timeout=10, MemorySize=512, Layers=layers)  # ADD ANOTHER LAYER ARN .. THE ONE SPECIFIC TO MODEL TYPE
+    #response6 = lambdaclient.create_function(FunctionName=lambdafxnname, Runtime='python3.6', Role='arn:aws:iam::'+account_number+':role/'+lambdarolename, Handler='main.handler',
+    #                                          Code={
+    #                                              'S3Bucket': os.environ.get("BUCKET_NAME"),
+    #                                              'S3Key':  unique_model_id+"/"+'archivetest.zip'
+    #                                          }, Timeout=10, MemorySize=512, Layers=layers)  # ADD ANOTHER LAYER ARN .. THE ONE SPECIFIC TO MODEL TYPE
+
+    from aimodelshare import deploy_container
+    response6 = deploy_container(account_number, os.environ.get("AWS_REGION"), user_session, lambdafxnname, 'file_objects', 'requirements.txt')
 
     response6evalfxn = lambdaclient.create_function(FunctionName=lambdaevalfxnname, Runtime='python3.6', Role='arn:aws:iam::'+account_number+':role/'+lambdarolename, Handler='main.handler',
                                           Code={
@@ -425,14 +427,14 @@ def create_prediction_api(model_filepath, unique_model_id, model_type,categorica
 
     # change api name below?
 
-    response7 = lambdaclient.add_permission(
-        FunctionName=lambdafxnname,
-        StatementId='apigateway-prod-2',
-        Action='lambda:InvokeFunction',
-        Principal='apigateway.amazonaws.com',
-        SourceArn='arn:aws:execute-api:us-east-1:' +
-        account_number+":"+api_id+'/*/POST/m',
-    )
+    #response7 = lambdaclient.add_permission(
+    #    FunctionName=lambdafxnname,
+    #    StatementId='apigateway-prod-2',
+    #    Action='lambda:InvokeFunction',
+    #    Principal='apigateway.amazonaws.com',
+    #    SourceArn='arn:aws:execute-api:us-east-1:' +
+    #    account_number+":"+api_id+'/*/POST/m',
+    #)
 
     response8 = lambdaclient.add_permission(
         FunctionName=lambdafxnname,
