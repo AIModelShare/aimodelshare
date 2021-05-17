@@ -21,6 +21,8 @@ def deploy_container(account_id, region, session, project_name, model_dir, requi
 
     docker_tag='latest'
     function_name=project_name
+    role_name=project_name+'-lambda-role'
+    policy_name=project_name+'-lambda-policy'
     
     codebuild_role_name=project_name+'-codebuild-role'
     codebuild_policies_name=project_name+'-codebuild-policies'
@@ -109,6 +111,8 @@ def deploy_container(account_id, region, session, project_name, model_dir, requi
     template = Template(data)
     newdata = template.substitute(
         docker_tag=docker_tag, #os.environ.get("docker_tag"),
+        role_name=role_name,
+        policy_name=policy_name,
         function_name=function_name,
         memory_size=memory_size,
         timeout=timeout)
@@ -180,3 +184,13 @@ def deploy_container(account_id, region, session, project_name, model_dir, requi
     response = codebuild.start_build(
         projectName=codebuild_project_name
     )
+
+    while(True):
+        theBuild = codebuild.batch_get_builds(ids=[response['build']['id']])
+        buildStatus = theBuild['builds'][0]['buildStatus']
+        if buildStatus == 'SUCCEEDED':
+            buildSucceeded = True
+            break
+        elif buildStatus == 'FAILED' or buildStatus == 'FAULT' or buildStatus == 'STOPPED' or buildStatus == 'TIMED_OUT':
+            break
+        time.sleep(10)

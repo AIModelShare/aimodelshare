@@ -8,4 +8,4 @@ phases:
     commands:
       - sam build
       - sam package --output-template-file packaged-template.yml --image-repository $account_id.dkr.ecr.$region.amazonaws.com/$repository
-      - sam deploy --template-file packaged-template.yml --stack-name $stack_name --capabilities CAPABILITY_IAM --region $region --image-repository $account_id.dkr.ecr.$region.amazonaws.com/$repository
+      - sam deploy --template-file packaged-template.yml --stack-name $stack_name --capabilities CAPABILITY_IAM CAPABILITY_NAMED_IAM CAPABILITY_AUTO_EXPAND --region $region --image-repository $account_id.dkr.ecr.$region.amazonaws.com/$repository
