@@ -8,6 +8,7 @@ import zipfile
 import shutil
 import time
 import functools
+import requests
 from zipfile import ZipFile, ZIP_STORED, ZipInfo
 
 
@@ -1842,6 +1843,129 @@ def get_api_json():
                 '''
     return apijson
 
+
+
+    
+def delete_deployment(apiurl):
+    """
+    apiurl: string of API URL the user wishes to delete
+
+    WARNING: User must supply high-level credentials in order to delete an API. 
+    """
+    from aimodelshare.aws import run_function_on_lambda
+    
+    # Provide Warning & Have user confirm deletion 
+    print("Running this function will permanently delete all resources tied to this deployment, including the eval lambda and all models submitted to the model competition.")
+    confirmation = input(prompt="To confirm, type 'permanently delete':")
+    if confirmation.lower() == "permanently delete":
+        pass
+    else:
+        return  
+
+    # Confirm that creds are loaded, print warning if not
+    if all(["AWS_ACCESS_KEY_ID" in os.environ, 
+            "AWS_SECRET_ACCESS_KEY" in os.environ,
+            "AWS_REGION" in os.environ,
+           "username" in os.environ, 
+           "password" in os.environ]):
+        pass
+    else:
+        return print("'Delete Deployment' unsuccessful. Please provide credentials with set_credentials().")
+    
+    # get api_id from apiurl
+    api_url_trim = apiurl.split('https://')[1]
+    api_id = api_url_trim.split(".")[0]
+
+    # Create User Session
+    user_sess = boto3.session.Session(aws_access_key_id=os.environ.get('AWS_ACCESS_KEY_ID'), 
+                                      aws_secret_access_key=os.environ.get('AWS_SECRET_ACCESS_KEY'), 
+                                      region_name=os.environ.get('AWS_REGION'))
+    
+    s3 = user_sess.resource('s3')
+
+    # Get bucket and model_id subfolder for user based on apiurl {{{
+    response, error = run_function_on_lambda(
+        apiurl, **{"delete": "FALSE", "versionupdateget": "TRUE"}
+    )
+    if error is not None:
+        raise error
+
+    _, api_bucket, model_id = json.loads(response.content.decode("utf-8"))
+    # }}} 
+
+    #Confirm username in bucket name
+    ## TODO: Update this check to more secure process
+    if os.environ.get("username").lower() in api_bucket:
+        pass
+    else:
+        print("Permission denied. Please provide credentials that allow administrator access to this api.")
+        return
+
+    # delete s3 folder
+    bucket = s3.Bucket(api_bucket)
+    bucket.objects.filter(Prefix= model_id+'/').delete() 
+
+    # get api resources
+    api = user_sess.client('apigateway')
+    resources = api.get_resources(
+        restApiId=api_id
+        )
+
+    #get lambda arns 
+    lambda_arns = list()
+    for i in range(len(resources['items'])):
+        if len(resources['items'][i]) > 2: 
+            resource_id = resources['items'][i]['id']
+            integration = api.get_integration(
+                restApiId=api_id,
+                resourceId=resource_id,
+                httpMethod='POST'
+            )
+            uri=integration['uri']
+            ans1=uri.split('functions/')
+            lambda_arn = ans1[1].split('/invocations')[0]
+            lambda_arns.append(lambda_arn)
+    else: 
+        pass 
+
+    # get authorizer arn 
+    authorizers = api.get_authorizers(
+                  restApiId=api_id
+                  )
+
+    authorizer_full_arn=authorizers['items'][0]['authorizerUri']
+    ans1=authorizer_full_arn.split('functions/')
+    auth_arn = ans1[1].split('/invocations')[0]
+    lambda_arns.append(auth_arn)
+
+    # delete lambdas & authorizer
+    client = boto3.client('lambda', region_name=os.environ.get("AWS_REGION"))
+    for arn in lambda_arns:
+        lambda_response = client.delete_function(
+            FunctionName = arn
+        )
+
+    # delete api
+    client = boto3.client('apigateway', region_name=os.environ.get("AWS_REGION"))
+    api_response = client.delete_rest_api(
+        restApiId=api_id
+    )
+
+    # delete api page on front end
+    bodydata = {'apiurl': apiurl,
+                'delete': "TRUE"
+                }
+    headers_with_authentication = {'Content-Type': 'application/json', 'authorizationToken': os.environ.get("JWT_AUTHORIZATION_TOKEN"), 'Access-Control-Allow-Headers':
+                                   'Content-Type,X-Amz-Date,authorizationToken,Access-Control-Allow-Origin,X-Api-Key,X-Amz-Security-Token,Authorization', 'Access-Control-Allow-Origin': '*'}
+
+    requests.post("https://bhrdesksak.execute-api.us-east-1.amazonaws.com/dev/modeldata",
+                  json=bodydata, headers=headers_with_authentication)
+
+    return "API deleted successfully."
+
+
 __all__ = [
     get_api_json,
+    create_prediction_api,
+    delete_deployment
 ]
