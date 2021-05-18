@@ -10,7 +10,7 @@ import time
 import datetime
 import onnx
 from aimodelshare.tools import extract_varnames_fromtrainingdata, _get_extension_from_filepath
-from aimodelshare.aws import get_s3_iam_client
+from aimodelshare.aws import get_s3_iam_client, run_function_on_lambda
 from aimodelshare.bucketpolicy import _custom_upload_policy
 from aimodelshare.exceptions import AuthorizationError, AWSAccessError, AWSUploadError
 from aimodelshare.api import create_prediction_api
@@ -18,7 +18,7 @@ from aimodelshare.preprocessormodules import upload_preprocessor
 from aimodelshare.model import _get_predictionmodel_key, _extract_model_metadata
 
 
-def take_user_info_and_generate_api(model_filepath, model_type, categorical,labels, preprocessor_filepath,y_test=None):
+def take_user_info_and_generate_api(model_filepath, model_type, categorical,labels, preprocessor_filepath):
     """
     Generates an api using model parameters and user credentials, from the user
 
@@ -46,7 +46,6 @@ def take_user_info_and_generate_api(model_filepath, model_type, categorical,labe
             value - labels for training data
             can be extracted from columns of y train or can be provided by the user
 
-    y_test :
     -----------
     Returns
     finalresult : list 
@@ -108,16 +107,6 @@ def take_user_info_and_generate_api(model_filepath, model_type, categorical,labe
         runtime_data = {}
         runtime_data["runtime_model"] = {"name": "runtime_model.onnx"}
         runtime_data["runtime_preprocessor"] = runtime_preprocessor_type
-
-
-        if(any([y_test==None])):
-            pass
-        else:
-            ytest_path = os.path.join(temp_dir, "ytest.pkl")
-            import pickle
-            #ytest data to load to s3
-            pickle.dump( list(y_test),open(ytest_path,"wb"))
-            s3["client"].upload_file(ytest_path, os.environ.get("BUCKET_NAME"),  unique_model_id + "/ytest.pkl")
             
         #runtime_data = {"runtime_model": {"name": "runtime_model.onnx"},"runtime_preprocessor": runtime_preprocessor_type }
         json_string = json.dumps(runtime_data, sort_keys=False)
@@ -223,38 +212,11 @@ def send_model_data_to_dyndb_and_return_api(api_info, private, categorical, prep
     difference = (end - start).total_seconds()
     finalresult2 = "Your AI Model Share API was created in " + \
         str(int(difference)) + " seconds." + " API Url: " + api_info[0]
-    s3, iam, region = get_s3_iam_client(os.environ.get("AWS_ACCESS_KEY_ID"), os.environ.get("AWS_SECRET_ACCESS_KEY"), os.environ.get("AWS_REGION"))
-    policy_response = iam["client"].get_policy(
-        PolicyArn=os.environ.get("POLICY_ARN")
-    )
-    user_policy = iam["resource"].UserPolicy(
-        os.environ.get("IAM_USERNAME"), policy_response['Policy']['PolicyName'])
-    response = iam["client"].detach_user_policy(
-        UserName= os.environ.get("IAM_USERNAME"),
-        PolicyArn=os.environ.get("POLICY_ARN")
-    )
-    # add new policy that only allows file upload to bucket
-    policy = iam["resource"].Policy(os.environ.get("POLICY_ARN"))
-    response = policy.delete()
-    s3upload_policy = _custom_upload_policy(bucket_name, unique_model_id)
-    s3uploadpolicy_name = 'temporaryaccessAImodelsharePolicy' + \
-        str(uuid.uuid1().hex)
-    s3uploadpolicy_response = iam["client"].create_policy(
-        PolicyName=s3uploadpolicy_name,
-        PolicyDocument=json.dumps(s3upload_policy)
-    )
-    user = iam["resource"].User(os.environ.get("IAM_USERNAME"))
-    response = user.attach_policy(
-        PolicyArn=s3uploadpolicy_response['Policy']['Arn']
-    )
-    finalresultteams3info = "Your team members can submit improved models to your prediction api using the update_model_version() function. \nTo upload new models and/or preprocessors to this model team members should use the following awskey/password/region:\n\n aws_key = " + \
-        os.environ.get("AI_MODELSHARE_ACCESS_KEY_ID") + ", aws_password = " + os.environ.get("AI_MODELSHARE_SECRET_ACCESS_KEY") + " region = " + \
-        os.environ.get("AWS_REGION") +".  \n\nThis aws key/password combination limits team members to file upload access only."
-    api_info = finalresult2+"\n"+finalresultteams3info
-    return print(api_info)
+
+    return print(finalresult2)
 
 
-def model_to_api(model_filepath, model_type, private, categorical, trainingdata, y_train,preprocessor_filepath, y_test=None):
+def model_to_api(model_filepath, model_type, private, categorical, trainingdata, y_train,preprocessor_filepath):
     """
       Launches a live prediction REST API for deploying ML models using model parameters and user credentials, provided by the user
       Inputs : 8
@@ -293,9 +255,6 @@ def model_to_api(model_filepath, model_type, private, categorical, trainingdata,
       private :   bool, default = False
                   True if model and its corresponding data is not public
                   False [DEFAULT] if model and its corresponding data is public    
-      y_test :  y labels for test data 
-                [REQUIRED] for eval metrics
-                expects a one hot encoded y test data format      
       -----------
       Returns
       print_api_info : prints statements with generated live prediction API details
@@ -323,13 +282,91 @@ def model_to_api(model_filepath, model_type, private, categorical, trainingdata,
     else:
         labels = "no data"
     api_info = take_user_info_and_generate_api( 
-        model_filepath, model_type, categorical, labels,preprocessor_filepath,y_test)
+        model_filepath, model_type, categorical, labels,preprocessor_filepath)
     print_api_info = send_model_data_to_dyndb_and_return_api(
         api_info, private, categorical,preprocessor_filepath, variablename_and_type_data)
     return print_api_info
+
+
+
+def create_competition(apiurl, y_test):
+    """
+    Creates a model competition for a deployed prediction REST API
+    Inputs : 2
+    Output : Submit credentials for model competition
+    
+    ---------
+    Parameters
+    
+    apiurl: string
+            URL of deployed prediction API 
+    
+    y_test :  y labels for test data 
+            [REQUIRED] for eval metrics
+            expects a one hot encoded y test data format      
+    """
+    
+    # create temporary folder
+    temp_dir = tempfile.gettempdir()
+    
+    
+    s3, iam, region = get_s3_iam_client(os.environ.get("AWS_ACCESS_KEY_ID"), os.environ.get("AWS_SECRET_ACCESS_KEY"), os.environ.get("AWS_REGION"))
+    
+    
+    # Get bucket and model_id subfolder for user based on apiurl {{{
+    response, error = run_function_on_lambda(
+        apiurl, **{"delete": "FALSE", "versionupdateget": "TRUE"}
+    )
+    if error is not None:
+        raise error
+
+    _, api_bucket, model_id = json.loads(response.content.decode("utf-8"))
+    # }}} 
+    
+    # upload y_test data: 
+    ytest_path = os.path.join(temp_dir, "ytest.pkl")
+    import pickle
+    #ytest data to load to s3
+    pickle.dump( list(y_test),open(ytest_path,"wb"))
+    s3["client"].upload_file(ytest_path, os.environ.get("BUCKET_NAME"),  model_id + "/ytest.pkl")
+     
+    
+    policy_response = iam["client"].get_policy(
+        PolicyArn=os.environ.get("POLICY_ARN")
+    )
+    user_policy = iam["resource"].UserPolicy(
+        os.environ.get("IAM_USERNAME"), policy_response['Policy']['PolicyName'])
+    response = iam["client"].detach_user_policy(
+        UserName= os.environ.get("IAM_USERNAME"),
+        PolicyArn=os.environ.get("POLICY_ARN")
+    )
+    
+    # add new policy that only allows file upload to bucket
+    policy = iam["resource"].Policy(os.environ.get("POLICY_ARN"))
+    response = policy.delete()
+    s3upload_policy = _custom_upload_policy(os.environ.get("BUCKET_NAME"), 
+                                            model_id) 
+    s3uploadpolicy_name = 'temporaryaccessAImodelsharePolicy' + \
+        str(uuid.uuid1().hex)
+    s3uploadpolicy_response = iam["client"].create_policy(
+        PolicyName=s3uploadpolicy_name,
+        PolicyDocument=json.dumps(s3upload_policy)
+    )
+    user = iam["resource"].User(os.environ.get("IAM_USERNAME"))
+    response = user.attach_policy(
+        PolicyArn=s3uploadpolicy_response['Policy']['Arn']
+    )
+    finalresultteams3info = "Model competition created. \n Your team members can submit models to the leaderboard using the submit_model() function, or update the prediction api using the update_runtime_model() function." + \
+        "\nTo upload new models and/or preprocessors to this API, team members should use the following awskey/password/region:\n\n aws_key = " + \
+        os.environ.get("AI_MODELSHARE_ACCESS_KEY_ID") + ", aws_password = " + os.environ.get("AI_MODELSHARE_SECRET_ACCESS_KEY") + " region = " + \
+        os.environ.get("AWS_REGION") +".  \n\nThis aws key/password combination limits team members to file upload access only."
+        
+    return print(finalresultteams3info)
+
 
 __all__ = [
     take_user_info_and_generate_api,
     send_model_data_to_dyndb_and_return_api,
     model_to_api,
+    create_competition,
 ]
