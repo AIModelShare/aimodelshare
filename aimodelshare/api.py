@@ -103,6 +103,20 @@ def create_prediction_api(model_filepath, unique_model_id, model_type,categorica
 
     from . import main  # relative-import the *package* containing the templates
 
+    if os.path.exists('file_objects'):
+        shutil.rmtree('file_objects')
+    os.mkdir('file_objects')
+
+    requirements = input("Enter all libraries requires separated by comma:")
+
+    requirements = requirements.split(",")
+    for i in range(len(requirements)):
+        requirements[i] = requirements[i].strip(" ")
+
+    with open(os.path.join('file_objects', 'requirements.txt'), 'a') as f:
+        for lib in requirements:
+            f.write('%s\n' % lib)
+
     # write main handlers
     if model_type == 'text' and categorical == 'TRUE':
             data = pkg_resources.read_text(main, '1.txt')
@@ -110,46 +124,18 @@ def create_prediction_api(model_filepath, unique_model_id, model_type,categorica
             t = Template(data)
             newdata = t.substitute(
                 bucket_name=os.environ.get("BUCKET_NAME"), unique_model_id=unique_model_id, labels=labels)
-            with open(os.path.join(temp_dir, 'main.py'), 'w') as file:
-                file.write(newdata)
     elif model_type == 'text' and categorical == 'FALSE':
             data = pkg_resources.read_text(main, '1B.txt')
             from string import Template
             t = Template(data)
             newdata = t.substitute(
                 bucket_name=os.environ.get("BUCKET_NAME"), unique_model_id=unique_model_id)
-            with open(os.path.join(temp_dir, 'main.py'), 'w') as file:
-                file.write(newdata)
     elif model_type == 'image' and categorical == 'TRUE':
-            
-            if os.path.exists('file_objects'):
-                shutil.rmtree('file_objects')
-            os.mkdir('file_objects')
-
-            requirements = input("Enter all libraries requires separated by comma:")
-
-            requirements = requirements.split(",")
-
-            with open(os.path.join('file_objects', 'requirements.txt'), 'a') as f:
-                for lib in requirements:
-                    f.write('%s\n' % lib)
-
             data = pkg_resources.read_text(main, '2.txt')
             from string import Template
-            t = Template(data)
-            
+            t = Template(data)            
             newdata = t.substitute(
                 bucket_name=os.environ.get("BUCKET_NAME"), unique_model_id=unique_model_id, labels=labels)
-            
-            with open(os.path.join('file_objects', 'model.py'), 'w') as file:
-                file.write(newdata)
-
-            data = pkg_resources.read_text(main, 'lambda_function.txt')
-            with open(os.path.join('file_objects', 'lambda_function.py'), 'w') as file:
-                file.write(data)
-
-            #shutil.move(model_filepath, 'file_objects')
-            #return
 
     elif model_type == 'image' and categorical == 'FALSE':
             data = pkg_resources.read_text(main, '3.txt')
@@ -157,48 +143,45 @@ def create_prediction_api(model_filepath, unique_model_id, model_type,categorica
             t = Template(data)
             newdata = t.substitute(
                 bucket_name=os.environ.get("BUCKET_NAME"), unique_model_id=unique_model_id)
-            with open(os.path.join(temp_dir, 'main.py'), 'w') as file:
-                file.write(newdata)
+
     elif all([model_type == 'tabular', categorical == 'TRUE']):
             data = pkg_resources.read_text(main, '4.txt')
             from string import Template
             t = Template(data)
             newdata = t.substitute(
                 bucket_name=os.environ.get("BUCKET_NAME"), unique_model_id=unique_model_id, labels=labels)
-            with open(os.path.join(temp_dir, 'main.py'), 'w') as file:
-                file.write(newdata)
     elif all([model_type == 'tabular', categorical == 'FALSE']):
             data = pkg_resources.read_text(main, '5.txt')
             from string import Template
             t = Template(data)
             newdata = t.substitute(
                 bucket_name=os.environ.get("BUCKET_NAME"), unique_model_id=unique_model_id)
-            with open(os.path.join(temp_dir, 'main.py'), 'w') as file:
-                file.write(newdata)
     elif model_type.lower() == 'timeseries' and categorical == 'FALSE':
             data = pkg_resources.read_text(main, '6.txt')
             from string import Template
             t = Template(data)
             newdata = t.substitute(
                 bucket_name=os.environ.get("BUCKET_NAME"), unique_model_id=unique_model_id)
-            with open(os.path.join(temp_dir, 'main.py'), 'w') as file:
-                file.write(newdata)
     elif model_type.lower() == 'audio' and categorical == 'TRUE':
             data = pkg_resources.read_text(main, '7.txt')
             from string import Template
             t = Template(data)
             newdata = t.substitute(
                 bucket_name=os.environ.get("BUCKET_NAME"), unique_model_id=unique_model_id, labels=labels)
-            with open(os.path.join(temp_dir, 'main.py'), 'w') as file:
-                file.write(newdata)
     elif model_type.lower() == 'video' and categorical == 'TRUE':
             data = pkg_resources.read_text(main, '8.txt')
             from string import Template
             t = Template(data)
             newdata = t.substitute(
                 bucket_name=os.environ.get("BUCKET_NAME"), unique_model_id=unique_model_id, labels=labels)
-            with open(os.path.join(temp_dir, 'main.py'), 'w') as file:
-                file.write(newdata)
+                
+    with open(os.path.join('file_objects', 'model.py'), 'w') as file:
+        file.write(newdata)
+
+    data = pkg_resources.read_text(main, 'lambda_function.txt')
+    with open(os.path.join('file_objects', 'lambda_function.py'), 'w') as file:
+        file.write(data)
+        
     #with zipfile.ZipFile(os.path.join(temp_dir, 'archive.zip'), 'a') as z:
     #    z.write(os.path.join(temp_dir, 'main.py'), 'main.py')
 
