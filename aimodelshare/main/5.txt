@@ -6,16 +6,13 @@ import os
 import numpy as np
 import onnxruntime as rt
 import json
-import sklearn
 
 def get_model_onnx(runtimemodel_s3_filename="runtime_model.onnx"):
-  s3 = boto3.resource("s3")
-  bucket = s3.Bucket("$bucket_name")
-
-  with open("/tmp/runtime_model.onnx", "wb") as modelfo:
-      bucket.download_fileobj("$unique_model_id/runtime_model.onnx",  modelfo)
-  model = rt.InferenceSession("/tmp/runtime_model.onnx")
-  return model
+    s3 = boto3.resource('s3')
+    obj = s3.Object("$bucket_name", "$unique_model_id" +
+                    "/runtime_model.onnx")
+    model = rt.InferenceSession(obj.get()['Body'].read())
+    return model
 
 def get_preprocessor(preprocessor_s3_filename="runtime_preprocessor.zip"):
     import pickle
