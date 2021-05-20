@@ -161,8 +161,6 @@ def deploy_container(account_id, region, session, project_name, model_dir, requi
                           
     codebuild = session.client('codebuild')
 
-    time.sleep(15)
-
     response = codebuild.create_project(
         name=codebuild_project_name,
         source={
@@ -195,4 +193,4 @@ def deploy_container(account_id, region, session, project_name, model_dir, requi
         elif buildStatus == 'FAILED' or buildStatus == 'FAULT' or buildStatus == 'STOPPED' or buildStatus == 'TIMED_OUT':
             print("container failed to build on codebuild "+buildStatus)
             break
-        time.sleep(15)
+        time.sleep(5)
