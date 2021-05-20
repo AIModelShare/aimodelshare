@@ -160,7 +160,7 @@ def deploy_container(account_id, region, session, project_name, model_dir, requi
                           ''.join([template_folder, '.zip']))
                           
     codebuild = session.client('codebuild')
-
+    time.sleep(15)
     response = codebuild.create_project(
         name=codebuild_project_name,
         source={
