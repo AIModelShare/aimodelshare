@@ -288,8 +288,6 @@ def model_to_api(model_filepath, model_type, private, categorical, trainingdata,
         api_info, private, categorical,preprocessor_filepath, variablename_and_type_data)
     return print_api_info
 
-
-
 def create_competition(apiurl, y_test):
     """
     Creates a model competition for a deployed prediction REST API
@@ -304,7 +302,12 @@ def create_competition(apiurl, y_test):
     
     y_test :  y labels for test data 
             [REQUIRED] for eval metrics
-            expects a one hot encoded y test data format      
+            expects a one hot encoded y test data format
+    ---------
+    Returns
+    finalresultteams3info : Submit_model credentials with access to S3 bucket
+    (api_id)_credentials.txt : .txt file with submit_model credentials,
+                                formatted for use with set_credentials() function 
     """
     
     # create temporary folder
@@ -357,11 +360,26 @@ def create_competition(apiurl, y_test):
     response = user.attach_policy(
         PolicyArn=s3uploadpolicy_response['Policy']['Arn']
     )
-    finalresultteams3info = "Model competition created. \n Your team members can submit models to the leaderboard using the submit_model() function, or update the prediction api using the update_runtime_model() function." + \
+    
+    # get api_id from apiurl, generate txt file name
+    api_url_trim = apiurl.split('https://')[1]
+    api_id = api_url_trim.split(".")[0]
+    txt_file_name = api_id+"_credentials.txt"
+
+    #Generate txt file with submit credentials  
+    f= open(txt_file_name,"w+")
+    f.write("#Rest API ID: "+ api_id + "\n") 
+    f.write('[submit_model:"' + apiurl + '"]\n')
+    f.write('AWS_ACCESS_KEY_ID = "' + os.environ.get("AI_MODELSHARE_ACCESS_KEY_ID") + '"\n')
+    f.write('AWS_SECRET_ACCESS_KEY = "' + os.environ.get("AI_MODELSHARE_SECRET_ACCESS_KEY") +'"\n')
+    f.write('AWS_REGION = "' + os.environ.get("AWS_REGION") + '"\n')
+    f.close()
+
+    finalresultteams3info = "Success! Model competition created. \n\n Your team members can submit models to the leaderboard using the submit_model() function or update the prediction API using the update_runtime_model() function.\n\n" + \
         "\nTo upload new models and/or preprocessors to this API, team members should use the following awskey/password/region:\n\n aws_key = " + \
-        os.environ.get("AI_MODELSHARE_ACCESS_KEY_ID") + ", aws_password = " + os.environ.get("AI_MODELSHARE_SECRET_ACCESS_KEY") + " region = " + \
-        os.environ.get("AWS_REGION") +".  \n\nThis aws key/password combination limits team members to file upload access only."
-        
+        os.environ.get("AI_MODELSHARE_ACCESS_KEY_ID") + ", aws_password = " + os.environ.get("AI_MODELSHARE_SECRET_ACCESS_KEY") + ", region = " + \
+        os.environ.get("AWS_REGION") +". These credentials have been saved as: " + txt_file_name + ".  \n\nThis aws key/password combination limits team members to file upload access only."
+    
     return print(finalresultteams3info)
 
 
