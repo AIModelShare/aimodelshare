@@ -1,0 +1,7 @@
+FROM public.ecr.aws/lambda/python:$python_version
+
+COPY $model_dir/. ./
+
+RUN pip install -r ./$requirements_file_path
+
+CMD ["lambda_function.lambda_handler"]
