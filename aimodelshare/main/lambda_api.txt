@@ -7,7 +7,7 @@ import onnxruntime as rt
 import json
 
 s3 = boto3.resource("s3")
-
+labels = "$labels"
 
 def load_onnx_model(filename="runtime_model.onnx"):
     bucket = s3.Bucket("$bucket_name")

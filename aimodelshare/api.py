@@ -181,7 +181,7 @@ def create_prediction_api(model_filepath, unique_model_id, model_type,categorica
         lambda_api = pkg_resources.read_text(main, 'lambda_api.txt')    # for custom Lambda load/store
         from string import Template
         t = Template(lambda_api)
-        nt = t.substitute(bucket_name=os.environ.get("BUCKET_NAME"), unique_model_id=unique_model_id)
+        nt = t.substitute(bucket_name=os.environ.get("BUCKET_NAME"), unique_model_id=unique_model_id, labels=labels)
         with open(os.path.join('file_objects', 'lambda_api.py'), 'w') as file:
             file.write(nt)
 
