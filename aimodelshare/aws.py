@@ -31,6 +31,7 @@ def set_credentials(credential_file=None, type="deploy_model", apiurl="apiurl", 
           if line == "\n":
             break
           try:
+            print(line, "A")
             value = line.split("=", 1)[1].strip()
             value = value[1:-1]
             key = line.split("=", 1)[0].strip()
@@ -72,6 +73,7 @@ def set_credentials(credential_file=None, type="deploy_model", apiurl="apiurl", 
             if line == "\n":
               break
             try:
+              print(line, "B")
               value = line.split("=", 1)[1].strip()
               value = value[1:-1]
               key = line.split("=", 1)[0].strip()
@@ -88,7 +90,7 @@ def set_credentials(credential_file=None, type="deploy_model", apiurl="apiurl", 
             if line == "\n":
               break
             try:
-              print(line)
+              print(line, "C")
               value = line.split("=", 1)[1].strip()
               value = value[1:-1]
               key = line.split("=", 1)[0].strip()
