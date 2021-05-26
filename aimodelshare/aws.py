@@ -33,7 +33,9 @@ def set_credentials(credential_file=None, type="deploy_model", apiurl="apiurl", 
           try:
             value = line.split("=", 1)[1].strip()
             value = value[1:-1]
+            print(value)
             key = line.split("=", 1)[0].strip()
+            print(key)
             os.environ[key.lower()] = value
 
           except LookupError: 
