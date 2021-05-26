@@ -31,7 +31,9 @@ def set_credentials(credential_file=None, type="deploy_model", apiurl="apiurl", 
           if line == "\n":
             break
           try:
+            print(line)
             value = line.split("=", 1)[1].strip()
+            print(value)
             value = value[1:-1]
             print(value)
             key = line.split("=", 1)[0].strip()
