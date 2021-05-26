@@ -288,7 +288,7 @@ def model_to_api(model_filepath, model_type, private, categorical, trainingdata,
         api_info, private, categorical,preprocessor_filepath, variablename_and_type_data)
     return print_api_info
 
-def create_competition(apiurl, y_test):
+def create_competition(apiurl, y_test, generate_file = True):
     """
     Creates a model competition for a deployed prediction REST API
     Inputs : 2
@@ -303,19 +303,20 @@ def create_competition(apiurl, y_test):
     y_test :  y labels for test data 
             [REQUIRED] for eval metrics
             expects a one hot encoded y test data format
+
+    generate_file (OPTIONAL): Default is True
+                              Function will output .txt file with new credentials
     ---------
     Returns
     finalresultteams3info : Submit_model credentials with access to S3 bucket
     (api_id)_credentials.txt : .txt file with submit_model credentials,
                                 formatted for use with set_credentials() function 
     """
-    
+
     # create temporary folder
     temp_dir = tempfile.gettempdir()
     
-    
     s3, iam, region = get_s3_iam_client(os.environ.get("AWS_ACCESS_KEY_ID"), os.environ.get("AWS_SECRET_ACCESS_KEY"), os.environ.get("AWS_REGION"))
-    
     
     # Get bucket and model_id subfolder for user based on apiurl {{{
     response, error = run_function_on_lambda(
@@ -366,21 +367,39 @@ def create_competition(apiurl, y_test):
     api_id = api_url_trim.split(".")[0]
     txt_file_name = api_id+"_credentials.txt"
 
-    #Generate txt file with submit credentials  
-    f= open(txt_file_name,"w+")
-    f.write("#Rest API ID: "+ api_id + "\n") 
-    f.write('[submit_model:"' + apiurl + '"]\n')
-    f.write('AWS_ACCESS_KEY_ID = "' + os.environ.get("AI_MODELSHARE_ACCESS_KEY_ID") + '"\n')
-    f.write('AWS_SECRET_ACCESS_KEY = "' + os.environ.get("AI_MODELSHARE_SECRET_ACCESS_KEY") +'"\n')
-    f.write('AWS_REGION = "' + os.environ.get("AWS_REGION") + '"\n')
-    f.close()
+    #Format output text
+    formatted_userpass = ('[aimodelshare_creds] \n'
+                'username = "Your_Username_Here" \n'
+                'password = "Your_Password_Here"\n\n')
 
-    finalresultteams3info = "Success! Model competition created. \n\n Your team members can submit models to the leaderboard using the submit_model() function or update the prediction API using the update_runtime_model() function.\n\n" + \
-        "\nTo upload new models and/or preprocessors to this API, team members should use the following awskey/password/region:\n\n aws_key = " + \
-        os.environ.get("AI_MODELSHARE_ACCESS_KEY_ID") + ", aws_password = " + os.environ.get("AI_MODELSHARE_SECRET_ACCESS_KEY") + ", region = " + \
-        os.environ.get("AWS_REGION") +". These credentials have been saved as: " + txt_file_name + ".  \n\nThis aws key/password combination limits team members to file upload access only."
+    formatted_new_creds = ("#Credentials for Competition: " + api_id + "\n"
+                '[submit_model:"' + apiurl + '"]\n'
+                'AWS_ACCESS_KEY_ID = "' + os.environ.get("AI_MODELSHARE_ACCESS_KEY_ID") + '"\n'
+                'AWS_SECRET_ACCESS_KEY = "' + os.environ.get("AI_MODELSHARE_SECRET_ACCESS_KEY") +'"\n'
+                'AWS_REGION = "' + os.environ.get("AWS_REGION") + '"\n')
     
-    return print(finalresultteams3info)
+    final_message = ("\n Success! Model competition created. \n\n"
+                "Your team members can submit models to the competition leaderboard \n"
+                "with the submit_model() function or update the prediction API \n"
+                "with the update_runtime_model() function.\n\n"
+                "To upload new models and/or preprocessors to this API, team members should use \n"
+                "the following credentials:\n\n" + formatted_new_creds + "\n"
+                "(This aws key/password combination limits team members to file upload access only.)\n\n")
+  
+    file_generated_message = ("These credentials have been saved as: " + txt_file_name + ".")
+
+    # Generate .txt file with new credentials 
+    if generate_file == True:
+        final_message = final_message + file_generated_message
+
+        f= open(txt_file_name,"w+")
+        f.write(formatted_userpass + formatted_new_creds)
+        f.close()
+
+    return print(final_message)
+
+
+
 
 
 __all__ = [
