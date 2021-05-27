@@ -11,7 +11,7 @@ from string import Template
 
 def deploy_container(account_id, region, session, project_name, model_dir, requirements_file_path, memory_size='1024', timeout='30', python_version='3.7'):
 
-    codebuild_bucket_name=project_name+'-codebuild-bucket' # s3 bucket name to create  #TODO: use same bucket and subfolder we used previously to store this data
+    codebuild_bucket_name=os.environ.get("BUCKET_NAME") # s3 bucket name to create  #TODO: use same bucket and subfolder we used previously to store this data
                                                                                        #Why?  AWS limits users to 100 total buckets!  Our old code only creates one per user per acct.
 
     repository=project_name+'-repository' # repository name to create
