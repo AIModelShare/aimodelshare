@@ -12,7 +12,7 @@ import requests
 from zipfile import ZipFile, ZIP_STORED, ZipInfo
 import shutil
 
-def create_prediction_api(model_filepath, unique_model_id, model_type,categorical, labels):
+def create_prediction_api(model_filepath, unique_model_id, model_type,categorical, labels, apiid):
     from zipfile import ZipFile
     import zipfile
     import tempfile
@@ -385,20 +385,11 @@ def create_prediction_api(model_filepath, unique_model_id, model_type,categorica
     api_name = 'modapi'+str(random.randint(1, 1000000))	
 
     # Update note:  change apiname in apijson from modapi890799 to randomly generated apiname?  or aimodelshare generic name?
-    api_json= get_api_json()
 
     user_client = boto3.client('apigateway', aws_access_key_id=str(
         os.environ.get("AWS_ACCESS_KEY_ID")), aws_secret_access_key=str(os.environ.get("AWS_SECRET_ACCESS_KEY")), region_name=str(os.environ.get("AWS_REGION")))
 
-    response2 = user_client.import_rest_api(
-        failOnWarnings=True,
-        parameters={
-            'endpointConfigurationTypes': 'REGIONAL'
-        },
-        body=api_json
-    )
-
-    api_id = response2['id']
+    api_id = apiid
 
     # Update note:  dyndb data to add.  api_id and resourceid "Resource": "arn:aws:execute-api:us-east-1:517169013426:iu3q9io652/prod/OPTIONS/m"
 
