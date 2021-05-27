@@ -169,7 +169,7 @@ def deploy_container(account_id, region, session, project_name, model_dir, requi
         },
         artifacts={
             'type': 'S3',
-            'location': codebuild_bucket_name + '/'  + apiid
+            'location': codebuild_bucket_name 
         },
         environment={
             'type': 'LINUX_CONTAINER',
