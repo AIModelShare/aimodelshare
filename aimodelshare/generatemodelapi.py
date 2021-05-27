@@ -328,7 +328,6 @@ def model_to_api(model_filepath, model_type, private, categorical, trainingdata,
         api_info, private, categorical,preprocessor_filepath, variablename_and_type_data)
     return print_api_info
 
-
 __all__ = [
     take_user_info_and_generate_api,
     send_model_data_to_dyndb_and_return_api,

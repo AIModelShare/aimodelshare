@@ -176,7 +176,7 @@ def create_prediction_api(model_filepath, unique_model_id, model_type,categorica
                 bucket_name=os.environ.get("BUCKET_NAME"), unique_model_id=unique_model_id, labels=labels)
     
     if model_type.lower() == 'custom':
-        with open(model_filepath, 'r') as in_file:     
+        with open("custom_lambda.py", 'r') as in_file:     
             newdata = in_file.read() 
         lambda_api = pkg_resources.read_text(main, 'lambda_api.txt')    # for custom Lambda load/store
         from string import Template
