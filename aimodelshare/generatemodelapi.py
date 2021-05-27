@@ -14,6 +14,8 @@ from aimodelshare.aws import get_s3_iam_client
 from aimodelshare.bucketpolicy import _custom_upload_policy
 from aimodelshare.exceptions import AuthorizationError, AWSAccessError, AWSUploadError
 from aimodelshare.api import create_prediction_api
+from aimodelshare.api import get_api_json
+
 from aimodelshare.preprocessormodules import upload_preprocessor
 from aimodelshare.model import _get_predictionmodel_key, _extract_model_metadata
 
@@ -66,7 +68,19 @@ def take_user_info_and_generate_api(model_filepath, model_type, categorical,labe
     # create temporary folder
     temp_dir = tempfile.gettempdir()
    
+    api_json= get_api_json()
+    user_client = boto3.client('apigateway', aws_access_key_id=str(
+    os.environ.get("AWS_ACCESS_KEY_ID")), aws_secret_access_key=str(os.environ.get("AWS_SECRET_ACCESS_KEY")), region_name=str(os.environ.get("AWS_REGION")))
 
+    response2 = user_client.import_rest_api(
+    failOnWarnings=True,
+    parameters={
+        'endpointConfigurationTypes': 'REGIONAL'
+    },
+    body=api_json
+    )
+
+    api_id = response2['id']
     now = datetime.datetime.now()
     s3, iam, region = get_s3_iam_client(os.environ.get("AWS_ACCESS_KEY_ID"), os.environ.get("AWS_SECRET_ACCESS_KEY"), os.environ.get("AWS_REGION"))
     s3["client"].create_bucket(
@@ -80,7 +94,7 @@ def take_user_info_and_generate_api(model_filepath, model_type, categorical,labe
     #tab_imports ='./tabular_imports.pkl'
     #img_imports ='./image_imports.pkl'
     file_extension = _get_extension_from_filepath(Filepath)
-    unique_model_id = str(uuid.uuid1().hex)
+    unique_model_id = str(api_id)
     file_key, versionfile_key = _get_predictionmodel_key(
         unique_model_id, file_extension)
     try:
@@ -133,7 +147,7 @@ def take_user_info_and_generate_api(model_filepath, model_type, categorical,labe
 
     #headers = {'content-type': 'application/json'}
     apiurl = create_prediction_api(model_filepath, unique_model_id,
-                                   model_type, categorical, labels)
+                                   model_type, categorical, labels,api_id)
 
     finalresult = [apiurl["body"], apiurl["statusCode"],
                    now, unique_model_id, os.environ.get("BUCKET_NAME"), input_shape]
