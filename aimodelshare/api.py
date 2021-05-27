@@ -74,6 +74,10 @@ def create_prediction_api(model_filepath, unique_model_id, model_type,categorica
             model_layer = "arn:aws:lambda:us-east-1:517169013426:layer:videolayer:3"
             eval_layer ="arn:aws:lambda:us-east-1:517169013426:layer:tabular_cloudpicklelayer:1"
             auth_layer ="arn:aws:lambda:us-east-1:517169013426:layer:aimsauth_layer:2"
+    elif model_type.lower() == 'custom':
+            model_layer = "arn:aws:lambda:us-east-1:517169013426:layer:videolayer:3"
+            eval_layer ="arn:aws:lambda:us-east-1:517169013426:layer:tabular_cloudpicklelayer:1"
+            auth_layer ="arn:aws:lambda:us-east-1:517169013426:layer:aimsauth_layer:2"
     else :
         print("no matching model data type to load correct python package zip file (lambda layer)")
 
