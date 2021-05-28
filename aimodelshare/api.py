@@ -8,10 +8,11 @@ import zipfile
 import shutil
 import time
 import functools
+import requests
 from zipfile import ZipFile, ZIP_STORED, ZipInfo
 import shutil
 
-def create_prediction_api(model_filepath, unique_model_id, model_type,categorical, labels):
+def create_prediction_api(model_filepath, unique_model_id, model_type,categorical, labels, apiid):
     from zipfile import ZipFile
     import zipfile
     import tempfile
@@ -75,9 +76,10 @@ def create_prediction_api(model_filepath, unique_model_id, model_type,categorica
             eval_layer ="arn:aws:lambda:us-east-1:517169013426:layer:tabular_cloudpicklelayer:1"
             auth_layer ="arn:aws:lambda:us-east-1:517169013426:layer:aimsauth_layer:2"
     elif model_type.lower() == 'custom':
-            model_layer = "arn:aws:lambda:us-east-1:517169013426:layer:videolayer:3"
-            eval_layer ="arn:aws:lambda:us-east-1:517169013426:layer:tabular_cloudpicklelayer:1"
-            auth_layer ="arn:aws:lambda:us-east-1:517169013426:layer:aimsauth_layer:2"
+        model_layer = "arn:aws:lambda:us-east-1:517169013426:layer:videolayer:3"
+        eval_layer ="arn:aws:lambda:us-east-1:517169013426:layer:tabular_cloudpicklelayer:1"
+        auth_layer ="arn:aws:lambda:us-east-1:517169013426:layer:aimsauth_layer:2"
+
     else :
         print("no matching model data type to load correct python package zip file (lambda layer)")
 
@@ -178,7 +180,7 @@ def create_prediction_api(model_filepath, unique_model_id, model_type,categorica
             t = Template(data)
             newdata = t.substitute(
                 bucket_name=os.environ.get("BUCKET_NAME"), unique_model_id=unique_model_id, labels=labels)
-    
+                
     if model_type.lower() == 'custom':
         with open("custom_lambda.py", 'r') as in_file:     
             newdata = in_file.read() 
@@ -188,6 +190,7 @@ def create_prediction_api(model_filepath, unique_model_id, model_type,categorica
         nt = t.substitute(bucket_name=os.environ.get("BUCKET_NAME"), unique_model_id=unique_model_id, labels=labels)
         with open(os.path.join('file_objects', 'lambda_api.py'), 'w') as file:
             file.write(nt)
+
 
     with open(os.path.join('file_objects', 'model.py'), 'w') as file:
         file.write(newdata)
@@ -379,7 +382,7 @@ def create_prediction_api(model_filepath, unique_model_id, model_type,categorica
     #                                          }, Timeout=10, MemorySize=512, Layers=layers)  # ADD ANOTHER LAYER ARN .. THE ONE SPECIFIC TO MODEL TYPE
 
     from aimodelshare import deploy_container
-    response6 = deploy_container(account_number, os.environ.get("AWS_REGION"), user_session, lambdafxnname, 'file_objects', 'requirements.txt')
+    response6 = deploy_container(account_number, os.environ.get("AWS_REGION"), user_session, lambdafxnname, 'file_objects', 'requirements.txt',apiid)
 
     response6evalfxn = lambdaclient.create_function(FunctionName=lambdaevalfxnname, Runtime='python3.6', Role='arn:aws:iam::'+account_number+':role/'+lambdarolename, Handler='main.handler',
                                           Code={
@@ -398,20 +401,11 @@ def create_prediction_api(model_filepath, unique_model_id, model_type,categorica
     api_name = 'modapi'+str(random.randint(1, 1000000))	
 
     # Update note:  change apiname in apijson from modapi890799 to randomly generated apiname?  or aimodelshare generic name?
-    api_json= get_api_json()
 
     user_client = boto3.client('apigateway', aws_access_key_id=str(
         os.environ.get("AWS_ACCESS_KEY_ID")), aws_secret_access_key=str(os.environ.get("AWS_SECRET_ACCESS_KEY")), region_name=str(os.environ.get("AWS_REGION")))
 
-    response2 = user_client.import_rest_api(
-        failOnWarnings=True,
-        parameters={
-            'endpointConfigurationTypes': 'REGIONAL'
-        },
-        body=api_json
-    )
-
-    api_id = response2['id']
+    api_id = apiid
 
     # Update note:  dyndb data to add.  api_id and resourceid "Resource": "arn:aws:execute-api:us-east-1:517169013426:iu3q9io652/prod/OPTIONS/m"
 
@@ -965,6 +959,129 @@ def get_api_json():
                 '''
     return apijson
 
+
+
+    
+def delete_deployment(apiurl):
+    """
+    apiurl: string of API URL the user wishes to delete
+
+    WARNING: User must supply high-level credentials in order to delete an API. 
+    """
+    from aimodelshare.aws import run_function_on_lambda
+    
+    # Provide Warning & Have user confirm deletion 
+    print("Running this function will permanently delete all resources tied to this deployment, including the eval lambda and all models submitted to the model competition.")
+    confirmation = input(prompt="To confirm, type 'permanently delete':")
+    if confirmation.lower() == "permanently delete":
+        pass
+    else:
+        return  
+
+    # Confirm that creds are loaded, print warning if not
+    if all(["AWS_ACCESS_KEY_ID" in os.environ, 
+            "AWS_SECRET_ACCESS_KEY" in os.environ,
+            "AWS_REGION" in os.environ,
+           "username" in os.environ, 
+           "password" in os.environ]):
+        pass
+    else:
+        return print("'Delete Deployment' unsuccessful. Please provide credentials with set_credentials().")
+    
+    # get api_id from apiurl
+    api_url_trim = apiurl.split('https://')[1]
+    api_id = api_url_trim.split(".")[0]
+
+    # Create User Session
+    user_sess = boto3.session.Session(aws_access_key_id=os.environ.get('AWS_ACCESS_KEY_ID'), 
+                                      aws_secret_access_key=os.environ.get('AWS_SECRET_ACCESS_KEY'), 
+                                      region_name=os.environ.get('AWS_REGION'))
+    
+    s3 = user_sess.resource('s3')
+
+    # Get bucket and model_id subfolder for user based on apiurl {{{
+    response, error = run_function_on_lambda(
+        apiurl, **{"delete": "FALSE", "versionupdateget": "TRUE"}
+    )
+    if error is not None:
+        raise error
+
+    _, api_bucket, model_id = json.loads(response.content.decode("utf-8"))
+    # }}} 
+
+    #Confirm username in bucket name
+    ## TODO: Update this check to more secure process
+    if os.environ.get("username").lower() in api_bucket:
+        pass
+    else:
+        print("Permission denied. Please provide credentials that allow administrator access to this api.")
+        return
+
+    # delete s3 folder
+    bucket = s3.Bucket(api_bucket)
+    bucket.objects.filter(Prefix= model_id+'/').delete() 
+
+    # get api resources
+    api = user_sess.client('apigateway')
+    resources = api.get_resources(
+        restApiId=api_id
+        )
+
+    #get lambda arns 
+    lambda_arns = list()
+    for i in range(len(resources['items'])):
+        if len(resources['items'][i]) > 2: 
+            resource_id = resources['items'][i]['id']
+            integration = api.get_integration(
+                restApiId=api_id,
+                resourceId=resource_id,
+                httpMethod='POST'
+            )
+            uri=integration['uri']
+            ans1=uri.split('functions/')
+            lambda_arn = ans1[1].split('/invocations')[0]
+            lambda_arns.append(lambda_arn)
+    else: 
+        pass 
+
+    # get authorizer arn 
+    authorizers = api.get_authorizers(
+                  restApiId=api_id
+                  )
+
+    authorizer_full_arn=authorizers['items'][0]['authorizerUri']
+    ans1=authorizer_full_arn.split('functions/')
+    auth_arn = ans1[1].split('/invocations')[0]
+    lambda_arns.append(auth_arn)
+
+    # delete lambdas & authorizer
+    client = boto3.client('lambda', region_name=os.environ.get("AWS_REGION"))
+    for arn in lambda_arns:
+        lambda_response = client.delete_function(
+            FunctionName = arn
+        )
+
+    # delete api
+    client = boto3.client('apigateway', region_name=os.environ.get("AWS_REGION"))
+    api_response = client.delete_rest_api(
+        restApiId=api_id
+    )
+
+    # delete api page on front end
+    bodydata = {'apiurl': apiurl,
+                'delete': "TRUE"
+                }
+    headers_with_authentication = {'Content-Type': 'application/json', 'authorizationToken': os.environ.get("JWT_AUTHORIZATION_TOKEN"), 'Access-Control-Allow-Headers':
+                                   'Content-Type,X-Amz-Date,authorizationToken,Access-Control-Allow-Origin,X-Api-Key,X-Amz-Security-Token,Authorization', 'Access-Control-Allow-Origin': '*'}
+
+    requests.post("https://bhrdesksak.execute-api.us-east-1.amazonaws.com/dev/modeldata",
+                  json=bodydata, headers=headers_with_authentication)
+
+    return "API deleted successfully."
+
+
 __all__ = [
     get_api_json,
+    create_prediction_api,
+    delete_deployment
 ]
