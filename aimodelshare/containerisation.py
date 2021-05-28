@@ -9,9 +9,10 @@ import time
 import importlib.resources as pkg_resources
 from string import Template
 
-def deploy_container(account_id, region, session, project_name, model_dir, requirements_file_path, memory_size='1024', timeout='30', python_version='3.7'):
+def deploy_container(account_id, region, session, project_name, model_dir, requirements_file_path, apiid, memory_size='1024', timeout='30', python_version='3.7'):
 
-    codebuild_bucket_name=project_name+'-codebuild-bucket' # s3 bucket name to create
+    codebuild_bucket_name=os.environ.get("BUCKET_NAME") # s3 bucket name to create  #TODO: use same bucket and subfolder we used previously to store this data
+                                                                                       #Why?  AWS limits users to 100 total buckets!  Our old code only creates one per user per acct.
 
     repository=project_name+'-repository' # repository name to create
 
@@ -156,21 +157,19 @@ def deploy_container(account_id, region, session, project_name, model_dir, requi
     s3_client = session.client('s3')
     s3_client.upload_file(''.join([template_folder, '.zip']),
                           codebuild_bucket_name,
-                          ''.join([template_folder, '.zip']))
+                          ''.join([apiid,'/',template_folder, '.zip']))
                           
     codebuild = session.client('codebuild')
-
-    time.sleep(10)
-
+    time.sleep(15)
     response = codebuild.create_project(
         name=codebuild_project_name,
         source={
             'type': 'S3',
-            'location': codebuild_bucket_name + '/' + project_name + '.zip'
+            'location': codebuild_bucket_name + '/'  + apiid+ '/' + project_name + '.zip'
         },
         artifacts={
             'type': 'S3',
-            'location': codebuild_bucket_name
+            'location': codebuild_bucket_name 
         },
         environment={
             'type': 'LINUX_CONTAINER',
@@ -192,5 +191,6 @@ def deploy_container(account_id, region, session, project_name, model_dir, requi
             buildSucceeded = True
             break
         elif buildStatus == 'FAILED' or buildStatus == 'FAULT' or buildStatus == 'STOPPED' or buildStatus == 'TIMED_OUT':
+            print("container failed to build on codebuild "+buildStatus)
             break
         time.sleep(10)
