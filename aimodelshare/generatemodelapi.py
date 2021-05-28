@@ -159,7 +159,8 @@ def send_model_data_to_dyndb_and_return_api(api_info, private, categorical, prep
     print (api_info) : statements with the generated live prediction API information for the user
 
     """
-    print("We need some information about your model before we can generate your API.  Please enter a name for your model, describe what your model does, and describe how well your model predicts new data.")
+    
+    print("We need some information about your model before we can generate your API. \n Please enter a name for your model, describe what your model does, and describe how well your model predicts new data.")
     print("   ")
     aishare_modelname = input("Enter model name:")
     aishare_modeldescription = input("Enter model description:")
