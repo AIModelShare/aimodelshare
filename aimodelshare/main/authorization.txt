@@ -67,7 +67,7 @@ def handler(event, context):
                          json={"apiid": str(policy.restApiId)}, headers=headers_with_authentication)
     print(response.status_code)
     print(response.text)
-    if any([response.status_code!=200,response.text.find("Missing")>0,response.text.find("Monthly")>0]):
+    if any([response.status_code!=200,response.text.find("Missing")>0,response.text.find("Monthly")>0,response.text.find("monthly")>0]):
         policyresult="deny"
     else:
         policyresult="accept"
