@@ -303,7 +303,7 @@ def model_to_api(model_filepath, model_type, private, categorical, trainingdata,
         api_info, private, categorical,preprocessor_filepath, variablename_and_type_data)
     return print_api_info
 
-def create_competition(apiurl, y_test, generate_file = True):
+def create_competition(apiurl, y_test, generate_credentials_file = True):
     """
     Creates a model competition for a deployed prediction REST API
     Inputs : 2
@@ -319,8 +319,8 @@ def create_competition(apiurl, y_test, generate_file = True):
             [REQUIRED] for eval metrics
             expects a one hot encoded y test data format
 
-    generate_file (OPTIONAL): Default is True
-                              Function will output .txt file with new credentials
+    generate_credentials_file (OPTIONAL): Default is True
+                                          Function will output .txt file with new credentials
     ---------
     Returns
     finalresultteams3info : Submit_model credentials with access to S3 bucket
@@ -404,7 +404,7 @@ def create_competition(apiurl, y_test, generate_file = True):
     file_generated_message = ("These credentials have been saved as: " + txt_file_name + ".")
 
     # Generate .txt file with new credentials 
-    if generate_file == True:
+    if generate_credentials_file == True:
         final_message = final_message + file_generated_message
 
         f= open(txt_file_name,"w+")
