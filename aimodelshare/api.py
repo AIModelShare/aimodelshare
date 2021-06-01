@@ -955,7 +955,7 @@ def delete_deployment(apiurl):
     from aimodelshare.aws import run_function_on_lambda
     
     # Provide Warning & Have user confirm deletion 
-    print("Running this function will permanently delete all resources tied to this deployment, including the eval lambda and all models submitted to the model competition.")
+    print("Running this function will permanently delete all resources tied to this deployment, \n including the eval lambda and all models submitted to the model competition.\n")
     confirmation = input(prompt="To confirm, type 'permanently delete':")
     if confirmation.lower() == "permanently delete":
         pass
