@@ -346,7 +346,7 @@ def model_to_api(model_filepath, model_type, private, categorical, trainingdata,
 
 
 def deploy_custom_lambda(lambda_filepath, deployment_dir, private, categorical=False, x_train=None, y_train=None, y_test=None):
-    if categorical:
+    if categorical.upper() == "TRUE":
         try:
             labels = y_train.columns.tolist()
         except:
