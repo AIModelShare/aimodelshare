@@ -12,16 +12,15 @@ def load_model(filename="runtime_model.onnx", filetype='onnx'):
     model = None
     if filetype.lower() == 'onnx':
         model = rt.InferenceSession(os.path.join('/tmp/', filename))
-    elif filetype.lower() == 'pkl':
-        with open(os.path.join('/tmp/', filename), 'rb') as f:
-            model = pickle.load(f)
+    elif filetype.lower() == 'pickle':
+        model = pickle.load(open(os.path.join('/tmp/', filename), 'rb'))
     else:
-        raise ValueError('Incorrect model file type. Must be onnx or pkl')
+        raise ValueError("Incorrect model file type. Must be 'onnx' or 'pickle'")
     return model
 
 
-# For backwards compatibility with modeltoapi(type='custom')
 
+# For backwards compatibility with modeltoapi(type='custom')
 
 s3 = boto3.resource("s3")
 

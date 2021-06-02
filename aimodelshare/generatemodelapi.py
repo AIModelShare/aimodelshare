@@ -356,6 +356,10 @@ def deploy_custom_lambda(lambda_filepath, deployment_dir, private, categorical=F
         shutil.rmtree('file_objects')
     os.mkdir('file_objects')
    
+    if lambda_filepath != 'custom_lambda.py':    # rename for consistency with api.py
+        with open(lambda_filepath, 'r') as in_f:
+            with open('custom_lamba.py', 'w') as out_f:
+                out_f.write(in_f.read())
 
     # Store user info in file_paths
     for root, directories, files in os.walk(deployment_dir):
