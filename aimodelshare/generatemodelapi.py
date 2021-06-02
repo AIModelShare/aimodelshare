@@ -366,7 +366,7 @@ def deploy_custom_lambda(lambda_filepath, deployment_dir, private, categorical=F
         for filename in files:
             filepath = os.path.join(root, filename)
             with open(filepath, 'r') as in_f:
-                with open(os.join('file_objects', filepath[len(deployment_dir):]), 'w') as out_f:
+                with open(os.path.join('file_objects', filepath[len(deployment_dir):]), 'w') as out_f:
                     out_f.write(in_f.read())
 
     api_json= get_api_json()
