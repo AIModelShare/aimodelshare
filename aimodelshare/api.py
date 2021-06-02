@@ -365,13 +365,14 @@ def create_prediction_api(model_filepath, unique_model_id, model_type,categorica
     #                                              'S3Key':  unique_model_id+"/"+'archivetest.zip'
     #                                          }, Timeout=10, MemorySize=512, Layers=layers)  # ADD ANOTHER LAYER ARN .. THE ONE SPECIFIC TO MODEL TYPE
 
-    # if want to use base image, un-comment following two lines and comment two lines after that
+    image_type = input("Enter image type (base/custom):")
     
-    from aimodelshare import base_image
-    response6 = lambda_using_base_image(account_number, os.environ.get("AWS_REGION"), user_session, lambdafxnname, 'file_objects', 'requirements.txt',apiid)
-
-    #from aimodelshare import deploy_container
-    #response6 = deploy_container(account_number, os.environ.get("AWS_REGION"), user_session, lambdafxnname, 'file_objects', 'requirements.txt',apiid)
+    if(image_type=='base'):
+        from aimodelshare import base_image
+        response6 = lambda_using_base_image(account_number, os.environ.get("AWS_REGION"), user_session, lambdafxnname, 'file_objects', 'requirements.txt',apiid)
+    else if(image_type=='custom'):
+        from aimodelshare import deploy_container
+        response6 = deploy_container(account_number, os.environ.get("AWS_REGION"), user_session, lambdafxnname, 'file_objects', 'requirements.txt',apiid)
 
     response6evalfxn = lambdaclient.create_function(FunctionName=lambdaevalfxnname, Runtime='python3.6', Role='arn:aws:iam::'+account_number+':role/'+lambdarolename, Handler='main.handler',
                                           Code={
