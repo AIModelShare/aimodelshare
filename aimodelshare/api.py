@@ -109,9 +109,10 @@ def create_prediction_api(model_filepath, unique_model_id, model_type,categorica
 
     from . import main  # relative-import the *package* containing the templates
 
-    if os.path.exists('file_objects'):
-        shutil.rmtree('file_objects')
-    os.mkdir('file_objects')
+    if model_type.lower() != "custom":  # file_objects already initialized if custom
+        if os.path.exists('file_objects'):
+            shutil.rmtree('file_objects')
+        os.mkdir('file_objects')
 
     requirements = input("Enter all libraries requires separated by comma:")
 
@@ -127,7 +128,7 @@ def create_prediction_api(model_filepath, unique_model_id, model_type,categorica
     if model_type == 'text' and categorical == 'TRUE':
             data = pkg_resources.read_text(main, '1.txt')
             from string import Template
-            t = Template(data)
+            t = Template(data), 
             newdata = t.substitute(
                 bucket_name=os.environ.get("BUCKET_NAME"), unique_model_id=unique_model_id, labels=labels)
     elif model_type == 'text' and categorical == 'FALSE':

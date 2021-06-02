@@ -6,17 +6,31 @@ import os
 import onnxruntime as rt
 import json
 
-s3 = boto3.resource("s3")
 labels = "$labels"
 
-def load_onnx_model(filename="runtime_model.onnx"):
-    bucket = s3.Bucket("$bucket_name")
-
-    with open("/tmp/"+filename, "wb") as f:
-        bucket.download_fileobj("$unique_model_id/"+filename,  f)
-    model = rt.InferenceSession("/tmp/"+filename)
-
+def load_model(filename="runtime_model.onnx", filetype='onnx'):
+    model = None
+    if filetype.lower() == 'onnx':
+        model = rt.InferenceSession(os.path.join('/tmp/', filename))
+    elif filetype.lower() == 'pkl':
+        with open(os.path.join('/tmp/', filename), 'rb') as f:
+            model = pickle.load(f)
+    else:
+        raise ValueError('Incorrect model file type. Must be onnx or pkl')
     return model
+
+
+# For backwards compatibility with modeltoapi(type='custom')
+
+
+s3 = boto3.resource("s3")
+
+def load_onnx_model(filename="runtime_model.onnx"):
+    s3 = boto3.resource('s3')
+    obj = s3.Object("$bucket_name", "$unique_model_id" +filename)
+    model = rt.InferenceSession(obj.get()['Body'].read())
+    return model
+
 
 def get_runtimedata(runtimedata_s3_filename="runtime_data.json"):
     s3 = boto3.resource('s3')
