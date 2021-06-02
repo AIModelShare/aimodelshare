@@ -380,6 +380,8 @@ def deploy_custom_lambda(lambda_filepath, deployment_dir, private, categorical=F
         body = api_json
     )
 
+    start = datetime.datetime.now()  # start API creation timer
+
     api_id = response2['id']
     now = datetime.datetime.now()
     s3, iam, region = get_s3_iam_client(os.environ.get("AWS_ACCESS_KEY_ID"), os.environ.get("AWS_SECRET_ACCESS_KEY"), os.environ.get("AWS_REGION"))
@@ -425,8 +427,8 @@ def deploy_custom_lambda(lambda_filepath, deployment_dir, private, categorical=F
     # modeltoapi lambda function invoked through below url to return new prediction api in response
     requests.post("https://bhrdesksak.execute-api.us-east-1.amazonaws.com/dev/modeldata",
                   json=bodydata, headers=headers_with_authentication)
-    start = apiurl['statusCode']
-    end = datetime.datetime.now()
+
+    end = datetime.datetime.now()    # end timer
     difference = (end - start).total_seconds()
     finalresult2 = "Your AI Model Share API was created in " + \
         str(int(difference)) + " seconds." + " API Url: " + apiurl['body']
