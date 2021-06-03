@@ -11,7 +11,7 @@ import functools
 import requests
 from zipfile import ZipFile, ZIP_STORED, ZipInfo
 import shutil
-from aimodelshare.baseimage import lambda_using_base_image
+from aimodelshare.base_image import lambda_using_base_image
 
 def create_prediction_api(model_filepath, unique_model_id, model_type,categorical, labels, apiid):
     from zipfile import ZipFile
