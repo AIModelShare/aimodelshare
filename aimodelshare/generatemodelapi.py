@@ -305,7 +305,7 @@ def model_to_api(model_filepath, model_type, private, categorical, trainingdata,
     else:
         labels = "no data"
     api_info = take_user_info_and_generate_api( 
-        model_filepath, model_type, categorical, labels,preprocessor_filepath)
+        model_filepath, model_type, categorical, labels,preprocessor_filepath,custom_libraries)
     print_api_info = send_model_data_to_dyndb_and_return_api(
         api_info, private, categorical,preprocessor_filepath, variablename_and_type_data)
     return print_api_info
