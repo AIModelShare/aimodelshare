@@ -236,7 +236,7 @@ def send_model_data_to_dyndb_and_return_api(api_info, private, categorical, prep
     return print(finalresult2)
 
 
-def model_to_api(model_filepath, model_type, private, categorical, trainingdata, y_train,preprocessor_filepath,custom_libraries=="FALSE"):
+def model_to_api(model_filepath, model_type, private, categorical, trainingdata, y_train,preprocessor_filepath,custom_libraries="FALSE"):
     """
       Launches a live prediction REST API for deploying ML models using model parameters and user credentials, provided by the user
       Inputs : 8
