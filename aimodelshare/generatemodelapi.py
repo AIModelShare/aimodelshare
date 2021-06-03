@@ -21,7 +21,7 @@ from aimodelshare.preprocessormodules import upload_preprocessor
 from aimodelshare.model import _get_predictionmodel_key, _extract_model_metadata
 
 
-def take_user_info_and_generate_api(model_filepath, model_type, categorical,labels, preprocessor_filepath):
+def take_user_info_and_generate_api(model_filepath, model_type, categorical,labels, preprocessor_filepath,custom_libraries):
     """
     Generates an api using model parameters and user credentials, from the user
 
@@ -48,6 +48,10 @@ def take_user_info_and_generate_api(model_filepath, model_type, categorical,labe
     labels:   list
             value - labels for training data
             can be extracted from columns of y train or can be provided by the user
+    custom_libraries:   string
+                  "TRUE" if user wants to load custom Python libraries to their prediction runtime
+                  "FALSE" if user wishes to use AI Model Share base libraries including latest versions of most common ML libs.
+     
 
     -----------
     Returns
