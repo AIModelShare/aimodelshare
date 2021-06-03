@@ -9,11 +9,12 @@ import shutil
 import time
 import functools
 import requests
+import sys
 from zipfile import ZipFile, ZIP_STORED, ZipInfo
 import shutil
 from aimodelshare.base_image import lambda_using_base_image
 
-def create_prediction_api(model_filepath, unique_model_id, model_type,categorical, labels, apiid,custom_libraries):
+def create_prediction_api(model_filepath, unique_model_id, model_type,categorical, labels, apiid,custom_libraries, requirements):
     from zipfile import ZipFile
     import zipfile
     import tempfile
@@ -357,13 +358,18 @@ def create_prediction_api(model_filepath, unique_model_id, model_type,categorica
     #                                              'S3Key':  unique_model_id+"/"+'archivetest.zip'
     #                                          }, Timeout=10, MemorySize=512, Layers=layers)  # ADD ANOTHER LAYER ARN .. THE ONE SPECIFIC TO MODEL TYPE
 
+
+    ### Progress Update #3/6 {{{
+    sys.stdout.write('\r')
+    sys.stdout.write("[============                         ] Progress: 40% - Creating custom containers...                        ")
+    sys.stdout.flush()
+    # }}}
+
     
     if(any([custom_libraries=='FALSE',custom_libraries=='false'])):
         from aimodelshare import base_image
         response6 = lambda_using_base_image(account_number, os.environ.get("AWS_REGION"), user_session, lambdafxnname, 'file_objects', 'requirements.txt',apiid)
     elif(any([custom_libraries=='TRUE',custom_libraries=='true'])):
-        
-        requirements = input("Enter all required Python libraries you need at prediction runtime separated by a comma:")
 
         requirements = requirements.split(",")
         for i in range(len(requirements)):
@@ -386,6 +392,13 @@ def create_prediction_api(model_filepath, unique_model_id, model_type,categorica
                                               'S3Bucket': os.environ.get("BUCKET_NAME"),
                                               'S3Key':  unique_model_id+"/"+'archiveauth.zip'
                                           }, Timeout=10, MemorySize=512, Layers=[auth_layer])  # ADD ANOTHER LAYER ARN .. THE ONE SPECIFIC TO MODEL TYPE
+
+    ### Progress Update #4/6 {{{
+    sys.stdout.write('\r')
+    sys.stdout.write("[==========================           ] Progress: 75% - Deploying prediction API...                          ")
+    sys.stdout.flush()
+    # }}}
+
 
     #add create api about here
     #TODO: 
