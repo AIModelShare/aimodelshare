@@ -12,7 +12,7 @@ import requests
 from zipfile import ZipFile, ZIP_STORED, ZipInfo
 import shutil
 
-def create_prediction_api(model_filepath, unique_model_id, model_type,categorical, labels, apiid):
+def create_prediction_api(model_filepath, unique_model_id, model_type,categorical, labels, apiid, loading_option, requirements):
     from zipfile import ZipFile
     import zipfile
     import tempfile
@@ -107,8 +107,6 @@ def create_prediction_api(model_filepath, unique_model_id, model_type,categorica
     if os.path.exists('file_objects'):
         shutil.rmtree('file_objects')
     os.mkdir('file_objects')
-
-    requirements = input("Enter all libraries requires separated by comma:")
 
     requirements = requirements.split(",")
     for i in range(len(requirements)):
@@ -365,6 +363,23 @@ def create_prediction_api(model_filepath, unique_model_id, model_type,categorica
     #                                              'S3Key':  unique_model_id+"/"+'archivetest.zip'
     #                                          }, Timeout=10, MemorySize=512, Layers=layers)  # ADD ANOTHER LAYER ARN .. THE ONE SPECIFIC TO MODEL TYPE
 
+
+     ############################
+    if loading_option == "Option_A":
+        from datetime import datetime
+        import sys
+        newnow = datetime.now()
+        current_time = newnow.strftime("%H:%M:%S")
+        print("Creating custom containers... (Progress: 40%) \n Current Time =", current_time)
+
+    if loading_option == "Option_B":
+        import sys
+        sys.stdout.write('\r')
+        sys.stdout.write("[============                       ] Progress: 40%")
+        sys.stdout.flush()
+    ############################
+
+    
     from aimodelshare import deploy_container
     response6 = deploy_container(account_number, os.environ.get("AWS_REGION"), user_session, lambdafxnname, 'file_objects', 'requirements.txt',apiid)
 
@@ -379,6 +394,21 @@ def create_prediction_api(model_filepath, unique_model_id, model_type,categorica
                                               'S3Bucket': os.environ.get("BUCKET_NAME"),
                                               'S3Key':  unique_model_id+"/"+'archiveauth.zip'
                                           }, Timeout=10, MemorySize=512, Layers=[auth_layer])  # ADD ANOTHER LAYER ARN .. THE ONE SPECIFIC TO MODEL TYPE
+
+    ############################
+    if loading_option == "Option_A":
+        from datetime import datetime
+        newnow = datetime.now()
+        current_time = newnow.strftime("%H:%M:%S")
+        print("Deploying prediction API... (Progress: 75%) \n Current Time =", current_time)
+
+    if loading_option == "Option_B":
+        import sys
+        sys.stdout.write('\r')
+        sys.stdout.write("[========================             ] Progress: 75%")
+        sys.stdout.flush()
+    ############################
+    
 
     #add create api about here
     #TODO: 

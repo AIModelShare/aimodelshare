@@ -21,7 +21,7 @@ from aimodelshare.preprocessormodules import upload_preprocessor
 from aimodelshare.model import _get_predictionmodel_key, _extract_model_metadata
 
 
-def take_user_info_and_generate_api(model_filepath, model_type, categorical,labels, preprocessor_filepath):
+def take_user_info_and_generate_api(model_filepath, model_type, categorical,labels, preprocessor_filepath, loading_option, requirements):
     """
     Generates an api using model parameters and user credentials, from the user
 
@@ -136,15 +136,32 @@ def take_user_info_and_generate_api(model_filepath, model_type, categorical,labe
             "There was a problem with model/preprocessor upload. "+str(err))
 
     #headers = {'content-type': 'application/json'}
+
+    ############################
+    if loading_option == "Option_A":
+        import time
+        t = time.localtime()
+        current_time = time.strftime("%H:%M:%S", t)
+        print("Building lambda functions and updating permissions... (Progress: 30%) \n Current Time =", current_time)
+
+    if loading_option == "Option_B":
+        import sys
+        sys.stdout.write('\r')
+        sys.stdout.write("[=========                         ] Progress: 30%")
+        sys.stdout.flush()
+    ############################
+    
     apiurl = create_prediction_api(model_filepath, unique_model_id,
-                                   model_type, categorical, labels,api_id)
+                                   model_type, categorical, labels,api_id, loading_option, requirements)
 
     finalresult = [apiurl["body"], apiurl["statusCode"],
                    now, unique_model_id, os.environ.get("BUCKET_NAME"), input_shape]
     return finalresult
 
 
-def send_model_data_to_dyndb_and_return_api(api_info, private, categorical, preprocessor_filepath, variablename_and_type_data="default"):
+def send_model_data_to_dyndb_and_return_api(loading_option, api_info, private, categorical, preprocessor_filepath,
+                                            aishare_modelname, aishare_modeldescription, aishare_modeltype, aishare_modelevaluation,
+                                            aishare_tags, aishare_apicalls, variablename_and_type_data="default"):
     """
     Updates dynamodb with model data taken as input from user along with already generated api info
     -----------
@@ -173,19 +190,7 @@ def send_model_data_to_dyndb_and_return_api(api_info, private, categorical, prep
     print (api_info) : statements with the generated live prediction API information for the user
 
     """
-    
-    print("We need some information about your model before we can generate your API. \n Please enter a name for your model, describe what your model does, and describe how well your model predicts new data.")
-    print("   ")
-    aishare_modelname = input("Enter model name:")
-    aishare_modeldescription = input("Enter model description:")
-    aishare_modeltype = input(
-        "Enter model category (i.e.- Text, Image, Audio, Video, or TimeSeries Data:")
-    aishare_modelevaluation = input(
-        "Enter evaluation of how well model predicts new data:")
-    aishare_tags = input(
-        "Enter search categories that describe your model (separate with commas):")
-    aishare_apicalls = 0
-    print("   ")
+        
     # unpack user credentials
     unique_model_id = api_info[3]
     bucket_name = api_info[4]
@@ -229,10 +234,16 @@ def send_model_data_to_dyndb_and_return_api(api_info, private, categorical, prep
     finalresult2 = "Your AI Model Share API was created in " + \
         str(int(difference)) + " seconds." + " API Url: " + api_info[0]
 
+    if loading_option == "Option_B":
+        import sys
+        sys.stdout.write('\r')
+        sys.stdout.write("[====================================] Progress: 100% \n")
+        sys.stdout.flush()
+
     return print(finalresult2)
 
 
-def model_to_api(model_filepath, model_type, private, categorical, trainingdata, y_train,preprocessor_filepath):
+def model_to_api(model_filepath, model_type, private, categorical, trainingdata, y_train,preprocessor_filepath, loading_option):
     """
       Launches a live prediction REST API for deploying ML models using model parameters and user credentials, provided by the user
       Inputs : 8
@@ -282,8 +293,31 @@ def model_to_api(model_filepath, model_type, private, categorical, trainingdata,
     #  1. take_user_info_and_generate_api : to upload model/preprocessor and generate an api for model submitted by user
     #  2. send_model_data_to_dyndb_and_return_api : to add new record to database with user data, model and api related information
 
+    print("We need some information about your model before we can build your API.")
     print("   ")
-    print("Creating your prediction API. (Process typically takes less than one minute)...")
+    requirements = input("Enter all libraries required (separate with commas):")
+    aishare_modelname = input("Enter model name:")
+    aishare_modeldescription = input("Enter model description:")
+    aishare_modeltype = input(
+        "Enter model category (i.e.- Text, Image, Audio, Video, or TimeSeries Data:")
+    aishare_modelevaluation = input(
+        "Enter evaluation of how well model predicts new data:")
+    aishare_tags = input(
+        "Enter search categories that describe your model (separate with commas):")
+    aishare_apicalls = 0
+    print("   ")
+
+    if loading_option == "Option_A":
+        print("Creating your prediction API.  (This process may take several minutes.)")
+    if loading_option == "Option_B":
+        print("Creating your prediction API.  (This process may take several minutes \n while a customized container is built, model artifacts are uploaded \n to Amazon Web Services, policies are created, and a web dashboard is built.) \n")
+
+    from time import sleep
+    from rich.console import Console
+
+    console = Console()
+    tasks = [f"task {n}" for n in range(1, 11)]
+
     variablename_and_type_data = None
     private = str(private).upper()
     categorical = str(categorical).upper()
@@ -297,11 +331,45 @@ def model_to_api(model_filepath, model_type, private, categorical, trainingdata,
             labels = list(set(y_train.to_frame()['tags'].tolist()))
     else:
         labels = "no data"
+        
+     ############################
+    if loading_option == "Option_A":
+        from datetime import datetime
+        starting_time = datetime.now()
+        starting_time = starting_time.strftime("%H:%M:%S")
+        print("\nAccessing Amazon Web Services, uploading resources... (Progress: 5%) \n Current Time =", starting_time)
+
+    if loading_option == "Option_B":
+        import sys
+        sys.stdout.write("[===                           ] Progress: 5%")
+        sys.stdout.flush()
+    ############################
+
     api_info = take_user_info_and_generate_api( 
-        model_filepath, model_type, categorical, labels,preprocessor_filepath)
-    print_api_info = send_model_data_to_dyndb_and_return_api(
-        api_info, private, categorical,preprocessor_filepath, variablename_and_type_data)
+        model_filepath, model_type, categorical, labels,preprocessor_filepath, loading_option, requirements)
+    
+
+     ############################
+    if loading_option == "Option_A":
+        from datetime import datetime
+        newnow = datetime.now()
+        newnow = newnow.strftime("%H:%M:%S")
+        print("Finishing web dashboard... (Progress: 90%) \n Current Time =", newnow, "\n")
+
+    if loading_option == "Option_B":
+        sys.stdout.write('\r')
+        sys.stdout.write("[===============================     ] Progress: 90% \n")
+        sys.stdout.flush()
+    ############################
+
+    print_api_info = send_model_data_to_dyndb_and_return_api(loading_option,
+        api_info, private, categorical,preprocessor_filepath,
+        aishare_modelname, aishare_modeldescription, aishare_modeltype, aishare_modelevaluation,
+        aishare_tags, aishare_apicalls, variablename_and_type_data)
+        
     return print_api_info
+
+
 
 def create_competition(apiurl, y_test, generate_credentials_file = True):
     """
