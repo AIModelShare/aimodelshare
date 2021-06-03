@@ -357,7 +357,7 @@ def create_prediction_api(model_filepath, unique_model_id, model_type,categorica
     #                                              'S3Key':  unique_model_id+"/"+'archivetest.zip'
     #                                          }, Timeout=10, MemorySize=512, Layers=layers)  # ADD ANOTHER LAYER ARN .. THE ONE SPECIFIC TO MODEL TYPE
 
-    image_type = input("Enter 'base' or 'custom': /ni.e.- Use our prebuilt runtime base environment including the latest version of all ML Python libraries \nor add your own custom libraries?")
+    image_type = input(print("Enter 'base' or 'custom': \n'base' adds latest versions of all ML common Python libraries to your prediction runtime\n'custom' lets you add your own custom libraries"))
     
     if(image_type=='base'):
         from aimodelshare import base_image
