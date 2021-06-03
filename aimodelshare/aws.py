@@ -143,6 +143,13 @@ def get_aws_token():
     return response["AuthenticationResult"]["IdToken"]
 
 
+def get_aws_session(aws_key=None, aws_secret=None, aws_region=None):
+    session = boto3.Session(
+        aws_access_key_id=aws_key,
+        aws_secret_access_key=aws_secret,
+        region_name=aws_region
+    )
+
 def get_aws_client(aws_key=None, aws_secret=None, aws_region=None):
     key = aws_key if aws_key is not None else os.environ.get("AWS_ACCESS_KEY_ID")
     secret = (

@@ -340,7 +340,7 @@ def _keras_to_onnx(model, transfer_learning=None,
     model.save(temp_dir)
 
     output_path = os.path.join(temp_dir, 'temp.onnx')
-    modelstringtest="python -m tf2onnx.convert --saved-model "+temp_dir+" --output "+output_path
+    modelstringtest="python -m tf2onnx.convert --saved-model "+temp_dir+" --output "+output_path+" --opset 13"
     os.system(modelstringtest)
     onx = onnx.load(output_path)
 

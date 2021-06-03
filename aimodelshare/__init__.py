@@ -7,7 +7,8 @@ from .aws import get_aws_token, get_aws_client
 from .leaderboard import get_leaderboard, stylize_leaderboard
 from .modeluser import get_jwt_token, create_user_getkeyandpassword
 from .generatemodelapi import model_to_api
-
+from .containerisation import deploy_container
+from .api import create_prediction_api
 
 
 __all__ = [
@@ -31,4 +32,7 @@ __all__ = [
     export_preprocessor,
     # Tools
     get_model_graph,
+    # Containerisation
+    deploy_container,
+    create_prediction_api
 ]
