@@ -312,12 +312,6 @@ def model_to_api(model_filepath, model_type, private, categorical, trainingdata,
     if loading_option == "Option_B":
         print("Creating your prediction API.  (This process may take several minutes \n while a customized container is built, model artifacts are uploaded \n to Amazon Web Services, policies are created, and a web dashboard is built.) \n")
 
-    from time import sleep
-    from rich.console import Console
-
-    console = Console()
-    tasks = [f"task {n}" for n in range(1, 11)]
-
     variablename_and_type_data = None
     private = str(private).upper()
     categorical = str(categorical).upper()
