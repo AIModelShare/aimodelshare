@@ -56,24 +56,24 @@ def create_prediction_api(model_filepath, unique_model_id, model_type,categorica
                                          region_name=os.environ.get("AWS_REGION"))
     if model_type=='image' :
             model_layer ="arn:aws:lambda:us-east-1:517169013426:layer:keras_image:1"
-            eval_layer ="arn:aws:lambda:us-east-1:517169013426:layer:tabular_cloudpicklelayer:1"
+            eval_layer ="arn:aws:lambda:us-east-1:517169013426:layer:eval_layer_test:6"
             auth_layer ="arn:aws:lambda:us-east-1:517169013426:layer:aimsauth_layer:2"
     elif model_type=='text':
             model_layer ="arn:aws:lambda:us-east-1:517169013426:layer:tabular_layer:2"
             keras_layer ='arn:aws:lambda:us-east-1:517169013426:layer:keras_preprocesor:1'
-            eval_layer ="arn:aws:lambda:us-east-1:517169013426:layer:tabular_cloudpicklelayer:1"
+            eval_layer ="arn:aws:lambda:us-east-1:517169013426:layer:eval_layer_test:6"
             auth_layer ="arn:aws:lambda:us-east-1:517169013426:layer:aimsauth_layer:2"
     elif model_type == 'tabular' or model_type =='timeseries':
             model_layer ="arn:aws:lambda:us-east-1:517169013426:layer:tabular_cloudpicklelayer:1"
-            eval_layer ="arn:aws:lambda:us-east-1:517169013426:layer:tabular_cloudpicklelayer:1"
+            eval_layer ="arn:aws:lambda:us-east-1:517169013426:layer:eval_layer_test:6"
             auth_layer ="arn:aws:lambda:us-east-1:517169013426:layer:aimsauth_layer:2"
     elif model_type.lower() == 'audio':
             model_layer = "arn:aws:lambda:us-east-1:517169013426:layer:librosa_nosklearn:9"
-            eval_layer ="arn:aws:lambda:us-east-1:517169013426:layer:tabular_cloudpicklelayer:1"
+            eval_layer ="arn:aws:lambda:us-east-1:517169013426:layer:eval_layer_test:6"
             auth_layer ="arn:aws:lambda:us-east-1:517169013426:layer:aimsauth_layer:2"
     elif model_type.lower() == 'video':
             model_layer = "arn:aws:lambda:us-east-1:517169013426:layer:videolayer:3"
-            eval_layer ="arn:aws:lambda:us-east-1:517169013426:layer:tabular_cloudpicklelayer:1"
+            eval_layer ="arn:aws:lambda:us-east-1:517169013426:layer:eval_layer_test:6"
             auth_layer ="arn:aws:lambda:us-east-1:517169013426:layer:aimsauth_layer:2"
     else :
         print("no matching model data type to load correct python package zip file (lambda layer)")
@@ -210,7 +210,7 @@ def create_prediction_api(model_filepath, unique_model_id, model_type,categorica
 
     # Upload model eval lambda function zipfile to user's model file folder on s3
     if categorical == 'TRUE':
-            data = pkg_resources.read_text(main, 'eval_classification.txt')
+            data = pkg_resources.read_text(main, 'eval_lambda.txt')
             from string import Template
             t = Template(data)
             newdata = t.substitute(
@@ -218,7 +218,7 @@ def create_prediction_api(model_filepath, unique_model_id, model_type,categorica
             with open(os.path.join(temp_dir, 'main.py'), 'w') as file:
                 file.write(newdata)
     elif categorical == 'FALSE':
-            data = pkg_resources.read_text(main, 'eval_regression.txt')
+            data = pkg_resources.read_text(main, 'eval_lambda.txt')
             from string import Template
             t = Template(data)
             newdata = t.substitute(
