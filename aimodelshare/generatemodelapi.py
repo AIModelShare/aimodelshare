@@ -141,7 +141,7 @@ def take_user_info_and_generate_api(model_filepath, model_type, categorical,labe
 
     #headers = {'content-type': 'application/json'}
     apiurl = create_prediction_api(model_filepath, unique_model_id,
-                                   model_type, categorical, labels,api_id)
+                                   model_type, categorical, labels,api_id,custom_libraries)
 
     finalresult = [apiurl["body"], apiurl["statusCode"],
                    now, unique_model_id, os.environ.get("BUCKET_NAME"), input_shape]
