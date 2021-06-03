@@ -358,10 +358,10 @@ def create_prediction_api(model_filepath, unique_model_id, model_type,categorica
     #                                          }, Timeout=10, MemorySize=512, Layers=layers)  # ADD ANOTHER LAYER ARN .. THE ONE SPECIFIC TO MODEL TYPE
 
     
-    if(any([custom_libraries=='True',custom_libraries=='true'])):
+    if(any([custom_libraries=='FALSE',custom_libraries=='false'])):
         from aimodelshare import base_image
         response6 = lambda_using_base_image(account_number, os.environ.get("AWS_REGION"), user_session, lambdafxnname, 'file_objects', 'requirements.txt',apiid)
-    elif(any([custom_libraries=='True',custom_libraries=='true'])):
+    elif(any([custom_libraries=='TRUE',custom_libraries=='true'])):
         
         requirements = input("Enter all required Python libraries you need at prediction runtime separated by a comma:")
 
