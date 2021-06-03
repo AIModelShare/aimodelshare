@@ -11,8 +11,9 @@ import functools
 import requests
 from zipfile import ZipFile, ZIP_STORED, ZipInfo
 import shutil
+from aimodelshare.base_image import lambda_using_base_image
 
-def create_prediction_api(model_filepath, unique_model_id, model_type,categorical, labels, apiid):
+def create_prediction_api(model_filepath, unique_model_id, model_type,categorical, labels, apiid,custom_libraries):
     from zipfile import ZipFile
     import zipfile
     import tempfile
@@ -56,24 +57,24 @@ def create_prediction_api(model_filepath, unique_model_id, model_type,categorica
                                          region_name=os.environ.get("AWS_REGION"))
     if model_type=='image' :
             model_layer ="arn:aws:lambda:us-east-1:517169013426:layer:keras_image:1"
-            eval_layer ="arn:aws:lambda:us-east-1:517169013426:layer:tabular_cloudpicklelayer:1"
+            eval_layer ="arn:aws:lambda:us-east-1:517169013426:layer:eval_layer_test:6"
             auth_layer ="arn:aws:lambda:us-east-1:517169013426:layer:aimsauth_layer:2"
     elif model_type=='text':
             model_layer ="arn:aws:lambda:us-east-1:517169013426:layer:tabular_layer:2"
             keras_layer ='arn:aws:lambda:us-east-1:517169013426:layer:keras_preprocesor:1'
-            eval_layer ="arn:aws:lambda:us-east-1:517169013426:layer:tabular_cloudpicklelayer:1"
+            eval_layer ="arn:aws:lambda:us-east-1:517169013426:layer:eval_layer_test:6"
             auth_layer ="arn:aws:lambda:us-east-1:517169013426:layer:aimsauth_layer:2"
     elif model_type == 'tabular' or model_type =='timeseries':
             model_layer ="arn:aws:lambda:us-east-1:517169013426:layer:tabular_cloudpicklelayer:1"
-            eval_layer ="arn:aws:lambda:us-east-1:517169013426:layer:tabular_cloudpicklelayer:1"
+            eval_layer ="arn:aws:lambda:us-east-1:517169013426:layer:eval_layer_test:6"
             auth_layer ="arn:aws:lambda:us-east-1:517169013426:layer:aimsauth_layer:2"
     elif model_type.lower() == 'audio':
             model_layer = "arn:aws:lambda:us-east-1:517169013426:layer:librosa_nosklearn:9"
-            eval_layer ="arn:aws:lambda:us-east-1:517169013426:layer:tabular_cloudpicklelayer:1"
+            eval_layer ="arn:aws:lambda:us-east-1:517169013426:layer:eval_layer_test:6"
             auth_layer ="arn:aws:lambda:us-east-1:517169013426:layer:aimsauth_layer:2"
     elif model_type.lower() == 'video':
             model_layer = "arn:aws:lambda:us-east-1:517169013426:layer:videolayer:3"
-            eval_layer ="arn:aws:lambda:us-east-1:517169013426:layer:tabular_cloudpicklelayer:1"
+            eval_layer ="arn:aws:lambda:us-east-1:517169013426:layer:eval_layer_test:6"
             auth_layer ="arn:aws:lambda:us-east-1:517169013426:layer:aimsauth_layer:2"
     else :
         print("no matching model data type to load correct python package zip file (lambda layer)")
@@ -108,15 +109,6 @@ def create_prediction_api(model_filepath, unique_model_id, model_type,categorica
         shutil.rmtree('file_objects')
     os.mkdir('file_objects')
 
-    requirements = input("Enter all libraries requires separated by comma:")
-
-    requirements = requirements.split(",")
-    for i in range(len(requirements)):
-        requirements[i] = requirements[i].strip(" ")
-
-    with open(os.path.join('file_objects', 'requirements.txt'), 'a') as f:
-        for lib in requirements:
-            f.write('%s\n' % lib)
 
     # write main handlers
     if model_type == 'text' and categorical == 'TRUE':
@@ -210,7 +202,7 @@ def create_prediction_api(model_filepath, unique_model_id, model_type,categorica
 
     # Upload model eval lambda function zipfile to user's model file folder on s3
     if categorical == 'TRUE':
-            data = pkg_resources.read_text(main, 'eval_classification.txt')
+            data = pkg_resources.read_text(main, 'eval_lambda.txt')
             from string import Template
             t = Template(data)
             newdata = t.substitute(
@@ -218,7 +210,7 @@ def create_prediction_api(model_filepath, unique_model_id, model_type,categorica
             with open(os.path.join(temp_dir, 'main.py'), 'w') as file:
                 file.write(newdata)
     elif categorical == 'FALSE':
-            data = pkg_resources.read_text(main, 'eval_regression.txt')
+            data = pkg_resources.read_text(main, 'eval_lambda.txt')
             from string import Template
             t = Template(data)
             newdata = t.substitute(
@@ -365,8 +357,23 @@ def create_prediction_api(model_filepath, unique_model_id, model_type,categorica
     #                                              'S3Key':  unique_model_id+"/"+'archivetest.zip'
     #                                          }, Timeout=10, MemorySize=512, Layers=layers)  # ADD ANOTHER LAYER ARN .. THE ONE SPECIFIC TO MODEL TYPE
 
-    from aimodelshare import deploy_container
-    response6 = deploy_container(account_number, os.environ.get("AWS_REGION"), user_session, lambdafxnname, 'file_objects', 'requirements.txt',apiid)
+    
+    if(any([custom_libraries=='FALSE',custom_libraries=='false'])):
+        from aimodelshare import base_image
+        response6 = lambda_using_base_image(account_number, os.environ.get("AWS_REGION"), user_session, lambdafxnname, 'file_objects', 'requirements.txt',apiid)
+    elif(any([custom_libraries=='TRUE',custom_libraries=='true'])):
+        
+        requirements = input("Enter all required Python libraries you need at prediction runtime separated by a comma:")
+
+        requirements = requirements.split(",")
+        for i in range(len(requirements)):
+            requirements[i] = requirements[i].strip(" ")
+
+        with open(os.path.join('file_objects', 'requirements.txt'), 'a') as f:
+            for lib in requirements:
+                f.write('%s\n' % lib)
+        from aimodelshare import deploy_container
+        response6 = deploy_container(account_number, os.environ.get("AWS_REGION"), user_session, lambdafxnname, 'file_objects', 'requirements.txt',apiid)
 
     response6evalfxn = lambdaclient.create_function(FunctionName=lambdaevalfxnname, Runtime='python3.6', Role='arn:aws:iam::'+account_number+':role/'+lambdarolename, Handler='main.handler',
                                           Code={

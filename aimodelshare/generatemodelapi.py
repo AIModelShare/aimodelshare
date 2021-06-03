@@ -21,7 +21,7 @@ from aimodelshare.preprocessormodules import upload_preprocessor
 from aimodelshare.model import _get_predictionmodel_key, _extract_model_metadata
 
 
-def take_user_info_and_generate_api(model_filepath, model_type, categorical,labels, preprocessor_filepath):
+def take_user_info_and_generate_api(model_filepath, model_type, categorical,labels, preprocessor_filepath,custom_libraries):
     """
     Generates an api using model parameters and user credentials, from the user
 
@@ -48,6 +48,10 @@ def take_user_info_and_generate_api(model_filepath, model_type, categorical,labe
     labels:   list
             value - labels for training data
             can be extracted from columns of y train or can be provided by the user
+    custom_libraries:   string
+                  "TRUE" if user wants to load custom Python libraries to their prediction runtime
+                  "FALSE" if user wishes to use AI Model Share base libraries including latest versions of most common ML libs.
+     
 
     -----------
     Returns
@@ -137,7 +141,7 @@ def take_user_info_and_generate_api(model_filepath, model_type, categorical,labe
 
     #headers = {'content-type': 'application/json'}
     apiurl = create_prediction_api(model_filepath, unique_model_id,
-                                   model_type, categorical, labels,api_id)
+                                   model_type, categorical, labels,api_id,custom_libraries)
 
     finalresult = [apiurl["body"], apiurl["statusCode"],
                    now, unique_model_id, os.environ.get("BUCKET_NAME"), input_shape]
@@ -232,7 +236,7 @@ def send_model_data_to_dyndb_and_return_api(api_info, private, categorical, prep
     return print(finalresult2)
 
 
-def model_to_api(model_filepath, model_type, private, categorical, trainingdata, y_train,preprocessor_filepath):
+def model_to_api(model_filepath, model_type, private, categorical, trainingdata, y_train,preprocessor_filepath,custom_libraries="FALSE"):
     """
       Launches a live prediction REST API for deploying ML models using model parameters and user credentials, provided by the user
       Inputs : 8
@@ -270,7 +274,10 @@ def model_to_api(model_filepath, model_type, private, categorical, trainingdata,
                       [REQUIRED] for tabular data
       private :   bool, default = False
                   True if model and its corresponding data is not public
-                  False [DEFAULT] if model and its corresponding data is public    
+                  False [DEFAULT] if model and its corresponding data is public   
+      custom_libraries:   string
+                  "TRUE" if user wants to load custom Python libraries to their prediction runtime
+                  "FALSE" if user wishes to use AI Model Share base libraries including latest versions of most common ML libs.
       -----------
       Returns
       print_api_info : prints statements with generated live prediction API details
@@ -298,7 +305,7 @@ def model_to_api(model_filepath, model_type, private, categorical, trainingdata,
     else:
         labels = "no data"
     api_info = take_user_info_and_generate_api( 
-        model_filepath, model_type, categorical, labels,preprocessor_filepath)
+        model_filepath, model_type, categorical, labels,preprocessor_filepath,custom_libraries)
     print_api_info = send_model_data_to_dyndb_and_return_api(
         api_info, private, categorical,preprocessor_filepath, variablename_and_type_data)
     return print_api_info
