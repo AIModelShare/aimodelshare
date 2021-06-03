@@ -1,5 +1,4 @@
 import os
-import boto3
 import json
 import onnx
 import numpy as np
@@ -149,6 +148,7 @@ def _update_leaderboard(
     except Exception as err:
         return err
     # }}}
+
 
 def submit_model(
     modelpath,
@@ -303,114 +303,7 @@ def submit_model(
 
     return "Your model has been submitted as model version "+str(model_version) 
 
-  
-def update_runtime_model(apiurl, model_version=None, modelpath=None, preprocessor=None):
-    """
-    apiurl: string of API URL that the user wishes to edit
-    new_model_version: string of model version number (from leaderboard) to replace original model 
-    modelpath:  string ends with '.onnx'
-                value - Absolute path to model file [REQUIRED] to be set by the user
-                .onnx is the only accepted model file extension
-                "example_model.onnx" filename for file in directory.
-                "/User/xyz/model/example_model.onnx" absolute path to model file from local directory
-    preprocessor:   string,default=None
-                    value - absolute path to preprocessor file 
-                    [REQUIRED] to be set by the user
-                    "./preprocessor.zip" 
-                    searches for an exported zip preprocessor file in the current directory
-                    file is generated from preprocessor module using export_preprocessor function from the AI Modelshare library 
-    """
-    # Confirm that creds are loaded, print warning if not
-    if all(["AWS_ACCESS_KEY_ID" in os.environ, 
-            "AWS_SECRET_ACCESS_KEY" in os.environ,
-            "AWS_REGION" in os.environ,
-           "username" in os.environ, 
-           "password" in os.environ]):
-        pass
-    else:
-        return print("'Update Runtime Model' unsuccessful. Please provide credentials with set_credentials().")
 
-    # Create user session
-    aws_client=get_aws_client(aws_key=os.environ.get('AWS_ACCESS_KEY_ID'), 
-                              aws_secret=os.environ.get('AWS_SECRET_ACCESS_KEY'), 
-                              aws_region=os.environ.get('AWS_REGION'))
-    
-    user_sess = boto3.session.Session(aws_access_key_id=os.environ.get('AWS_ACCESS_KEY_ID'), 
-                                      aws_secret_access_key=os.environ.get('AWS_SECRET_ACCESS_KEY'), 
-                                      region_name=os.environ.get('AWS_REGION'))
-    
-    s3 = user_sess.resource('s3')
-
-    # Get bucket and model_id for user based on apiurl {{{
-    response, error = run_function_on_lambda(
-        apiurl, **{"delete": "FALSE", "versionupdateget": "TRUE"}
-    )
-    if error is not None:
-        raise error
-
-    _, api_bucket, model_id = json.loads(response.content.decode("utf-8"))
-    # }}}
-
-    # Get file list for current bucket {{{
-    model_files, err = _get_file_list(aws_client, api_bucket, model_id)
-    if err is not None:
-        raise err
-    # }}}
-
-    # Get new model version {{{ 
-    if model_version is None:
-        model_versions = [os.path.splitext(f)[0].split("_")[-1][1:] for f in model_files]
-
-        model_versions = filter(lambda v: v.isnumeric(), model_versions)
-        model_versions = list(map(int, model_versions))
-
-        if model_versions:
-            model_version = max(model_versions) + 1
-        else:
-            model_version = 1
-    # }}}
-
-    # Upload the preprocessor {{{
-    if preprocessor is not None:
-        err = _upload_preprocessor(
-            preprocessor, aws_client, api_bucket, model_id, model_version
-        )
-        if err is not None:
-            raise err
-    # }}}
-
-    # Upload the model {{{
-    if modelpath is not None:
-        err = _upload_onnx_model(modelpath, aws_client, api_bucket, model_id, model_version)
-        if err is not None:
-            raise err
-    # }}}
-
-    # extract subfolder objects specific to the model id
-    folder = s3.meta.client.list_objects(Bucket=api_bucket, Prefix=model_id+"/")
-    bucket = s3.Bucket(api_bucket)
-    file_list = [file['Key'] for file in folder['Contents']]
-    s3 = boto3.resource('s3')
-    model_source_key = model_id+"/onnx_model_v"+str(model_version)+".onnx"
-    preprocesor_source_key = model_id+"/preprocessor_v"+str(model_version)+".zip"
-    model_copy_source = {
-          'Bucket': api_bucket,
-          'Key': model_source_key
-        }
-    preprocessor_copy_source = {
-          'Bucket': api_bucket,
-          'Key': preprocesor_source_key
-      }
-    
-    # overwrite runtime_model.onnx file & runtime_preprocessor.zip files: 
-    if (model_source_key in file_list) & (preprocesor_source_key in file_list):
-        response = bucket.copy(model_copy_source, model_id+"/"+'runtime_model.onnx')
-        response = bucket.copy(preprocessor_copy_source, model_id+"/"+'runtime_preprocessor.zip')
-        return 'Runtime Model & Preprocessor Updated Successfully.'
-    else:
-        # the file resource to be the new runtime_model is not available
-        return 'New Runtime Model version ' + model_version + ' file not found.'
-    
 
 def _extract_model_metadata(model, eval_metrics=None):
     # Getting the model metadata {{{
@@ -462,8 +355,8 @@ def _extract_model_metadata(model, eval_metrics=None):
 
     return metadata
 
+
+
 __all__ = [
-    submit_model,
-    _extract_model_metadata,
-    update_runtime_model
-]
+    submit_model
+    ]
