@@ -236,7 +236,7 @@ def send_model_data_to_dyndb_and_return_api(api_info, private, categorical, prep
     return print(finalresult2)
 
 
-def model_to_api(model_filepath, model_type, private, categorical, trainingdata, y_train,preprocessor_filepath):
+def model_to_api(model_filepath, model_type, private, categorical, trainingdata, y_train,preprocessor_filepath,custom_libraries=="FALSE"):
     """
       Launches a live prediction REST API for deploying ML models using model parameters and user credentials, provided by the user
       Inputs : 8
@@ -274,7 +274,10 @@ def model_to_api(model_filepath, model_type, private, categorical, trainingdata,
                       [REQUIRED] for tabular data
       private :   bool, default = False
                   True if model and its corresponding data is not public
-                  False [DEFAULT] if model and its corresponding data is public    
+                  False [DEFAULT] if model and its corresponding data is public   
+      custom_libraries:   string
+                  "TRUE" if user wants to load custom Python libraries to their prediction runtime
+                  "FALSE" if user wishes to use AI Model Share base libraries including latest versions of most common ML libs.
       -----------
       Returns
       print_api_info : prints statements with generated live prediction API details
