@@ -43,8 +43,6 @@ def _get_predictionmodel_key(unique_model_id,file_extension):
     return file_key,versionfile_key
 
 
-
-
 def _upload_onnx_model(modelpath, client, bucket, model_id, model_version):
     # Check the model {{{
     if not os.path.exists(modelpath):
@@ -96,59 +94,6 @@ def _upload_preprocessor(preprocessor, client, bucket, model_id, model_version):
   except Exception as e:
     print(e)
 
-def _extract_model_metadata(model, eval_metrics=None):
-    # Getting the model metadata {{{
-    graph = model.graph
-
-    if eval_metrics is not None:
-        metadata = eval_metrics
-    else:
-        metadata = dict()
-
-    metadata["num_nodes"] = len(graph.node)
-    metadata["depth_test"] = len(graph.initializer)
-    metadata["num_params"] = sum(np.product(node.dims) for node in graph.initializer)
-
-    # layers = ""
-    # for node in graph.node:
-    #     # consider type and get node attributes (??)
-    #     layers += (
-    #         node.op_type
-    #         + "x".join(str(d.ints) for d in node.attribute if hasattr(d, 'ints'))
-    #     )
-    metadata["layers"] = "; ".join(node.op_type for node in graph.node)
-
-    inputs = ""
-    for inp in graph.input:
-        dims = []
-        for d in inp.type.tensor_type.shape.dim:
-            if d.dim_param != "":
-                dims.append(d.dim_param)
-            else:
-                dims.append(str(d.dim_value))
-
-        metadata["input_shape"] = dims
-        inputs += f"{inp.name} ({'x'.join(dims)})"
-    metadata["inputs"] = inputs
-
-    outputs = ""
-    for out in graph.output:
-        dims = []
-        for d in out.type.tensor_type.shape.dim:
-            if d.dim_param != "":
-                dims.append(d.dim_param)
-            else:
-                dims.append(str(d.dim_value))
-
-        outputs += f"{out.name} ({'x'.join(dims)})"
-    metadata["outputs"] = outputs
-    # }}}
-
-    return metadata
-
-
-
-
 
 def _update_leaderboard(
     modelpath, eval_metrics, client, bucket, model_id, model_version
@@ -171,6 +116,9 @@ def _update_leaderboard(
     try:
         leaderboard = client["client"].get_object(
             Bucket=bucket, Key=model_id + "/model_eval_data_mastertable.csv"
+
+
+
         )
         leaderboard = pd.read_csv(leaderboard["Body"], sep="\t")
         columns = leaderboard.columns
@@ -311,10 +259,13 @@ def submit_model(
     else: 
             pass
     
+    post_dict = {"y_pred": prediction_submission,
+           "return_eval": "True",
+           "return_y": "False"}
  
     headers = { 'Content-Type':'application/json', 'authorizationToken': os.environ.get("AWS_TOKEN"), } 
     apiurl_eval=apiurl[:-1]+"eval"
-    prediction = requests.post(apiurl_eval,headers=headers,data=json.dumps(prediction_submission)) 
+    prediction = requests.post(apiurl_eval,headers=headers,data=json.dumps(post_dict)) 
 
     eval_metrics=json.loads(prediction.text)
 
@@ -353,7 +304,59 @@ def submit_model(
     return "Your model has been submitted as model version "+str(model_version) 
 
 
+
+def _extract_model_metadata(model, eval_metrics=None):
+    # Getting the model metadata {{{
+    graph = model.graph
+
+    if eval_metrics is not None:
+        metadata = eval_metrics
+    else:
+        metadata = dict()
+
+    metadata["num_nodes"] = len(graph.node)
+    metadata["depth_test"] = len(graph.initializer)
+    metadata["num_params"] = sum(np.product(node.dims) for node in graph.initializer)
+
+    # layers = ""
+    # for node in graph.node:
+    #     # consider type and get node attributes (??)
+    #     layers += (
+    #         node.op_type
+    #         + "x".join(str(d.ints) for d in node.attribute if hasattr(d, 'ints'))
+    #     )
+    metadata["layers"] = "; ".join(node.op_type for node in graph.node)
+
+    inputs = ""
+    for inp in graph.input:
+        dims = []
+        for d in inp.type.tensor_type.shape.dim:
+            if d.dim_param != "":
+                dims.append(d.dim_param)
+            else:
+                dims.append(str(d.dim_value))
+
+        metadata["input_shape"] = dims
+        inputs += f"{inp.name} ({'x'.join(dims)})"
+    metadata["inputs"] = inputs
+
+    outputs = ""
+    for out in graph.output:
+        dims = []
+        for d in out.type.tensor_type.shape.dim:
+            if d.dim_param != "":
+                dims.append(d.dim_param)
+            else:
+                dims.append(str(d.dim_value))
+
+        outputs += f"{out.name} ({'x'.join(dims)})"
+    metadata["outputs"] = outputs
+    # }}}
+
+    return metadata
+
+
+
 __all__ = [
-    submit_model,
-    _extract_model_metadata
-]
+    submit_model
+    ]

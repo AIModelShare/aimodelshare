@@ -18,6 +18,7 @@ from torch.onnx import export
 from onnx.tools.net_drawer import GetPydotGraph, GetOpNodeProducer
 import importlib
 import onnxmltools
+import onnxruntime as rt
 
 
 # aims modules
@@ -30,6 +31,11 @@ import tempfile
 import json
 import re
 import pickle
+import requests
+import sys
+
+from pympler import asizeof
+
 
 def _extract_onnx_metadata(onnx_model, framework):
     '''Extracts model metadata from ONNX file.'''
@@ -165,6 +171,9 @@ def _misc_to_onnx(model, initial_types, transfer_learning=None,
 
     metadata['model_architecture'] = str(model_architecture)
 
+    metadata['memory_size'] = asizeof.asizeof(model)    
+
+
     # placeholder, needs evaluation engine
     metadata['eval_metrics'] = None  
     
@@ -273,6 +282,7 @@ def _sklearn_to_onnx(model, initial_types, transfer_learning=None,
 
         metadata['model_architecture'] = str(model_architecture)
 
+
     else:
         model_architecture = {}
 
@@ -282,6 +292,8 @@ def _sklearn_to_onnx(model, initial_types, transfer_learning=None,
             model_architecture['optimizer'] = model.solver
 
         metadata['model_architecture'] = str(model_architecture)
+
+    metadata['memory_size'] = asizeof.asizeof(model)    
 
     # placeholder, needs evaluation engine
     metadata['eval_metrics'] = None  
@@ -299,7 +311,7 @@ def _sklearn_to_onnx(model, initial_types, transfer_learning=None,
 
 
 def _keras_to_onnx(model, transfer_learning=None,
-                  deep_learning=None, task_type=None):
+                  deep_learning=None, task_type=None, epochs=None):
     '''Extracts metadata from keras model object.'''
 
     # check whether this is a fitted keras model
@@ -326,6 +338,7 @@ def _keras_to_onnx(model, transfer_learning=None,
     temp_dir = tempfile.gettempdir()
 
     model.save(temp_dir)
+
     output_path = os.path.join(temp_dir, 'temp.onnx')
     modelstringtest="python -m tf2onnx.convert --saved-model "+temp_dir+" --output "+output_path
     os.system(modelstringtest)
@@ -422,6 +435,10 @@ def _keras_to_onnx(model, transfer_learning=None,
 
     metadata['model_architecture'] = str(model_architecture)
 
+    metadata['memory_size'] = asizeof.asizeof(model)
+
+    metadata['epochs'] = epochs
+
     # placeholder, needs evaluation engine
     metadata['eval_metrics'] = None
 
@@ -438,7 +455,8 @@ def _keras_to_onnx(model, transfer_learning=None,
 
 
 def _pytorch_to_onnx(model, model_input, transfer_learning=None, 
-                    deep_learning=None, task_type=None):
+                    deep_learning=None, task_type=None, 
+                    epochs=None):
     
     '''Extracts metadata from pytorch model object.'''
 
@@ -528,6 +546,9 @@ def _pytorch_to_onnx(model, model_input, transfer_learning=None,
 
     metadata['model_architecture'] = str(model_architecture)
 
+    metadata['memory_size'] = asizeof.asizeof(model)    
+    metadata['epochs'] = epochs
+
     # placeholder, needs evaluation engine
     metadata['eval_metrics'] = None
 
@@ -545,7 +566,8 @@ def _pytorch_to_onnx(model, model_input, transfer_learning=None,
 
 
 def model_to_onnx(model, framework, model_input=None, initial_types=None,
-                  transfer_learning=None, deep_learning=None, task_type=None):
+                  transfer_learning=None, deep_learning=None, task_type=None, 
+                  epochs=None):
     
     '''Transforms sklearn, keras, or pytorch model object into ONNX format 
     and extracts model metadata dictionary. The model metadata dictionary 
@@ -622,14 +644,23 @@ def model_to_onnx(model, framework, model_input=None, initial_types=None,
     elif framework == 'keras':
         onnx = _keras_to_onnx(model, transfer_learning=transfer_learning, 
                               deep_learning=deep_learning, 
-                              task_type=task_type)
+                              task_type=task_type,
+                              epochs=epochs)
+
         
     elif framework == 'pytorch':
         onnx = _pytorch_to_onnx(model, model_input=model_input,
                                 transfer_learning=transfer_learning, 
                                 deep_learning=deep_learning, 
-                                task_type=task_type)
-        
+                                task_type=task_type,
+                                epochs=epochs)
+
+
+    try: 
+        rt.InferenceSession(onnx.SerializeToString())   
+    except Exception as e: 
+        print(e)
+
     return onnx
 
 
@@ -717,6 +748,10 @@ def _get_leaderboard_data(onnx_model, eval_metrics=None):
         metadata['loss'] = metadata_raw['model_architecture']['loss']
         metadata['optimizer'] = metadata_raw['model_architecture']["optimizer"]
         metadata['model_config'] = metadata_raw['model_config']
+        metadata['epochs'] = metadata_raw['epochs']
+        metadata['memory_size'] = metadata_raw['memory_size']
+
+
 
     # get sklearn model metrics
     elif metadata_raw['ml_framework'] == 'sklearn' or metadata_raw['ml_framework'] == 'xgboost':
@@ -821,6 +856,33 @@ def inspect_model(apiurl, version=None):
                                    'param_value': model_config.values()})
     
     return inspect_pd
+
+def inspect_model_lambda(apiurl, version=None):
+    if all(["AWS_ACCESS_KEY_ID" in os.environ, 
+            "AWS_SECRET_ACCESS_KEY" in os.environ,
+            "AWS_REGION" in os.environ, 
+           "username" in os.environ, 
+           "password" in os.environ]):
+        pass
+    else:
+        return print("'Inspect Model' unsuccessful. Please provide credentials with set_credentials().")
+
+    post_dict = {"y_pred": [],
+               "return_eval": "False",
+               "return_y": "False",
+               "inspect_model": "True",
+               "version": version}
+    
+    headers = { 'Content-Type':'application/json', 'authorizationToken': os.environ.get("AWS_TOKEN"),} 
+
+    apiurl_eval=apiurl[:-1]+"eval"
+
+    inspect_json = requests.post(apiurl_eval,headers=headers,data=json.dumps(post_dict)) 
+
+    inspect_pd = pd.DataFrame(json.loads(inspect_json.text))
+
+    return inspect_pd
+
     
 
 def compare_models(apiurl, version_list=None, 
@@ -891,17 +953,67 @@ def compare_models(apiurl, version_list=None,
 
             temp_pd = temp_pd.add_prefix('Model_'+str(i)+'_')    
             comp_pd = pd.concat([comp_pd, temp_pd], axis=1)
+
+
+        layer_names = _get_layer_names()
         
-        df_styled = comp_pd.style.apply(lambda x: ["background: tomato" if v == 'Dense' else "" for v in x], 
+        dense_layers = [i for i in layer_names[0] if 'Dense' in i]
+        df_styled = comp_pd.style.apply(lambda x: ["background: tomato" if v in dense_layers else "" for v in x], 
                                 axis = 1)
-        
-        df_styled = df_styled.apply(lambda x: ["background: yellow" if v == 'Dropout' else "" for v in x], 
+
+        drop_layers = [i for i in layer_names[0] if 'Dropout' in i]
+        df_styled = comp_pd.style.apply(lambda x: ["background: lightblue" if v in drop_layers else "" for v in x], 
                                 axis = 1)
-        
-        df_styled = df_styled.apply(lambda x: ["background: yellow" if v == 'Conv2D' else "" for v in x], 
+
+        conv_layers = [i for i in layer_names[0] if 'Conv' in i]
+        df_styled = df_styled.apply(lambda x: ["background: yellow" if v in conv_layers else "" for v in x], 
                                 axis = 1)
-    
+
+        seq_layers = [i for i in layer_names[0] if 'RNN' in i or 'LSTM' in i or 'GRU' in i] + ['Bidirectional']
+        df_styled = df_styled.apply(lambda x: ["background: orange" if v in seq_layers else "" for v in x], 
+                                axis = 1)
+
+        pool_layers = [i for i in layer_names[0] if 'Pool' in i]
+        df_styled = df_styled.apply(lambda x: ["background: lightgreen" if v in pool_layers else "" for v in x], 
+                                axis = 1)
+
+        '''
+        rest_layers = [i for i in layer_names[0] if i not in dense_layers+drop_layers+conv_layers+seq_layers+pool_layers]
+        df_styled = df_styled.apply(lambda x: ["background: lightgrey" if v in rest_layers else "" for v in x], 
+                                axis = 1)
+        '''
+
     return df_styled
+
+
+def compare_models_lambda(apiurl, version_list=None, 
+    by_model_type=None, best_model=None, verbose=3):
+    if all(["AWS_ACCESS_KEY_ID" in os.environ, 
+            "AWS_SECRET_ACCESS_KEY" in os.environ,
+            "AWS_REGION" in os.environ, 
+           "username" in os.environ, 
+           "password" in os.environ]):
+        pass
+    else:
+        return print("'Inspect Model' unsuccessful. Please provide credentials with set_credentials().")
+
+    post_dict = {"y_pred": [],
+               "return_eval": "False",
+               "return_y": "False",
+               "inspect_model": "False",
+               "version": None, 
+               "compare_models": "True",
+               "version_list": version_list}
+    
+    headers = { 'Content-Type':'application/json', 'authorizationToken': os.environ.get("AWS_TOKEN"),} 
+
+    apiurl_eval=apiurl[:-1]+"eval"
+
+    compare_json = requests.post(apiurl_eval,headers=headers,data=json.dumps(post_dict)) 
+
+    compare_pd = pd.DataFrame(json.loads(compare_json.text))
+
+    return compare_pd
 
 
 
@@ -1040,6 +1152,7 @@ def _get_sklearn_modules():
     return models_modules_dict
 
 
+
 def model_from_string(model_type):
     models_modules_dict = _get_sklearn_modules()
     module = models_modules_dict[model_type]
@@ -1047,33 +1160,37 @@ def model_from_string(model_type):
     return model_class
 
 
-def check_y_test(apiurl, aws_token, aws_client):
+def print_y_stats(y_stats): 
 
-    ytest = "ytest.pkl"
+  print("y_test example: ", y_stats['ytest_example'])
+  print("y_test class labels", y_stats['class_labels'])
+  print("y_test class balance", y_stats['class_balance'])
+  print("y_test label dtypes", y_stats['label_dtypes'])
 
-    # Get bucket and model_id for user
-    response, error = run_function_on_lambda(
-        apiurl, aws_token, **{"delete": "FALSE", "versionupdateget": "TRUE"}
-    )
-    if error is not None:
-        raise error
+def inspect_y_test(apiurl):
 
-    _, bucket, model_id = json.loads(response.content.decode("utf-8"))
+  # Confirm that creds are loaded, print warning if not
+  if all(["AWS_ACCESS_KEY_ID" in os.environ, 
+          "AWS_SECRET_ACCESS_KEY" in os.environ,
+          "AWS_REGION" in os.environ,
+          "username" in os.environ, 
+          "password" in os.environ]):
+      pass
+  else:
+      return print("'Submit Model' unsuccessful. Please provide credentials with set_credentials().")
 
-    try:
-        pkl_string = aws_client["client"].get_object(
-            Bucket=bucket, Key=model_id + ytest
-        )
+  post_dict = {"y_pred": [],
+               "return_eval": "False",
+               "return_y": "True"}
+    
+  headers = { 'Content-Type':'application/json', 'authorizationToken': os.environ.get("AWS_TOKEN"),} 
 
-        pkl_string = pkl_string['Body'].read()
+  apiurl_eval=apiurl[:-1]+"eval"
 
-    except Exception as err:
-        raise err
+  y_stats = requests.post(apiurl_eval,headers=headers,data=json.dumps(post_dict)) 
 
-    # generate tempfile for pkl object 
-    temp_dir = tempfile.gettempdir()
-    temp_path = os.path.join(temp_dir, 'temp_file_name')
+  y_stats_dict = json.loads(y_stats.text)
 
-    # save onnx to temporary path
-    with open(temp_path, "wb") as f:
-        f.write(pkl_string)
+  # print_y_stats(y_stats_dict)
+
+  return y_stats_dict
