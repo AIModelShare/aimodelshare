@@ -223,7 +223,7 @@ def submit_model(
         no_competition_warning = ("Error: A model competition has not been created for this prediction API yet.\n\n"
                                   "Please use the create_competition function to upload ytest data for model evaluation\n" 
                                   " or update runtime model with the update_runtime_model function.")
-        return no_competition_warning
+        return print(no_competition_warning)
     # }}}
 
     # Delete recent model and/or preprocessor {{{
