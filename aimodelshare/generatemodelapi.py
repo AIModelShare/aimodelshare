@@ -237,7 +237,7 @@ def send_model_data_to_dyndb_and_return_api(loading_option, api_info, private, c
     if loading_option == "Option_B":
         import sys
         sys.stdout.write('\r')
-        sys.stdout.write("[====================================] Progress: 100% \n")
+        sys.stdout.write("[====================================] Progress: 100% \n\n")
         sys.stdout.flush()
 
     return print(finalresult2)
@@ -358,7 +358,7 @@ def model_to_api(model_filepath, model_type, private, categorical, trainingdata,
 
     if loading_option == "Option_B":
         sys.stdout.write('\r')
-        sys.stdout.write("[===============================     ] Progress: 90% \n")
+        sys.stdout.write("[===============================     ] Progress: 90%")
         sys.stdout.flush()
     ############################
 
