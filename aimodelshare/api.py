@@ -109,15 +109,6 @@ def create_prediction_api(model_filepath, unique_model_id, model_type,categorica
         shutil.rmtree('file_objects')
     os.mkdir('file_objects')
 
-    requirements = input("Enter all libraries requires separated by comma (enter if base image being used):")
-
-    requirements = requirements.split(",")
-    for i in range(len(requirements)):
-        requirements[i] = requirements[i].strip(" ")
-
-    with open(os.path.join('file_objects', 'requirements.txt'), 'a') as f:
-        for lib in requirements:
-            f.write('%s\n' % lib)
 
     # write main handlers
     if model_type == 'text' and categorical == 'TRUE':
@@ -366,12 +357,22 @@ def create_prediction_api(model_filepath, unique_model_id, model_type,categorica
     #                                              'S3Key':  unique_model_id+"/"+'archivetest.zip'
     #                                          }, Timeout=10, MemorySize=512, Layers=layers)  # ADD ANOTHER LAYER ARN .. THE ONE SPECIFIC TO MODEL TYPE
 
-    image_type = input("Enter image type (base/custom):")
+    image_type = input("Enter 'base' or 'custom': /ni.e.- Use our prebuilt runtime base environment including the latest version of all ML Python libraries \nor add your own custom libraries?")
     
     if(image_type=='base'):
         from aimodelshare import base_image
         response6 = lambda_using_base_image(account_number, os.environ.get("AWS_REGION"), user_session, lambdafxnname, 'file_objects', 'requirements.txt',apiid)
     elif(image_type=='custom'):
+        
+        requirements = input("Enter all required Python libraries you need at prediction runtime separated by a comma:")
+
+        requirements = requirements.split(",")
+        for i in range(len(requirements)):
+            requirements[i] = requirements[i].strip(" ")
+
+        with open(os.path.join('file_objects', 'requirements.txt'), 'a') as f:
+            for lib in requirements:
+                f.write('%s\n' % lib)
         from aimodelshare import deploy_container
         response6 = deploy_container(account_number, os.environ.get("AWS_REGION"), user_session, lambdafxnname, 'file_objects', 'requirements.txt',apiid)
 
