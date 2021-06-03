@@ -370,7 +370,7 @@ def create_prediction_api(model_filepath, unique_model_id, model_type,categorica
     if(image_type=='base'):
         from aimodelshare import base_image
         response6 = lambda_using_base_image(account_number, os.environ.get("AWS_REGION"), user_session, lambdafxnname, 'file_objects', 'requirements.txt',apiid)
-    else if(image_type=='custom'):
+    elif(image_type=='custom'):
         from aimodelshare import deploy_container
         response6 = deploy_container(account_number, os.environ.get("AWS_REGION"), user_session, lambdafxnname, 'file_objects', 'requirements.txt',apiid)
 
