@@ -144,3 +144,6 @@ def lambda_using_base_image(account_id, region, session, project_name, model_dir
             }
         }
     )
+__all__ = [
+    lambda_using_base_image
+]
