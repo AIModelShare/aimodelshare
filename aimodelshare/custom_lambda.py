@@ -66,11 +66,12 @@ def deploy_custom_lambda(lambda_filepath, deployment_dir, private, categorical=F
         Bucket=os.environ.get("BUCKET_NAME")
     )
   
-    apiurl = create_prediction_api(None, str(api_id), 'custom', categorical, labels, api_id)
-
+    requirements = ''
     if(any([custom_libraries=='TRUE',custom_libraries=='true'])):
         requirements = input("Enter all required Python libraries you need at prediction runtime (separate with commas):")
         
+    apiurl = create_prediction_api(None, str(api_id), 'custom', categorical, labels, api_id, custom_libraries, requirements)
+
     print("We need some information about your model before we can generate your API.\n")
     aishare_modelname = input("Name your model:")
     aishare_modeldescription = input("Describe your model:")
