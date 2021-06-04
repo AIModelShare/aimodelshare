@@ -10,6 +10,7 @@ import time
 import datetime
 import onnx
 import tempfile
+import shutil
 import sys
 from aimodelshare.tools import extract_varnames_fromtrainingdata, _get_extension_from_filepath
 from aimodelshare.aws import get_s3_iam_client, run_function_on_lambda
