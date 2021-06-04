@@ -11,16 +11,14 @@ import datetime
 import onnx
 import tempfile
 import sys
+
 from aimodelshare.tools import extract_varnames_fromtrainingdata, _get_extension_from_filepath
-from aimodelshare.aws import get_s3_iam_client, run_function_on_lambda
+from aimodelshare.aws import get_s3_iam_client
 from aimodelshare.bucketpolicy import _custom_upload_policy
 from aimodelshare.exceptions import AuthorizationError, AWSAccessError, AWSUploadError
 from aimodelshare.api import create_prediction_api
-from aimodelshare.api import get_api_json
-
 from aimodelshare.preprocessormodules import upload_preprocessor
 from aimodelshare.model import _get_predictionmodel_key, _extract_model_metadata
-
 
 def take_user_info_and_generate_api(model_filepath, model_type, categorical,labels, preprocessor_filepath,custom_libraries, requirements):
     """
@@ -54,6 +52,7 @@ def take_user_info_and_generate_api(model_filepath, model_type, categorical,labe
                   "FALSE" if user wishes to use AI Model Share base libraries including latest versions of most common ML libs.
      
 
+    y_test :
     -----------
     Returns
     finalresult : list 
@@ -73,19 +72,7 @@ def take_user_info_and_generate_api(model_filepath, model_type, categorical,labe
     # create temporary folder
     temp_dir = tempfile.gettempdir()
    
-    api_json= get_api_json()
-    user_client = boto3.client('apigateway', aws_access_key_id=str(
-    os.environ.get("AWS_ACCESS_KEY_ID")), aws_secret_access_key=str(os.environ.get("AWS_SECRET_ACCESS_KEY")), region_name=str(os.environ.get("AWS_REGION")))
 
-    response2 = user_client.import_rest_api(
-    failOnWarnings=True,
-    parameters={
-        'endpointConfigurationTypes': 'REGIONAL'
-    },
-    body=api_json
-    )
-
-    api_id = response2['id']
     now = datetime.datetime.now()
     s3, iam, region = get_s3_iam_client(os.environ.get("AWS_ACCESS_KEY_ID"), os.environ.get("AWS_SECRET_ACCESS_KEY"), os.environ.get("AWS_REGION"))
     s3["client"].create_bucket(
@@ -99,7 +86,7 @@ def take_user_info_and_generate_api(model_filepath, model_type, categorical,labe
     #tab_imports ='./tabular_imports.pkl'
     #img_imports ='./image_imports.pkl'
     file_extension = _get_extension_from_filepath(Filepath)
-    unique_model_id = str(api_id)
+    unique_model_id = str(uuid.uuid1().hex)
     file_key, versionfile_key = _get_predictionmodel_key(
         unique_model_id, file_extension)
     try:
@@ -127,6 +114,16 @@ def take_user_info_and_generate_api(model_filepath, model_type, categorical,labe
         runtime_data = {}
         runtime_data["runtime_model"] = {"name": "runtime_model.onnx"}
         runtime_data["runtime_preprocessor"] = runtime_preprocessor_type
+
+
+        if(any([y_test==None])):
+            pass
+        else:
+            ytest_path = os.path.join(temp_dir, "ytest.pkl")
+            import pickle
+            #ytest data to load to s3
+            pickle.dump( list(y_test),open(ytest_path,"wb"))
+            s3["client"].upload_file(ytest_path, os.environ.get("BUCKET_NAME"),  unique_model_id + "/ytest.pkl")
             
         #runtime_data = {"runtime_model": {"name": "runtime_model.onnx"},"runtime_preprocessor": runtime_preprocessor_type }
         json_string = json.dumps(runtime_data, sort_keys=False)
@@ -150,6 +147,7 @@ def take_user_info_and_generate_api(model_filepath, model_type, categorical,labe
     
     apiurl = create_prediction_api(model_filepath, unique_model_id,
                                    model_type, categorical, labels,api_id,custom_libraries, requirements)
+
 
     finalresult = [apiurl["body"], apiurl["statusCode"],
                    now, unique_model_id, os.environ.get("BUCKET_NAME"), input_shape]
@@ -187,7 +185,6 @@ def send_model_data_to_dyndb_and_return_api(api_info, private, categorical, prep
     print (api_info) : statements with the generated live prediction API information for the user
 
     """
-    
     # unpack user credentials
     unique_model_id = api_info[3]
     bucket_name = api_info[4]
@@ -340,7 +337,7 @@ def model_to_api(model_filepath, model_type, private, categorical, trainingdata,
     sys.stdout.write("[=================================    ] Progress: 90% - Finishing web dashboard...                           ")
     sys.stdout.flush()
     # }}}
-    
+
     print_api_info = send_model_data_to_dyndb_and_return_api(
         api_info, private, categorical,preprocessor_filepath, aishare_modelname,
         aishare_modeldescription, aishare_modeltype, aishare_modelevaluation,
@@ -348,123 +345,8 @@ def model_to_api(model_filepath, model_type, private, categorical, trainingdata,
 
     return print_api_info
 
-def create_competition(apiurl, y_test, generate_credentials_file = True):
-    """
-    Creates a model competition for a deployed prediction REST API
-    Inputs : 2
-    Output : Submit credentials for model competition
-    
-    ---------
-    Parameters
-    
-    apiurl: string
-            URL of deployed prediction API 
-    
-    y_test :  y labels for test data 
-            [REQUIRED] for eval metrics
-            expects a one hot encoded y test data format
-
-    generate_credentials_file (OPTIONAL): Default is True
-                                          Function will output .txt file with new credentials
-    ---------
-    Returns
-    finalresultteams3info : Submit_model credentials with access to S3 bucket
-    (api_id)_credentials.txt : .txt file with submit_model credentials,
-                                formatted for use with set_credentials() function 
-    """
-
-    # create temporary folder
-    temp_dir = tempfile.gettempdir()
-    
-    s3, iam, region = get_s3_iam_client(os.environ.get("AWS_ACCESS_KEY_ID"), os.environ.get("AWS_SECRET_ACCESS_KEY"), os.environ.get("AWS_REGION"))
-    
-    # Get bucket and model_id subfolder for user based on apiurl {{{
-    response, error = run_function_on_lambda(
-        apiurl, **{"delete": "FALSE", "versionupdateget": "TRUE"}
-    )
-    if error is not None:
-        raise error
-
-    _, api_bucket, model_id = json.loads(response.content.decode("utf-8"))
-    # }}} 
-    
-    # upload y_test data: 
-    ytest_path = os.path.join(temp_dir, "ytest.pkl")
-    import pickle
-    #ytest data to load to s3
-    pickle.dump( list(y_test),open(ytest_path,"wb"))
-    s3["client"].upload_file(ytest_path, os.environ.get("BUCKET_NAME"),  model_id + "/ytest.pkl")
-     
-    
-    policy_response = iam["client"].get_policy(
-        PolicyArn=os.environ.get("POLICY_ARN")
-    )
-    user_policy = iam["resource"].UserPolicy(
-        os.environ.get("IAM_USERNAME"), policy_response['Policy']['PolicyName'])
-    response = iam["client"].detach_user_policy(
-        UserName= os.environ.get("IAM_USERNAME"),
-        PolicyArn=os.environ.get("POLICY_ARN")
-    )
-    
-    # add new policy that only allows file upload to bucket
-    policy = iam["resource"].Policy(os.environ.get("POLICY_ARN"))
-    response = policy.delete()
-    s3upload_policy = _custom_upload_policy(os.environ.get("BUCKET_NAME"), 
-                                            model_id) 
-    s3uploadpolicy_name = 'temporaryaccessAImodelsharePolicy' + \
-        str(uuid.uuid1().hex)
-    s3uploadpolicy_response = iam["client"].create_policy(
-        PolicyName=s3uploadpolicy_name,
-        PolicyDocument=json.dumps(s3upload_policy)
-    )
-    user = iam["resource"].User(os.environ.get("IAM_USERNAME"))
-    response = user.attach_policy(
-        PolicyArn=s3uploadpolicy_response['Policy']['Arn']
-    )
-    
-    # get api_id from apiurl, generate txt file name
-    api_url_trim = apiurl.split('https://')[1]
-    api_id = api_url_trim.split(".")[0]
-    txt_file_name = api_id+"_credentials.txt"
-
-    #Format output text
-    formatted_userpass = ('[aimodelshare_creds] \n'
-                'username = "Your_Username_Here" \n'
-                'password = "Your_Password_Here"\n\n')
-
-    formatted_new_creds = ("#Credentials for Competition: " + api_id + "\n"
-                '[submit_model:"' + apiurl + '"]\n'
-                'AWS_ACCESS_KEY_ID = "' + os.environ.get("AI_MODELSHARE_ACCESS_KEY_ID") + '"\n'
-                'AWS_SECRET_ACCESS_KEY = "' + os.environ.get("AI_MODELSHARE_SECRET_ACCESS_KEY") +'"\n'
-                'AWS_REGION = "' + os.environ.get("AWS_REGION") + '"\n')
-    
-    final_message = ("\n Success! Model competition created. \n\n"
-                "Your team members can submit models to the competition leaderboard \n"
-                "with the submit_model() function or update the prediction API \n"
-                "with the update_runtime_model() function.\n\n"
-                "To upload new models and/or preprocessors to this API, team members should use \n"
-                "the following credentials:\n\n" + formatted_new_creds + "\n"
-                "(This aws key/password combination limits team members to file upload access only.)\n\n")
-  
-    file_generated_message = ("These credentials have been saved as: " + txt_file_name + ".")
-
-    # Generate .txt file with new credentials 
-    if generate_credentials_file == True:
-        final_message = final_message + file_generated_message
-
-        f= open(txt_file_name,"w+")
-        f.write(formatted_userpass + formatted_new_creds)
-        f.close()
-
-    return print(final_message)
-
-
-
-
-
 __all__ = [
     take_user_info_and_generate_api,
     send_model_data_to_dyndb_and_return_api,
     model_to_api,
-    create_competition,
 ]
