@@ -216,7 +216,17 @@ def submit_model(
         raise err
     # }}}
 
-    # Delet recent model and/or preprocessor {{{
+    # Check if competition has been created, return warning if not {{{
+    if "ytest.pkl" in model_files:
+        pass
+    else:
+        no_competition_warning = ("Error: A model competition has not been created for this prediction API yet.\n\n"
+                                  "Please use the create_competition function to upload ytest data for model evaluation\n" 
+                                  " or update runtime model with the update_runtime_model function.")
+        return print(no_competition_warning)
+    # }}}
+
+    # Delete recent model and/or preprocessor {{{
     recent_models = filter(lambda f: "mostrecent" in f, model_files)
     for model in recent_models:
         _delete_s3_object(aws_client, bucket, model_id, model)
