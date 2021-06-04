@@ -1,0 +1,19 @@
+import boto3
+import pickle
+from zipfile import ZipFile
+from io import BytesIO
+import os
+import onnxruntime as rt
+import json
+
+labels = "$labels"
+
+def load_model(filename="runtime_model.onnx", filetype='onnx'):
+    model = None
+    if filetype.lower() == 'onnx':
+        model = rt.InferenceSession(os.path.join('/tmp/', filename))
+    elif filetype.lower() == 'pickle':
+        model = pickle.load(open(os.path.join('/tmp/', filename), 'rb'))
+    else:
+        raise ValueError("Incorrect model file type. Must be 'onnx' or 'pickle'")
+    return model

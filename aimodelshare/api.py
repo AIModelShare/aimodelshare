@@ -77,6 +77,10 @@ def create_prediction_api(model_filepath, unique_model_id, model_type,categorica
             model_layer = "arn:aws:lambda:us-east-1:517169013426:layer:videolayer:3"
             eval_layer ="arn:aws:lambda:us-east-1:517169013426:layer:eval_layer_test:6"
             auth_layer ="arn:aws:lambda:us-east-1:517169013426:layer:aimsauth_layer:2"
+    elif model_type.lower() == 'custom':
+        model_layer = "arn:aws:lambda:us-east-1:517169013426:layer:videolayer:3"
+        eval_layer ="arn:aws:lambda:us-east-1:517169013426:layer:tabular_cloudpicklelayer:1"
+        auth_layer ="arn:aws:lambda:us-east-1:517169013426:layer:aimsauth_layer:2"
     else :
         print("no matching model data type to load correct python package zip file (lambda layer)")
 
@@ -106,9 +110,10 @@ def create_prediction_api(model_filepath, unique_model_id, model_type,categorica
 
     from . import main  # relative-import the *package* containing the templates
 
-    if os.path.exists('file_objects'):
-        shutil.rmtree('file_objects')
-    os.mkdir('file_objects')
+    if model_type.lower() != "custom":  # file_objects already initialized if custom
+        if os.path.exists('file_objects'):
+            shutil.rmtree('file_objects')
+        os.mkdir('file_objects')
 
 
     # write main handlers
@@ -168,7 +173,17 @@ def create_prediction_api(model_filepath, unique_model_id, model_type,categorica
             t = Template(data)
             newdata = t.substitute(
                 bucket_name=os.environ.get("BUCKET_NAME"), unique_model_id=unique_model_id, labels=labels)
-                
+
+    if model_type.lower() == 'custom':
+        with open("custom_lambda.py", 'r') as in_file:     
+            newdata = in_file.read() 
+        lambda_api = pkg_resources.read_text(main, 'lambda_api.txt')    # for custom Lambda load/store
+        from string import Template
+        t = Template(lambda_api)
+        nt = t.substitute(labels=labels)
+        with open(os.path.join('file_objects', 'lambda_api.py'), 'w') as file:
+            file.write(nt)
+
     with open(os.path.join('file_objects', 'model.py'), 'w') as file:
         file.write(newdata)
 
