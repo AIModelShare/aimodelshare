@@ -8,10 +8,14 @@ import zipfile
 import shutil
 import time
 import functools
+import requests
+import sys
 from zipfile import ZipFile, ZIP_STORED, ZipInfo
+import shutil
+from aimodelshare.base_image import lambda_using_base_image
 
+def create_prediction_api(model_filepath, unique_model_id, model_type,categorical, labels, apiid,custom_libraries, requirements):
 
-def create_prediction_api(model_filepath, unique_model_id, model_type,categorical, labels):
     from zipfile import ZipFile
     import zipfile
     import tempfile
@@ -102,6 +106,10 @@ def create_prediction_api(model_filepath, unique_model_id, model_type,categorica
       import importlib_resources as pkg_resources
 
     from . import main  # relative-import the *package* containing the templates
+
+    if os.path.exists('file_objects'):
+        shutil.rmtree('file_objects')
+    os.mkdir('file_objects')
 
     # write main handlers
     if model_type == 'text' and categorical == 'TRUE':
@@ -354,11 +362,34 @@ def create_prediction_api(model_filepath, unique_model_id, model_type,categorica
     # layers.append(keras_layer)
     time.sleep(10)
 
-    response6 = lambdaclient.create_function(FunctionName=lambdafxnname, Runtime='python3.6', Role='arn:aws:iam::'+account_number+':role/'+lambdarolename, Handler='main.handler',
-                                              Code={
-                                                  'S3Bucket': os.environ.get("BUCKET_NAME"),
-                                                  'S3Key':  unique_model_id+"/"+'archivetest.zip'
-                                              }, Timeout=10, MemorySize=512, Layers=layers)  # ADD ANOTHER LAYER ARN .. THE ONE SPECIFIC TO MODEL TYPE
+    #response6 = lambdaclient.create_function(FunctionName=lambdafxnname, Runtime='python3.6', Role='arn:aws:iam::'+account_number+':role/'+lambdarolename, Handler='main.handler',
+    #                                          Code={
+    #                                              'S3Bucket': os.environ.get("BUCKET_NAME"),
+    #                                              'S3Key':  unique_model_id+"/"+'archivetest.zip'
+    #                                          }, Timeout=10, MemorySize=512, Layers=layers)  # ADD ANOTHER LAYER ARN .. THE ONE SPECIFIC TO MODEL TYPE
+
+
+    ### Progress Update #3/6 {{{
+    sys.stdout.write('\r')
+    sys.stdout.write("[============                         ] Progress: 40% - Creating custom containers...                        ")
+    sys.stdout.flush()
+    # }}}
+
+    
+    if(any([custom_libraries=='FALSE',custom_libraries=='false'])):
+        from aimodelshare import base_image
+        response6 = lambda_using_base_image(account_number, os.environ.get("AWS_REGION"), user_session, lambdafxnname, 'file_objects', 'requirements.txt',apiid)
+    elif(any([custom_libraries=='TRUE',custom_libraries=='true'])):
+
+        requirements = requirements.split(",")
+        for i in range(len(requirements)):
+            requirements[i] = requirements[i].strip(" ")
+
+        with open(os.path.join('file_objects', 'requirements.txt'), 'a') as f:
+            for lib in requirements:
+                f.write('%s\n' % lib)
+        from aimodelshare import deploy_container
+        response6 = deploy_container(account_number, os.environ.get("AWS_REGION"), user_session, lambdafxnname, 'file_objects', 'requirements.txt',apiid)
 
     response6evalfxn = lambdaclient.create_function(FunctionName=lambdaevalfxnname, Runtime='python3.6', Role='arn:aws:iam::'+account_number+':role/'+lambdarolename, Handler='main.handler',
                                           Code={
@@ -370,6 +401,13 @@ def create_prediction_api(model_filepath, unique_model_id, model_type,categorica
                                               'S3Bucket': os.environ.get("BUCKET_NAME"),
                                               'S3Key':  unique_model_id+"/"+'archiveauth.zip'
                                           }, Timeout=10, MemorySize=512, Layers=[auth_layer])  # ADD ANOTHER LAYER ARN .. THE ONE SPECIFIC TO MODEL TYPE
+
+    ### Progress Update #4/6 {{{
+    sys.stdout.write('\r')
+    sys.stdout.write("[==========================           ] Progress: 75% - Deploying prediction API...                          ")
+    sys.stdout.flush()
+    # }}}
+
 
     #add create api about here
     #TODO: 
