@@ -443,7 +443,7 @@ def create_competition(apiurl, data_directory, y_test, generate_credentials_file
                 # getting rid of extra quotes that screw up dynamodb string search on apiurls
                 "apiurl": apiurl,
                 "version": 0,
-                "Private": private,
+                "Private": "FALSE",
                 "delete": "FALSE",
                 'datadescription':aishare_datadescription}
     
