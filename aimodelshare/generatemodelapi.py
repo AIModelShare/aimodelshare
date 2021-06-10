@@ -349,7 +349,7 @@ def model_to_api(model_filepath, model_type, private, categorical, trainingdata,
 
     return print_api_info
 
-def create_competition(apiurl, y_test, generate_credentials_file = True):
+def create_competition(apiurl, data_directory, y_test, generate_credentials_file = True):
     """
     Creates a model competition for a deployed prediction REST API
     Inputs : 2
@@ -364,6 +364,8 @@ def create_competition(apiurl, y_test, generate_credentials_file = True):
     y_test :  y labels for test data 
             [REQUIRED] for eval metrics
             expects a one hot encoded y test data format
+            
+    data_directory : folder storing training data and test data (excluding Y test data)
 
     generate_credentials_file (OPTIONAL): Default is True
                                           Function will output .txt file with new credentials
@@ -428,6 +430,32 @@ def create_competition(apiurl, y_test, generate_credentials_file = True):
     api_id = api_url_trim.split(".")[0]
     txt_file_name = api_id+"_credentials.txt"
 
+    aishare_competitionname = input("Enter competition name:")
+    aishare_competitiondescription = input("Enter competition description:")
+    aishare_modeltype = input(
+        "Enter model category (i.e.- Text, Image, Audio, Video, or TimeSeries Data:")
+    aishare_datadescription = input(
+        "Enter data description (i.e.- filenames denoting training and test data, file types, and any subfolders where files are stored):")
+    
+    bodydata = {"unique_model_id": unique_model_id,
+                "bucket_name": bucket_name,
+                "apideveloper": os.environ.get("username"),  # change this to first and last name
+                "competitionname":aishare_competitionname,                
+                "competitiondescription": aishare_competitiondescription,
+                # getting rid of extra quotes that screw up dynamodb string search on apiurls
+                "apiurl": apiurl,
+                "version": 0,
+                "Private": private,
+                "delete": "FALSE",
+                'datadescription':aishare_datadescription}
+    
+    # Get the response
+    headers_with_authentication = {'Content-Type': 'application/json', 'authorizationToken': os.environ.get("JWT_AUTHORIZATION_TOKEN"), 'Access-Control-Allow-Headers':
+                                   'Content-Type,X-Amz-Date,authorizationToken,Access-Control-Allow-Origin,X-Api-Key,X-Amz-Security-Token,Authorization', 'Access-Control-Allow-Origin': '*'}
+    # modeltoapi lambda function invoked through below url to return new prediction api in response
+    requests.post("https://o35jwfakca.execute-api.us-east-1.amazonaws.com/dev/modeldata",
+                  json=bodydata, headers=headers_with_authentication)
+    
     #Format output text
     formatted_userpass = ('[aimodelshare_creds] \n'
                 'username = "Your_Username_Here" \n'
