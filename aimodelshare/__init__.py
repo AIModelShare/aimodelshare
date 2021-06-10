@@ -9,7 +9,8 @@ from .modeluser import get_jwt_token, create_user_getkeyandpassword
 from .generatemodelapi import model_to_api
 from .containerisation import deploy_container
 from .api import create_prediction_api
-
+from .download_data import download_data
+#import .sam as sam
 
 __all__ = [
     # AWS
@@ -21,7 +22,7 @@ __all__ = [
     get_jwt_token,
     create_user_getkeyandpassword,
     model_to_api,
-
+    download_data,
     #  create_model_graph,
     # Leaderboard
     get_leaderboard,
