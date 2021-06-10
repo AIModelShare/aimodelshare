@@ -163,17 +163,16 @@ def model_eval_metrics(y_true, y_pred,classification="TRUE"):
         r2_eval = r2_score(y_true, y_pred)
         metricdata = {'accuracy': [accuracy_eval], 'f1_score': [f1_score_eval], 'precision': [precision_eval], 'recall': [recall_eval], 'mse': [mse_eval], 'rmse': [rmse_eval], 'mae': [mae_eval], 'r2': [r2_eval]}
         finalmetricdata = pd.DataFrame.from_dict(metricdata)
-        return finalmetricdata.to_dict('records')[0]
+
+    return finalmetricdata.to_dict('records')[0]
 
 
 def evaluate_model(body, ytestdata):
 
     if isinstance(body["y_pred"], six.string_types):
         prediction_list = json.loads(body["y_pred"])
-        print(prediction_list)
     else:
         prediction_list = body["y_pred"]
-        print(prediction_list)
 
     result=model_eval_metrics(ytestdata,prediction_list,classification="TRUE")
     return result

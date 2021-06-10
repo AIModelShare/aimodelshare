@@ -45,7 +45,7 @@ def lambda_using_base_image(account_id, region, session, project_name, model_dir
     iam = session.client('iam')
 
     import importlib_resources as pkg_resources
-    from . import sam
+    #from . import sam
 
     os.mkdir(template_folder)
 
