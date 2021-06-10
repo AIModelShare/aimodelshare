@@ -296,7 +296,8 @@ def model_to_api(model_filepath, model_type, private, categorical, trainingdata,
     # Get user inputs, pass to other functions  {{{
     print("We need some information about your model before we can build your API.")
     print("   ")
-    
+
+    requirements = ""
     if(any([custom_libraries=='TRUE',custom_libraries=='true'])):
         requirements = input("Enter all required Python libraries you need at prediction runtime (separate with commas):")
         
@@ -333,7 +334,7 @@ def model_to_api(model_filepath, model_type, private, categorical, trainingdata,
     # }}}
     
     api_info = take_user_info_and_generate_api( 
-        model_filepath, model_type, categorical, labels,preprocessor_filepath,custom_libraries, requirements = "")
+        model_filepath, model_type, categorical, labels,preprocessor_filepath,custom_libraries, requirements)
 
     ### Progress Update #5/6 {{{
     sys.stdout.write('\r')
