@@ -436,7 +436,7 @@ def create_competition(apiurl, data_directory, y_test, generate_credentials_file
         "Enter data description (i.e.- filenames denoting training and test data, file types, and any subfolders where files are stored):")
     
     bodydata = {"unique_model_id": model_id,
-                "bucket_name": bucket_name,
+                "bucket_name": api_bucket,
                 "apideveloper": os.environ.get("username"),  # change this to first and last name
                 "competitionname":aishare_competitionname,                
                 "competitiondescription": aishare_competitiondescription,
