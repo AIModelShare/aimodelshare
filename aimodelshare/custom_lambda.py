@@ -33,19 +33,15 @@ def deploy_custom_lambda(lambda_filepath, deployment_dir, private, categorical=F
         shutil.rmtree('file_objects')
     os.mkdir('file_objects')
    
+    # Store user info in file_paths
+    if deployment_dir != 'file_objects':
+        res = shutil.copytree(deployment_dir, 'file_objects')
+        
     if lambda_filepath != 'custom_lambda.py':    # rename for consistency with api.py
         with open(lambda_filepath, 'r') as in_f:
             with open('custom_lamba.py', 'w') as out_f:
                 out_f.write(in_f.read())
 
-    # Store user info in file_paths
-    if deployment_dir != 'file_objects':
-        for root, directories, files in os.walk(deployment_dir):
-            for filename in files:
-                filepath = os.path.join(root, filename)
-                with open(filepath, 'rb') as in_f:
-                    with open(os.path.join('file_objects', filepath[len(deployment_dir):]), 'wb') as out_f:
-                        out_f.write(in_f.read())
 
     api_json= get_api_json()
     user_client = boto3.client('apigateway', aws_access_key_id=str(
