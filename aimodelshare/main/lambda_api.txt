@@ -11,9 +11,9 @@ labels = "$labels"
 def load_model(filename="runtime_model.onnx", filetype='onnx'):
     model = None
     if filetype.lower() == 'onnx':
-        model = rt.InferenceSession(os.path.join('/tmp', filename))
+        model = rt.InferenceSession(filename)
     elif filetype.lower() == 'pickle':
-        model = pickle.load(open(os.path.join('/tmp', filename), 'rb'))
+        model = pickle.load(open(filename, 'rb'))
     else:
         raise ValueError("Incorrect model file type. Must be 'onnx' or 'pickle'")
     return model

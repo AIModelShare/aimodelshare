@@ -33,12 +33,7 @@ def deploy_custom_lambda(lambda_filepath, deployment_dir, private, categorical=F
     if deployment_dir != 'file_objects':
         if os.path.exists('file_objects'):
             shutil.rmtree('file_objects')
-        res = shutil.copytree(deployment_dir, 'file_objects/tmp')
-    else:
-        shutil.copytree('file_objects', 'temp_folder_aishare_objects')  # painful. Some mv * will be better
-        shutil.rmtree('file_objects')
-        shutil.copytree('temp_folder_aishare_objects', 'file_objects/tmp')
-        shutil.rmtree('temp_folder_aishare_objects')
+        res = shutil.copytree(deployment_dir, 'file_objects')
 
     if lambda_filepath != 'custom_lambda.py':    # rename for consistency with api.py
         with open(lambda_filepath, 'r') as in_f:
