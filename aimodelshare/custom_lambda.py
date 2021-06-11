@@ -29,14 +29,14 @@ def deploy_custom_lambda(lambda_filepath, deployment_dir, private, categorical=F
         except:
             labels = list(set(y_train.to_frame()['tags'].tolist()))
 
-    if os.path.exists('file_objects'):
-        shutil.rmtree('file_objects')
-    os.mkdir('file_objects')
-   
     # Store user info in file_paths
     if deployment_dir != 'file_objects':
+        if os.path.exists('file_objects'):
+            shutil.rmtree('file_objects')
+        os.mkdir('file_objects')
         res = shutil.copytree(deployment_dir, 'file_objects')
-        
+        print('Copied your model(s) to file_objects')
+
     if lambda_filepath != 'custom_lambda.py':    # rename for consistency with api.py
         with open(lambda_filepath, 'r') as in_f:
             with open('custom_lamba.py', 'w') as out_f:
