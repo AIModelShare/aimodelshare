@@ -33,7 +33,6 @@ def deploy_custom_lambda(lambda_filepath, deployment_dir, private, categorical=F
     if deployment_dir != 'file_objects':
         if os.path.exists('file_objects'):
             shutil.rmtree('file_objects')
-        os.mkdir('file_objects')
         res = shutil.copytree(deployment_dir, 'file_objects')
         print('Copied your model(s) to file_objects')
 
