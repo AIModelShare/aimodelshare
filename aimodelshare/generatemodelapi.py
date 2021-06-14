@@ -223,13 +223,23 @@ def send_model_data_to_dyndb_and_return_api(api_info, private, categorical, prep
     headers_with_authentication = {'Content-Type': 'application/json', 'authorizationToken': os.environ.get("JWT_AUTHORIZATION_TOKEN"), 'Access-Control-Allow-Headers':
                                    'Content-Type,X-Amz-Date,authorizationToken,Access-Control-Allow-Origin,X-Api-Key,X-Amz-Security-Token,Authorization', 'Access-Control-Allow-Origin': '*'}
     # modeltoapi lambda function invoked through below url to return new prediction api in response
-    requests.post("https://bhrdesksak.execute-api.us-east-1.amazonaws.com/dev/modeldata",
-                  json=bodydata, headers=headers_with_authentication)
+    response = requests.post("https://bhrdesksak.execute-api.us-east-1.amazonaws.com/dev/modeldata",
+                              json=bodydata, headers=headers_with_authentication)
+    response_string = response.text
+    response_string = response_string[1:-1]
+
+    # Build output {{{
+    final_message = ("\nYou can now use your API web dashboard.\n\n"
+                     "To explore your API's functionality, follow this link to your Prediction Playground.\n"
+                     "You can make predictions with the Dashboard and access example code from the Programmatic tab.\n")
+    web_dashboard_url = ("http://mlsite5aimodelshare-dev.s3-website.us-east-2.amazonaws.com/detail/"+ response_string)
+    
     start = api_info[2]
     end = datetime.datetime.now()
     difference = (end - start).total_seconds()
     finalresult2 = "Your AI Model Share API was created in " + \
         str(int(difference)) + " seconds." + " API Url: " + api_info[0]
+    # }}}
 
     ### Progress Update #6/6 {{{
     sys.stdout.write('\r')
@@ -237,7 +247,7 @@ def send_model_data_to_dyndb_and_return_api(api_info, private, categorical, prep
     sys.stdout.flush()
     # }}}
 
-    return print("\n\n" + finalresult2)
+    return print("\n\n" + finalresult2 + "\n" + final_message + web_dashboard_url)
 
 
 def model_to_api(model_filepath, model_type, private, categorical, trainingdata, y_train,preprocessor_filepath,custom_libraries="FALSE"):
@@ -300,6 +310,7 @@ def model_to_api(model_filepath, model_type, private, categorical, trainingdata,
     requirements = ""
     if(any([custom_libraries=='TRUE',custom_libraries=='true'])):
         requirements = input("Enter all required Python libraries you need at prediction runtime (separate with commas):")
+        _confirm_libraries_exist(requirements)
         
     aishare_modelname = input("Enter model name:")
     aishare_modeldescription = input("Enter model description:")
@@ -460,6 +471,23 @@ def create_competition(apiurl, y_test, generate_credentials_file = True):
     return print(final_message)
 
 
+
+def _confirm_libraries_exist(requirements):
+  requirements = requirements.split(",")
+  for i in range(len(requirements)):
+      requirements[i] = requirements[i].strip(" ")
+      exists = requests.get("https://pypi.org/project/" + requirements[i]) 
+      if exists.status_code == 404:
+          try_again_message = ("The entered library '" + requirements[i] + "' was not found. "
+                                "Please confirm and re-submit library name: ")
+          requirements[i] = input(try_again_message)
+          exists = requests.get("https://pypi.org/project/" + requirements[i])
+  
+          if exists.status_code == 404:
+              error_message = ("ModuleNotFoundError: No module named '" + requirements[i] + "'")
+              return error_message
+
+  return
 
 
 
