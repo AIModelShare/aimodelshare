@@ -187,5 +187,3 @@ def download_data(repository):
 	extract_data_from_image(docker_tar, data_zip_name)
 	os.remove(docker_tar)
 	print('Data pulled successfully.')
-	
-download_data('public.ecr.aws/y2e2a1d6/flower_photos-repository:latest')
