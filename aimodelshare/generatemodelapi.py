@@ -489,7 +489,7 @@ def _confirm_libraries_exist(requirements):
           if exists.status_code == 404:
               error_message = ("ModuleNotFoundError: No module named '" + requirements[i] + "' found in the Python Package Index (PyPI). \n"
                                "Please double-check library name and try again.")
-              return error_message
+              return print(error_message)
 
   return
 
