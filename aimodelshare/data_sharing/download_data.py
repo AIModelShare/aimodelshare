@@ -3,7 +3,6 @@ import sys
 import gzip
 from io import BytesIO
 import json
-import hashlib
 import shutil
 import requests
 import tarfile
@@ -13,10 +12,10 @@ import re
 urllib3.disable_warnings()
 
 def get_auth_head_no_aws_auth(auth_url, registry, repository, type):
-    resp = requests.get('{}?service={}&scope=repository:{}:pull'.format(auth_url, registry, repository), verify=False)
-    access_token = resp.json()['token']
-    auth_head = {'Authorization':'Bearer '+ access_token, 'Accept': type}
-    return auth_head
+	resp = requests.get('{}?service={}&scope=repository:{}:pull'.format(auth_url, registry, repository), verify=False)
+	access_token = resp.json()['token']
+	auth_head = {'Authorization':'Bearer '+ access_token, 'Accept': type}
+	return auth_head
 
 def progress_bar(layer_label, nb_traits):
 	sys.stdout.write('\r' + layer_label + ': Downloading [')
@@ -111,13 +110,14 @@ def pull_image(image_uri):
 
 	layer_count=0
 	layers = resp.json()['layers']
+
 	for layer in layers:
 
 		layer_count += 1
-		
+
 		auth_head = get_auth_head(auth_url, registry, repository) # done to keep from expiring
 		blobs_resp = requests.get('https://{}/v2/{}/blobs/{}'.format(registry, repository, layer['digest']), headers=auth_head, stream=True, verify=False)
-		
+
 		layer_id, layer_dir = download_layer(layer, layer_count, tmp_img_dir, blobs_resp)
 		content[0]['Layers'].append(layer_id + '/layer.tar')
 
@@ -156,7 +156,7 @@ def pull_image(image_uri):
 	tar = tarfile.open(docker_tar, "w")
 	tar.add(tmp_img_dir, arcname=os.path.sep)
 	tar.close()
-	
+
 	shutil.rmtree(tmp_img_dir)
 	print('\rDocker image pulled: ' + docker_tar)
 
@@ -164,22 +164,28 @@ def pull_image(image_uri):
 
 def extract_data_from_image(image_name, file_name):
     tar = tarfile.open(image_name, 'r')
+    files = []
     for t in tar.getmembers():
         if('.tar' not in t.name):
             continue
         tar_layer = tarfile.open(fileobj=tar.extractfile(t))
         for tl in tar_layer.getmembers():
-            if(re.match("var/task/"+file_name+r"[.]+", tl.name)):
-                print('Copying data from Docker image...')
-                data_name = tl.name.split('/')[-1]
-                tar_layer.makefile(tl, '.' + '/' + data_name)
+            if(re.match("var/task/"+file_name, tl.name)):
+                files.append(tl)
+        if(len(files)>0):
+            break
+    print('Copying data from Docker image...')
+    tar_layer.extractall(members=files)
+    shutil.copytree('var/task/'+file_name, file_name)
+    shutil.rmtree('var')
 
-def download_data(repository, data_zip_name):
+def download_data(repository):
+	data_zip_name = repository.split('/')[2].split('-repository')[0]
 	docker_tar = pull_image(repository)
 	extract_data_from_image(docker_tar, data_zip_name)
 	os.remove(docker_tar)
 	print('Data pulled successfully.')
 
-# download_data('public.ecr.aws/y2e2a1d6/aimodelshare-image-classification-public:latest', 'runtime_model')
+#download_data('public.ecr.aws/y2e2a1d6/dog-breed-identification-repository:v1', 'dog-breed-identification')
 
-
+#extract_data_from_image('y2e2a1d6_dog-breed-identification-repository_v1.tar', 'dog-breed-identification')

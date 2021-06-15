@@ -9,7 +9,8 @@ from .modeluser import get_jwt_token, create_user_getkeyandpassword
 from .generatemodelapi import model_to_api
 from .containerisation import deploy_container
 from .api import create_prediction_api
-from .download_data import download_data
+from .data_sharing.download_data import download_data
+from .data_sharing.share_data import share_data_codebuild
 #import .sam as sam
 
 __all__ = [
@@ -22,7 +23,6 @@ __all__ = [
     get_jwt_token,
     create_user_getkeyandpassword,
     model_to_api,
-    download_data,
     #  create_model_graph,
     # Leaderboard
     get_leaderboard,
@@ -31,6 +31,8 @@ __all__ = [
     upload_preprocessor,
     import_preprocessor,
     export_preprocessor,
+    download_data,
+    share_data_codebuild,
     # Tools
     get_model_graph,
     # Containerisation
