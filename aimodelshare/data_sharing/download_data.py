@@ -185,7 +185,3 @@ def download_data(repository):
 	extract_data_from_image(docker_tar, data_zip_name)
 	os.remove(docker_tar)
 	print('Data pulled successfully.')
-
-#download_data('public.ecr.aws/y2e2a1d6/dog-breed-identification-repository:v1', 'dog-breed-identification')
-
-#extract_data_from_image('y2e2a1d6_dog-breed-identification-repository_v1.tar', 'dog-breed-identification')

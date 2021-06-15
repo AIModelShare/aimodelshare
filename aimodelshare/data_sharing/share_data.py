@@ -1,4 +1,4 @@
-import docker
+#import docker
 import os
 import shutil
 import importlib.resources as pkg_resources
@@ -10,14 +10,9 @@ import time
 import json
 import boto3
 
-#os.environ['AWS_ACCESS_KEY_ID'] = 'AKIAXQ2NM4KZDZ3QOFV2'
-#os.environ['AWS_SECRET_ACCESS_KEY'] = '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'
-#os.environ['AWS_REGION'] = 'us-east-1'
-#share_data_codebuild('517169013426', 'us-east-1', 'dog-breed-identification', 'dog-breed-identification', 'v1', '3.8')
+def create_docker_folder_local(dataset_dir, dataset_name, python_version):
 
-def create_docker_folder_local(dataset_dir, python_version):
-
-    tmp_dataset_dir = '/'.join(['tmp_dataset_dir', dataset_dir])
+    tmp_dataset_dir = '/'.join(['tmp_dataset_dir', dataset_name])
 
     os.mkdir('tmp_dataset_dir')
 
@@ -33,9 +28,9 @@ def create_docker_folder_local(dataset_dir, python_version):
     with open(os.path.join('tmp_dataset_dir', 'Dockerfile'), 'w') as file:
         file.write(newdata)
 
-def create_docker_folder_codebuild(dataset_dir, template_folder, region, registry_uri, repository, dataset_tag, python_version):
+def create_docker_folder_codebuild(dataset_dir, dataset_name, template_folder, region, registry_uri, repository, dataset_tag, python_version):
 
-    tmp_dataset_dir = '/'.join(['tmp_dataset_dir', dataset_dir])
+    tmp_dataset_dir = '/'.join(['tmp_dataset_dir', dataset_name])
 
     os.mkdir('tmp_dataset_dir')
 
@@ -90,18 +85,18 @@ def create_docker_folder_codebuild(dataset_dir, template_folder, region, registr
                 pass
 
     shutil.rmtree('tmp_dataset_dir')
+    
+    shutil.rmtree(template_folder)
 
-    shutil.rmtree(template_folder)      
+#def share_data_local(dataset_dir, tag='latest', python_version='3.8'):
 
-def share_data_local(dataset_dir, tag='latest', python_version='3.8'):
+    #create_docker_folder_local(dataset_dir)
 
-    create_docker_folder_local(dataset_dir)
+    #client = docker.from_env()
 
-    client = docker.from_env()
+    #client.images.build(path='./tmp_dataset_folder', tag=tag)
 
-    client.images.build(path='./tmp_dataset_folder', tag=tag)
-
-    shutil.rmtree('tmp_dataset_dir')
+    #shutil.rmtree('tmp_dataset_dir')
 
     # send to ecr
     
@@ -115,13 +110,17 @@ def share_data_local(dataset_dir, tag='latest', python_version='3.8'):
     # aws ecr-public get-login-password --region us-east-1 | docker login --username AWS --password-stdin public.ecr.aws
     # docker push public.ecr.aws/y2e2a1d6/aimodelshare-image-classification-public
 
-def share_data_codebuild(account_id, region, dataset_name, dataset_dir, dataset_tag='latest', python_version='3.8'):
+def share_data_codebuild(account_id, region, dataset_dir, dataset_tag='latest', python_version='3.8'):
 
+    print('Uploading your data. Please wait for a confirmation message.')
+    
     session = boto3.session.Session(aws_access_key_id=os.environ.get("AWS_ACCESS_KEY_ID"),
                                     aws_secret_access_key = os.environ.get("AWS_SECRET_ACCESS_KEY"), 
                                     region_name=os.environ.get("AWS_REGION"))
 
     flag = 0
+
+    dataset_name = dataset_dir.replace(" ", "_")
 
     repository=dataset_name+'-repository'
 
@@ -164,7 +163,7 @@ def share_data_codebuild(account_id, region, dataset_name, dataset_dir, dataset_
     except:
         pass
 
-    create_docker_folder_codebuild(dataset_dir, template_folder, region, registry_uri, repository, dataset_tag, python_version)
+    create_docker_folder_codebuild(dataset_dir, dataset_name, template_folder, region, registry_uri, repository, dataset_tag, python_version)
 
     iam = session.client('iam')
     
@@ -252,8 +251,5 @@ def share_data_codebuild(account_id, region, dataset_name, dataset_dir, dataset_
     response = codebuild.start_build(
         projectName=codebuild_dataset_name
     )
-
-    response = codebuild.delete_project(
-        name=codebuild_dataset_name
-    )
-
+    
+    print('Your data has been shared on AWS ECR Public. Use URI: ' + registry_uri + '/' + repository + ':' + dataset_tag)
