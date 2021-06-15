@@ -17,7 +17,7 @@ from aimodelshare.bucketpolicy import _custom_upload_policy
 from aimodelshare.exceptions import AuthorizationError, AWSAccessError, AWSUploadError
 from aimodelshare.api import create_prediction_api
 from aimodelshare.api import get_api_json
-
+from aimodelshare.modeluser import create_user_getkeyandpassword
 from aimodelshare.preprocessormodules import upload_preprocessor
 from aimodelshare.model import _get_predictionmodel_key, _extract_model_metadata
 
@@ -397,8 +397,8 @@ def create_competition(apiurl, data_directory, y_test, generate_credentials_file
     #ytest data to load to s3
     pickle.dump( list(y_test),open(ytest_path,"wb"))
     s3["client"].upload_file(ytest_path, os.environ.get("BUCKET_NAME"),  model_id + "/ytest.pkl")
-     
     
+    # Detach & Delete current policy  
     policy_response = iam["client"].get_policy(
         PolicyArn=os.environ.get("POLICY_ARN")
     )
@@ -408,12 +408,12 @@ def create_competition(apiurl, data_directory, y_test, generate_credentials_file
         UserName= os.environ.get("IAM_USERNAME"),
         PolicyArn=os.environ.get("POLICY_ARN")
     )
-    
-    # add new policy that only allows file upload to bucket
+
+    # Create & attach new policy that only allows file upload to bucket
     policy = iam["resource"].Policy(os.environ.get("POLICY_ARN"))
     response = policy.delete()
     s3upload_policy = _custom_upload_policy(os.environ.get("BUCKET_NAME"), 
-                                            model_id) 
+                                            model_id)
     s3uploadpolicy_name = 'temporaryaccessAImodelsharePolicy' + \
         str(uuid.uuid1().hex)
     s3uploadpolicy_response = iam["client"].create_policy(
@@ -482,6 +482,9 @@ def create_competition(apiurl, data_directory, y_test, generate_credentials_file
         f= open(txt_file_name,"w+")
         f.write(formatted_userpass + formatted_new_creds)
         f.close()
+
+    # Reset user policy
+    create_user_getkeyandpassword()
 
     return print(final_message)
 
