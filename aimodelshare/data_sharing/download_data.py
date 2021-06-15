@@ -176,6 +176,8 @@ def extract_data_from_image(image_name, file_name):
             break
     print('Copying data from Docker image...')
     tar_layer.extractall(members=files)
+    if(os.path.isdir(file_name)):
+        shutil.rmtree(file_name)
     shutil.copytree('var/task/'+file_name, file_name)
     shutil.rmtree('var')
 
@@ -185,3 +187,5 @@ def download_data(repository):
 	extract_data_from_image(docker_tar, data_zip_name)
 	os.remove(docker_tar)
 	print('Data pulled successfully.')
+	
+download_data('public.ecr.aws/y2e2a1d6/flower_photos-repository:latest')
