@@ -1,4 +1,4 @@
-import docker
+#import docker
 import os
 import shutil
 import importlib.resources as pkg_resources
@@ -9,11 +9,6 @@ import zipfile
 import time
 import json
 import boto3
-
-#os.environ['AWS_ACCESS_KEY_ID'] = 'AKIAXQ2NM4KZDZ3QOFV2'
-#os.environ['AWS_SECRET_ACCESS_KEY'] = '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'
-#os.environ['AWS_REGION'] = 'us-east-1'
-#share_data_codebuild('517169013426', 'us-east-1', 'dog-breed-identification', 'dog-breed-identification', 'v1', '3.8')
 
 def create_docker_folder_local(dataset_dir, python_version):
 
@@ -93,15 +88,15 @@ def create_docker_folder_codebuild(dataset_dir, template_folder, region, registr
 
     shutil.rmtree(template_folder)      
 
-def share_data_local(dataset_dir, tag='latest', python_version='3.8'):
+#def share_data_local(dataset_dir, tag='latest', python_version='3.8'):
 
-    create_docker_folder_local(dataset_dir)
+    #create_docker_folder_local(dataset_dir)
 
-    client = docker.from_env()
+    #client = docker.from_env()
 
-    client.images.build(path='./tmp_dataset_folder', tag=tag)
+    #client.images.build(path='./tmp_dataset_folder', tag=tag)
 
-    shutil.rmtree('tmp_dataset_dir')
+    #shutil.rmtree('tmp_dataset_dir')
 
     # send to ecr
     
