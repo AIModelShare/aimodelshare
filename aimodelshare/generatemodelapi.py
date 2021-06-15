@@ -17,7 +17,7 @@ from aimodelshare.bucketpolicy import _custom_upload_policy
 from aimodelshare.exceptions import AuthorizationError, AWSAccessError, AWSUploadError
 from aimodelshare.api import create_prediction_api
 from aimodelshare.api import get_api_json
-
+from aimodelshare.modeluser import create_user_getkeyandpassword
 from aimodelshare.preprocessormodules import upload_preprocessor
 from aimodelshare.model import _get_predictionmodel_key, _extract_model_metadata
 
@@ -468,6 +468,9 @@ def create_competition(apiurl, y_test, generate_credentials_file = True):
         f.write(formatted_userpass + formatted_new_creds)
         f.close()
 
+    # Reset user policy
+    create_user_getkeyandpassword()
+    
     return print(final_message)
 
 
@@ -484,7 +487,8 @@ def _confirm_libraries_exist(requirements):
           exists = requests.get("https://pypi.org/project/" + requirements[i])
   
           if exists.status_code == 404:
-              error_message = ("ModuleNotFoundError: No module named '" + requirements[i] + "'")
+              error_message = ("ModuleNotFoundError: No module named '" + requirements[i] + "' found in the Python Package Index (PyPI).\n"
+                               "Please double-check library name and try again.")
               return error_message
 
   return
