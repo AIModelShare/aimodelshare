@@ -20,7 +20,7 @@ from aimodelshare.api import get_api_json
 from aimodelshare.modeluser import create_user_getkeyandpassword
 from aimodelshare.preprocessormodules import upload_preprocessor
 from aimodelshare.model import _get_predictionmodel_key, _extract_model_metadata
-
+from aimodelshare.data_sharing.share_data import share_data_codebuild
 
 def take_user_info_and_generate_api(model_filepath, model_type, categorical,labels, preprocessor_filepath,custom_libraries, requirements):
     """
@@ -453,7 +453,7 @@ def create_competition(apiurl, data_directory, y_test, generate_credentials_file
     account_number = user_session.client(
         'sts').get_caller_identity().get('Account')
 
-    datauri=ai.share_data_codebuild(account_number,os.environ.get("AWS_REGION"),data_directory)
+    datauri=share_data_codebuild(account_number,os.environ.get("AWS_REGION"),data_directory)
 
     bodydata = {"unique_model_id": model_id,
                 "bucket_name": api_bucket,
