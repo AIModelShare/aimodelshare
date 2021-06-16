@@ -1,0 +1,15 @@
+version: 0.2
+
+phases:
+  pre_build:
+    commands:
+      - aws configure set aws_access_key_id $aws_access_key_id
+      - aws configure set aws_secret_access_key $aws_secret_access_key
+      - aws ecr-public get-login-password --region $region | docker login --username AWS --password-stdin public.ecr.aws
+  build:
+    commands:
+      - docker build -t $repository:$dataset_tag .
+      - docker tag $repository:$dataset_tag $registry_uri/$repository:$dataset_tag      
+  post_build:
+    commands:
+      - docker push $registry_uri/$repository:$dataset_tag
