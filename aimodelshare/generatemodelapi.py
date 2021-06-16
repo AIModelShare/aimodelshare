@@ -488,11 +488,10 @@ def create_competition(apiurl, data_directory, y_test, generate_credentials_file
                 'AWS_REGION = "' + os.environ.get("AWS_REGION") + '"\n')
     
     final_message = ("\n Success! Model competition created. \n\n"
-                "Your team members can submit models to the competition leaderboard \n"
-                "with the submit_model() function and access your competition data  \n"
-                "using the download_data('"+datauri['ecr_uri']+"') function. \n"
-                "You may update your prediction API runtime model with the \n"
-                "update_runtime_model() function.\n\n"
+                "Your team members can now make use of the following functions: \n"
+                "submit_model() to submit new models to the competition leaderboard. \n"
+                "download_data('"+datauri['ecr_uri']+"') to download your competition data.  \n\n"
+                "You may update your prediction API runtime model with the update_runtime_model() function.\n\n"
                 "To upload new models and/or preprocessors to this API, team members should use \n"
                 "the following credentials:\n\n" + formatted_new_creds + "\n"
                 "(This aws key/password combination limits team members to file upload access only.)\n\n")
