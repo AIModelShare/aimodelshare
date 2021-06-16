@@ -447,6 +447,14 @@ def create_competition(apiurl, data_directory, y_test, generate_credentials_file
     aishare_datadescription = input(
         "Enter data description (i.e.- filenames denoting training and test data, file types, and any subfolders where files are stored):")
     
+    user_session = boto3.session.Session(aws_access_key_id=os.environ.get("AWS_ACCESS_KEY_ID"),
+                                          aws_secret_access_key = os.environ.get("AWS_SECRET_ACCESS_KEY"), 
+                                         region_name=os.environ.get("AWS_REGION"))
+    account_number = user_session.client(
+        'sts').get_caller_identity().get('Account')
+
+    datauri=ai.share_data_codebuild(account_number,os.environ.get("AWS_REGION"),data_directory)
+
     bodydata = {"unique_model_id": model_id,
                 "bucket_name": api_bucket,
                 "apideveloper": os.environ.get("username"),  # change this to first and last name
@@ -466,13 +474,7 @@ def create_competition(apiurl, data_directory, y_test, generate_credentials_file
     # modeltoapi lambda function invoked through below url to return new prediction api in response
     requests.post("https://o35jwfakca.execute-api.us-east-1.amazonaws.com/dev/modeldata",
                   json=bodydata, headers=headers_with_authentication)
-    user_session = boto3.session.Session(aws_access_key_id=os.environ.get("AWS_ACCESS_KEY_ID"),
-                                          aws_secret_access_key = os.environ.get("AWS_SECRET_ACCESS_KEY"), 
-                                         region_name=os.environ.get("AWS_REGION"))
-    account_number = user_session.client(
-        'sts').get_caller_identity().get('Account')
 
-    datauri=ai.share_data_codebuild(account_number,os.environ.get("AWS_REGION"),data_directory)
     
     #Format output text
     formatted_userpass = ('[aimodelshare_creds] \n'
