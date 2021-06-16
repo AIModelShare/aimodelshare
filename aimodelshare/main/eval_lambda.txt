@@ -20,9 +20,9 @@ def handler(event, context):
         body = json.loads(body)
     
     for key, value in body.items():
-    if value == "None":
-      body[key]=None
-      
+        if value == "None":
+          body[key]=None
+
     if body["return_eval"] == "True":
         
         ytestdata=get_ytestdata(ytest_s3_filename="ytest.pkl")
