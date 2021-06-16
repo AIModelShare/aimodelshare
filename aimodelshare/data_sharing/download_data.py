@@ -5,6 +5,7 @@ from io import BytesIO
 import json
 import shutil
 import requests
+import tempfile
 import tarfile
 import urllib3
 import re
@@ -93,7 +94,7 @@ def pull_image(image_uri):
 	config = resp.json()['config']['digest']
 	config_resp = requests.get('https://{}/v2/{}/blobs/{}'.format(registry, repository, config), headers=auth_head, verify=False)
 
-	tmp_img_dir = 'tmp_{}_{}'.format(image, tag)
+	tmp_img_dir = tempfile.gettempdir() + '/' + 'tmp_{}_{}'.format(image, tag)
 	os.mkdir(tmp_img_dir)
 	print('Creating image structure in: ' + tmp_img_dir)
 
@@ -149,7 +150,7 @@ def pull_image(image_uri):
 	file.close()
 
 	# Create image tar and clean tmp folder
-	docker_tar = '_'.join([repository.replace('/', '_'), tag]) + '.tar'
+	docker_tar = tempfile.gettempdir() + '/' + '_'.join([repository.replace('/', '_'), tag]) + '.tar'
 	sys.stdout.write("Creating archive...")
 	sys.stdout.flush()
 
@@ -175,11 +176,11 @@ def extract_data_from_image(image_name, file_name):
         if(len(files)>0):
             break
     print('Copying data from Docker image...')
-    tar_layer.extractall(members=files)
+    tar_layer.extractall(members=files, path=tempfile.gettempdir())
     if(os.path.isdir(file_name)):
         shutil.rmtree(file_name)
-    shutil.copytree('var/task/'+file_name, file_name)
-    shutil.rmtree('var')
+    shutil.copytree(tempfile.gettempdir()+'/var/task/'+file_name, file_name)
+    shutil.rmtree(tempfile.gettempdir()+'/var')
 
 def download_data(repository):
 	data_zip_name = repository.split('/')[2].split('-repository')[0]
@@ -187,5 +188,3 @@ def download_data(repository):
 	extract_data_from_image(docker_tar, data_zip_name)
 	os.remove(docker_tar)
 	print('Data pulled successfully.')
-	
-download_data('public.ecr.aws/y2e2a1d6/flower_photos-repository:latest')

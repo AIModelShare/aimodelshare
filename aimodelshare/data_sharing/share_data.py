@@ -9,12 +9,15 @@ import zipfile
 import time
 import json
 import boto3
+import tempfile
 
 def create_docker_folder_local(dataset_dir, dataset_name, python_version):
 
-    tmp_dataset_dir = '/'.join(['tmp_dataset_dir', dataset_name])
+    tmp_dataset_dir = tempfile.gettempdir() + '/' + '/'.join(['tmp_dataset_dir', dataset_name])
 
-    os.mkdir('tmp_dataset_dir')
+    tmp_dataset = tempfile.gettempdir() + '/' + 'tmp_dataset_dir'
+
+    os.mkdir(tmp_dataset)
 
     shutil.copytree(dataset_dir, tmp_dataset_dir)
 
@@ -25,14 +28,16 @@ def create_docker_folder_local(dataset_dir, dataset_name, python_version):
     template = Template(data)
     newdata = template.substitute(
         python_version=python_version)
-    with open(os.path.join('tmp_dataset_dir', 'Dockerfile'), 'w') as file:
+    with open(os.path.join(tmp_dataset, 'Dockerfile'), 'w') as file:
         file.write(newdata)
 
 def create_docker_folder_codebuild(dataset_dir, dataset_name, template_folder, region, registry_uri, repository, dataset_tag, python_version):
 
-    tmp_dataset_dir = '/'.join(['tmp_dataset_dir', dataset_name])
+    tmp_dataset_dir = tempfile.gettempdir() + '/' + '/'.join(['tmp_dataset_dir', dataset_name])
 
-    os.mkdir('tmp_dataset_dir')
+    tmp_dataset = tempfile.gettempdir() + '/' + 'tmp_dataset_dir'
+
+    os.mkdir(tmp_dataset)
 
     shutil.copytree(dataset_dir, tmp_dataset_dir)
 
@@ -63,7 +68,7 @@ def create_docker_folder_codebuild(dataset_dir, dataset_name, template_folder, r
     with open(os.path.join(template_folder, 'buildspec.yml'), 'w') as file:
         file.write(newdata)
 
-    response = shutil.copytree('tmp_dataset_dir', '/'.join([template_folder, 'tmp_dataset_dir']))
+    response = shutil.copytree(tmp_dataset, '/'.join([template_folder, 'tmp_dataset_dir']))
 
     def get_all_file_paths(directory):
         file_paths = []
@@ -84,7 +89,7 @@ def create_docker_folder_codebuild(dataset_dir, dataset_name, template_folder, r
             except:
                 pass
 
-    shutil.rmtree('tmp_dataset_dir')
+    shutil.rmtree(tmp_dataset)
     
     shutil.rmtree(template_folder)
 
@@ -124,7 +129,7 @@ def share_data_codebuild(account_id, region, dataset_dir, dataset_tag='latest', 
 
     repository=dataset_name+'-repository'
 
-    template_folder=dataset_name+'_'+dataset_tag
+    template_folder=tempfile.gettempdir() + '/' + dataset_name+'_'+dataset_tag
 
     codebuild_role_name=dataset_name+'-codebuild-role'
     codebuild_policies_name=dataset_name+'-codebuild-policies'
@@ -201,7 +206,7 @@ def share_data_codebuild(account_id, region, dataset_dir, dataset_tag='latest', 
     s3_client = session.client('s3')
     s3_client.upload_file(''.join([template_folder, '.zip']),
                           'aimodelsharedata',
-                          ''.join([template_folder, '.zip']))
+                          ''.join([dataset_name+'_'+dataset_tag, '.zip']))
 
     if(flag==0):
         time.sleep(15)
@@ -213,7 +218,7 @@ def share_data_codebuild(account_id, region, dataset_dir, dataset_tag='latest', 
             name=codebuild_dataset_name,
             source={
                 'type': 'S3',
-                'location': 'aimodelsharedata' + '/' + template_folder + '.zip'
+                'location': 'aimodelsharedata' + '/' + dataset_name+'_'+dataset_tag + '.zip'
             },
             artifacts={
                 'type': 'NO_ARTIFACTS',
@@ -234,7 +239,7 @@ def share_data_codebuild(account_id, region, dataset_dir, dataset_tag='latest', 
             name=codebuild_dataset_name,
             source={
                 'type': 'S3',
-                'location': 'aimodelsharedata' + '/' + template_folder + '.zip'
+                'location': 'aimodelsharedata' + '/' + dataset_name+'_'+dataset_tag + '.zip'
             },
             artifacts={
                 'type': 'NO_ARTIFACTS',
@@ -251,5 +256,7 @@ def share_data_codebuild(account_id, region, dataset_dir, dataset_tag='latest', 
     response = codebuild.start_build(
         projectName=codebuild_dataset_name
     )
+
+    os.remove(template_folder+'.zip')
     
     print('Your data has been shared on AWS ECR Public. Use URI: ' + registry_uri + '/' + repository + ':' + dataset_tag)
