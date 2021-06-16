@@ -259,4 +259,4 @@ def share_data_codebuild(account_id, region, dataset_dir, dataset_tag='latest', 
 
     os.remove(template_folder+'.zip')
     
-    return {"ecr_uri":registry_uri + '/' + repository + ':' + dataset_tag)}
+    return {"ecr_uri":registry_uri + '/' + repository + ':' + dataset_tag}
