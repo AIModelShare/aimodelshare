@@ -1016,6 +1016,39 @@ def compare_models_lambda(apiurl, version_list=None,
     return compare_pd
 
 
+def get_leaderboard_lambda(apiurl, category="classification", verbose=3, columns=None):
+    if all(["AWS_ACCESS_KEY_ID" in os.environ, 
+            "AWS_SECRET_ACCESS_KEY" in os.environ,
+            "AWS_REGION" in os.environ, 
+           "username" in os.environ, 
+           "password" in os.environ]):
+        pass
+    else:
+        return print("'get_leaderboard()' unsuccessful. Please provide credentials with set_credentials().")
+
+    post_dict = {"y_pred": [],
+               "return_eval": "False",
+               "return_y": "False",
+               "inspect_model": "False",
+               "version": None, 
+               "compare_models": "False",
+               "version_list": None,
+               "get_leaderboard": "True",
+               "category": category,
+               "verbose": verbose,
+               "columns": columns}
+    
+    headers = { 'Content-Type':'application/json', 'authorizationToken': os.environ.get("AWS_TOKEN"),} 
+
+    apiurl_eval=apiurl[:-1]+"eval"
+
+    leaderboard_json = requests.post(apiurl_eval,headers=headers,data=json.dumps(post_dict)) 
+
+    leaderboard_pd = pd.DataFrame(json.loads(leaderboard_json.text))
+
+    return leaderboard_pd
+
+
 
 def _get_onnx_from_bucket(apiurl, aws_client, version=None):
 

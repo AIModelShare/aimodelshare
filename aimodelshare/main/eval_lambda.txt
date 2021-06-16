@@ -86,6 +86,26 @@ def handler(event, context):
             "body": json.dumps(compare_pd.to_dict())
             }
         return compare_dict
+
+
+    if body["get_leaderboard"] == "True": 
+        
+        category=body["category"]
+        verbose=body["verbose"]
+        columns=body["columns"]
+    
+        leaderboard = get_leaderboard(category, verbose, columns)
+        
+        leaderboard_dict = {"statusCode": 200,
+            "headers": {
+            "Access-Control-Allow-Origin" : "*",
+            "Access-Control-Allow-Credentials": True,
+            "Allow" : "GET, OPTIONS, POST",
+            "Access-Control-Allow-Methods" : "GET, OPTIONS, POST",
+            "Access-Control-Allow-Headers" : "*"},
+            "body": json.dumps(leaderboard.to_dict())
+            }
+        return leaderboard_dict   
         
 ####################################################################
 ######################### aimsonnx lambda ##########################
@@ -104,6 +124,7 @@ from collections import Counter
 from math import sqrt
 import json
 import pandas as pd
+import numpy as np
 import ast
 import six
 
@@ -163,17 +184,16 @@ def model_eval_metrics(y_true, y_pred,classification="TRUE"):
         r2_eval = r2_score(y_true, y_pred)
         metricdata = {'accuracy': [accuracy_eval], 'f1_score': [f1_score_eval], 'precision': [precision_eval], 'recall': [recall_eval], 'mse': [mse_eval], 'rmse': [rmse_eval], 'mae': [mae_eval], 'r2': [r2_eval]}
         finalmetricdata = pd.DataFrame.from_dict(metricdata)
-        return finalmetricdata.to_dict('records')[0]
+
+    return finalmetricdata.to_dict('records')[0]
 
 
 def evaluate_model(body, ytestdata):
 
     if isinstance(body["y_pred"], six.string_types):
         prediction_list = json.loads(body["y_pred"])
-        print(prediction_list)
     else:
         prediction_list = body["y_pred"]
-        print(prediction_list)
 
     result=model_eval_metrics(ytestdata,prediction_list,classification="TRUE")
     return result
@@ -321,8 +341,53 @@ def compare_models(version_list=None,
             
         df_styled = comp_pd
 
-
     return df_styled
+
+
+def get_leaderboard(category="classification", verbose=3, columns=None):
+    
+    s3 = boto3.resource("s3")
+    bucket = s3.Bucket("$bucket_name")
+    with open("/tmp/"+"model_eval_data_mastertable.csv", "wb") as lbfo:
+      bucket.download_fileobj("$unique_model_id/"+"model_eval_data_mastertable.csv", lbfo)
+    leaderboard = pd.read_csv("/tmp/"+"model_eval_data_mastertable.csv", sep="\t")
+
+    if columns:
+    	clf =["accuracy", "f1_score", "precision", "recall"]
+    	reg = ['mse', 'rmse', 'mae', 'r2']
+    	other = ['timestamp']
+    	leaderboard = leaderboard.filter(clf+reg+columns+other)
+
+    leaderboard = leaderboard.replace(0,np.nan).dropna(axis=1,how="all")
+
+    if verbose == 1:
+    	leaderboard = leaderboard.filter(regex=("^(?!.*(_layers|_act))"))
+    elif verbose == 2:
+    	leaderboard = leaderboard.filter(regex=("^(?!.*_act)"))
+
+    if category == "classification":
+        sort_cols = ["accuracy", "f1_score", "precision", "recall"]
+        #leaderboard = leaderboard.drop(columns = ['mse', 'rmse', 'mae', 'r2'])
+
+    else:
+        sort_cols = ["-mae", "r2"]
+
+    ranks = []
+    for col in sort_cols:
+        ascending = False
+        if col[0] == "-":
+            col = col[1:]
+            ascending = True
+
+        ranks.append(leaderboard[col].rank(method="dense", ascending=ascending))
+
+    ranks = np.mean(ranks, axis=0)
+    order = np.argsort(ranks)
+
+    leaderboard = leaderboard.loc[order].reset_index().drop("index", axis=1)
+    # }}}
+
+    return leaderboard
     
 ####################################################################
 ############################ S3 connect ############################
