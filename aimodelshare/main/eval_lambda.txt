@@ -18,7 +18,11 @@ def handler(event, context):
     body = event["body"]
     if isinstance(body, six.string_types):
         body = json.loads(body)
-        
+    
+    for key, value in body.items():
+    if value == "None":
+      body[key]=None
+      
     if body["return_eval"] == "True":
         
         ytestdata=get_ytestdata(ytest_s3_filename="ytest.pkl")
