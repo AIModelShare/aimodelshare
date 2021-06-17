@@ -111,20 +111,20 @@ def handler(event, context):
             }
         return leaderboard_dict  
         
-if body.get("leaderboard","ALL") == "TRUE":  
+    if body.get("leaderboard","ALL") == "TRUE":  
 
-    leaderboarddata=get_leaderboarddata_json(yleaderboard_s3_filename="model_eval_data_mastertable.csv")
-    result=get_leaderboard_json(leaderboarddata,category="classification", verbose=3, columns=None)
-    leaderboard_dict = {"statusCode": 200,
-        "headers": {
-        "Access-Control-Allow-Origin" : "*",
-        "Access-Control-Allow-Credentials": True,
-        "Allow" : "GET, OPTIONS, POST",
-        "Access-Control-Allow-Methods" : "GET, OPTIONS, POST",
-        "Access-Control-Allow-Headers" : "*"},
-        "body": json.dumps(result)
-        }
-    return leaderboard_dict 
+        leaderboarddata=get_leaderboarddata_json(yleaderboard_s3_filename="model_eval_data_mastertable.csv")
+        result=get_leaderboard_json(leaderboarddata,category="classification", verbose=3, columns=None)
+        leaderboard_dict = {"statusCode": 200,
+                "headers": {
+                "Access-Control-Allow-Origin" : "*",
+                "Access-Control-Allow-Credentials": True,
+                "Allow" : "GET, OPTIONS, POST",
+                "Access-Control-Allow-Methods" : "GET, OPTIONS, POST",
+                "Access-Control-Allow-Headers" : "*"},
+                "body": json.dumps(result)
+                }
+        return leaderboard_dict 
         
 ####################################################################
 ######################### aimsonnx lambda ##########################
