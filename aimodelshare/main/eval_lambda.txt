@@ -418,7 +418,7 @@ def get_leaderboarddata_json(yleaderboard_s3_filename="model_eval_data_mastertab
   return yleaderboarddata
 
 
-def get_leaderboard_json(leaderboard,category="classification", 
+def get_leaderboard_json(leaderboard,category="$classification", 
 	verbose=3, columns=None):
     # Get bucket and model_id for user {{{
 
