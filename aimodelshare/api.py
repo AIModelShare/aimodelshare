@@ -207,7 +207,7 @@ def create_prediction_api(model_filepath, unique_model_id, model_type,categorica
             from string import Template
             t = Template(data)
             newdata = t.substitute(
-                bucket_name=os.environ.get("BUCKET_NAME"), unique_model_id=unique_model_id)
+                bucket_name=os.environ.get("BUCKET_NAME"), unique_model_id=unique_model_id,classification="classification")
             with open(os.path.join(temp_dir, 'main.py'), 'w') as file:
                 file.write(newdata)
     elif categorical == 'FALSE':
@@ -215,7 +215,7 @@ def create_prediction_api(model_filepath, unique_model_id, model_type,categorica
             from string import Template
             t = Template(data)
             newdata = t.substitute(
-                bucket_name=os.environ.get("BUCKET_NAME"), unique_model_id=unique_model_id)
+                bucket_name=os.environ.get("BUCKET_NAME"), unique_model_id=unique_model_id,classification="None")
             with open(os.path.join(temp_dir, 'main.py'), 'w') as file:
                 file.write(newdata)
     with zipfile.ZipFile(os.path.join(temp_dir, 'archive2.zip'), 'a') as z:
