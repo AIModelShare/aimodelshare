@@ -112,7 +112,9 @@ def _update_leaderboard(
     metadata["timestamp"] = str(datetime.now())
     metadata["version"] = model_version
     # }}}
-
+    
+    #TODO: send above data in post call to /eval and update master table on back end rather than downloading locally.
+    #Either way something is breaking and the s3 version should still work right??
     # Read existing table {{{
     try:
         leaderboard = client["client"].get_object(

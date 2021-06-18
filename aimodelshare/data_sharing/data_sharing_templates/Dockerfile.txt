@@ -1,0 +1,3 @@
+FROM public.ecr.aws/lambda/python:$python_version
+
+COPY ./tmp_dataset_dir ./

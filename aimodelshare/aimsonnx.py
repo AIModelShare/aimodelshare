@@ -986,7 +986,7 @@ def compare_models(apiurl, version_list=None,
     return df_styled
 
 
-def compare_models_lambda(apiurl, version_list=None, 
+def compare_models_lambda(apiurl, version_list="None", 
     by_model_type=None, best_model=None, verbose=3):
     if all(["AWS_ACCESS_KEY_ID" in os.environ, 
             "AWS_SECRET_ACCESS_KEY" in os.environ,
@@ -1001,7 +1001,7 @@ def compare_models_lambda(apiurl, version_list=None,
                "return_eval": "False",
                "return_y": "False",
                "inspect_model": "False",
-               "version": None, 
+               "version": "None", 
                "compare_models": "True",
                "version_list": version_list}
     
@@ -1016,7 +1016,7 @@ def compare_models_lambda(apiurl, version_list=None,
     return compare_pd
 
 
-def get_leaderboard_lambda(apiurl, category="classification", verbose=3, columns=None):
+def get_leaderboard_lambda(apiurl, category="classification", verbose=3, columns="None"):
     if all(["AWS_ACCESS_KEY_ID" in os.environ, 
             "AWS_SECRET_ACCESS_KEY" in os.environ,
             "AWS_REGION" in os.environ, 
@@ -1030,9 +1030,9 @@ def get_leaderboard_lambda(apiurl, category="classification", verbose=3, columns
                "return_eval": "False",
                "return_y": "False",
                "inspect_model": "False",
-               "version": None, 
+               "version": "None", 
                "compare_models": "False",
-               "version_list": None,
+               "version_list": "None",
                "get_leaderboard": "True",
                "category": category,
                "verbose": verbose,
