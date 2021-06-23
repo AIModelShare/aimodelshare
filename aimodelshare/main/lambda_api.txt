@@ -5,14 +5,15 @@ import pickle
 import os
 import onnxruntime as rt
 import json
+import os
+import tempfile
+import inspect
+import string
 
 labels = "$labels"
 
 def import_preprocessor(filepath):
       #preprocessor fxn should always be named "preprocessor" to work properly in aimodelshare process.
-      import tempfile
-      import inspect
-      import string
 
       #create temporary folder
       temp_dir=tempfile.gettempdir()
@@ -24,7 +25,6 @@ def import_preprocessor(filepath):
       
       folderpath=os.path.dirname(os.path.abspath(filepath))
       file_name=os.path.basename(filepath)
-      import os
       pickle_file_list=[]
       for file in os.listdir(temp_dir):
           if file.endswith(".pkl"):
