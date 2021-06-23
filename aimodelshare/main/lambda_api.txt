@@ -1,11 +1,11 @@
 import boto3
-import pickle
+import dill as pickle
 from zipfile import ZipFile
 from io import BytesIO
 import os
 import onnxruntime as rt
 import json
-
+Using 
 labels = "$labels"
 
 def load_model(filename="runtime_model.onnx", filetype='onnx'):
