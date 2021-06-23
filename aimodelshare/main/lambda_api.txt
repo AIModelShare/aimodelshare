@@ -5,7 +5,6 @@ import pickle
 import os
 import onnxruntime as rt
 import json
-import __main__
 
 labels = "$labels"
 
