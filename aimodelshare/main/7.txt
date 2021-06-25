@@ -8,8 +8,6 @@ import onnxruntime as rt
 import base64
 import six
 from functools import partial
-import fleep
-import librosa
 import os.path
 from os import path
 

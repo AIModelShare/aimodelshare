@@ -313,6 +313,18 @@ def submit_model(
     #    raise error
     # }}}
 
+    
+    bodydata = {"versionupdateput":"TRUE",
+                "apiurl": apiurl,
+                "submissions": model_version,
+                 "contributoruniquenames":os.environ.get('username')}
+    
+    # Get the response
+    headers_with_authentication = {'Content-Type': 'application/json', 'authorizationToken': os.environ.get("JWT_AUTHORIZATION_TOKEN"), 'Access-Control-Allow-Headers':
+                                   'Content-Type,X-Amz-Date,authorizationToken,Access-Control-Allow-Origin,X-Api-Key,X-Amz-Security-Token,Authorization', 'Access-Control-Allow-Origin': '*'}
+    # competitiondata lambda function invoked through below url to update model submissions and contributors
+    requests.post("https://o35jwfakca.execute-api.us-east-1.amazonaws.com/dev/modeldata",
+                  json=bodydata, headers=headers_with_authentication)
     return "Your model has been submitted as model version "+str(model_version) 
 
   
