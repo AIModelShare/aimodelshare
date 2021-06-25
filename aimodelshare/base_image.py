@@ -3,7 +3,7 @@ import boto3
 import os
 import shutil
 import time
-
+import tempfile
 import zipfile
 import importlib.resources as pkg_resources
 from string import Template
@@ -14,8 +14,8 @@ def lambda_using_base_image(account_id, region, session, project_name, model_dir
                                                                                     #Why?  AWS limits users to 100 total buckets!  Our old code only creates one per user per acct.
 
     repository=project_name+'-repository' # repository name to create
-
-    template_folder=project_name # folder to create for sam
+    
+    template_folder=tempfile.gettempdir()+'/'+project_name # folder to create for sam
 
     stack_name=project_name+'-stack' # stack name to be created in cloudformation
 
@@ -70,7 +70,7 @@ def lambda_using_base_image(account_id, region, session, project_name, model_dir
     s3_client = session.client('s3')
     s3_client.upload_file(''.join([template_folder, '.zip']),
                           codebuild_bucket_name,
-                          ''.join([apiid,'/',template_folder,'.zip']))
+                          ''.join([apiid, '/', project_name, '.zip']))
 
     iam_client = session.client('iam')
     
@@ -139,11 +139,15 @@ def lambda_using_base_image(account_id, region, session, project_name, model_dir
         Environment={
             'Variables': {
                 'bucket': codebuild_bucket_name,
-                'key': apiid + '/' + template_folder + '.zip',
+                'key': apiid + '/' + project_name + '.zip',
                 'final_location': '/tmp/' + model_dir + '.zip'
             }
         }
     )
+    
+    
+    shutil.rmtree(template_folder)
+    
 __all__ = [
     lambda_using_base_image
 ]
