@@ -156,7 +156,7 @@ def deploy_container(account_id, region, session, project_name, model_dir, requi
     s3_client = session.client('s3')
     s3_client.upload_file(''.join([template_folder, '.zip']),
                           codebuild_bucket_name,
-                          ''.join([apiid, '/', template_folder, '.zip']))
+                          ''.join([apiid, '/', project_name, '.zip']))
                           
     codebuild = session.client('codebuild')
     time.sleep(15)
