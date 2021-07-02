@@ -319,7 +319,7 @@ def compare_models(version_list=None,
             gc.collect()
         
         ml_framework_list.append(meta_dict['ml_framework'])
-        ml_type_list.append(meta_dict['model_type'])
+        model_type_list.append(meta_dict['model_type'])
         del meta_dict
         gc.collect()
     

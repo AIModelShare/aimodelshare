@@ -268,8 +268,13 @@ def submit_model(
             prediction_submission=prediction_submission.tolist()
         else: 
             pass
-    else: 
+
+        if all(isinstance(x, (np.int64)) for x in prediction_submission):
+              prediction_submission = [int(i) for i in prediction_submission]
+        else: 
             pass
+
+
     
     post_dict = {"y_pred": prediction_submission,
            "return_eval": "True",

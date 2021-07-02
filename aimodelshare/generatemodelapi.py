@@ -11,6 +11,7 @@ import datetime
 import onnx
 import tempfile
 import sys
+import numpy as np
 from aimodelshare.tools import extract_varnames_fromtrainingdata, _get_extension_from_filepath
 from aimodelshare.aws import get_s3_iam_client, run_function_on_lambda
 from aimodelshare.bucketpolicy import _custom_upload_policy
@@ -335,7 +336,8 @@ def model_to_api(model_filepath, model_type, private, categorical, trainingdata,
         try:
             labels = y_train.columns.tolist()
         except:
-            labels = list(set(y_train.to_frame()['tags'].tolist()))
+            #labels = list(set(y_train.to_frame()['tags'].tolist()))
+            labels = list(set(y_train))
     else:
         labels = "no data"
 
@@ -405,7 +407,20 @@ def create_competition(apiurl, data_directory, y_test, generate_credentials_file
     ytest_path = os.path.join(temp_dir, "ytest.pkl")
     import pickle
     #ytest data to load to s3
-    pickle.dump( list(y_test),open(ytest_path,"wb"))
+
+    if y_test is not None:
+        if type(y_test) is not list:
+            y_test=y_test.tolist()
+        else: 
+            pass
+
+        if all(isinstance(x, (np.int64)) for x in y_test):
+              y_test = [int(i) for i in y_test]
+        else: 
+            pass
+
+
+    pickle.dump(y_test,open(ytest_path,"wb"))
     s3["client"].upload_file(ytest_path, os.environ.get("BUCKET_NAME"),  model_id + "/ytest.pkl")
 
     # Reset user policy

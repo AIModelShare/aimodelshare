@@ -950,7 +950,7 @@ def compare_models_aws(apiurl, version_list=None,
         for i in version_list: 
             
             temp_pd = inspect_model(apiurl, version=i)
-            comp_pd = pd.concat([comp_pd, temp_pd.drop(columns='param_name')], axis=1)
+            comp_pd = comp_pd.merge(temp_pd, on='param_name')
         
         comp_pd.columns = ['param_name', 'model_default'] + ["Model_"+str(i) for i in version_list]
         
