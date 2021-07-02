@@ -136,10 +136,10 @@ def get_leaderboard(apiurl, category="classification", verbose=3, columns="None"
     else:
         return print("'get_leaderboard()' unsuccessful. Please provide credentials with set_credentials().")
     
-    #try: 
-    leaderboard_pd = get_leaderboard_lambda(apiurl, category, verbose, columns)
-    #except: 
-    #    leaderboard_pd = get_leaderboard_aws(apiurl, category, verbose, columns)
+    try: 
+        leaderboard_pd = get_leaderboard_lambda(apiurl, category, verbose, columns)
+    except: 
+        leaderboard_pd = get_leaderboard_aws(apiurl, category, verbose, columns)
     
     return leaderboard_pd
 

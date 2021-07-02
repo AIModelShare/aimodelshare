@@ -895,9 +895,9 @@ def inspect_model(apiurl, version=None):
         return print("'Inspect Model' unsuccessful. Please provide credentials with set_credentials().")
 
     try: 
-        inspect_pd = inspect_models_lambda(apiurl, version)
+        inspect_pd = inspect_model_lambda(apiurl, version)
     except: 
-        inspect_pd = inspect_models_aws(apiurl, version)
+        inspect_pd = inspect_model_aws(apiurl, version)
     
     return inspect_pd
     
