@@ -145,6 +145,10 @@ def lambda_using_base_image(account_id, region, session, project_name, model_dir
         }
     )
     
+    s3_client = session.client('s3')
+    s3_client.delete_object(''.join([template_folder, '.zip']),
+                            codebuild_bucket_name,
+                            ''.join([apiid, '/', project_name, '.zip']))
     
     shutil.rmtree(template_folder)
     

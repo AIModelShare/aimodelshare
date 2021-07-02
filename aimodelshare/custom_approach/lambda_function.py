@@ -1,10 +1,8 @@
 import json
-from predict import handler
+from model import handler
 import os
 
 def lambda_handler(event, context):
-
-    os.chdir('/tmp')
 
     return {
         "statusCode": 200,

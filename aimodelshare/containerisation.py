@@ -12,6 +12,7 @@ def deploy_container(account_id, region, session, project_name, model_dir, requi
 
     codebuild_bucket_name=os.environ.get("BUCKET_NAME") # s3 bucket name to create  #TODO: use same bucket and subfolder we used previously to store this data
                                                         # Why? AWS limits users to 100 total buckets!  Our old code only creates one per user per acct.
+                                                        # if bucket exists then no problem
 
     repository=project_name+'-repository' # repository name to create
 
@@ -157,7 +158,7 @@ def deploy_container(account_id, region, session, project_name, model_dir, requi
     s3_client.upload_file(''.join([template_folder, '.zip']),
                           codebuild_bucket_name,
                           ''.join([apiid, '/', project_name, '.zip']))
-                          
+                        
     codebuild = session.client('codebuild')
     time.sleep(15)
     response = codebuild.create_project(
@@ -193,5 +194,10 @@ def deploy_container(account_id, region, session, project_name, model_dir, requi
             print("container failed to build on codebuild "+buildStatus)
             break
         time.sleep(10)
+
+    s3_client = session.client('s3')
+    s3_client.delete_object(''.join([template_folder, '.zip']),
+                            codebuild_bucket_name,
+                            ''.join([apiid, '/', project_name, '.zip']))
 
     shutil.rmtree(template_folder)
