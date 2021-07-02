@@ -314,7 +314,7 @@ def submit_model(
     # }}}
 
     
-    bodydata = {"versionupdateput":"TRUE",
+    bodydata = {"versionupdateputsubmit":"TRUE",
                 "apiurl": apiurl,
                 "submissions": model_version,
                  "contributoruniquenames":os.environ.get('username')}
