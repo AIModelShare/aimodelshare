@@ -196,7 +196,7 @@ def deploy_container(account_id, region, session, project_name, model_dir, requi
         time.sleep(10)
 
     s3_client = session.client('s3')
-    s3_client.delete_object(codebuild_bucket_name,
-                            ''.join([apiid, '/', project_name, '.zip']))
+    s3_client.delete_object(Bucket=codebuild_bucket_name,
+                            Key=apiid)
 
     shutil.rmtree(template_folder)
