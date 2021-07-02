@@ -830,7 +830,7 @@ def onnx_to_image(model):
     
     return pydot_graph
 
-def inspect_model(apiurl, version=None):
+def inspect_model_aws(apiurl, version=None):
     if all(["AWS_ACCESS_KEY_ID" in os.environ, 
             "AWS_SECRET_ACCESS_KEY" in os.environ,
             "AWS_REGION" in os.environ, 
@@ -883,9 +883,26 @@ def inspect_model_lambda(apiurl, version=None):
 
     return inspect_pd
 
+
+def inspect_model(apiurl, version=None):
+    if all(["AWS_ACCESS_KEY_ID" in os.environ, 
+            "AWS_SECRET_ACCESS_KEY" in os.environ,
+            "AWS_REGION" in os.environ, 
+           "username" in os.environ, 
+           "password" in os.environ]):
+        pass
+    else:
+        return print("'Inspect Model' unsuccessful. Please provide credentials with set_credentials().")
+
+    try: 
+        inspect_pd = inspect_models_lambda(apiurl, version)
+    except: 
+        inspect_pd = inspect_models_aws(apiurl, version)
+    
+    return inspect_pd
     
 
-def compare_models(apiurl, version_list=None, 
+def compare_models_aws(apiurl, version_list=None, 
     by_model_type=None, best_model=None, verbose=3):
     
     if not isinstance(version_list, list):
@@ -1015,8 +1032,9 @@ def compare_models_lambda(apiurl, version_list="None",
 
     return compare_pd
 
+def compare_models(apiurl, version_list="None", 
+    by_model_type=None, best_model=None, verbose=3):
 
-def get_leaderboard_lambda(apiurl, category="classification", verbose=3, columns="None"):
     if all(["AWS_ACCESS_KEY_ID" in os.environ, 
             "AWS_SECRET_ACCESS_KEY" in os.environ,
             "AWS_REGION" in os.environ, 
@@ -1024,29 +1042,20 @@ def get_leaderboard_lambda(apiurl, category="classification", verbose=3, columns
            "password" in os.environ]):
         pass
     else:
-        return print("'get_leaderboard()' unsuccessful. Please provide credentials with set_credentials().")
-
-    post_dict = {"y_pred": [],
-               "return_eval": "False",
-               "return_y": "False",
-               "inspect_model": "False",
-               "version": "None", 
-               "compare_models": "False",
-               "version_list": "None",
-               "get_leaderboard": "True",
-               "category": category,
-               "verbose": verbose,
-               "columns": columns}
+        return print("'Inspect Model' unsuccessful. Please provide credentials with set_credentials().")
     
-    headers = { 'Content-Type':'application/json', 'authorizationToken': os.environ.get("AWS_TOKEN"),} 
+    try: 
+        compare_pd = compare_models_lambda(apiurl, version_list, 
+            by_model_type, best_model, verbose)
+    except: 
+        compare_pd = compare_models_aws(apiurl, version_list, 
+            by_model_type, best_model, verbose)
+    
+    return compare_pd
 
-    apiurl_eval=apiurl[:-1]+"eval"
 
-    leaderboard_json = requests.post(apiurl_eval,headers=headers,data=json.dumps(post_dict)) 
 
-    leaderboard_pd = pd.DataFrame(json.loads(leaderboard_json.text))
 
-    return leaderboard_pd
 
 
 

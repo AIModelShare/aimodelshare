@@ -2,12 +2,13 @@ import json
 import numpy as np
 import pandas as pd
 import os
+import requests
 
 from aimodelshare.aws import run_function_on_lambda, get_aws_client
 from aimodelshare.aimsonnx import _get_layer_names
 
 
-def get_leaderboard(apiurl, category="classification", verbose=3, columns=None):
+def get_leaderboard_aws(apiurl, category="classification", verbose=3, columns=None):
     # Confirm that creds are loaded, print warning if not
     if all(["AWS_ACCESS_KEY_ID" in os.environ, 
             "AWS_SECRET_ACCESS_KEY" in os.environ,
@@ -89,6 +90,60 @@ def get_leaderboard(apiurl, category="classification", verbose=3, columns=None):
     # }}}
 
     return leaderboard
+
+
+def get_leaderboard_lambda(apiurl, category="classification", verbose=3, columns="None"):
+    if all(["AWS_ACCESS_KEY_ID" in os.environ, 
+            "AWS_SECRET_ACCESS_KEY" in os.environ,
+            "AWS_REGION" in os.environ, 
+           "username" in os.environ, 
+           "password" in os.environ]):
+        pass
+    else:
+        return print("'get_leaderboard()' unsuccessful. Please provide credentials with set_credentials().")
+
+    post_dict = {"y_pred": [],
+               "return_eval": "False",
+               "return_y": "False",
+               "inspect_model": "False",
+               "version": "None", 
+               "compare_models": "False",
+               "version_list": "None",
+               "get_leaderboard": "True",
+               "category": category,
+               "verbose": verbose,
+               "columns": columns}
+    
+    headers = { 'Content-Type':'application/json', 'authorizationToken': os.environ.get("AWS_TOKEN"),} 
+
+    apiurl_eval=apiurl[:-1]+"eval"
+
+    leaderboard_json = requests.post(apiurl_eval,headers=headers,data=json.dumps(post_dict)) 
+
+    leaderboard_pd = pd.DataFrame(json.loads(leaderboard_json.text))
+
+    return leaderboard_pd
+
+
+def get_leaderboard(apiurl, category="classification", verbose=3, columns="None"):
+
+    if all(["AWS_ACCESS_KEY_ID" in os.environ, 
+            "AWS_SECRET_ACCESS_KEY" in os.environ,
+            "AWS_REGION" in os.environ, 
+           "username" in os.environ, 
+           "password" in os.environ]):
+        pass
+    else:
+        return print("'get_leaderboard()' unsuccessful. Please provide credentials with set_credentials().")
+    
+    #try: 
+    leaderboard_pd = get_leaderboard_lambda(apiurl, category, verbose, columns)
+    #except: 
+    #    leaderboard_pd = get_leaderboard_aws(apiurl, category, verbose, columns)
+    
+    return leaderboard_pd
+
+
 
 
 def stylize_leaderboard(leaderboard, category="classficiation"):

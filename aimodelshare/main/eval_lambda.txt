@@ -146,6 +146,7 @@ import pandas as pd
 import numpy as np
 import ast
 import six
+import gc
 
 #from s3connect import get_onnx_mem
 
@@ -303,7 +304,8 @@ def _get_metadata(onnx_model):
 def compare_models(version_list=None, 
     by_model_type=None, best_model=None, verbose=3):
     
-    models_dict = {}
+    ml_framework_list = []
+    model_type_list = []
     
     for i in version_list:
         
@@ -313,11 +315,14 @@ def compare_models(version_list=None,
         except: 
             onnx_model = get_onnx_mem(i)
             meta_dict = _get_metadata(onnx_model)
+	    del onnx_model 
+	    gc.collect()
         
-        models_dict[i] = meta_dict
-        
-    ml_framework_list = [models_dict[i]['ml_framework'] for i in models_dict]
-    model_type_list = [models_dict[i]['model_type'] for i in models_dict]
+        ml_framework_list.append(meta_dict['ml_framework'])
+        ml_type_list.append(meta_dict['model_type'])
+
+	del meta_dict
+	gc.collect()
     
     if not all(x==ml_framework_list[0] for x in ml_framework_list):
         raise Exception("Incongruent frameworks. Please compare models from the same ML frameworks.")
@@ -339,6 +344,8 @@ def compare_models(version_list=None,
             
             temp_pd = inspect_model(version=i)
             comp_pd = pd.concat([comp_pd, temp_pd.drop(columns='param_name')], axis=1)
+	    del temp_pd
+	    gc.collect()
         
         comp_pd.columns = ['param_name', 'model_default'] + ["Model_"+str(i) for i in version_list]
         
@@ -357,6 +364,8 @@ def compare_models(version_list=None,
 
             temp_pd = temp_pd.add_prefix('Model_'+str(i)+'_')    
             comp_pd = pd.concat([comp_pd, temp_pd], axis=1)
+	    del temp_pd
+	    gc.collect()
             
         df_styled = comp_pd
 
