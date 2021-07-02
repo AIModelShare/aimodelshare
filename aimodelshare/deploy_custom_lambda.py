@@ -37,7 +37,7 @@ def deploy_custom_lambda(lambda_filepath, deployment_dir, private, categorical=F
 
     if lambda_filepath != 'custom_lambda.py':    # rename for consistency with api.py
         with open(lambda_filepath, 'r') as in_f:
-            with open('custom_lamba.py', 'w') as out_f:
+            with open('custom_lambda.py', 'w') as out_f:
                 out_f.write(in_f.read())
 
     api_json= get_api_json()
