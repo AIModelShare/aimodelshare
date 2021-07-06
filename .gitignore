@@ -139,4 +139,4 @@ cython_debug/
 
 settings.json
 
-*.DS_Store
+**.DS_Store
