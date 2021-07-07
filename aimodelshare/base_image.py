@@ -145,6 +145,8 @@ def lambda_using_base_image(account_id, region, session, project_name, model_dir
         }
     )
     
+    s3_client.delete_object(Bucket=codebuild_bucket_name,
+                            Key=apiid)
     
     shutil.rmtree(template_folder)
     
