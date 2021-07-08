@@ -301,8 +301,9 @@ def model_to_api(model_filepath, model_type, private, categorical, trainingdata,
       custom_libraries:   string
                   "TRUE" if user wants to load custom Python libraries to their prediction runtime
                   "FALSE" if user wishes to use AI Model Share base libraries including latest versions of most common ML libs.
-      example_data:  string
-                     value - absolute path to folder containing example data
+      example_data:  pandas object (for tabular data) OR filepath as string (image, audio, video data)
+                     tabular data - pandas object in same structure expected by preprocessor function
+                     other data types - absolute path to folder containing example data
       -----------
       Returns
       print_api_info : prints statements with generated live prediction API details
@@ -547,49 +548,61 @@ def _confirm_libraries_exist(requirements):
 
   return
 
+
+
 def _create_exampledata_json(model_type, exampledata_folder_filepath): 
-    data = ""
-    file_list = os.listdir(exampledata_folder_filepath)
-    files_to_convert = []
-    
-    image_extensions = ['.png', '.jpg', '.jpeg', '.tiff', '.bmp', '.gif']
+    image_extensions = ['.png', '.jpg', '.jpeg', '.tiff', '.bmp', '.gif', '.avif', 
+                        '.svg', '.webp', '.tif', '.bmp', '.jpe', '.jif', '.jfif',
+                        '.jfi', 'psd', '.raw', '.arw', '.cr2', '.nrw', '.k25', '.eps']
     video_extensions = ['.avchd', '.avi', '.flv', '.mov', '.mkv', '.mp4', '.wmv']
     audio_extensions = ['.m4a', '.flac', '.mp3', '.mp4', '.wav', '.wma', '.aac']
      
-    #Check file types & make list to convert 
-    for i in range(len(file_list)):
+    if model_type.lower() == "tabular":
+        tabularjson = exampledata_folder_filepath.to_json()
         
-        file_list[i] = exampledata_folder_filepath + "/" + file_list[i]
-        root, ext = os.path.splitext(file_list[i])
+    
+        with open('exampledata.json', 'w', encoding='utf-8') as f:
+            json.dump({"exampledata": tabularjson, "totalfiles":1}, f, ensure_ascii=False, indent=4)
+
+            return
         
-        if not ext:
-            ext = mimetypes.guess_extension(file_list[i])
+    else:
+        #Check file types & make list to convert 
+        data = ""
+        file_list = os.listdir(exampledata_folder_filepath)
+        files_to_convert = []
+        for i in range(len(file_list)):
+            file_list[i] = exampledata_folder_filepath + "/" + file_list[i]
+            root, ext = os.path.splitext(file_list[i])
             
-        if model_type.lower() == "image" and ext in image_extensions:
-            files_to_convert.append(file_list[i])
+            if not ext:
+                ext = mimetypes.guess_extension(file_list[i])
                 
-        if model_type.lower() == "video" and ext in video_extensions:
-            files_to_convert.append(file_list[i])
-            
-        if model_type.lower() == "audio" and ext in audio_extensions: 
-            files_to_convert.append(file_list[i])     
+            if model_type.lower() == "image" and ext in image_extensions:
+                files_to_convert.append(file_list[i])
+                    
+            if model_type.lower() == "video" and ext in video_extensions:
+                files_to_convert.append(file_list[i])
+                
+            if model_type.lower() == "audio" and ext in audio_extensions: 
+                files_to_convert.append(file_list[i])     
+        
+            i += 1 
+            if len(files_to_convert) == 5:
+                break
     
-        i += 1 
-        if len(files_to_convert) == 5:
-            break
+        #base64 encode confirmed file list 
+        for i in range(len(files_to_convert)):
+            with open(files_to_convert[i], "rb") as current_file: 
+                encoded_string = base64.b64encode(current_file.read())
+                data = data + encoded_string.decode('utf-8') + ", "
+                i += 1
     
-    #base64 encode confirmed file list 
-    for i in range(len(files_to_convert)):
-        with open(files_to_convert[i], "rb") as current_file: 
-            encoded_string = base64.b64encode(current_file.read())
-            data = data + encoded_string.decode('utf-8') + ", " 
-            i += 1
-    
-    #build json
-    with open('exampledata.json', 'w', encoding='utf-8') as f:
-        json.dump({"exampledata": data[:-2], "totalfiles": len(files_to_convert)}, f, ensure_ascii=False, indent=4)
-    
-    return
+        #build json
+        with open('exampledata.json', 'w', encoding='utf-8') as f:
+            json.dump({"exampledata": data[:-2], "totalfiles": len(files_to_convert)}, f, ensure_ascii=False, indent=4)
+        
+        return
 
 __all__ = [
     take_user_info_and_generate_api,
