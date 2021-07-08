@@ -11,6 +11,8 @@ import datetime
 import onnx
 import tempfile
 import sys
+import base64
+import mimetypes
 from aimodelshare.tools import extract_varnames_fromtrainingdata, _get_extension_from_filepath
 from aimodelshare.aws import get_s3_iam_client, run_function_on_lambda
 from aimodelshare.bucketpolicy import _custom_upload_policy
@@ -22,7 +24,7 @@ from aimodelshare.preprocessormodules import upload_preprocessor
 from aimodelshare.model import _get_predictionmodel_key, _extract_model_metadata
 from aimodelshare.data_sharing.share_data import share_data_codebuild
 
-def take_user_info_and_generate_api(model_filepath, model_type, categorical,labels, preprocessor_filepath,custom_libraries, requirements):
+def take_user_info_and_generate_api(model_filepath, model_type, categorical,labels, preprocessor_filepath,custom_libraries, requirements, exampledata_json_filepath):
     """
     Generates an api using model parameters and user credentials, from the user
 
@@ -105,6 +107,7 @@ def take_user_info_and_generate_api(model_filepath, model_type, categorical,labe
     try:
         s3["client"].upload_file(Filepath, os.environ.get("BUCKET_NAME"),  file_key)
         s3["client"].upload_file(Filepath, os.environ.get("BUCKET_NAME"),  versionfile_key)
+        s3["client"].upload_file(exampledata_json_filepath, os.environ.get("BUCKET_NAME"), unique_model_id + "/exampledata.json") 
 
         # preprocessor upload
         #s3["client"].upload_file(tab_imports, os.environ.get("BUCKET_NAME"),  'tabular_imports.pkl')
@@ -139,6 +142,12 @@ def take_user_info_and_generate_api(model_filepath, model_type, categorical,labe
     except Exception as err:
         raise AWSUploadError(
             "There was a problem with model/preprocessor upload. "+str(err))
+
+    #Delete Legacy exampledata json:
+    try:
+        os.remove(exampledata_json_filepath)
+    except:
+        pass
 
     #headers = {'content-type': 'application/json'}
 
@@ -250,7 +259,7 @@ def send_model_data_to_dyndb_and_return_api(api_info, private, categorical, prep
     return print("\n\n" + finalresult2 + "\n" + final_message + web_dashboard_url)
 
 
-def model_to_api(model_filepath, model_type, private, categorical, trainingdata, y_train,preprocessor_filepath,custom_libraries="FALSE"):
+def model_to_api(model_filepath, model_type, private, categorical, trainingdata, y_train,preprocessor_filepath,custom_libraries="FALSE", example_data=None):
     """
       Launches a live prediction REST API for deploying ML models using model parameters and user credentials, provided by the user
       Inputs : 8
@@ -292,6 +301,9 @@ def model_to_api(model_filepath, model_type, private, categorical, trainingdata,
       custom_libraries:   string
                   "TRUE" if user wants to load custom Python libraries to their prediction runtime
                   "FALSE" if user wishes to use AI Model Share base libraries including latest versions of most common ML libs.
+      example_data:  pandas object (for tabular data) OR filepath as string (image, audio, video data)
+                     tabular data - pandas object in same structure expected by preprocessor function
+                     other data types - absolute path to folder containing example data
       -----------
       Returns
       print_api_info : prints statements with generated live prediction API details
@@ -339,13 +351,19 @@ def model_to_api(model_filepath, model_type, private, categorical, trainingdata,
     else:
         labels = "no data"
 
+    # Create Example Data JSON
+    exampledata_json_filepath = ""
+    if example_data is not None:
+        _create_exampledata_json(model_type, example_data)
+        exampledata_json_filepath = os.getcwd() + "/exampledata.json"
+
     ### Progress Update #1/6 {{{
     sys.stdout.write("[===                                  ] Progress: 5% - Accessing Amazon Web Services, uploading resources...")
     sys.stdout.flush()
     # }}}
     
     api_info = take_user_info_and_generate_api( 
-        model_filepath, model_type, categorical, labels,preprocessor_filepath,custom_libraries, requirements)
+        model_filepath, model_type, categorical, labels,preprocessor_filepath,custom_libraries, requirements, exampledata_json_filepath)
 
     ### Progress Update #5/6 {{{
     sys.stdout.write('\r')
@@ -357,8 +375,8 @@ def model_to_api(model_filepath, model_type, private, categorical, trainingdata,
         api_info, private, categorical,preprocessor_filepath, aishare_modelname,
         aishare_modeldescription, aishare_modeltype, aishare_modelevaluation,
         aishare_tags, aishare_apicalls, variablename_and_type_data)
-
-    return print_api_info
+    
+    return api_info[0]
 
 def create_competition(apiurl, data_directory, y_test, generate_credentials_file = True):
     """
@@ -531,6 +549,60 @@ def _confirm_libraries_exist(requirements):
   return
 
 
+
+def _create_exampledata_json(model_type, exampledata_folder_filepath): 
+    image_extensions = ['.png', '.jpg', '.jpeg', '.tiff', '.bmp', '.gif', '.avif', 
+                        '.svg', '.webp', '.tif', '.bmp', '.jpe', '.jif', '.jfif',
+                        '.jfi', 'psd', '.raw', '.arw', '.cr2', '.nrw', '.k25', '.eps']
+    video_extensions = ['.avchd', '.avi', '.flv', '.mov', '.mkv', '.mp4', '.wmv']
+    audio_extensions = ['.m4a', '.flac', '.mp3', '.mp4', '.wav', '.wma', '.aac']
+     
+    if model_type.lower() == "tabular":
+        tabularjson = exampledata_folder_filepath.to_json()
+        
+    
+        with open('exampledata.json', 'w', encoding='utf-8') as f:
+            json.dump({"exampledata": tabularjson, "totalfiles":1}, f, ensure_ascii=False, indent=4)
+
+            return
+        
+    else:
+        #Check file types & make list to convert 
+        data = ""
+        file_list = os.listdir(exampledata_folder_filepath)
+        files_to_convert = []
+        for i in range(len(file_list)):
+            file_list[i] = exampledata_folder_filepath + "/" + file_list[i]
+            root, ext = os.path.splitext(file_list[i])
+            
+            if not ext:
+                ext = mimetypes.guess_extension(file_list[i])
+                
+            if model_type.lower() == "image" and ext in image_extensions:
+                files_to_convert.append(file_list[i])
+                    
+            if model_type.lower() == "video" and ext in video_extensions:
+                files_to_convert.append(file_list[i])
+                
+            if model_type.lower() == "audio" and ext in audio_extensions: 
+                files_to_convert.append(file_list[i])     
+        
+            i += 1 
+            if len(files_to_convert) == 5:
+                break
+    
+        #base64 encode confirmed file list 
+        for i in range(len(files_to_convert)):
+            with open(files_to_convert[i], "rb") as current_file: 
+                encoded_string = base64.b64encode(current_file.read())
+                data = data + encoded_string.decode('utf-8') + ", "
+                i += 1
+    
+        #build json
+        with open('exampledata.json', 'w', encoding='utf-8') as f:
+            json.dump({"exampledata": data[:-2], "totalfiles": len(files_to_convert)}, f, ensure_ascii=False, indent=4)
+        
+        return
 
 __all__ = [
     take_user_info_and_generate_api,
