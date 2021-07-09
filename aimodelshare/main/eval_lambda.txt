@@ -182,26 +182,63 @@ def analyze_ytest(ytestdata, classification="TRUE"):
 
 
 def model_eval_metrics(y_true, y_pred,classification="TRUE"):
+
     if classification=="TRUE":
-        accuracy_eval = accuracy_score(y_true, y_pred)
-        f1_score_eval = f1_score(y_true, y_pred,average="macro",zero_division=0)
-        precision_eval = precision_score(y_true, y_pred,average="macro",zero_division=0)
-        recall_eval = recall_score(y_true, y_pred,average="macro",zero_division=0)
-        mse_eval = 0
-        rmse_eval = 0
-        mae_eval = 0
-        r2_eval = 0
+        try:
+            accuracy_eval = accuracy_score(y_true, y_pred)
+        except:
+            accuracy_eval = None
+
+        try:
+            f1_score_eval = f1_score(y_true, y_pred,average="macro",zero_division=0)
+        except:
+            f1_score_eval = None
+            
+        try:    
+            precision_eval = precision_score(y_true, y_pred,average="macro",zero_division=0)
+        except: 
+            precision_eval = None
+            
+        try:    
+            recall_eval = recall_score(y_true, y_pred,average="macro",zero_division=0)
+        except:
+            recall_eval = None
+        
+        mse_eval = None
+        rmse_eval = None
+        mae_eval = None
+        r2_eval = None
+        
         metricdata = {'accuracy': [accuracy_eval], 'f1_score': [f1_score_eval], 'precision': [precision_eval], 'recall': [recall_eval], 'mse': [mse_eval], 'rmse': [rmse_eval], 'mae': [mae_eval], 'r2': [r2_eval]}
         finalmetricdata = pd.DataFrame.from_dict(metricdata)
+        
     else:
-        accuracy_eval = 0
-        f1_score_eval = 0
-        precision_eval = 0
-        recall_eval = 0
-        mse_eval = mean_squared_error(y_true, y_pred)
-        rmse_eval = sqrt(mean_squared_error(y_true, y_pred))
-        mae_eval = mean_absolute_error(y_true, y_pred)
-        r2_eval = r2_score(y_true, y_pred)
+        
+        try:
+            mse_eval = mean_squared_error(y_true, y_pred)
+        except:
+            mse_eval = None
+            
+        try:
+            rmse_eval = sqrt(mean_squared_error(y_true, y_pred))
+        except:
+            rmse_eval = None
+        
+        try:
+            mae_eval = mean_absolute_error(y_true, y_pred)
+        except: 
+            mae_eval = None
+            
+        try:
+            r2_eval = r2_score(y_true, y_pred)
+        except:
+            r2_eval = None
+        
+        accuracy_eval = None
+        f1_score_eval = None
+        precision_eval = None
+        recall_eval = None
+        
         metricdata = {'accuracy': [accuracy_eval], 'f1_score': [f1_score_eval], 'precision': [precision_eval], 'recall': [recall_eval], 'mse': [mse_eval], 'rmse': [rmse_eval], 'mae': [mae_eval], 'r2': [r2_eval]}
         finalmetricdata = pd.DataFrame.from_dict(metricdata)
 
@@ -379,18 +416,29 @@ def get_leaderboard(category="classification", verbose=3, columns=None):
       bucket.download_fileobj("$unique_model_id/"+"model_eval_data_mastertable.csv", lbfo)
     leaderboard = pd.read_csv("/tmp/"+"model_eval_data_mastertable.csv", sep="\t")
 
+
+    clf =["accuracy", "f1_score", "precision", "recall"]
+    reg = ['mse', 'rmse', 'mae', 'r2']
+    other = ['timestamp']
+
     if columns:
-    	clf =["accuracy", "f1_score", "precision", "recall"]
-    	reg = ['mse', 'rmse', 'mae', 'r2']
-    	other = ['timestamp']
     	leaderboard = leaderboard.filter(clf+reg+columns+other)
 
-    leaderboard = leaderboard.replace(0,np.nan).dropna(axis=1,how="all")
+
+    if category == "classification":
+        leaderboard_eval_metrics = leaderboard[clf]
+    else:
+        leaderboard_eval_metrics = leaderboard[reg]
+
+    leaderboard_model_meta = leaderboard.drop(clf+reg, axis=1).replace(0,np.nan).dropna(axis=1,how="all")
+
+    leaderboard = pd.concat([leaderboard_eval_metrics, leaderboard_model_meta], axis=1, ignore_index=False)
 
     if verbose == 1:
     	leaderboard = leaderboard.filter(regex=("^(?!.*(_layers|_act))"))
     elif verbose == 2:
     	leaderboard = leaderboard.filter(regex=("^(?!.*_act)"))
+
 
     if category == "classification":
         sort_cols = ["accuracy", "f1_score", "precision", "recall"]

@@ -337,6 +337,7 @@ def _keras_to_onnx(model, transfer_learning=None,
     temp_dir = os.path.join(tempfile.gettempdir(), 'test')
     temp_dir = tempfile.gettempdir()
 
+    tf.get_logger().setLevel('ERROR') # probably not good practice
     model.save(temp_dir)
 
     output_path = os.path.join(temp_dir, 'temp.onnx')
@@ -1236,3 +1237,4 @@ def inspect_y_test(apiurl):
   # print_y_stats(y_stats_dict)
 
   return y_stats_dict
+

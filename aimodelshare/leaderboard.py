@@ -44,19 +44,27 @@ def get_leaderboard_aws(apiurl, category="classification", verbose=3, columns=No
 
         leaderboard = pd.read_csv(leaderboard["Body"], sep="\t")
 
+        clf =["accuracy", "f1_score", "precision", "recall"]
+        reg = ['mse', 'rmse', 'mae', 'r2']
+        other = ['timestamp']
+
         if columns:
-        	clf =["accuracy", "f1_score", "precision", "recall"]
-        	reg = ['mse', 'rmse', 'mae', 'r2']
-        	other = ['timestamp']
         	leaderboard = leaderboard.filter(clf+reg+columns+other)
 
-        leaderboard = leaderboard.replace(0,np.nan).dropna(axis=1,how="all")
+
+        if category == "classification":
+            leaderboard_eval_metrics = leaderboard[clf]
+        else:
+            leaderboard_eval_metrics = leaderboard[reg]
+
+        leaderboard_model_meta = leaderboard.drop(clf+reg, axis=1).replace(0,np.nan).dropna(axis=1,how="all")
+
+        leaderboard = pd.concat([leaderboard_eval_metrics, leaderboard_model_meta], axis=1, ignore_index=False)
 
         if verbose == 1:
         	leaderboard = leaderboard.filter(regex=("^(?!.*(_layers|_act))"))
         elif verbose == 2:
         	leaderboard = leaderboard.filter(regex=("^(?!.*_act)"))
-
 
     except Exception as err:
         raise err
@@ -92,7 +100,7 @@ def get_leaderboard_aws(apiurl, category="classification", verbose=3, columns=No
     return leaderboard
 
 
-def get_leaderboard_lambda(apiurl, category="classification", verbose=3, columns="None"):
+def get_leaderboard_lambda(apiurl, category="classification", verbose=3, columns=None):
     if all(["AWS_ACCESS_KEY_ID" in os.environ, 
             "AWS_SECRET_ACCESS_KEY" in os.environ,
             "AWS_REGION" in os.environ, 
@@ -101,6 +109,9 @@ def get_leaderboard_lambda(apiurl, category="classification", verbose=3, columns
         pass
     else:
         return print("'get_leaderboard()' unsuccessful. Please provide credentials with set_credentials().")
+
+    if columns == None: 
+        columns = str(columns)
 
     post_dict = {"y_pred": [],
                "return_eval": "False",
@@ -125,7 +136,7 @@ def get_leaderboard_lambda(apiurl, category="classification", verbose=3, columns
     return leaderboard_pd
 
 
-def get_leaderboard(apiurl, category="classification", verbose=3, columns="None"):
+def get_leaderboard(apiurl, category="classification", verbose=3, columns=None):
 
     if all(["AWS_ACCESS_KEY_ID" in os.environ, 
             "AWS_SECRET_ACCESS_KEY" in os.environ,
@@ -135,6 +146,7 @@ def get_leaderboard(apiurl, category="classification", verbose=3, columns="None"
         pass
     else:
         return print("'get_leaderboard()' unsuccessful. Please provide credentials with set_credentials().")
+
     
     try: 
         leaderboard_pd = get_leaderboard_lambda(apiurl, category, verbose, columns)
