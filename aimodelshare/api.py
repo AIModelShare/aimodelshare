@@ -77,6 +77,10 @@ def create_prediction_api(model_filepath, unique_model_id, model_type,categorica
             model_layer = "arn:aws:lambda:us-east-1:517169013426:layer:videolayer:3"
             eval_layer ="arn:aws:lambda:us-east-1:517169013426:layer:eval_layer_test:6"
             auth_layer ="arn:aws:lambda:us-east-1:517169013426:layer:aimsauth_layer:2"
+    elif model_type.lower() == 'custom':
+            model_layer = "arn:aws:lambda:us-east-1:517169013426:layer:videolayer:3"
+            eval_layer ="arn:aws:lambda:us-east-1:517169013426:layer:tabular_cloudpicklelayer:1"
+            auth_layer ="arn:aws:lambda:us-east-1:517169013426:layer:aimsauth_layer:2"
     else :
         print("no matching model data type to load correct python package zip file (lambda layer)")
 
@@ -106,9 +110,12 @@ def create_prediction_api(model_filepath, unique_model_id, model_type,categorica
 
     from . import main  # relative-import the *package* containing the templates
 
-    if os.path.exists('file_objects'):
-        shutil.rmtree('file_objects')
-    os.mkdir('file_objects')
+    from . import custom_approach
+
+    if model_type.lower() != "custom":  # file_objects already initialized if custom
+        if os.path.exists('file_objects'):
+            shutil.rmtree('file_objects')
+        os.mkdir('file_objects')
 
 
     # write main handlers
@@ -168,13 +175,21 @@ def create_prediction_api(model_filepath, unique_model_id, model_type,categorica
             t = Template(data)
             newdata = t.substitute(
                 bucket_name=os.environ.get("BUCKET_NAME"), unique_model_id=unique_model_id, labels=labels)
-                
+    elif model_type.lower() == 'custom':
+         with open("custom_lambda.py", 'r') as in_file:     
+             newdata = in_file.read()
+
     with open(os.path.join('file_objects', 'model.py'), 'w') as file:
         file.write(newdata)
 
-    data = pkg_resources.read_text(main, 'lambda_function.txt')
-    with open(os.path.join('file_objects', 'lambda_function.py'), 'w') as file:
-        file.write(data)
+    if(model_type.lower() == 'custom'):
+         data = pkg_resources.read_text(custom_approach, 'lambda_function.py')
+         with open(os.path.join('file_objects', 'lambda_function.py'), 'w') as file:
+             file.write(data)
+    else:
+        data = pkg_resources.read_text(main, 'lambda_function.txt')
+        with open(os.path.join('file_objects', 'lambda_function.py'), 'w') as file:
+            file.write(data)
         
     #with zipfile.ZipFile(os.path.join(temp_dir, 'archive.zip'), 'a') as z:
     #    z.write(os.path.join(temp_dir, 'main.py'), 'main.py')
@@ -269,6 +284,11 @@ def create_prediction_api(model_filepath, unique_model_id, model_type,categorica
     except Exception as e:
         print(e)
 
+    s3_client.upload_file(os.path.join(
+        temp_dir, 'input_json_exampledata.json'), os.environ.get("BUCKET_NAME"),  unique_model_id+"/"+"input_json_exampledata.json")
+    s3_client.upload_file(os.path.join(
+        temp_dir, 'output_json_exampledata.json'), os.environ.get("BUCKET_NAME"),  unique_model_id+"/"+"output_json_exampledata.json")
+    
     import os
     if os.path.exists(os.path.join(temp_dir, 'archive.zip')):
       os.remove(os.path.join(temp_dir, 'archive.zip'))

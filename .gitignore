@@ -138,3 +138,6 @@ dmypy.json
 cython_debug/
 
 settings.json
+
+# Mac OS files
+**.DS_Store
