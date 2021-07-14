@@ -13,6 +13,7 @@ import tempfile
 import sys
 import base64
 import mimetypes
+import pandas as pd
 from aimodelshare.tools import extract_varnames_fromtrainingdata, _get_extension_from_filepath
 from aimodelshare.aws import get_s3_iam_client, run_function_on_lambda
 from aimodelshare.bucketpolicy import _custom_upload_policy
@@ -239,9 +240,9 @@ def send_model_data_to_dyndb_and_return_api(api_info, private, categorical, prep
 
     # Build output {{{
     final_message = ("\nYou can now use your API web dashboard.\n\n"
-                     "To explore your API's functionality, follow this link to your Prediction Playground.\n"
+                     "To explore your API's functionality, follow this link to your model Playground.\n"
                      "You can make predictions with the Dashboard and access example code from the Programmatic tab.\n")
-    web_dashboard_url = ("http://mlsite5aimodelshare-dev.s3-website.us-east-2.amazonaws.com/detail/"+ response_string)
+    web_dashboard_url = ("https://www.modelshare.org/detail/"+ response_string)
     
     start = api_info[2]
     end = datetime.datetime.now()
@@ -557,7 +558,7 @@ def _create_exampledata_json(model_type, exampledata_folder_filepath):
     video_extensions = ['.avchd', '.avi', '.flv', '.mov', '.mkv', '.mp4', '.wmv']
     audio_extensions = ['.m4a', '.flac', '.mp3', '.mp4', '.wav', '.wma', '.aac']
      
-    if model_type.lower() == "tabular":
+    if (model_type.lower() == "tabular") or (model_type.lower() == "timeseries"):
         tabularjson = exampledata_folder_filepath.to_json()
         
     

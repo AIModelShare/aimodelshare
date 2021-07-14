@@ -23,7 +23,7 @@ def handler(event, context):
         if value == "None":
             body[key]=None
 
-    if body.get("exampledata", "ALL") == "True":
+    if body.get("exampledata", "ALL") == "True" or body.get("exampledata", "ALL") == "TRUE":
 
         exampledata=get_exampledata(example_data_filename = "exampledata.json")
         
