@@ -11,8 +11,6 @@ from .containerisation import deploy_container
 from .api import create_prediction_api
 from .data_sharing.download_data import download_data
 from .data_sharing.share_data import share_data_codebuild
-from .deploy_custom_lambda import deploy_custom_lambda
-
 #import .sam as sam
 
 __all__ = [
@@ -39,6 +37,5 @@ __all__ = [
     get_model_graph,
     # Containerisation
     deploy_container,
-    create_prediction_api,
-    deploy_custom_lambda
+    create_prediction_api
 ]
