@@ -106,12 +106,9 @@ def take_user_info_and_generate_api(model_filepath, model_type, categorical,labe
     file_key, versionfile_key = _get_predictionmodel_key(
         unique_model_id, file_extension)
     try:
-        s3["client"].upload_file(exampledata_json_filepath, os.environ.get("BUCKET_NAME"), unique_model_id + "/exampledata.json") 
-    except:
-        pass
-    try:
         s3["client"].upload_file(Filepath, os.environ.get("BUCKET_NAME"),  file_key)
         s3["client"].upload_file(Filepath, os.environ.get("BUCKET_NAME"),  versionfile_key)
+        s3["client"].upload_file(exampledata_json_filepath, os.environ.get("BUCKET_NAME"), unique_model_id + "/exampledata.json") 
 
         # preprocessor upload
         #s3["client"].upload_file(tab_imports, os.environ.get("BUCKET_NAME"),  'tabular_imports.pkl')
