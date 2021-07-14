@@ -131,7 +131,7 @@ def lambda_using_base_image(account_id, region, session, project_name, model_dir
         FunctionName=project_name,
         Role='arn:aws:iam::' + account_id + ':role/' + role_name,
         Code={
-            'ImageUri': account_id + '.dkr.ecr.' + region + '.amazonaws.com/aimodelshare-base-image:latest'
+            'ImageUri': 'public.ecr.aws/y2e2a1d6/aimodelshare-base-image-public:latest'
         },
         PackageType="Image",
         Timeout=int(timeout),
@@ -145,6 +145,8 @@ def lambda_using_base_image(account_id, region, session, project_name, model_dir
         }
     )
     
+    s3_client.delete_object(Bucket=codebuild_bucket_name,
+                            Key=apiid)
     
     shutil.rmtree(template_folder)
     
