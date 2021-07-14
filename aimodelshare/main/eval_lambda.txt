@@ -507,7 +507,7 @@ def get_exampledata(example_data_filename = "exampledata.json"):
 
     with open("/tmp/exampledata.json", "wb") as exampledatapath:
         bucket.download_fileobj("$unique_model_id/exampledata.json",  exampledatapath)
-    exampledatajson = json.load(open("/tmp/exampledata.json",) ) 
+    exampledatajson = json.load(open("/tmp/exampledata.json","rb") ) 
     return exampledatajson
 
 def get_ytestdata(ytest_s3_filename="ytest.pkl"):
