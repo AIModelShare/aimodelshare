@@ -10,6 +10,8 @@ import onnx
 import tempfile
 import shutil
 import sys
+import pickle
+import tempfile
 
 from aimodelshare.tools import extract_varnames_fromtrainingdata, _get_extension_from_filepath
 from aimodelshare.aws import get_s3_iam_client, run_function_on_lambda
@@ -21,50 +23,107 @@ from aimodelshare.api import get_api_json
 from aimodelshare.preprocessormodules import upload_preprocessor
 from aimodelshare.model import _get_predictionmodel_key, _extract_model_metadata
 
-def deploy_custom_lambda(lambda_filepath, deployment_dir, private, categorical=False, x_train=None, y_train=None, custom_libraries="FALSE"):
-    
-    if categorical.upper() == "TRUE":
-        try:
-            labels = y_train.columns.tolist()
-        except:
-            labels = list(set(y_train.to_frame()['tags'].tolist()))
+# what is private here
+# what if deployment_dir is not present? Not handled yet
+# Return section and private parameter documentation left
+# output_list_exampledata list being accessed by which key in response?
+# create file_objects in temp_dir, abstract from user
+# convert example output from list to json, in frontend display value of key of result
 
-    # Store user info in file_paths
+def deploy_custom_lambda(input_json_exampledata, output_json_exampledata, lambda_filepath, deployment_dir, private, custom_libraries=[]):
+
+    """
+        Deploys an AWS Lambda function based on the predict() function specified in the lambda_filepath .py file
+        Inputs : 6
+        Output : Information about the deployed API
+
+        -----------
+
+        Parameters :
+
+        input_json_exampledata : JSON object [REQUIRED]
+                                 JSON object representing the structure of input that Lambda expects to receive
+
+        output_json_exampledata : List of element(s) [REQUIRED]
+                                  List of element(s) representing the output that the Lambda will return
+        
+        lambda_filepath : String [REQUIRED]
+                          Expects relative/absolute path to the .py file containing the predict() function,
+                          imports to all other custom libraries that are defined by the user and used by the
+                          predict() function can be placed in the deployment_dir directory
+        
+        deployment_dir : String
+                         Expects relative/absolute path to the directory containing all the files being used by the
+                         predict() function in the lambda_filepath .py file
+
+        private : string
+
+        custom_libraries : List of strings, Default=[]
+                           Expects a list of strings denoting libraries required for Lambda to work
+                           Strings must be libraries present in PyPi
+                           Installation will follow pattern - pip install <library_name>
+
+        -----------
+
+        Returns
+
+        api_info : prints statements with generated live prediction API details
+                   also prints steps to update the model submissions by the user/team
+    """
+
+    temp_dir = tempfile.gettempdir()
+
+    # if 'file_objects' is not the name of deployment directory deployment_dir, 'file_objects' directory
+    # is created and contents of the deployment_dir directory are copied to 'file_objects' directory
     if deployment_dir != 'file_objects':
         if os.path.exists('file_objects'):
             shutil.rmtree('file_objects')
-        res = shutil.copytree(deployment_dir, 'file_objects')
+        shutil.copytree(deployment_dir, 'file_objects')
 
-    if lambda_filepath != 'custom_lambda.py':    # rename for consistency with api.py
+    # if 'custom_lambda.py' is not the name of the custom lambda .py file lambda_filepath, 'custom_lambda.py' file
+    # is created and contents of lambda_filepath .py file is written into 'custom_lambda.py'
+    if lambda_filepath != 'custom_lambda.py':
         with open(lambda_filepath, 'r') as in_f:
             with open('custom_lambda.py', 'w') as out_f:
                 out_f.write(in_f.read())
 
-    api_json= get_api_json()
-    user_client = boto3.client('apigateway', aws_access_key_id=str(
-    os.environ.get("AWS_ACCESS_KEY_ID")), aws_secret_access_key=str(os.environ.get("AWS_SECRET_ACCESS_KEY")), region_name=str(os.environ.get("AWS_REGION")))
+    # create json and upload to API folder in S3 for displaying 
+    with open(temp_dir+'input_json_exampledata.json', 'w') as f:
+        json.dump(input_json_exampledata, f)
 
-    response2 = user_client.import_rest_api(
+    with open(temp_dir+'/output_json_exampledata.json', 'w') as f:
+        pickle.dump(output_json_exampledata, f)
+
+    aws_access_key_id = str(os.environ.get("AWS_ACCESS_KEY_ID"))
+    aws_secret_access_key = str(os.environ.get("AWS_SECRET_ACCESS_KEY"))
+    region_name = str(os.environ.get("AWS_REGION"))
+
+    ### COMMENTS - TO DO
+    api_json= get_api_json()        # why is this required
+    user_client = boto3.client(     # creating apigateway client
+        'apigateway',
+        aws_access_key_id=aws_access_key_id,
+        aws_secret_access_key=aws_secret_access_key,
+        region_name=region_name
+    )
+    response2 = user_client.import_rest_api(        # what is being imported
         failOnWarnings = True,
         parameters = {'endpointConfigurationTypes': 'REGIONAL'},
         body = api_json
     )
+    ###
 
-    start = datetime.datetime.now()  # start API creation timer
+    start = datetime.datetime.now()
 
     api_id = response2['id']
     now = datetime.datetime.now()
-    s3, iam, region = get_s3_iam_client(os.environ.get("AWS_ACCESS_KEY_ID"), os.environ.get("AWS_SECRET_ACCESS_KEY"), os.environ.get("AWS_REGION"))
+    s3, iam, region = get_s3_iam_client(aws_access_key_id, aws_secret_access_key, region_name)      # check what is being returned
     
-    s3["client"].create_bucket(
+    s3["client"].create_bucket(     # Bucket is created if not already present. Check what is name of bucket being given.
         Bucket=os.environ.get("BUCKET_NAME")
     )
 
-    requirements = ''
-    if(any([custom_libraries=='TRUE', custom_libraries=='true'])):
-        requirements = input("Enter all required Python libraries you need at prediction runtime (separate with commas):")
-        
-    apiurl = create_prediction_api(None, str(api_id), 'custom', categorical, labels, api_id, custom_libraries, requirements)
+    apiurl = create_prediction_api(None, str(api_id), 'custom', 'FALSE', [], api_id, custom_libraries, custom_libraries)
 
     print("We need some information about your model before we can generate your API.\n")
     aishare_modelname = input("Name your model: ")
@@ -76,6 +135,8 @@ def deploy_custom_lambda(lambda_filepath, deployment_dir, private, categorical=F
     # unpack user credentials
     unique_model_id = str(api_id)
     bucket_name = os.environ.get("BUCKET_NAME")
+
+    # why is this being done here, can it not be abstracted
 
     bodydata = {
         "id": int(math.log(1/((time.time()*1000000)))*100000000000000),
