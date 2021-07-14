@@ -40,5 +40,5 @@ __all__ = [
     # Containerisation
     deploy_container,
     create_prediction_api,
-    deploy_custom_lambda
+    #deploy_custom_lambda
 ]
