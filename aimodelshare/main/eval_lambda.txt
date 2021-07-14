@@ -23,6 +23,21 @@ def handler(event, context):
         if value == "None":
             body[key]=None
 
+    if body.get("exampledata", "ALL") == "True":
+
+        exampledata=get_exampledata(example_data_filename = "exampledata.json")
+        
+        exdata_dict = {"statusCode": 200,
+        "headers": {
+        "Access-Control-Allow-Origin" : "*",
+        "Access-Control-Allow-Credentials": True,
+        "Allow" : "GET, OPTIONS, POST",
+        "Access-Control-Allow-Methods" : "GET, OPTIONS, POST",
+        "Access-Control-Allow-Headers" : "*"},
+        "body": exampledata
+        }
+        return exdata_dict 
+        
     if body.get("return_eval","ALL")  == "True":
         
         ytestdata=get_ytestdata(ytest_s3_filename="ytest.pkl")
@@ -486,6 +501,14 @@ import onnx
 import logging
 from botocore.exceptions import ClientError
 
+def get_exampledata(example_data_filename = "exampledata.json"):
+    s3 = boto3.resource("s3")
+    bucket = s3.Bucket("$bucket_name")
+
+    with open("/tmp/exampledata.json", "wb") as exampledatapath:
+        bucket.download_fileobj("$unique_model_id/exampledata.json",  exampledatapath)
+    exampledatajson = json.load(open("/tmp/exampledata.json",) ) 
+    return exampledatajson
 
 def get_ytestdata(ytest_s3_filename="ytest.pkl"):
     

@@ -7,7 +7,7 @@ import json
 import math
 import time
 import datetime
-
+import regex as re
 from aimodelshare.tools import form_timestamp
 from aimodelshare.exceptions import AuthorizationError, AWSAccessError, AWSUploadError
 from aimodelshare.aws import get_s3_iam_client
@@ -57,9 +57,13 @@ def create_user_getkeyandpassword():
                                          region_name= os.environ.get("AWS_REGION"))    
     
     account_number = user_session.client(
-        'sts').get_caller_identity().get('Account')    
-    bucket_name = 'aimodelshare' + os.environ.get("username").lower()+str(account_number)
-    master_name = 'aimodelshare' + os.environ.get("username").lower()+str(account_number)
+        'sts').get_caller_identity().get('Account')
+
+    #Remove special characters from username
+    username_clean = re.sub('[^A-Za-z0-9-]+', '', os.environ.get("username"))
+    bucket_name = 'aimodelshare' + username_clean.lower()+str(account_number)
+    master_name = 'aimodelshare' + username_clean.lower()+str(account_number)
+                            
     from botocore.client import ClientError
     try:
         s3['resource'].meta.client.head_bucket(Bucket=bucket_name)
