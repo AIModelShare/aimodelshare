@@ -34,7 +34,7 @@ def handler(event, context):
         "Allow" : "GET, OPTIONS, POST",
         "Access-Control-Allow-Methods" : "GET, OPTIONS, POST",
         "Access-Control-Allow-Headers" : "*"},
-        "body": exampledata
+        "body": json.dumps(exampledata)
         }
         return exdata_dict 
         

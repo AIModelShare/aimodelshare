@@ -240,7 +240,7 @@ def send_model_data_to_dyndb_and_return_api(api_info, private, categorical, prep
 
     # Build output {{{
     final_message = ("\nYou can now use your API web dashboard.\n\n"
-                     "To explore your API's functionality, follow this link to your model Playground.\n"
+                     "To explore your API's functionality, follow this link to your Model Playground.\n"
                      "You can make predictions with the Dashboard and access example code from the Programmatic tab.\n")
     web_dashboard_url = ("https://www.modelshare.org/detail/"+ response_string)
     
@@ -305,6 +305,7 @@ def model_to_api(model_filepath, model_type, private, categorical, trainingdata,
       example_data:  pandas object (for tabular data) OR filepath as string (image, audio, video data)
                      tabular data - pandas object in same structure expected by preprocessor function
                      other data types - absolute path to folder containing example data
+                                        first five files with relevent file extensions will be accepted
       -----------
       Returns
       print_api_info : prints statements with generated live prediction API details
@@ -559,7 +560,7 @@ def _create_exampledata_json(model_type, exampledata_folder_filepath):
     audio_extensions = ['.m4a', '.flac', '.mp3', '.mp4', '.wav', '.wma', '.aac']
      
     if (model_type.lower() == "tabular") or (model_type.lower() == "timeseries"):
-        tabularjson = exampledata_folder_filepath.to_json()
+        tabularjson = exampledata_folder_filepath.to_json(orient='split', index=False) 
         
     
         with open('exampledata.json', 'w', encoding='utf-8') as f:
