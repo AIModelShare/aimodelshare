@@ -318,22 +318,22 @@ def model_to_api(model_filepath, model_type, private, categorical, trainingdata,
     #  2. send_model_data_to_dyndb_and_return_api : to add new record to database with user data, model and api related information
 
     # Get user inputs, pass to other functions  {{{
-    print("We need some information about your model before we can build your API.")
+    print("We need some information about your model before we can build your REST API and interactive Model Playground.")
     print("   ")
 
     requirements = ""
     if(any([custom_libraries=='TRUE',custom_libraries=='true'])):
-        requirements = input("Enter all required Python libraries you need at prediction runtime (separate with commas):")
+        requirements = input("Enter all required Python libraries you need at prediction runtime (separated with commas):")
         _confirm_libraries_exist(requirements)
         
-    aishare_modelname = input("Enter model name:")
-    aishare_modeldescription = input("Enter model description:")
+    aishare_modelname = input("Model Name (for AI Model Share Website):")
+    aishare_modeldescription = input("Model Description (Explain what your model does and why end-users would find your model useful):")
     aishare_modeltype = input(
-        "Enter model category (i.e.- Text, Image, Audio, Video, or TimeSeries Data:")
+        "Model Category (i.e. Tabular, Image, Audio, Video, or TimeSeries):")
     aishare_modelevaluation = input(
-        "Enter evaluation of how well model predicts new data:")
+        "Model Performance (Numeric value of how well model predicts new data):")
     aishare_tags = input(
-        "Enter search categories that describe your model (separate with commas):")
+        "Model Key Words (Search categories that describe your model, separated with commas):")
     aishare_apicalls = 0
     print("   ")
     #  }}}
