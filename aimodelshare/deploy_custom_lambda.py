@@ -88,9 +88,9 @@ def deploy_custom_lambda(input_json_exampledata, output_json_exampledata, lambda
                 out_f.write(in_f.read())
 
     # create json and upload to API folder in S3 for displaying 
-    with open(temp_dir+'input_json_exampledata.json', 'w') as f:
+    with open(os.path.join(temp_dir, 'input_json_exampledata.json'), 'w') as f:
         json.dump(input_json_exampledata, f)
-    with open(temp_dir+'/output_json_exampledata.json', 'w') as f:
+    with open(os.path.join(temp_dir, 'output_json_exampledata.json'), 'w') as f:
         json.dump(output_json_exampledata, f)
 
     aws_access_key_id = str(os.environ.get("AWS_ACCESS_KEY_ID"))
