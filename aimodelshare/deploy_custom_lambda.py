@@ -122,7 +122,7 @@ def deploy_custom_lambda(input_json_exampledata, output_json_exampledata, lambda
         Bucket=os.environ.get("BUCKET_NAME")
     )
 
-    apiurl = create_prediction_api(None, str(api_id), 'custom', 'FALSE', [], api_id, custom_libraries, custom_libraries)
+    apiurl = create_prediction_api(None, str(api_id), 'custom', 'FALSE', [], api_id, "TRUE", custom_libraries)
 
     print("We need some information about your model before we can generate your API.\n")
     aishare_modelname = input("Name your model: ")
