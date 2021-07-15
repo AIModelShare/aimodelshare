@@ -30,7 +30,7 @@ from aimodelshare.model import _get_predictionmodel_key, _extract_model_metadata
 # create file_objects in temp_dir, abstract from user
 # convert example output from list to json, in frontend display value of key of result
 
-def deploy_custom_lambda(input_json_exampledata, output_json_exampledata, lambda_filepath, deployment_dir, private, custom_libraries=[]):
+def deploy_custom_lambda(input_json_exampledata, output_json_exampledata, lambda_filepath, deployment_dir, private, custom_libraries):
 
     """
         Deploys an AWS Lambda function based on the predict() function specified in the lambda_filepath .py file
@@ -58,7 +58,7 @@ def deploy_custom_lambda(input_json_exampledata, output_json_exampledata, lambda
 
         private : string
 
-        custom_libraries : List of strings, Default=[]
+        custom_libraries : String of libraries ("library_1,library_2")
                            Expects a list of strings denoting libraries required for Lambda to work
                            Strings must be libraries present in PyPi
                            Installation will follow pattern - pip install <library_name>
