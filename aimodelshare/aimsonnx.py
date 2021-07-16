@@ -1033,6 +1033,7 @@ def compare_models_lambda(apiurl, version_list="None",
 
     return compare_pd
 
+
 def compare_models(apiurl, version_list="None", 
     by_model_type=None, best_model=None, verbose=3):
 
@@ -1044,6 +1045,9 @@ def compare_models(apiurl, version_list="None",
         pass
     else:
         return print("'Inspect Model' unsuccessful. Please provide credentials with set_credentials().")
+
+    if len(version_list) != len(set(version_list)):
+        return print("Model comparison failed. Version list contains duplicates.")
     
     try: 
         compare_pd = compare_models_lambda(apiurl, version_list, 
