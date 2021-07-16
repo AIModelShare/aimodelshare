@@ -268,8 +268,13 @@ def submit_model(
             prediction_submission=prediction_submission.tolist()
         else: 
             pass
-    else: 
+
+        if all(isinstance(x, (np.int64)) for x in prediction_submission):
+              prediction_submission = [int(i) for i in prediction_submission]
+        else: 
             pass
+
+
     
     post_dict = {"y_pred": prediction_submission,
            "return_eval": "True",
@@ -281,6 +286,9 @@ def submit_model(
 
     eval_metrics=json.loads(prediction.text)
 
+
+    if all(value == None for value in eval_metrics.values()):
+        print("Failed to calculate evaluation metrics. Please check the format of the submitted predictions.")
 
 
 
