@@ -286,10 +286,8 @@ def create_prediction_api(model_filepath, unique_model_id, model_type,categorica
 
     if model_type.lower() == 'custom':
         s3_client.upload_file(os.path.join(
-            temp_dir, 'input_json_exampledata.json'), os.environ.get("BUCKET_NAME"),  unique_model_id+"/"+"input_json_exampledata.json")
-        s3_client.upload_file(os.path.join(
-            temp_dir, 'output_json_exampledata.json'), os.environ.get("BUCKET_NAME"),  unique_model_id+"/"+"output_json_exampledata.json")
-    
+            temp_dir, 'exampledata.json'), os.environ.get("BUCKET_NAME"),  unique_model_id+"/"+"exampledata.json")
+ 
     import os
     if os.path.exists(os.path.join(temp_dir, 'archive.zip')):
       os.remove(os.path.join(temp_dir, 'archive.zip'))
