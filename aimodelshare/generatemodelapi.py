@@ -13,6 +13,7 @@ import tempfile
 import sys
 import base64
 import mimetypes
+import numpy as np
 from aimodelshare.tools import extract_varnames_fromtrainingdata, _get_extension_from_filepath
 from aimodelshare.aws import get_s3_iam_client, run_function_on_lambda
 from aimodelshare.bucketpolicy import _custom_upload_policy
@@ -170,7 +171,7 @@ def take_user_info_and_generate_api(model_filepath, model_type, categorical,labe
 
 def send_model_data_to_dyndb_and_return_api(api_info, private, categorical, preprocessor_filepath,
                                             aishare_modelname, aishare_modeldescription, aishare_modeltype, aishare_modelevaluation,
-                                            aishare_tags, aishare_apicalls, variablename_and_type_data="default"):
+                                            aishare_tags, aishare_apicalls, exampledata_json_filepath,variablename_and_type_data="default"):
     """
     Updates dynamodb with model data taken as input from user along with already generated api info
     -----------
@@ -210,6 +211,10 @@ def send_model_data_to_dyndb_and_return_api(api_info, private, categorical, prep
      # needs to use double backslashes and have full filepath
     preprocessor_file_extension = _get_extension_from_filepath(
         preprocessor_filepath)
+    if exampledata_json_filepath!="":
+        exampledata_addtodatabase={"exampledata":"TRUE"}
+    else:
+        exampledata_addtodatabase={"exampledata":"FALSE"}
     bodydata = {"id": int(math.log(1/((time.time()*1000000)))*100000000000000),
                 "unique_model_id": unique_model_id,
                 "apideveloper": os.environ.get("username"),  # change this to first and last name
@@ -231,6 +236,7 @@ def send_model_data_to_dyndb_and_return_api(api_info, private, categorical, prep
                 "preprocessor_fileextension": preprocessor_file_extension,
                 "input_shape": input_shape
                 }
+    bodydata.update(exampledata_addtodatabase)
     # Get the response
     headers_with_authentication = {'Content-Type': 'application/json', 'authorizationToken': os.environ.get("JWT_AUTHORIZATION_TOKEN"), 'Access-Control-Allow-Headers':
                                    'Content-Type,X-Amz-Date,authorizationToken,Access-Control-Allow-Origin,X-Api-Key,X-Amz-Security-Token,Authorization', 'Access-Control-Allow-Origin': '*'}
@@ -350,7 +356,8 @@ def model_to_api(model_filepath, model_type, private, categorical, trainingdata,
         try:
             labels = y_train.columns.tolist()
         except:
-            labels = list(set(y_train.to_frame()['tags'].tolist()))
+            #labels = list(set(y_train.to_frame()['tags'].tolist()))
+            labels = list(set(y_train))
     else:
         labels = "no data"
 
@@ -377,7 +384,7 @@ def model_to_api(model_filepath, model_type, private, categorical, trainingdata,
     print_api_info = send_model_data_to_dyndb_and_return_api(
         api_info, private, categorical,preprocessor_filepath, aishare_modelname,
         aishare_modeldescription, aishare_modeltype, aishare_modelevaluation,
-        aishare_tags, aishare_apicalls, variablename_and_type_data)
+        aishare_tags, aishare_apicalls, exampledata_json_filepath,variablename_and_type_data)
     
     return api_info[0]
 
@@ -426,7 +433,20 @@ def create_competition(apiurl, data_directory, y_test, generate_credentials_file
     ytest_path = os.path.join(temp_dir, "ytest.pkl")
     import pickle
     #ytest data to load to s3
-    pickle.dump( list(y_test),open(ytest_path,"wb"))
+
+    if y_test is not None:
+        if type(y_test) is not list:
+            y_test=y_test.tolist()
+        else: 
+            pass
+
+        if all(isinstance(x, (np.int64)) for x in y_test):
+              y_test = [int(i) for i in y_test]
+        else: 
+            pass
+
+
+    pickle.dump(y_test,open(ytest_path,"wb"))
     s3["client"].upload_file(ytest_path, os.environ.get("BUCKET_NAME"),  model_id + "/ytest.pkl")
 
     # Reset user policy

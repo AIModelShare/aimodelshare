@@ -337,6 +337,7 @@ def _keras_to_onnx(model, transfer_learning=None,
     temp_dir = os.path.join(tempfile.gettempdir(), 'test')
     temp_dir = tempfile.gettempdir()
 
+    tf.get_logger().setLevel('ERROR') # probably not good practice
     model.save(temp_dir)
 
     output_path = os.path.join(temp_dir, 'temp.onnx')
@@ -830,7 +831,7 @@ def onnx_to_image(model):
     
     return pydot_graph
 
-def inspect_model(apiurl, version=None):
+def inspect_model_aws(apiurl, version=None):
     if all(["AWS_ACCESS_KEY_ID" in os.environ, 
             "AWS_SECRET_ACCESS_KEY" in os.environ,
             "AWS_REGION" in os.environ, 
@@ -883,9 +884,26 @@ def inspect_model_lambda(apiurl, version=None):
 
     return inspect_pd
 
+
+def inspect_model(apiurl, version=None):
+    if all(["AWS_ACCESS_KEY_ID" in os.environ, 
+            "AWS_SECRET_ACCESS_KEY" in os.environ,
+            "AWS_REGION" in os.environ, 
+           "username" in os.environ, 
+           "password" in os.environ]):
+        pass
+    else:
+        return print("'Inspect Model' unsuccessful. Please provide credentials with set_credentials().")
+
+    try: 
+        inspect_pd = inspect_model_lambda(apiurl, version)
+    except: 
+        inspect_pd = inspect_model_aws(apiurl, version)
+    
+    return inspect_pd
     
 
-def compare_models(apiurl, version_list=None, 
+def compare_models_aws(apiurl, version_list=None, 
     by_model_type=None, best_model=None, verbose=3):
     
     if not isinstance(version_list, list):
@@ -933,7 +951,7 @@ def compare_models(apiurl, version_list=None,
         for i in version_list: 
             
             temp_pd = inspect_model(apiurl, version=i)
-            comp_pd = pd.concat([comp_pd, temp_pd.drop(columns='param_name')], axis=1)
+            comp_pd = comp_pd.merge(temp_pd, on='param_name')
         
         comp_pd.columns = ['param_name', 'model_default'] + ["Model_"+str(i) for i in version_list]
         
@@ -1016,7 +1034,9 @@ def compare_models_lambda(apiurl, version_list="None",
     return compare_pd
 
 
-def get_leaderboard_lambda(apiurl, category="classification", verbose=3, columns="None"):
+def compare_models(apiurl, version_list="None", 
+    by_model_type=None, best_model=None, verbose=3):
+
     if all(["AWS_ACCESS_KEY_ID" in os.environ, 
             "AWS_SECRET_ACCESS_KEY" in os.environ,
             "AWS_REGION" in os.environ, 
@@ -1024,29 +1044,23 @@ def get_leaderboard_lambda(apiurl, category="classification", verbose=3, columns
            "password" in os.environ]):
         pass
     else:
-        return print("'get_leaderboard()' unsuccessful. Please provide credentials with set_credentials().")
+        return print("'Inspect Model' unsuccessful. Please provide credentials with set_credentials().")
 
-    post_dict = {"y_pred": [],
-               "return_eval": "False",
-               "return_y": "False",
-               "inspect_model": "False",
-               "version": "None", 
-               "compare_models": "False",
-               "version_list": "None",
-               "get_leaderboard": "True",
-               "category": category,
-               "verbose": verbose,
-               "columns": columns}
+    if len(version_list) != len(set(version_list)):
+        return print("Model comparison failed. Version list contains duplicates.")
     
-    headers = { 'Content-Type':'application/json', 'authorizationToken': os.environ.get("AWS_TOKEN"),} 
+    try: 
+        compare_pd = compare_models_lambda(apiurl, version_list, 
+            by_model_type, best_model, verbose)
+    except: 
+        compare_pd = compare_models_aws(apiurl, version_list, 
+            by_model_type, best_model, verbose)
+    
+    return compare_pd
 
-    apiurl_eval=apiurl[:-1]+"eval"
 
-    leaderboard_json = requests.post(apiurl_eval,headers=headers,data=json.dumps(post_dict)) 
 
-    leaderboard_pd = pd.DataFrame(json.loads(leaderboard_json.text))
 
-    return leaderboard_pd
 
 
 
@@ -1227,3 +1241,4 @@ def inspect_y_test(apiurl):
   # print_y_stats(y_stats_dict)
 
   return y_stats_dict
+
