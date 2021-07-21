@@ -383,7 +383,7 @@ def submit_model(
     return "Your model has been submitted as model version "+str(model_version)
 
   
-def update_runtime_model(apiurl, model_version=None, modelpath=None, preprocessor=None):
+def update_runtime_model(apiurl, model_version=None, model_filepath=None, preprocessor_filepath=None):
     """
     apiurl: string of API URL that the user wishes to edit
     new_model_version: string of model version number (from leaderboard) to replace original model 
@@ -419,7 +419,9 @@ def update_runtime_model(apiurl, model_version=None, modelpath=None, preprocesso
                                       region_name=os.environ.get('AWS_REGION'))
     
     s3 = user_sess.resource('s3')
-
+    model_version=str(model_version)
+    modelpath=model_filepath
+    preprocessor=preprocessor_filepath
     # Get bucket and model_id for user based on apiurl {{{
     response, error = run_function_on_lambda(
         apiurl, **{"delete": "FALSE", "versionupdateget": "TRUE"}
@@ -429,6 +431,23 @@ def update_runtime_model(apiurl, model_version=None, modelpath=None, preprocesso
 
     _, api_bucket, model_id = json.loads(response.content.decode("utf-8"))
     # }}}
+
+    try:
+        leaderboard = aws_client["client"].get_object(
+            Bucket=api_bucket, Key=model_id + "/model_eval_data_mastertable.csv"
+
+
+
+        )
+        leaderboard = pd.read_csv(leaderboard["Body"], sep="\t")
+        columns = leaderboard.columns
+        metric_names=["accuracy","f1_score","precision","recall","r2","mse","mae"]
+        leaderboardversion=leaderboard[leaderboard['version']==int(model_version)]
+        leaderboardversion=leaderboardversion.dropna(axis=1)
+        metric_names_subset=list(set(metric_names).intersection(leaderboardversion.columns))
+        leaderboardversiondict=leaderboardversion.loc[:,metric_names_subset].to_dict('records')[0]
+    except Exception as err:
+        raise err
 
     # Get file list for current bucket {{{
     model_files, err = _get_file_list(aws_client, api_bucket, model_id)
@@ -481,11 +500,19 @@ def update_runtime_model(apiurl, model_version=None, modelpath=None, preprocesso
           'Key': preprocesor_source_key
       }
     
+    bodydatamodelmetrics={"apiurl":apiurl,
+                          "versionupdateput":"TRUE",
+                          "verified_metrics":"TRUE",
+                          "eval_metrics":json.dumps(leaderboardversiondict)}
+ 
+    headers = { 'Content-Type':'application/json', 'authorizationToken': os.environ.get("AWS_TOKEN"), } 
+    prediction = requests.post("https://bhrdesksak.execute-api.us-east-1.amazonaws.com/dev/modeldata",headers=headers,data=json.dumps(bodydatamodelmetrics)) 
+
     # overwrite runtime_model.onnx file & runtime_preprocessor.zip files: 
     if (model_source_key in file_list) & (preprocesor_source_key in file_list):
         response = bucket.copy(model_copy_source, model_id+"/"+'runtime_model.onnx')
         response = bucket.copy(preprocessor_copy_source, model_id+"/"+'runtime_preprocessor.zip')
-        return 'Runtime Model & Preprocessor Updated Successfully.'
+        return print('Runtime model & preprocessor for api: '+apiurl+" updated to model version "+model_version+".\n\nModel metrics are now updated and verified for this model playground.")
     else:
         # the file resource to be the new runtime_model is not available
         return 'New Runtime Model version ' + model_version + ' file not found.'
