@@ -11,7 +11,7 @@ from datetime import datetime
 
 from aimodelshare.aws import run_function_on_lambda, get_token, get_aws_token, get_aws_client
 
-from aimodelshare.aimsonnx import _get_leaderboard_data
+from aimodelshare.aimsonnx import _get_leaderboard_data,inspect_model_lambda
 
 
 def _get_file_list(client, bucket, model_id):
