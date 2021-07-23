@@ -11,7 +11,7 @@ from datetime import datetime
 
 from aimodelshare.aws import run_function_on_lambda, get_token, get_aws_token, get_aws_client
 
-from aimodelshare.aimsonnx import _get_leaderboard_data
+from aimodelshare.aimsonnx import _get_leaderboard_data,inspect_model_lambda
 
 
 def _get_file_list(client, bucket, model_id):
@@ -141,13 +141,14 @@ def _update_leaderboard(
     leaderboard = leaderboard.append(metadata, ignore_index=True, sort=False)
 
     leaderboard_csv = leaderboard.to_csv(index=False, sep="\t")
+    metadata.pop("model_config", "pop worked")
 
     try:
         s3_object = client["resource"].Object(
             bucket, model_id + "/model_eval_data_mastertable.csv"
         )
         s3_object.put(Body=leaderboard_csv)
-
+        return metadata
     except Exception as err:
         return err
     # }}}
@@ -201,7 +202,8 @@ def submit_model(
     aws_client=get_aws_client(aws_key=os.environ.get('AWS_ACCESS_KEY_ID'), 
                               aws_secret=os.environ.get('AWS_SECRET_ACCESS_KEY'), 
                               aws_region=os.environ.get('AWS_REGION'))
-    
+    apiurl=apiurl.replace('"','')
+
     # Get bucket and model_id for user {{{
     response, error = run_function_on_lambda(
         apiurl, **{"delete": "FALSE", "versionupdateget": "TRUE"}
@@ -294,12 +296,24 @@ def submit_model(
 
 
     # Upload model metrics and metadata {{{
-    err = _update_leaderboard(
+    modelleaderboarddata = _update_leaderboard(
         modelpath, eval_metrics, aws_client, bucket, model_id, model_version
     )
-    if err is not None:
-        raise err
-    #  }}}
+
+    def dict_clean(items):
+      result = {}
+      for key, value in items:
+          if value is None:
+              value = '0'
+          result[key] = value
+      return result
+
+    if isinstance(modelleaderboarddata, Exception):
+      raise err
+    else:
+      dict_str = json.dumps(modelleaderboarddata)
+    #convert None type values to string
+      modelleaderboarddata_cleaned = json.loads(dict_str, object_pairs_hook=dict_clean)
 
     # Update model version and sample data {{{
     #data_types = None
@@ -320,23 +334,56 @@ def submit_model(
     #if error is not None:
     #    raise error
     # }}}
+    modelsubmissiontags=input("Insert search tags to help users find your model (optional): ")
+    modelsubmissiondescription=input("Provide any useful notes about your model (optional): ")
+    aimsurl=input("Share code: Insert AI Model Share url to Jupyter notebook with model code(optional): ")
+    githuburl=input("Share code: Insert Github url to Jupyter notebook with model code(optional): ")
 
-    
-    bodydata = {"versionupdateputsubmit":"TRUE",
-                "apiurl": apiurl,
+    #Update competition data
+    bodydata = {"apiurl": apiurl,
                 "submissions": model_version,
-                 "contributoruniquenames":os.environ.get('username')}
+                 "contributoruniquenames":os.environ.get('username'),
+                }
     
     # Get the response
-    headers_with_authentication = {'Content-Type': 'application/json', 'authorizationToken': os.environ.get("JWT_AUTHORIZATION_TOKEN"), 'Access-Control-Allow-Headers':
+    headers_with_authentication = {'Content-Type': 'application/json', 'authorizationToken': os.environ.get("AWS_TOKEN"), 'Access-Control-Allow-Headers':
                                    'Content-Type,X-Amz-Date,authorizationToken,Access-Control-Allow-Origin,X-Api-Key,X-Amz-Security-Token,Authorization', 'Access-Control-Allow-Origin': '*'}
     # competitiondata lambda function invoked through below url to update model submissions and contributors
     requests.post("https://o35jwfakca.execute-api.us-east-1.amazonaws.com/dev/modeldata",
                   json=bodydata, headers=headers_with_authentication)
-    return "Your model has been submitted as model version "+str(model_version) 
+    
+    #Update model architecture data
+    bodydatamodels = {
+                "apiurl": apiurl,
+                "modelsummary":json.dumps(inspect_model_lambda(apiurl,int(model_version)).to_json()),
+                "Private":"FALSE",
+                "modelsubmissiondescription": modelsubmissiondescription,
+                "modelsubmissiontags":modelsubmissiontags ,
+
+                "githubipynburl":githuburl,
+                "aimsipynburl": aimsurl}
+
+    bodydatamodels.update(modelleaderboarddata_cleaned)
+    d = bodydatamodels
+
+
+    keys_values = d.items()
+
+
+    bodydatamodels_allstrings = {str(key): str(value) for key, value in keys_values}
+
+
+
+    # Get the response
+    headers_with_authentication = {'Content-Type': 'application/json', 'authorizationToken': os.environ.get("AWS_TOKEN"), 'Access-Control-Allow-Headers':
+                                   'Content-Type,X-Amz-Date,authorizationToken,Access-Control-Allow-Origin,X-Api-Key,X-Amz-Security-Token,Authorization', 'Access-Control-Allow-Origin': '*'}
+    # competitiondata lambda function invoked through below url to update model submissions and contributors
+    response=requests.post("https://eeqq8zuo9j.execute-api.us-east-1.amazonaws.com/dev/modeldata",
+                  json=bodydatamodels_allstrings, headers=headers_with_authentication)
+    return "Your model has been submitted as model version "+str(model_version)
 
   
-def update_runtime_model(apiurl, model_version=None, modelpath=None, preprocessor=None):
+def update_runtime_model(apiurl, model_version=None, model_filepath=None, preprocessor_filepath=None):
     """
     apiurl: string of API URL that the user wishes to edit
     new_model_version: string of model version number (from leaderboard) to replace original model 
@@ -372,7 +419,9 @@ def update_runtime_model(apiurl, model_version=None, modelpath=None, preprocesso
                                       region_name=os.environ.get('AWS_REGION'))
     
     s3 = user_sess.resource('s3')
-
+    model_version=str(model_version)
+    modelpath=model_filepath
+    preprocessor=preprocessor_filepath
     # Get bucket and model_id for user based on apiurl {{{
     response, error = run_function_on_lambda(
         apiurl, **{"delete": "FALSE", "versionupdateget": "TRUE"}
@@ -382,6 +431,23 @@ def update_runtime_model(apiurl, model_version=None, modelpath=None, preprocesso
 
     _, api_bucket, model_id = json.loads(response.content.decode("utf-8"))
     # }}}
+
+    try:
+        leaderboard = aws_client["client"].get_object(
+            Bucket=api_bucket, Key=model_id + "/model_eval_data_mastertable.csv"
+
+
+
+        )
+        leaderboard = pd.read_csv(leaderboard["Body"], sep="\t")
+        columns = leaderboard.columns
+        metric_names=["accuracy","f1_score","precision","recall","r2","mse","mae"]
+        leaderboardversion=leaderboard[leaderboard['version']==int(model_version)]
+        leaderboardversion=leaderboardversion.dropna(axis=1)
+        metric_names_subset=list(set(metric_names).intersection(leaderboardversion.columns))
+        leaderboardversiondict=leaderboardversion.loc[:,metric_names_subset].to_dict('records')[0]
+    except Exception as err:
+        raise err
 
     # Get file list for current bucket {{{
     model_files, err = _get_file_list(aws_client, api_bucket, model_id)
@@ -434,11 +500,19 @@ def update_runtime_model(apiurl, model_version=None, modelpath=None, preprocesso
           'Key': preprocesor_source_key
       }
     
+    bodydatamodelmetrics={"apiurl":apiurl,
+                          "versionupdateput":"TRUE",
+                          "verified_metrics":"TRUE",
+                          "eval_metrics":json.dumps(leaderboardversiondict)}
+ 
+    headers = { 'Content-Type':'application/json', 'authorizationToken': os.environ.get("AWS_TOKEN"), } 
+    prediction = requests.post("https://bhrdesksak.execute-api.us-east-1.amazonaws.com/dev/modeldata",headers=headers,data=json.dumps(bodydatamodelmetrics)) 
+
     # overwrite runtime_model.onnx file & runtime_preprocessor.zip files: 
     if (model_source_key in file_list) & (preprocesor_source_key in file_list):
         response = bucket.copy(model_copy_source, model_id+"/"+'runtime_model.onnx')
         response = bucket.copy(preprocessor_copy_source, model_id+"/"+'runtime_preprocessor.zip')
-        return 'Runtime Model & Preprocessor Updated Successfully.'
+        return print('Runtime model & preprocessor for api: '+apiurl+" updated to model version "+model_version+".\n\nModel metrics are now updated and verified for this model playground.")
     else:
         # the file resource to be the new runtime_model is not available
         return 'New Runtime Model version ' + model_version + ' file not found.'
