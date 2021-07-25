@@ -355,7 +355,7 @@ def submit_model(
     #Update model architecture data
     bodydatamodels = {
                 "apiurl": apiurl,
-                "modelsummary":json.dumps(inspect_model_lambda(apiurl,int(model_version)).to_json()),
+                "modelsummary":json.dumps(inspect_model(apiurl,int(model_version)).to_json()),
                 "Private":"FALSE",
                 "modelsubmissiondescription": modelsubmissiondescription,
                 "modelsubmissiontags":modelsubmissiontags ,
