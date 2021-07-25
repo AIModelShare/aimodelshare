@@ -355,7 +355,7 @@ def submit_model(
     #Update model architecture data
     bodydatamodels = {
                 "apiurl": apiurl,
-                "modelsummary":json.dumps(inspect_model_lambda(apiurl,int(model_version)).to_json()),
+                "modelsummary":json.dumps(inspect_model(apiurl,int(model_version)).to_json()),
                 "Private":"FALSE",
                 "modelsubmissiondescription": modelsubmissiondescription,
                 "modelsubmissiontags":modelsubmissiontags ,
@@ -383,21 +383,10 @@ def submit_model(
     return "Your model has been submitted as model version "+str(model_version)
 
   
-def update_runtime_model(apiurl, model_version=None, model_filepath=None, preprocessor_filepath=None):
+def update_runtime_model(apiurl, model_version=None):
     """
     apiurl: string of API URL that the user wishes to edit
     new_model_version: string of model version number (from leaderboard) to replace original model 
-    modelpath:  string ends with '.onnx'
-                value - Absolute path to model file [REQUIRED] to be set by the user
-                .onnx is the only accepted model file extension
-                "example_model.onnx" filename for file in directory.
-                "/User/xyz/model/example_model.onnx" absolute path to model file from local directory
-    preprocessor:   string,default=None
-                    value - absolute path to preprocessor file 
-                    [REQUIRED] to be set by the user
-                    "./preprocessor.zip" 
-                    searches for an exported zip preprocessor file in the current directory
-                    file is generated from preprocessor module using export_preprocessor function from the AI Modelshare library 
     """
     # Confirm that creds are loaded, print warning if not
     if all(["AWS_ACCESS_KEY_ID" in os.environ, 
@@ -420,8 +409,6 @@ def update_runtime_model(apiurl, model_version=None, model_filepath=None, prepro
     
     s3 = user_sess.resource('s3')
     model_version=str(model_version)
-    modelpath=model_filepath
-    preprocessor=preprocessor_filepath
     # Get bucket and model_id for user based on apiurl {{{
     response, error = run_function_on_lambda(
         apiurl, **{"delete": "FALSE", "versionupdateget": "TRUE"}
@@ -455,35 +442,6 @@ def update_runtime_model(apiurl, model_version=None, model_filepath=None, prepro
         raise err
     # }}}
 
-    # Get new model version {{{ 
-    if model_version is None:
-        model_versions = [os.path.splitext(f)[0].split("_")[-1][1:] for f in model_files]
-
-        model_versions = filter(lambda v: v.isnumeric(), model_versions)
-        model_versions = list(map(int, model_versions))
-
-        if model_versions:
-            model_version = max(model_versions) + 1
-        else:
-            model_version = 1
-    # }}}
-
-    # Upload the preprocessor {{{
-    if preprocessor is not None:
-        err = _upload_preprocessor(
-            preprocessor, aws_client, api_bucket, model_id, model_version
-        )
-        if err is not None:
-            raise err
-    # }}}
-
-    # Upload the model {{{
-    if modelpath is not None:
-        err = _upload_onnx_model(modelpath, aws_client, api_bucket, model_id, model_version)
-        if err is not None:
-            raise err
-    # }}}
-
     # extract subfolder objects specific to the model id
     folder = s3.meta.client.list_objects(Bucket=api_bucket, Prefix=model_id+"/")
     bucket = s3.Bucket(api_bucket)
@@ -499,7 +457,7 @@ def update_runtime_model(apiurl, model_version=None, model_filepath=None, prepro
           'Bucket': api_bucket,
           'Key': preprocesor_source_key
       }
-    
+    # Sending correct model metrics to front end 
     bodydatamodelmetrics={"apiurl":apiurl,
                           "versionupdateput":"TRUE",
                           "verified_metrics":"TRUE",
@@ -515,7 +473,7 @@ def update_runtime_model(apiurl, model_version=None, model_filepath=None, prepro
         return print('Runtime model & preprocessor for api: '+apiurl+" updated to model version "+model_version+".\n\nModel metrics are now updated and verified for this model playground.")
     else:
         # the file resource to be the new runtime_model is not available
-        return 'New Runtime Model version ' + model_version + ' file not found.'
+        return 'New Runtime Model version ' + model_version + ' not found.'
     
 
 def _extract_model_metadata(model, eval_metrics=None):
