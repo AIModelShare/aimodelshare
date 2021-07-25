@@ -11,7 +11,7 @@ from datetime import datetime
 
 from aimodelshare.aws import run_function_on_lambda, get_token, get_aws_token, get_aws_client
 
-from aimodelshare.aimsonnx import _get_leaderboard_data,inspect_model_lambda
+from aimodelshare.aimsonnx import _get_leaderboard_data, inspect_model, _get_metadata, _model_summary
 
 
 def _get_file_list(client, bucket, model_id):
@@ -351,11 +351,25 @@ def submit_model(
     # competitiondata lambda function invoked through below url to update model submissions and contributors
     requests.post("https://o35jwfakca.execute-api.us-east-1.amazonaws.com/dev/modeldata",
                   json=bodydata, headers=headers_with_authentication)
+
+
+    # get model summary from onnx
+    onnx_model = onnx.load(modelpath)
+    meta_dict = _get_metadata(onnx_model)
+
+    if meta_dict['ml_framework'] == 'keras':
+        inspect_pd = _model_summary(meta_dict)
+        
+    elif meta_dict['ml_framework'] in ['sklearn', 'xgboost']:
+        model_config = meta_dict["model_config"]
+        model_config = ast.literal_eval(model_config)
+        inspect_pd = pd.DataFrame({'param_name': model_config.keys(),
+                                   'param_value': model_config.values()})
     
     #Update model architecture data
     bodydatamodels = {
                 "apiurl": apiurl,
-                "modelsummary":json.dumps(inspect_model(apiurl,int(model_version)).to_json()),
+                "modelsummary":json.dumps(inspect_pd.to_json()),
                 "Private":"FALSE",
                 "modelsubmissiondescription": modelsubmissiondescription,
                 "modelsubmissiontags":modelsubmissiontags ,
