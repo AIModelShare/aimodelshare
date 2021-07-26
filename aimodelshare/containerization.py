@@ -107,12 +107,12 @@ def build_image(user_session, bucket_name, zip_file, image_name):
     # creating policy for CodeBuild
     create_iam_policy(user_session, policy_name, policy)
 
-    time.sleep(5)
+    time.sleep(10)
 
     # attaching policies to role to execute CodeBuild to build Docker image
     attach_policy_to_role(user_session, role_name, policy_name)
 
-    time.sleep(5)    # letting all the roles and policies create so that codebuild can utilize them without error
+    time.sleep(10)    # letting all the roles and policies create so that codebuild can utilize them without error
 
     # creating CodeBuild project
     # specify which zip to be sourced from S3 that contains all the files to create the image
@@ -157,10 +157,14 @@ def build_new_base_image(user_session, bucket_name, libraries, repository, image
     #label=",".join(libraries)      # label of image will be all string of all libraries
 
     # temporary folder path where we will create all files and folder
-    temp_folder = tempfile.gettempdir() + "/" + folder_name
+    temp_dir = tempfile.gettempdir() + "/" + folder_name
+
+    if(os.path.isdir(temp_dir)):
+        shutil.rmtree(temp_dir)
+    os.mkdir(temp_dir)
 
     # list of all Python libraries (with their versions if required) required to be downloaded from PyPI into Docker image
-    with open(os.path.join(folder_name, requirements_file), "a") as f:
+    with open(os.path.join(temp_dir, requirements_file), "a") as f:
         for lib in libraries:
             f.write('%s\n' % lib)
 
@@ -171,7 +175,7 @@ def build_new_base_image(user_session, bucket_name, libraries, repository, image
         python_version=python_version,  # AWS maintained images with speicific python versions
         folder_name=folder_name,    # the folder that contains all the files for building base image
         requirements_file=requirements_file)    # this file will contain names of all libraries to be installed using pip
-    with open(os.path.join(temp_folder, "Dockerfile"), "w") as file:
+    with open(os.path.join(temp_dir, "Dockerfile"), "w") as file:
         file.write(newdata)
 
     # buildspec.txt template being read and appropriate variables being assigned to generate buildspec.yml
@@ -183,31 +187,46 @@ def build_new_base_image(user_session, bucket_name, libraries, repository, image
         repository=repository,      # name of the repository
         image_tag=image_tag)        # version / tag to be given to the image
         #label=label)     #label of the library
-    with open(os.path.join(temp_folder, "buildspec.yml"), "w") as file:
+    with open(os.path.join(temp_dir, "buildspec.yml"), "w") as file:
         file.write(newdata)
 
     # lambda_function.py being generated which has the handler that will be called when Docker image is invoked
     data = pkg_resources.read_text(containerization_templates, "lambda_function.txt")   # read template from containerization folder
-    with open(os.path.join(temp_folder, "lambda_function.py"), "w") as file:
+    with open(os.path.join(temp_dir, "lambda_function.py"), "w") as file:
         file.write(data)
 
-    file_paths = get_all_file_paths_in_directory(temp_folder)    # getting list of strings containing paths of all files
+    file_paths = get_all_file_paths_in_directory(temp_dir)    # getting list of strings containing paths of all files
 
     # zipping all files in the temporary folder to be uploaded to the S3 bucket
-    with zipfile.ZipFile(temp_folder + ".zip", "w") as zip:
+    with zipfile.ZipFile(temp_dir + ".zip", "w") as zip:
         for file in file_paths:
-            zip.write(file, file.replace(temp_folder, ""))      # ignore temporary file path when copying to zip file
+            zip.write(file, file.replace(temp_dir, ""))      # ignore temporary file path when copying to zip file
 
-    build_image(user_session, bucket_name, temp_folder + ".zip", repository + "_" + image_tag + "_base_image")
+    build_image(user_session, bucket_name, temp_dir + ".zip", repository + "_" + image_tag + "_base_image")
 
 # create lambda function using a base image from a specific repository having a specific tag
 def create_lambda_using_base_image(user_session, bucket_name, directory, lambda_name, api_id, repository, image_tag, memory_size, timeout):
 
-    temp_path = tempfile.gettempdir() + "/"
-
     sts_client = user_session.client("sts")
     account_id = sts_client.get_caller_identity()["Account"]
     region = user_session.region_name
+
+    temp_dir = tempfile.gettempdir() + "/" + lambda_name
+
+    if(os.path.isdir(temp_dir)):
+        shutil.rmtree(temp_dir)
+    os.mkdir(temp_dir)
+
+    shutil.copytree(directory, temp_dir)     # copying files from the local directory to tmp folder directory
+
+    temp_path_directory_file_paths = get_all_file_paths_in_directory(temp_dir)    # getting list of strings containing paths of all files
+
+    # zipping all files in a temporary folder to be uploaded to the S3 bucket
+    with zipfile.ZipFile(temp_dir + ".zip", "w") as zip:    # remove temporary path from directory if present
+        for file in temp_path_directory_file_paths:
+            zip.write(file, file.replace(temp_dir, ""))    # ignore temporary path when copying to zip file
+
+    upload_file_to_s3(user_session, temp_dir + ".zip", bucket_name, lambda_name + ".zip")        # upload zip file to S3 bucket
 
     # reading JSON of the trust relationship required to create role and authorize it to use CodeBuild to build Docker image
     role_name = "lambda_role"
@@ -223,24 +242,12 @@ def create_lambda_using_base_image(user_session, bucket_name, directory, lambda_
     # creating policy for CodeBuild
     create_iam_policy(user_session, policy_name, policy)
 
-    time.sleep(5)
+    time.sleep(10)
 
     # attaching policies to role to execute CodeBuild to build Docker image
     attach_policy_to_role(user_session, role_name, policy_name)
 
-    temp_path_directory = temp_path + lambda_name       # directory in tmp folder to copy files to
-    shutil.copytree(directory, temp_path_directory)     # copying files from the local directory to tmp folder directory
-
-    temp_path_directory_file_paths = get_all_file_paths_in_directory(temp_path_directory)    # getting list of strings containing paths of all files
-
-    # zipping all files in a temporary folder to be uploaded to the S3 bucket
-    with zipfile.ZipFile(temp_path_directory + ".zip", "w") as zip:    # remove temporary path from directory if present
-        for file in temp_path_directory_file_paths:
-            zip.write(file, file.replace(temp_path, ""))    # ignore temporary path when copying to zip file
-
-    upload_file_to_s3(user_session, temp_path_directory + ".zip", bucket_name, lambda_name + ".zip")        # upload zip file to S3 bucket
-
-    time.sleep(5)
+    time.sleep(10)
 
     lambda_client = user_session.client('lambda')
     response = lambda_client.create_function(
@@ -261,5 +268,5 @@ def create_lambda_using_base_image(user_session, bucket_name, directory, lambda_
         }
     )
 
-    os.remove(temp_path_directory + ".zip")     # delete the zip file created in tmp directory
-    shutil.rmtree(temp_path_directory)      # delete the temporary folder created in tmp directory
+    os.remove(temp_dir + ".zip")     # delete the zip file created in tmp directory
+    shutil.rmtree(temp_dir)      # delete the temporary folder created in tmp directory
