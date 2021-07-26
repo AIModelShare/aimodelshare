@@ -141,18 +141,28 @@ def build_image(user_session, bucket_name, zip_file, image_name):
         projectName = codebuild_project_name
     )
 
+    while(True):
+        build_response = codebuild_client.batch_get_builds(ids=[response['build']['id']])
+        build_status = build_response['builds'][0]['buildStatus']
+        if build_status == 'SUCCEEDED':
+            print("Image build succeeded.")
+            break
+        elif build_status == 'FAILED' or build_status == 'FAULT' or build_status == 'STOPPED' or build_status == 'TIMED_OUT':
+            print("Image failed to build using CodeBuild with status " + build_status)
+            break
+        time.sleep(5)
+
     # delete zip file from S3 bucket
     delete_file_from_s3(user_session, bucket_name, image_name+'.zip')
 
 # create a base image containing a particular set of libraries in repository with specific image tag
-def build_new_base_image(user_session, aws_access_key_id, aws_secret_access_key, bucket_name, libraries, repository, image_tag, python_version):
+def build_new_base_image(user_session, bucket_name, libraries, repository, image_tag, python_version):
 
     sts_client = user_session.client("sts")
     account_id = sts_client.get_caller_identity()["Account"]
     region = user_session.region_name
 
     folder_name = "base_image_folder"
-    requirements_file = "requirements.txt"
     #label=",".join(libraries)      # label of image will be all string of all libraries
 
     # temporary folder path where we will create all files and folder
@@ -163,7 +173,7 @@ def build_new_base_image(user_session, aws_access_key_id, aws_secret_access_key,
     os.mkdir(temp_dir)
 
     # list of all Python libraries (with their versions if required) required to be downloaded from PyPI into Docker image
-    with open(os.path.join(temp_dir, requirements_file), "a") as f:
+    with open(os.path.join(temp_dir, "requirements.txt"), "a") as f:
         for lib in libraries:
             f.write('%s\n' % lib)
 
@@ -171,9 +181,7 @@ def build_new_base_image(user_session, aws_access_key_id, aws_secret_access_key,
     data = pkg_resources.read_text(containerization_templates, "Dockerfile.txt")   # read template from containerization folder
     template = Template(data)
     newdata = template.substitute(
-        python_version=python_version,  # AWS maintained images with speicific python versions
-        folder_name=folder_name,    # the folder that contains all the files for building base image
-        requirements_file=requirements_file)    # this file will contain names of all libraries to be installed using pip
+        python_version=python_version)  # AWS maintained images with speicific python versions
     with open(os.path.join(temp_dir, "Dockerfile"), "w") as file:
         file.write(newdata)
 
@@ -183,8 +191,6 @@ def build_new_base_image(user_session, aws_access_key_id, aws_secret_access_key,
     newdata = template.substitute(
         account_id=account_id,      # AWS account id
         region=region,      # region in which the repository is / should be created
-        aws_access_key_id=aws_access_key_id,
-        aws_secret_access_key=aws_secret_access_key,
         repository=repository,      # name of the repository
         image_tag=image_tag,        # version / tag to be given to the image
         label="test")     #label of the library
