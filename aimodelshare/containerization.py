@@ -184,8 +184,8 @@ def build_new_base_image(user_session, bucket_name, libraries, repository, image
         account_id=account_id,      # AWS account id
         region=region,      # region in which the repository is / should be created
         repository=repository,      # name of the repository
-        image_tag=image_tag)        # version / tag to be given to the image
-        #label=label)     #label of the library
+        image_tag=image_tag,        # version / tag to be given to the image
+        label="test")     #label of the library
     with open(os.path.join(temp_dir, "buildspec.yml"), "w") as file:
         file.write(newdata)
 
