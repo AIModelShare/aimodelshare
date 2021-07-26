@@ -5,8 +5,7 @@ import time
 import tempfile
 import zipfile
 from string import Template
-import importlib.resources as pkg_resources
-
+import importlib_resources as pkg_resources
 from . import iam
 from . import containerization_templates
 
