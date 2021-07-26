@@ -145,7 +145,7 @@ def build_image(user_session, bucket_name, zip_file, image_name):
     delete_file_from_s3(user_session, bucket_name, image_name+'.zip')
 
 # create a base image containing a particular set of libraries in repository with specific image tag
-def build_new_base_image(user_session, bucket_name, libraries, repository, image_tag, python_version):
+def build_new_base_image(user_session, aws_access_key_id, aws_secret_access_key, bucket_name, libraries, repository, image_tag, python_version):
 
     sts_client = user_session.client("sts")
     account_id = sts_client.get_caller_identity()["Account"]
@@ -183,6 +183,8 @@ def build_new_base_image(user_session, bucket_name, libraries, repository, image
     newdata = template.substitute(
         account_id=account_id,      # AWS account id
         region=region,      # region in which the repository is / should be created
+        aws_access_key_id=aws_access_key_id,
+        aws_secret_access_key=aws_secret_access_key,
         repository=repository,      # name of the repository
         image_tag=image_tag,        # version / tag to be given to the image
         label="test")     #label of the library
