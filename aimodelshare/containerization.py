@@ -198,7 +198,7 @@ def build_new_base_image(user_session, bucket_name, libraries, repository, image
     build_image(user_session, bucket_name, temp_folder + ".zip", repository + "_" + image_tag + "_base_image")
 
 # create lambda function using a base image from a specific repository having a specific tag
-def create_lambda_using_base_image(user_session, bucket_name, directory, lambda_name, api_id, repository, image_tag, memory_size, timeout):
+def lambda_using_base_image(user_session, bucket_name, directory, lambda_name, api_id, repository, image_tag, memory_size, timeout):
 
     temp_path = tempfile.gettempdir() + "/"
 
@@ -260,3 +260,7 @@ def create_lambda_using_base_image(user_session, bucket_name, directory, lambda_
 
     os.remove(temp_path_directory + ".zip")     # delete the zip file created in tmp directory
     shutil.rmtree(temp_path_directory)      # delete the temporary folder created in tmp directory
+
+__all__ = [
+    lambda_using_base_image
+]

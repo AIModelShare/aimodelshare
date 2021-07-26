@@ -1,0 +1,20 @@
+{
+    "Version": "2012-10-17",
+    "Statement": [
+        {
+            "Action": "logs:CreateLogStream",
+            "Resource": "*",
+            "Effect": "Allow"
+        },
+        {
+            "Action": "logs:PutLogEvents",
+            "Resource": "*",
+            "Effect": "Allow"
+        },
+        {
+            "Action": "s3:*",
+            "Resource": "*",
+            "Effect": "Allow"
+        }
+    ]
+}
