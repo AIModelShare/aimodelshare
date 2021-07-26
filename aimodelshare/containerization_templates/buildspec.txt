@@ -3,8 +3,6 @@ version: 0.2
 phases:
   pre_build:
     commands:
-      - aws configure set aws_access_key_id $aws_access_key_id
-      - aws configure set aws_secret_access_key $aws_secret_access_key
       - aws ecr get-login-password --region $region | docker login --username AWS --password-stdin $account_id.dkr.ecr.$region.amazonaws.com
   build:
     commands:
