@@ -12,7 +12,7 @@ import requests
 import sys
 from zipfile import ZipFile, ZIP_STORED, ZipInfo
 import shutil
-from aimodelshare.containerization import lambda_using_base_image
+from aimodelshare.containerization import create_lambda_using_base_image
 
 def create_prediction_api(model_filepath, unique_model_id, model_type,categorical, labels, apiid,custom_libraries, requirements):
     from zipfile import ZipFile
@@ -386,8 +386,7 @@ def create_prediction_api(model_filepath, unique_model_id, model_type,categorica
 
     
     if(any([custom_libraries=='FALSE',custom_libraries=='false'])):
-        from aimodelshare import base_image
-        response6 = lambda_using_base_image(user_session, os.getenv("BUCKET_NAME"), 'file_objects', lambdafxnname, apiid, 'aimodelshare-base-image', 'latest', 1024, 90)
+        response6 = create_lambda_using_base_image(user_session, os.getenv("BUCKET_NAME"), 'file_objects', lambdafxnname, apiid, 'aimodelshare-base-image', 'latest', 1024, 90)
     elif(any([custom_libraries=='TRUE',custom_libraries=='true'])):
 
         requirements = requirements.split(",")

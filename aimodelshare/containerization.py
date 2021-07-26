@@ -7,6 +7,9 @@ import zipfile
 from string import Template
 import importlib.resources as pkg_resources
 
+from . import iam
+from . import containerization_templates
+
 # abstraction to return list of strings of paths of all files present in a given directory
 def get_all_file_paths_in_directory(directory):
     file_paths = []
@@ -151,7 +154,7 @@ def build_new_base_image(user_session, bucket_name, libraries, repository, image
 
     folder_name = "base_image_folder"
     requirements_file = "requirements.txt"
-    label=", ".join(libraries)      # label of image will be all string of all libraries
+    #label=",".join(libraries)      # label of image will be all string of all libraries
 
     # temporary folder path where we will create all files and folder
     temp_folder = tempfile.gettempdir() + "/" + folder_name
@@ -178,8 +181,8 @@ def build_new_base_image(user_session, bucket_name, libraries, repository, image
         account_id=account_id,      # AWS account id
         region=region,      # region in which the repository is / should be created
         repository=repository,      # name of the repository
-        image_tag=image_tag,        # version / tag to be given to the image
-        label=label)     #label of the library
+        image_tag=image_tag)        # version / tag to be given to the image
+        #label=label)     #label of the library
     with open(os.path.join(temp_folder, "buildspec.yml"), "w") as file:
         file.write(newdata)
 
@@ -198,7 +201,7 @@ def build_new_base_image(user_session, bucket_name, libraries, repository, image
     build_image(user_session, bucket_name, temp_folder + ".zip", repository + "_" + image_tag + "_base_image")
 
 # create lambda function using a base image from a specific repository having a specific tag
-def lambda_using_base_image(user_session, bucket_name, directory, lambda_name, api_id, repository, image_tag, memory_size, timeout):
+def create_lambda_using_base_image(user_session, bucket_name, directory, lambda_name, api_id, repository, image_tag, memory_size, timeout):
 
     temp_path = tempfile.gettempdir() + "/"
 
@@ -252,7 +255,7 @@ def lambda_using_base_image(user_session, bucket_name, directory, lambda_name, a
         Environment = {
             'Variables': {
                 'bucket': bucket_name,     # bucket where zip file is located
-                'key': api_id + '/' + lambda_name + '.zip',     # file in the bucket to be downloaded
+                'api_id': api_id,     # api_id in the bucket in which zip file is stored
                 'directory': lambda_name        # directory in which all files exist
             }
         }
@@ -260,7 +263,3 @@ def lambda_using_base_image(user_session, bucket_name, directory, lambda_name, a
 
     os.remove(temp_path_directory + ".zip")     # delete the zip file created in tmp directory
     shutil.rmtree(temp_path_directory)      # delete the temporary folder created in tmp directory
-
-__all__ = [
-    lambda_using_base_image
-]
