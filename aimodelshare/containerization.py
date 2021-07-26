@@ -62,7 +62,7 @@ def delete_file_from_s3(user_session, bucket_name, bucket_file_path):
 
 # abstraction to create IAM role
 def create_iam_role(user_session, role_name, trust_relationship):
-    iam_client = user_session.client("s3")
+    iam_client = user_session.client("iam")
     response = iam_client.create_role(
         RoleName=role_name,
         AssumeRolePolicyDocument=json.dumps(trust_relationship)     # convert JSON to string
@@ -70,7 +70,7 @@ def create_iam_role(user_session, role_name, trust_relationship):
 
 # abstraction to create IAM policy
 def create_iam_policy(user_session, policy_name, policy):
-    iam_client = user_session.client("s3")
+    iam_client = user_session.client("iam")
     response = iam_client.create_policy(
         PolicyName=policy_name,
         PolicyDocument=json.dumps(policy)     # convert JSON to string
