@@ -12,7 +12,7 @@ import requests
 import sys
 from zipfile import ZipFile, ZIP_STORED, ZipInfo
 import shutil
-from aimodelshare.containeriztion import lambda_using_base_image
+from aimodelshare.containerization import lambda_using_base_image
 
 def create_prediction_api(model_filepath, unique_model_id, model_type,categorical, labels, apiid,custom_libraries, requirements):
     from zipfile import ZipFile
