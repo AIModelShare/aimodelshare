@@ -144,7 +144,13 @@ def attach_policy_to_role(user_session, role_name, policy_name):
         RoleName = role_name,
         PolicyArn = policy_arn
     )
-    time.sleep(5)
+    while(True):
+        response = iam_client.list_attached_role_policies(
+            RoleName='lambda_role'
+        )
+        if(len(response['AttachedPolicies']) > 0):
+            break
+        time.sleep(5)
 
 # build image using CodeBuild from files in zip file
 def build_image(user_session, bucket_name, zip_file, image_name):
