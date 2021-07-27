@@ -69,7 +69,7 @@ def delete_iam_role(user_session, role_name):
     # keep running loop till role existence is erased
     while(True):
         try:
-            response = iam_client.get_role(role_name)
+            response = iam_client.get_role(RoleName=role_name)
         except:
             break
         time.sleep(5)
@@ -86,7 +86,7 @@ def delete_iam_policy(user_session, policy_name):
     # keep running loop till policy existence is erased
     while(True):
         try:
-            response = iam_client.get_policy(policy_arn)
+            response = iam_client.get_policy(PolicyArn=policy_arn)
         except:
             break
         time.sleep(5)
@@ -105,7 +105,7 @@ def create_iam_role(user_session, role_name, trust_relationship):
     # keep running loop till policy existence reflects
     while(True):
         try:
-            response = iam_client.get_role(role_name)
+            response = iam_client.get_role(RoleName='lambda_role')
             break
         except:
             None
@@ -128,7 +128,7 @@ def create_iam_policy(user_session, policy_name, policy):
     # keep running loop till policy existence reflects
     while(True):
         try:
-            response = iam_client.get_policy(policy_arn)
+            response = iam_client.get_policy(PolicyArn=policy_arn)
             break
         except:
             None
