@@ -60,47 +60,91 @@ def delete_file_from_s3(user_session, bucket_name, bucket_file_path):
         Key=bucket_file_path   # path to file in the S3 bucket
     )
 
-# abstraction to create IAM role
-def create_iam_role(user_session, role_name, trust_relationship):
-    iam_client = user_session.client("iam")
-    response = iam_client.create_role(
-        RoleName=role_name,
-        AssumeRolePolicyDocument=json.dumps(trust_relationship)     # convert JSON to string
-    )
-
-# abstraction to create IAM policy
-def create_iam_policy(user_session, policy_name, policy):
-    iam_client = user_session.client("iam")
-    response = iam_client.create_policy(
-        PolicyName=policy_name,
-        PolicyDocument=json.dumps(policy)     # convert JSON to string
-    )
-
 # abstraction to delete IAM role
 def delete_iam_role(user_session, role_name):
     iam_client = user_session.client("iam")
     response = iam_client.delete_role(
         RoleName=role_name
     )
+    # keep running loop till role existence is erased
+    while(True):
+        try:
+            response = iam_client.get_role(role_name)
+        except:
+            break
+        time.sleep(5)
 
 # abstraction to delete IAM policy
 def delete_iam_policy(user_session, policy_name):
     sts_client = user_session.client("sts")
     account_id = sts_client.get_caller_identity()["Account"]
     iam_client = user_session.client("iam")
+    policy_arn = "arn:aws:iam::" + account_id + ":policy/" + policy_name
     response = iam_client.delete_policy(
-        PolicyArn="arn:aws:iam::" + account_id + ":policy/" + policy_name
+        PolicyArn=policy_arn
     )
+    # keep running loop till policy existence is erased
+    while(True):
+        try:
+            response = iam_client.get_policy(policy_arn)
+        except:
+            break
+        time.sleep(5)
+
+# abstraction to create IAM role
+def create_iam_role(user_session, role_name, trust_relationship):
+    try:
+        delete_iam_role(user_session, role_name)
+    except:
+        None
+    iam_client = user_session.client("iam")
+    response = iam_client.create_role(
+        RoleName=role_name,
+        AssumeRolePolicyDocument=json.dumps(trust_relationship)     # convert JSON to string
+    )
+    # keep running loop till policy existence reflects
+    while(True):
+        try:
+            response = iam_client.get_role(role_name)
+            break
+        except:
+            None
+        time.sleep(5)
+
+# abstraction to create IAM policy
+def create_iam_policy(user_session, policy_name, policy):
+    try:
+        delete_iam_policy(user_session, policy_name)
+    except:
+        None
+    sts_client = user_session.client("sts")
+    account_id = sts_client.get_caller_identity()["Account"]
+    iam_client = user_session.client("iam")
+    policy_arn = "arn:aws:iam::" + account_id + ":policy/" + policy_name
+    response = iam_client.create_policy(
+        PolicyName=policy_name,
+        PolicyDocument=json.dumps(policy)     # convert JSON to string
+    )
+    # keep running loop till policy existence reflects
+    while(True):
+        try:
+            response = iam_client.get_policy(policy_arn)
+            break
+        except:
+            None
+        time.sleep(5)
 
 # abstraction to attach IAM policy to IAM role
 def attach_policy_to_role(user_session, role_name, policy_name):
     sts_client = user_session.client("sts")
     account_id = sts_client.get_caller_identity()["Account"]
     iam_client = user_session.client("iam")
+    policy_arn = "arn:aws:iam::" + account_id + ":policy/" + policy_name
     response = iam_client.attach_role_policy(
-            RoleName = role_name,
-            PolicyArn = "arn:aws:iam::" + account_id + ":policy/" + policy_name
-        )
+        RoleName = role_name,
+        PolicyArn = policy_arn
+    )
+    time.sleep(5)
 
 # build image using CodeBuild from files in zip file
 def build_image(user_session, bucket_name, zip_file, image_name):
@@ -111,12 +155,6 @@ def build_image(user_session, bucket_name, zip_file, image_name):
     # reading JSON of the trust relationship required to create role and authorize it to use CodeBuild to build Docker image
     role_name = "codebuild_role"
     trust_relationship = json.loads(pkg_resources.read_text(iam, "codebuild_trust_relationship.txt"))
-
-    # delete any role with the pre-existing name
-    try:
-        delete_iam_role(user_session, role_name)
-    except:
-        None
     
     # creating role for CodeBuild
     create_iam_role(user_session, role_name, trust_relationship)
@@ -125,21 +163,11 @@ def build_image(user_session, bucket_name, zip_file, image_name):
     policy_name = "codebuild_policy"
     policy = json.loads(pkg_resources.read_text(iam, "codebuild_policy.txt"))
 
-    # delete any policy with the pre-existing name
-    try:
-        delete_iam_policy(user_session, policy_name)
-    except:
-        None
-
     # creating policy for CodeBuild
     create_iam_policy(user_session, policy_name, policy)
 
-    time.sleep(10)
-
     # attaching policies to role to execute CodeBuild to build Docker image
     attach_policy_to_role(user_session, role_name, policy_name)
-
-    time.sleep(10)    # letting all the roles and policies create so that codebuild can utilize them without error
 
     # creating CodeBuild project
     # specify which zip to be sourced from S3 that contains all the files to create the image
@@ -258,7 +286,6 @@ def create_lambda_using_base_image(user_session, bucket_name, directory, lambda_
 
     if(os.path.isdir(temp_dir)):
         shutil.rmtree(temp_dir)
-    os.mkdir(temp_dir)
 
     shutil.copytree(directory, temp_dir)     # copying files from the local directory to tmp folder directory
 
@@ -275,12 +302,6 @@ def create_lambda_using_base_image(user_session, bucket_name, directory, lambda_
     role_name = "lambda_role"
     trust_relationship = json.loads(pkg_resources.read_text(iam, "lambda_trust_relationship.txt"))
     
-    # delete any role with the pre-existing name
-    try:
-        delete_iam_role(user_session, role_name)
-    except:
-        None
-    
     # creating role for CodeBuild
     create_iam_role(user_session, role_name, trust_relationship)
 
@@ -288,21 +309,11 @@ def create_lambda_using_base_image(user_session, bucket_name, directory, lambda_
     policy_name = "lambda_policy"
     policy = json.loads(pkg_resources.read_text(iam, "lambda_policy.txt"))
 
-    # delete any policy with the pre-existing name
-    try:
-        delete_iam_policy(user_session, policy_name)
-    except:
-        None
-
     # creating policy for CodeBuild    
     create_iam_policy(user_session, policy_name, policy)
 
-    time.sleep(10)
-
     # attaching policies to role to execute CodeBuild to build Docker image
     attach_policy_to_role(user_session, role_name, policy_name)
-
-    time.sleep(10)
 
     lambda_client = user_session.client('lambda')
     response = lambda_client.create_function(
