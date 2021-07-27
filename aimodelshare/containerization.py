@@ -76,6 +76,22 @@ def create_iam_policy(user_session, policy_name, policy):
         PolicyDocument=json.dumps(policy)     # convert JSON to string
     )
 
+# abstraction to delete IAM role
+def delete_iam_role(user_session, role_name):
+    iam_client = user_session.client("iam")
+    response = iam_client.delete_role(
+        RoleName=role_name
+    )
+
+# abstraction to delete IAM policy
+def delete_iam_policy(user_session, policy_name):
+    sts_client = user_session.client("sts")
+    account_id = sts_client.get_caller_identity()["Account"]
+    iam_client = user_session.client("iam")
+    response = iam_client.delete_policy(
+        PolicyArn="arn:aws:iam::" + account_id + ":policy/" + policy_name
+    )
+
 # abstraction to attach IAM policy to IAM role
 def attach_policy_to_role(user_session, role_name, policy_name):
     sts_client = user_session.client("sts")
@@ -96,12 +112,24 @@ def build_image(user_session, bucket_name, zip_file, image_name):
     role_name = "codebuild_role"
     trust_relationship = json.loads(pkg_resources.read_text(iam, "codebuild_trust_relationship.txt"))
 
+    # delete any role with the pre-existing name
+    try:
+        delete_iam_role(user_session, role_name)
+    except:
+        None
+    
     # creating role for CodeBuild
     create_iam_role(user_session, role_name, trust_relationship)
 
     # reading JSON of all the policies that CodeBuild requires for accessing AWS services 
     policy_name = "codebuild_policy"
     policy = json.loads(pkg_resources.read_text(iam, "codebuild_policy.txt"))
+
+    # delete any policy with the pre-existing name
+    try:
+        delete_iam_policy(user_session, policy_name)
+    except:
+        None
 
     # creating policy for CodeBuild
     create_iam_policy(user_session, policy_name, policy)
@@ -145,10 +173,18 @@ def build_image(user_session, bucket_name, zip_file, image_name):
         build_response = codebuild_client.batch_get_builds(ids=[response['build']['id']])
         build_status = build_response['builds'][0]['buildStatus']
         if build_status == 'SUCCEEDED':
-            print("Image build succeeded.")
+            #response = codebuild_client.delete_project(
+            #    name = codebuild_project_name
+            #)
+            print("Image successfully built.")
+            print("CodebBuild finished with status " + build_status)
             break
         elif build_status == 'FAILED' or build_status == 'FAULT' or build_status == 'STOPPED' or build_status == 'TIMED_OUT':
-            print("Image failed to build using CodeBuild with status " + build_status)
+            #response = codebuild_client.delete_project(
+            #    name = codebuild_project_name
+            #)
+            print("Image not successfully built.")
+            print("CodeBuild finished with status " + build_status)
             break
         time.sleep(5)
 
@@ -238,7 +274,13 @@ def create_lambda_using_base_image(user_session, bucket_name, directory, lambda_
     # reading JSON of the trust relationship required to create role and authorize it to use CodeBuild to build Docker image
     role_name = "lambda_role"
     trust_relationship = json.loads(pkg_resources.read_text(iam, "lambda_trust_relationship.txt"))
-
+    
+    # delete any role with the pre-existing name
+    try:
+        delete_iam_role(user_session, role_name)
+    except:
+        None
+    
     # creating role for CodeBuild
     create_iam_role(user_session, role_name, trust_relationship)
 
@@ -246,7 +288,13 @@ def create_lambda_using_base_image(user_session, bucket_name, directory, lambda_
     policy_name = "lambda_policy"
     policy = json.loads(pkg_resources.read_text(iam, "lambda_policy.txt"))
 
-    # creating policy for CodeBuild
+    # delete any policy with the pre-existing name
+    try:
+        delete_iam_policy(user_session, policy_name)
+    except:
+        None
+
+    # creating policy for CodeBuild    
     create_iam_policy(user_session, policy_name, policy)
 
     time.sleep(10)
