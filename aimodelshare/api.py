@@ -999,7 +999,7 @@ def delete_deployment(apiurl):
     if confirmation.lower() == "permanently delete":
         pass
     else:
-        return  
+        return print("'Delete Deployment' unsuccessful.")
 
     # Confirm that creds are loaded, print warning if not
     if all(["AWS_ACCESS_KEY_ID" in os.environ, 
