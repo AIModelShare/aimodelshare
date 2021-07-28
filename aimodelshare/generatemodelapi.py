@@ -335,7 +335,7 @@ def model_to_api(model_filepath, model_type, private, categorical, trainingdata,
         _confirm_libraries_exist(requirements)
         
     aishare_modelname = input("Model Name (for AI Model Share Website):")
-    aishare_modeldescription = input("Model Description (Explain what your model does and why end-users would find your model useful):")
+    aishare_modeldescription = input("Model Description (Explain what your model does and \n why end-users would find your model useful):")
     aishare_modeltype = input(
         "Model Category (i.e. Tabular, Image, Audio, Video, or TimeSeries):")
     aishare_modelevaluation = "unverified" # verified metrics added to playground once 1. a model is submitted to a competition leaderboard and 2. playground owner updates runtime
