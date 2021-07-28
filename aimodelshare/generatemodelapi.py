@@ -581,7 +581,7 @@ def _create_exampledata_json(model_type, exampledata_folder_filepath):
     video_extensions = ['.avchd', '.avi', '.flv', '.mov', '.mkv', '.mp4', '.wmv']
     audio_extensions = ['.m4a', '.flac', '.mp3', '.mp4', '.wav', '.wma', '.aac']
      
-    if (model_type.lower() == "tabular") or (model_type.lower() == "timeseries"):
+    if any([model_type.lower() == "tabular", model_type.lower() == "timeseries", model_type.lower() == "text"]):
         tabularjson = exampledata_folder_filepath.to_json(orient='split', index=False)
         
     
