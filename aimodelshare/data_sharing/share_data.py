@@ -39,6 +39,14 @@ def create_docker_folder_codebuild(dataset_dir, dataset_name, template_folder, r
 
     os.mkdir(tmp_dataset)
 
+    """
+    if not os.path.exists(tmp_dataset):
+        os.makedirs(tmp_dataset)
+    else:
+        shutil.rmtree(tmp_dataset)
+        os.makedirs(tmp_dataset)
+    """
+
     shutil.copytree(dataset_dir, tmp_dataset_dir)
 
     os.mkdir(template_folder)

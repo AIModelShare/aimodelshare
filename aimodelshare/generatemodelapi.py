@@ -13,7 +13,7 @@ import tempfile
 import sys
 import base64
 import mimetypes
-import pandas as pd
+import numpy as np
 from aimodelshare.tools import extract_varnames_fromtrainingdata, _get_extension_from_filepath
 from aimodelshare.aws import get_s3_iam_client, run_function_on_lambda
 from aimodelshare.bucketpolicy import _custom_upload_policy
@@ -106,9 +106,12 @@ def take_user_info_and_generate_api(model_filepath, model_type, categorical,labe
     file_key, versionfile_key = _get_predictionmodel_key(
         unique_model_id, file_extension)
     try:
+        s3["client"].upload_file(exampledata_json_filepath, os.environ.get("BUCKET_NAME"), unique_model_id + "/exampledata.json") 
+    except:
+        pass
+    try:
         s3["client"].upload_file(Filepath, os.environ.get("BUCKET_NAME"),  file_key)
         s3["client"].upload_file(Filepath, os.environ.get("BUCKET_NAME"),  versionfile_key)
-        s3["client"].upload_file(exampledata_json_filepath, os.environ.get("BUCKET_NAME"), unique_model_id + "/exampledata.json") 
 
         # preprocessor upload
         #s3["client"].upload_file(tab_imports, os.environ.get("BUCKET_NAME"),  'tabular_imports.pkl')
@@ -168,7 +171,7 @@ def take_user_info_and_generate_api(model_filepath, model_type, categorical,labe
 
 def send_model_data_to_dyndb_and_return_api(api_info, private, categorical, preprocessor_filepath,
                                             aishare_modelname, aishare_modeldescription, aishare_modeltype, aishare_modelevaluation,
-                                            aishare_tags, aishare_apicalls, variablename_and_type_data="default"):
+                                            aishare_tags, aishare_apicalls, exampledata_json_filepath,variablename_and_type_data="default"):
     """
     Updates dynamodb with model data taken as input from user along with already generated api info
     -----------
@@ -208,6 +211,10 @@ def send_model_data_to_dyndb_and_return_api(api_info, private, categorical, prep
      # needs to use double backslashes and have full filepath
     preprocessor_file_extension = _get_extension_from_filepath(
         preprocessor_filepath)
+    if exampledata_json_filepath!="":
+        exampledata_addtodatabase={"exampledata":"TRUE"}
+    else:
+        exampledata_addtodatabase={"exampledata":"FALSE"}
     bodydata = {"id": int(math.log(1/((time.time()*1000000)))*100000000000000),
                 "unique_model_id": unique_model_id,
                 "apideveloper": os.environ.get("username"),  # change this to first and last name
@@ -229,6 +236,7 @@ def send_model_data_to_dyndb_and_return_api(api_info, private, categorical, prep
                 "preprocessor_fileextension": preprocessor_file_extension,
                 "input_shape": input_shape
                 }
+    bodydata.update(exampledata_addtodatabase)
     # Get the response
     headers_with_authentication = {'Content-Type': 'application/json', 'authorizationToken': os.environ.get("JWT_AUTHORIZATION_TOKEN"), 'Access-Control-Allow-Headers':
                                    'Content-Type,X-Amz-Date,authorizationToken,Access-Control-Allow-Origin,X-Api-Key,X-Amz-Security-Token,Authorization', 'Access-Control-Allow-Origin': '*'}
@@ -240,9 +248,9 @@ def send_model_data_to_dyndb_and_return_api(api_info, private, categorical, prep
 
     # Build output {{{
     final_message = ("\nYou can now use your API web dashboard.\n\n"
-                     "To explore your API's functionality, follow this link to your Model Playground.\n"
+                     "To explore your API's functionality, follow this link to your Prediction Playground.\n"
                      "You can make predictions with the Dashboard and access example code from the Programmatic tab.\n")
-    web_dashboard_url = ("https://www.modelshare.org/detail/"+ response_string)
+    web_dashboard_url = ("http://mlsite5aimodelshare-dev.s3-website.us-east-2.amazonaws.com/detail/"+ response_string)
     
     start = api_info[2]
     end = datetime.datetime.now()
@@ -305,7 +313,6 @@ def model_to_api(model_filepath, model_type, private, categorical, trainingdata,
       example_data:  pandas object (for tabular data) OR filepath as string (image, audio, video data)
                      tabular data - pandas object in same structure expected by preprocessor function
                      other data types - absolute path to folder containing example data
-                                        first five files with relevent file extensions will be accepted
       -----------
       Returns
       print_api_info : prints statements with generated live prediction API details
@@ -318,22 +325,22 @@ def model_to_api(model_filepath, model_type, private, categorical, trainingdata,
     #  2. send_model_data_to_dyndb_and_return_api : to add new record to database with user data, model and api related information
 
     # Get user inputs, pass to other functions  {{{
-    print("We need some information about your model before we can build your REST API and interactive Model Playground.")
+    print("We need some information about your model before we can build your API.")
     print("   ")
 
     requirements = ""
     if(any([custom_libraries=='TRUE',custom_libraries=='true'])):
-        requirements = input("Enter all required Python libraries you need at prediction runtime (separated with commas):")
+        requirements = input("Enter all required Python libraries you need at prediction runtime (separate with commas):")
         _confirm_libraries_exist(requirements)
         
-    aishare_modelname = input("Model Name (for AI Model Share Website):")
-    aishare_modeldescription = input("Model Description (Explain what your model does and why end-users would find your model useful):")
+    aishare_modelname = input("Enter model name:")
+    aishare_modeldescription = input("Enter model description:")
     aishare_modeltype = input(
-        "Model Category (i.e. Tabular, Image, Audio, Video, or TimeSeries):")
-    aishare_modelevaluation = input(
-        "Model Performance (Numeric value of how well model predicts new data):")
+        "Enter model category (i.e.- Text, Image, Audio, Video, or TimeSeries Data:")
+    aishare_modelevaluation = "unverified" # verified metrics added to playground once 1. a model is submitted to a competition leaderboard and 2. playground owner updates runtime
+                                           #...model with update_runtime_model()
     aishare_tags = input(
-        "Model Key Words (Search categories that describe your model, separated with commas):")
+        "Enter search categories that describe your model (separate with commas):")
     aishare_apicalls = 0
     print("   ")
     #  }}}
@@ -349,7 +356,8 @@ def model_to_api(model_filepath, model_type, private, categorical, trainingdata,
         try:
             labels = y_train.columns.tolist()
         except:
-            labels = list(set(y_train.to_frame()['tags'].tolist()))
+            #labels = list(set(y_train.to_frame()['tags'].tolist()))
+            labels = list(set(y_train))
     else:
         labels = "no data"
 
@@ -376,7 +384,7 @@ def model_to_api(model_filepath, model_type, private, categorical, trainingdata,
     print_api_info = send_model_data_to_dyndb_and_return_api(
         api_info, private, categorical,preprocessor_filepath, aishare_modelname,
         aishare_modeldescription, aishare_modeltype, aishare_modelevaluation,
-        aishare_tags, aishare_apicalls, variablename_and_type_data)
+        aishare_tags, aishare_apicalls, exampledata_json_filepath,variablename_and_type_data)
     
     return api_info[0]
 
@@ -425,7 +433,20 @@ def create_competition(apiurl, data_directory, y_test, generate_credentials_file
     ytest_path = os.path.join(temp_dir, "ytest.pkl")
     import pickle
     #ytest data to load to s3
-    pickle.dump( list(y_test),open(ytest_path,"wb"))
+
+    if y_test is not None:
+        if type(y_test) is not list:
+            y_test=y_test.tolist()
+        else: 
+            pass
+
+        if all(isinstance(x, (np.int64)) for x in y_test):
+              y_test = [int(i) for i in y_test]
+        else: 
+            pass
+
+
+    pickle.dump(y_test,open(ytest_path,"wb"))
     s3["client"].upload_file(ytest_path, os.environ.get("BUCKET_NAME"),  model_id + "/ytest.pkl")
 
     # Reset user policy
@@ -559,8 +580,8 @@ def _create_exampledata_json(model_type, exampledata_folder_filepath):
     video_extensions = ['.avchd', '.avi', '.flv', '.mov', '.mkv', '.mp4', '.wmv']
     audio_extensions = ['.m4a', '.flac', '.mp3', '.mp4', '.wav', '.wma', '.aac']
      
-    if (model_type.lower() == "tabular") or (model_type.lower() == "timeseries"):
-        tabularjson = exampledata_folder_filepath.to_json(orient='split', index=False) 
+    if model_type.lower() == "tabular":
+        tabularjson = exampledata_folder_filepath.to_json()
         
     
         with open('exampledata.json', 'w', encoding='utf-8') as f:
