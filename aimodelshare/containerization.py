@@ -127,7 +127,7 @@ def create_iam_role(user_session, role_name, trust_relationship):
     # keep running loop till policy existence reflects
     while(True):
         try:
-            response = iam_client.get_role(RoleName='lambda_role')
+            response = iam_client.get_role(RoleName=role_name)
             break
         except:
             None
@@ -155,8 +155,10 @@ def create_iam_policy(user_session, policy_name, policy):
 
 # abstraction to attach IAM policy to IAM role
 def attach_policy_to_role(user_session, role_name, policy_name):
+
     sts_client = user_session.client("sts")
     account_id = sts_client.get_caller_identity()["Account"]
+    
     iam_client = user_session.client("iam")
     policy_arn = "arn:aws:iam::" + account_id + ":policy/" + policy_name
     response = iam_client.attach_role_policy(
@@ -164,9 +166,7 @@ def attach_policy_to_role(user_session, role_name, policy_name):
         PolicyArn = policy_arn
     )
     while(True):
-        response = iam_client.list_attached_role_policies(
-            RoleName=policy_name
-        )
+        response = iam_client.list_attached_role_policies(RoleName=role_name)
         if(len(response['AttachedPolicies']) > 0):
             break
         time.sleep(5)
@@ -252,7 +252,10 @@ def build_new_base_image(user_session, bucket_name, libraries, repository, image
     region = user_session.region_name
 
     folder_name = "base_image_folder"
+    ##################################################
     #label=",".join(libraries)      # label of image will be all string of all libraries
+    label="test"      # label of image will be all string of all libraries
+    ##################################################
 
     # temporary folder path where we will create all files and folder
     temp_dir = tempfile.gettempdir() + "/" + folder_name
@@ -282,7 +285,7 @@ def build_new_base_image(user_session, bucket_name, libraries, repository, image
         region=region,      # region in which the repository is / should be created
         repository=repository,      # name of the repository
         image_tag=image_tag,        # version / tag to be given to the image
-        label="test")     #label of the library
+        label=label)     #label of the library
     with open(os.path.join(temp_dir, "buildspec.yml"), "w") as file:
         file.write(newdata)
 
