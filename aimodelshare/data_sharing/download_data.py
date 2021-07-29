@@ -40,7 +40,7 @@ def download_layer(layer, layer_count, tmp_img_dir, blobs_resp):
 
 	ublob = layer['digest']
 	layer_id = 'layer_' + str(layer_count) + '_' + ublob[7:]
-	layer_label = str((layer_count/7))+"% complete"
+	layer_label = str(round((layer_count/7)*100))+"% complete"
 	layer_dir = tmp_img_dir + '/' + layer_id
 
 	# Creating layer.tar file
