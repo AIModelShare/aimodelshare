@@ -10,6 +10,7 @@ import time
 import json
 import boto3
 import tempfile
+import requests
 
 def create_docker_folder_local(dataset_dir, dataset_name, python_version):
 
