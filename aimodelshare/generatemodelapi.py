@@ -170,7 +170,7 @@ def take_user_info_and_generate_api(model_filepath, model_type, categorical,labe
 
 
 def send_model_data_to_dyndb_and_return_api(api_info, private, categorical, preprocessor_filepath,
-                                            aishare_modelname, aishare_modeldescription, aishare_modeltype, aishare_modelevaluation,
+                                            aishare_modelname, aishare_modeldescription, aishare_modelevaluation, model_type,
                                             aishare_tags, aishare_apicalls, exampledata_json_filepath,variablename_and_type_data="default"):
     """
     Updates dynamodb with model data taken as input from user along with already generated api info
@@ -220,7 +220,7 @@ def send_model_data_to_dyndb_and_return_api(api_info, private, categorical, prep
                 "apideveloper": os.environ.get("username"),  # change this to first and last name
                 "apimodeldescription": aishare_modeldescription,
                 "apimodelevaluation": aishare_modelevaluation,
-                "apimodeltype": aishare_modeltype,
+                "apimodeltype": model_type,
                 # getting rid of extra quotes that screw up dynamodb string search on apiurls
                 "apiurl": api_info[0].strip('\"'),
                 "bucket_name": bucket_name,
@@ -337,8 +337,6 @@ def model_to_api(model_filepath, model_type, private, categorical, trainingdata,
         
     aishare_modelname = input("Model Name (for AI Model Share Website):")
     aishare_modeldescription = input("Model Description (Explain what your model does and \n why end-users would find your model useful):")
-    aishare_modeltype = input(
-        "Model Category (i.e. Tabular, Image, Audio, Video, or TimeSeries):")
     aishare_modelevaluation = "unverified" # verified metrics added to playground once 1. a model is submitted to a competition leaderboard and 2. playground owner updates runtime
                                            #...model with update_runtime_model()
     aishare_tags = input(
@@ -393,7 +391,7 @@ def model_to_api(model_filepath, model_type, private, categorical, trainingdata,
     
     print_api_info = send_model_data_to_dyndb_and_return_api(
         api_info, private, categorical,preprocessor_filepath, aishare_modelname,
-        aishare_modeldescription, aishare_modeltype, aishare_modelevaluation,
+        aishare_modeldescription, aishare_modelevaluation, model_type,
         aishare_tags, aishare_apicalls, exampledata_json_filepath,variablename_and_type_data)
     
     return api_info[0]
