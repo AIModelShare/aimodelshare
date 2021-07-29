@@ -310,10 +310,11 @@ def model_to_api(model_filepath, model_type, private, categorical, trainingdata,
       custom_libraries:   string
                   "TRUE" if user wants to load custom Python libraries to their prediction runtime
                   "FALSE" if user wishes to use AI Model Share base libraries including latest versions of most common ML libs.
-      example_data:  pandas object (for tabular data) OR filepath as string (image, audio, video data)
-                     tabular data - pandas object in same structure expected by preprocessor function
+      example_data:  pandas DataFrame (for tabular & text data) OR filepath as string (image, audio, video data)
+                     tabular data - pandas DataFrame in same structure expected by preprocessor function
                      other data types - absolute path to folder containing example data
-                     first five files with relevent file extensions will be accepted
+                                        (first five files with relevent file extensions will be accepted)
+                     [REQUIRED] for tabular data
       -----------
       Returns
       print_api_info : prints statements with generated live prediction API details
@@ -345,7 +346,15 @@ def model_to_api(model_filepath, model_type, private, categorical, trainingdata,
     aishare_apicalls = 0
     print("   ")
     #  }}}
-    
+
+    # Force user to provide example data for tabular models {{{
+    if any([model_type.lower() == "tabular", model_type.lower() == "timeseries"]):
+        if example_data == None:
+            return print("Error: Example data is required for tabular models. \n Please provide a pandas DataFrame with a sample of your X data (in the format expected by your preprocessor) and try again.")
+    else:
+        pass
+    #}}}
+        
     print("Creating your prediction API. (This process may take several minutes.)\n")
     variablename_and_type_data = None
     private = str(private).upper()
