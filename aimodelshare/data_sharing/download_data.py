@@ -40,7 +40,7 @@ def download_layer(layer, layer_count, tmp_img_dir, blobs_resp):
 
 	ublob = layer['digest']
 	layer_id = 'layer_' + str(layer_count) + '_' + ublob[7:]
-	layer_label = ublob[7:] + " (Layer " + str(layer_count) + ")"
+	layer_label = str((layer_count/10)*100)+" Pct Complete"
 	layer_dir = tmp_img_dir + '/' + layer_id
 
 	# Creating layer.tar file
@@ -72,8 +72,6 @@ def download_layer(layer, layer_count, tmp_img_dir, blobs_resp):
 		shutil.copyfileobj(unzip_layer, file)
 		unzip_layer.close()
 	os.remove(layer_dir + '/layer_gzip.tar')
-
-	print("\r{}: Pull complete [{}]".format(layer_label, blobs_resp.headers['Content-Length']))
 
 	return layer_id, layer_dir
 
@@ -159,7 +157,6 @@ def pull_image(image_uri):
 	tar.close()
 
 	shutil.rmtree(tmp_img_dir)
-	print('\rDocker image pulled: ' + docker_tar)
 
 	return docker_tar
 
@@ -175,7 +172,6 @@ def extract_data_from_image(image_name, file_name):
                 files.append(tl)
         if(len(files)>0):
             break
-    print('Copying data from Docker image...')
     tar_layer.extractall(members=files, path=tempfile.gettempdir())
     if(os.path.isdir(file_name)):
         shutil.rmtree(file_name)
@@ -187,4 +183,4 @@ def download_data(repository):
 	docker_tar = pull_image(repository)
 	extract_data_from_image(docker_tar, data_zip_name)
 	os.remove(docker_tar)
-	print('Data pulled successfully.')
+	print('Data downloaded successfully.')
