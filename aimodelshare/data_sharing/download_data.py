@@ -40,7 +40,7 @@ def download_layer(layer, layer_count, tmp_img_dir, blobs_resp):
 
 	ublob = layer['digest']
 	layer_id = 'layer_' + str(layer_count) + '_' + ublob[7:]
-	layer_label = str((layer_count/10)*100)+" Pct Complete"
+	layer_label = str((layer_count/7)+"%"
 	layer_dir = tmp_img_dir + '/' + layer_id
 
 	# Creating layer.tar file
@@ -93,7 +93,6 @@ def pull_image(image_uri):
 
 	tmp_img_dir = tempfile.gettempdir() + '/' + 'tmp_{}_{}'.format(image, tag)
 	os.mkdir(tmp_img_dir)
-	print('Creating image structure in: ' + tmp_img_dir)
 
 	file = open('{}/{}.json'.format(tmp_img_dir, config[7:]), 'wb')
 	file.write(config_resp.content)
@@ -148,7 +147,6 @@ def pull_image(image_uri):
 
 	# Create image tar and clean tmp folder
 	docker_tar = tempfile.gettempdir() + '/' + '_'.join([repository.replace('/', '_'), tag]) + '.tar'
-	sys.stdout.write("Creating archive...")
 	sys.stdout.flush()
 
 	tar = tarfile.open(docker_tar, "w")
@@ -182,4 +180,4 @@ def download_data(repository):
 	docker_tar = pull_image(repository)
 	extract_data_from_image(docker_tar, data_zip_name)
 	os.remove(docker_tar)
-	print('Data downloaded successfully.')
+	print('\n\nData downloaded successfully.')
