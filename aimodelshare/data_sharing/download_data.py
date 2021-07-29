@@ -64,7 +64,6 @@ def download_layer(layer, layer_count, tmp_img_dir, blobs_resp):
 					progress_bar(layer_label, nb_traits)
 					acc = 0
 
-	sys.stdout.write("\r{}: Extracting...{}".format(layer_label, " "*50))
 	sys.stdout.flush()
 
 	with open(layer_dir + '/layer.tar', "wb") as file:
