@@ -63,6 +63,23 @@ def delete_file_from_s3(user_session, bucket_name, bucket_file_path):
 # abstraction to delete IAM role
 def delete_iam_role(user_session, role_name):
     iam_client = user_session.client("iam")
+    # see if role exists
+    try:
+        response = iam_client.get_role(RoleName=role_name)
+    except:
+        return
+    # once role's existence is verified, fetch all attached policies
+    response = iam_client.list_attached_role_policies(
+        RoleName=role_name
+    )
+    # detach the policy from the role
+    policies = response['AttachedPolicies']
+    for policy in policies:
+        response = iam_client.detach_role_policy(
+            RoleName=role_name,
+            PolicyArn=policy['PolicyArn']
+        )
+    # delete role
     response = iam_client.delete_role(
         RoleName=role_name
     )
@@ -76,10 +93,18 @@ def delete_iam_role(user_session, role_name):
 
 # abstraction to delete IAM policy
 def delete_iam_policy(user_session, policy_name):
+
     sts_client = user_session.client("sts")
     account_id = sts_client.get_caller_identity()["Account"]
+    
     iam_client = user_session.client("iam")
     policy_arn = "arn:aws:iam::" + account_id + ":policy/" + policy_name
+    # see if policy exists
+    try:
+        response = iam_client.get_policy(PolicyArn=policy_arn)
+    except:
+        return
+    # once policy's existence is verified, delete policy
     response = iam_client.delete_policy(
         PolicyArn=policy_arn
     )
@@ -93,10 +118,7 @@ def delete_iam_policy(user_session, policy_name):
 
 # abstraction to create IAM role
 def create_iam_role(user_session, role_name, trust_relationship):
-    try:
-        delete_iam_role(user_session, role_name)
-    except:
-        None
+    delete_iam_role(user_session, role_name)
     iam_client = user_session.client("iam")
     response = iam_client.create_role(
         RoleName=role_name,
@@ -113,10 +135,7 @@ def create_iam_role(user_session, role_name, trust_relationship):
 
 # abstraction to create IAM policy
 def create_iam_policy(user_session, policy_name, policy):
-    try:
-        delete_iam_policy(user_session, policy_name)
-    except:
-        None
+    delete_iam_policy(user_session, policy_name)
     sts_client = user_session.client("sts")
     account_id = sts_client.get_caller_identity()["Account"]
     iam_client = user_session.client("iam")
@@ -146,7 +165,7 @@ def attach_policy_to_role(user_session, role_name, policy_name):
     )
     while(True):
         response = iam_client.list_attached_role_policies(
-            RoleName='lambda_role'
+            RoleName=policy_name
         )
         if(len(response['AttachedPolicies']) > 0):
             break
