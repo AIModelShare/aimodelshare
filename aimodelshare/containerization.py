@@ -118,7 +118,6 @@ def delete_iam_policy(user_session, policy_name):
 
 # abstraction to create IAM role
 def create_iam_role(user_session, role_name, trust_relationship):
-    delete_iam_role(user_session, role_name)
     iam_client = user_session.client("iam")
     response = iam_client.create_role(
         RoleName=role_name,
@@ -135,9 +134,10 @@ def create_iam_role(user_session, role_name, trust_relationship):
 
 # abstraction to create IAM policy
 def create_iam_policy(user_session, policy_name, policy):
-    delete_iam_policy(user_session, policy_name)
+
     sts_client = user_session.client("sts")
     account_id = sts_client.get_caller_identity()["Account"]
+    
     iam_client = user_session.client("iam")
     policy_arn = "arn:aws:iam::" + account_id + ":policy/" + policy_name
     response = iam_client.create_policy(
@@ -181,12 +181,18 @@ def build_image(user_session, bucket_name, zip_file, image_name):
     role_name = "codebuild_role"
     trust_relationship = json.loads(pkg_resources.read_text(iam, "codebuild_trust_relationship.txt"))
     
+    # delete role for CodeBuild if role with same name exists
+    delete_iam_role(user_session, role_name)
+
     # creating role for CodeBuild
     create_iam_role(user_session, role_name, trust_relationship)
 
     # reading JSON of all the policies that CodeBuild requires for accessing AWS services 
     policy_name = "codebuild_policy"
     policy = json.loads(pkg_resources.read_text(iam, "codebuild_policy.txt"))
+
+    # delete policy for CodeBuild if policy with same name exists
+    delete_iam_policy(user_session, policy_name)
 
     # creating policy for CodeBuild
     create_iam_policy(user_session, policy_name, policy)
@@ -253,8 +259,8 @@ def build_new_base_image(user_session, bucket_name, libraries, repository, image
 
     folder_name = "base_image_folder"
     ##################################################
-    #label=",".join(libraries)      # label of image will be all string of all libraries
-    label="test"      # label of image will be all string of all libraries
+    #label = "libraries=" + ",".join(libraries)      # label of image will be all string of all libraries
+    label = "libraries=test"      # label of image will be all string of all libraries
     ##################################################
 
     # temporary folder path where we will create all files and folder
@@ -327,14 +333,14 @@ def create_lambda_using_base_image(user_session, bucket_name, directory, lambda_
     upload_file_to_s3(user_session, temp_dir + ".zip", bucket_name, lambda_name + ".zip")        # upload zip file to S3 bucket
 
     # reading JSON of the trust relationship required to create role and authorize it to use CodeBuild to build Docker image
-    role_name = "lambda_role"
+    role_name = "lambda_role_" + api_id
     trust_relationship = json.loads(pkg_resources.read_text(iam, "lambda_trust_relationship.txt"))
     
     # creating role for CodeBuild
     create_iam_role(user_session, role_name, trust_relationship)
 
     # reading JSON of all the policies that CodeBuild requires for accessing AWS services 
-    policy_name = "lambda_policy"
+    policy_name = "lambda_policy_" + api_id
     policy = json.loads(pkg_resources.read_text(iam, "lambda_policy.txt"))
 
     # creating policy for CodeBuild    
@@ -364,3 +370,35 @@ def create_lambda_using_base_image(user_session, bucket_name, directory, lambda_
 
     os.remove(temp_dir + ".zip")     # delete the zip file created in tmp directory
     shutil.rmtree(temp_dir)      # delete the temporary folder created in tmp directory
+
+# check if the image exists in the specified repository with specified image tag
+def check_if_image_exists(user_session, repo_name, image_tag):
+    ecr_client = user_session.client('ecr')
+    try:
+        image_details = ecr_client.describe_images(
+            repositoryName=repo_name,
+            imageIds=[{'imageTag': image_tag}]
+        )
+        print("The image " + "\"" + repo_name + ":" + image_tag + "\"" + " exists.")
+        # print details of image
+        print(image_details)
+        return True
+    except:
+        print("The image " + "\"" + repo_name + ":" + image_tag + "\"" + " does not exist.")
+        return False
+
+# check if repo exists
+def check_if_repo_exists(user_session, repo_name):
+    ecr_client = user_session.client("ecr")
+    try:
+        # returns
+        repo_details = ecr_client.describe_images(
+            repositoryName=repo_name
+        )
+        print("The repository \"" + repo_name + "\" exists.")
+        # print details all images in repo
+        print(repo_details)
+        return True
+    except:
+        print("The repository \"" + repo_name + "\" does not exist.")
+        return False
