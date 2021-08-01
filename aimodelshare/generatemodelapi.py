@@ -24,6 +24,8 @@ from aimodelshare.modeluser import create_user_getkeyandpassword
 from aimodelshare.preprocessormodules import upload_preprocessor
 from aimodelshare.model import _get_predictionmodel_key, _extract_model_metadata
 from aimodelshare.data_sharing.share_data import share_data_codebuild
+from aimodelshare.containerization import check_if_image_exists
+
 
 def take_user_info_and_generate_api(model_filepath, model_type, categorical,labels, preprocessor_filepath,custom_libraries, requirements, exampledata_json_filepath, repo_name, image_tag):
     """
@@ -325,6 +327,15 @@ def model_to_api(model_filepath, model_type, private, categorical, trainingdata,
     #  2. send_model_data_to_dyndb_and_return_api : to add new record to database with user data, model and api related information
 
     # Get user inputs, pass to other functions  {{{
+
+    user_session = boto3.session.Session(aws_access_key_id=os.environ.get("AWS_ACCESS_KEY_ID"),
+                                          aws_secret_access_key = os.environ.get("AWS_SECRET_ACCESS_KEY"), 
+                                         region_name=os.environ.get("AWS_REGION"))
+
+    if(check_if_image_exists(user_session, repo_name, image_tag)==False):
+        print("Image does not exist.")
+        return
+
     print("We need some information about your model before we can build your API.")
     print("   ")
 

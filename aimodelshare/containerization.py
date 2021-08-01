@@ -168,6 +168,7 @@ def attach_policy_to_role(user_session, role_name, policy_name):
     while(True):
         response = iam_client.list_attached_role_policies(RoleName=role_name)
         if(len(response['AttachedPolicies']) > 0):
+            time.sleep(5)
             break
         time.sleep(5)
 
@@ -330,7 +331,7 @@ def create_lambda_using_base_image(user_session, bucket_name, directory, lambda_
         for file in temp_path_directory_file_paths:
             zip.write(file, file.replace(temp_dir, ""))    # ignore temporary path when copying to zip file
 
-    upload_file_to_s3(user_session, temp_dir + ".zip", bucket_name, lambda_name + ".zip")        # upload zip file to S3 bucket
+    upload_file_to_s3(user_session, temp_dir + ".zip", bucket_name, api_id + "/" + lambda_name + ".zip")        # upload zip file to S3 bucket
 
     # reading JSON of the trust relationship required to create role and authorize it to use CodeBuild to build Docker image
     role_name = "lambda_role_" + api_id

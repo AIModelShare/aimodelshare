@@ -13,7 +13,6 @@ import sys
 from zipfile import ZipFile, ZIP_STORED, ZipInfo
 import shutil
 from aimodelshare.containerization import create_lambda_using_base_image
-from aimodelshare.containerization import check_if_image_exists
 
 def create_prediction_api(model_filepath, unique_model_id, model_type,categorical, labels, apiid, custom_libraries, requirements, repo_name, image_tag):
 
@@ -53,14 +52,6 @@ def create_prediction_api(model_filepath, unique_model_id, model_type,categorica
     categorical = categorical.upper()
     # Wait for 5 seconds to ensure aws iam user on user account has time to load into aws's system
     #time.sleep(5)
-
-
-    user_session = boto3.session.Session(aws_access_key_id=os.environ.get("AWS_ACCESS_KEY_ID"),
-                                          aws_secret_access_key = os.environ.get("AWS_SECRET_ACCESS_KEY"), 
-                                         region_name=os.environ.get("AWS_REGION"))
-
-    if(check_if_image_exists(user_session, repo_name, image_tag)==False):
-        return "Image does not exist."
 
     if model_type=='image' :
             model_layer ="arn:aws:lambda:us-east-1:517169013426:layer:keras_image:1"
@@ -389,7 +380,6 @@ def create_prediction_api(model_filepath, unique_model_id, model_type,categorica
     sys.stdout.write("[============                         ] Progress: 40% - Creating custom containers...                        ")
     sys.stdout.flush()
     # }}}
-
     
     if(any([custom_libraries=='FALSE',custom_libraries=='false'])):
         response6 = create_lambda_using_base_image(user_session, os.getenv("BUCKET_NAME"), 'file_objects', lambdafxnname, apiid, repo_name, image_tag, 1024, 90)

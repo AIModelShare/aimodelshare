@@ -11,27 +11,27 @@ import zipfile
 import tempfile
 import boto3
 
-#temp_path = tempfile.gettempdir()
+temp_path = tempfile.gettempdir()
 
-#bucket = os.getenv("bucket")
-#api_id = os.getenv("api_id")
-#directory = os.getenv("directory")
+bucket = os.getenv("bucket")
+api_id = os.getenv("api_id")
+directory = os.getenv("directory")
 
-#key = api_id + "/" + directory + ".zip"
-#temp_path_directory = "/".join([temp_path, directory])
-#temp_path_directory_zip_file = temp_path_directory + ".zip"
+key = api_id + "/" + directory + ".zip"
+temp_path_directory = "/".join([temp_path, directory])
+temp_path_directory_zip_file = temp_path_directory + ".zip"
 
 s3_client = boto3.client('s3')
 response = s3_client.download_file(
-  os.getenv("bucket"),
-  os.getenv("api_id") + "/" + os.getenv("directory") + ".zip",
-  "/".join([tempfile.gettempdir(), os.getenv("directory")]) + ".zip"
+  bucket,
+  key,
+  temp_path_directory_zip_file
 )
 
-with zipfile.ZipFile("/".join([tempfile.gettempdir(), os.getenv("directory")]) + ".zip", 'r') as zip_ref:
-    zip_ref.extractall(os.getenv("directory"))
+with zipfile.ZipFile(temp_path_directory_zip_file, 'r') as zip_ref:
+    zip_ref.extractall(directory)
 
-sys.path.append("/".join([tempfile.gettempdir(), os.getenv("directory")]))
+sys.path.append(temp_path_directory)
 
 from model import handler
 
