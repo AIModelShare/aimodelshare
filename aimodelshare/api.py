@@ -13,8 +13,10 @@ import sys
 from zipfile import ZipFile, ZIP_STORED, ZipInfo
 import shutil
 from aimodelshare.containerization import create_lambda_using_base_image
+from aimodelshare.containerization import check_if_image_exists
 
-def create_prediction_api(model_filepath, unique_model_id, model_type,categorical, labels, apiid,custom_libraries, requirements):
+def create_prediction_api(model_filepath, unique_model_id, model_type,categorical, labels, apiid, custom_libraries, requirements, repo_name, image_tag):
+
     from zipfile import ZipFile
     import zipfile
     import tempfile
@@ -56,6 +58,10 @@ def create_prediction_api(model_filepath, unique_model_id, model_type,categorica
     user_session = boto3.session.Session(aws_access_key_id=os.environ.get("AWS_ACCESS_KEY_ID"),
                                           aws_secret_access_key = os.environ.get("AWS_SECRET_ACCESS_KEY"), 
                                          region_name=os.environ.get("AWS_REGION"))
+
+    if(check_if_image_exists(user_session, repo_name, image_tag)==False):
+        return "Image does not exist."
+
     if model_type=='image' :
             model_layer ="arn:aws:lambda:us-east-1:517169013426:layer:keras_image:1"
             eval_layer ="arn:aws:lambda:us-east-1:517169013426:layer:eval_layer_test:6"
@@ -386,7 +392,7 @@ def create_prediction_api(model_filepath, unique_model_id, model_type,categorica
 
     
     if(any([custom_libraries=='FALSE',custom_libraries=='false'])):
-        response6 = create_lambda_using_base_image(user_session, os.getenv("BUCKET_NAME"), 'file_objects', lambdafxnname, apiid, 'aimodelshare-base-image', 'latest', 1024, 90)
+        response6 = create_lambda_using_base_image(user_session, os.getenv("BUCKET_NAME"), 'file_objects', lambdafxnname, apiid, repo_name, image_tag, 1024, 90)
     elif(any([custom_libraries=='TRUE',custom_libraries=='true'])):
 
         requirements = requirements.split(",")
