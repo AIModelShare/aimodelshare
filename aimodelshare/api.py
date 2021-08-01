@@ -53,6 +53,11 @@ def create_prediction_api(model_filepath, unique_model_id, model_type,categorica
     # Wait for 5 seconds to ensure aws iam user on user account has time to load into aws's system
     #time.sleep(5)
 
+
+    user_session = boto3.session.Session(aws_access_key_id=os.environ.get("AWS_ACCESS_KEY_ID"),
+                                          aws_secret_access_key = os.environ.get("AWS_SECRET_ACCESS_KEY"), 
+                                         region_name=os.environ.get("AWS_REGION"))
+
     if model_type=='image' :
             model_layer ="arn:aws:lambda:us-east-1:517169013426:layer:keras_image:1"
             eval_layer ="arn:aws:lambda:us-east-1:517169013426:layer:eval_layer_test:6"
