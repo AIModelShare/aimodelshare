@@ -9,6 +9,8 @@ import importlib_resources as pkg_resources
 from . import iam
 from . import containerization_templates
 
+time_delay=10
+
 # abstraction to return list of strings of paths of all files present in a given directory
 def get_all_file_paths_in_directory(directory):
     file_paths = []
@@ -20,6 +22,7 @@ def get_all_file_paths_in_directory(directory):
 
 # abstraction to get the details of a repository
 def get_repository_details(user_session, repo_name):
+    print("Fetching details of repository \"" + repo_name + "\".")
     ecr_client = user_session.client("ecr")
     try:
         repo_details = ecr_client.describe_repositories(repositoryNames=[repo_name])['repositories']
@@ -29,39 +32,49 @@ def get_repository_details(user_session, repo_name):
 
 # abstraction to get the details of an image
 def get_image_details(user_session, repo_name, image_tag):
+    print("Fecthing details of image \"" + repo_name + ":" + image_tag + "\".")
     ecr_client = user_session.client('ecr')
     try:
         image_details = ecr_client.describe_images(repositoryName=repo_name, imageIds=[{'imageTag': image_tag}])['imageDetails']
+        print("Fetched details of image \"" + repo_name + ":" + image_tag + "\" successfully.")
     except:
+        print("No such image \"" + repo_name + ":" + image_tag + "\" exists.")
         image_details = []
     return image_details
 
 # abstraction to create repository with name repo_name
 def create_repository(user_session, repo_name):
+    print("Creating repository \"" + repo_name + "\".")
     ecr_client = user_session.client('ecr')
     response = ecr_client.create_repository(
         repositoryName=repo_name
     )
+    print("Created repository  \"" + repo_name + "\" successfully.")
 
 # abstraction to upload file to S3 bucket
 def upload_file_to_s3(user_session, local_file_path, bucket_name, bucket_file_path):
+    print("Uploading function files to \"" + bucket_file_path +"\".")
     s3_client = user_session.client("s3")
     s3_client.upload_file(
         local_file_path,   # path to file in the local environment
         bucket_name,    # S3 bucket name
         bucket_file_path   # path to file in the S3 bucket
     )
+    print("Uploaded function files to \"" + bucket_file_path +"\" successfully.")
 
 # abstraction to delete file from S3 bucket
 def delete_file_from_s3(user_session, bucket_name, bucket_file_path):
+    print("Deleting file to \"" + bucket_file_path +"\".")
     s3_client = user_session.client("s3")
     s3_client.delete_object(
         Bucket=bucket_name,    # S3 bucket name
         Key=bucket_file_path   # path to file in the S3 bucket
     )
+    print("Deleted file to \"" + bucket_file_path +"\" successfully.")
 
 # abstraction to delete IAM role
 def delete_iam_role(user_session, role_name):
+    print("Deleting IAM role \"" + role_name + "\".")
     iam_client = user_session.client("iam")
     # see if role exists
     try:
@@ -87,9 +100,11 @@ def delete_iam_role(user_session, role_name):
     while(True):
         try:
             response = iam_client.get_role(RoleName=role_name)
+            print("Waiting...")
+            time.sleep(time_delay)
         except:
+            print("Deleted IAM role \"" + role_name + "\" successfully.")
             break
-        time.sleep(5)
 
 # abstraction to delete IAM policy
 def delete_iam_policy(user_session, policy_name):
@@ -97,6 +112,7 @@ def delete_iam_policy(user_session, policy_name):
     sts_client = user_session.client("sts")
     account_id = sts_client.get_caller_identity()["Account"]
     
+    print("Deleting IAM policy \"" + policy_name + "\".")
     iam_client = user_session.client("iam")
     policy_arn = "arn:aws:iam::" + account_id + ":policy/" + policy_name
     # see if policy exists
@@ -112,25 +128,32 @@ def delete_iam_policy(user_session, policy_name):
     while(True):
         try:
             response = iam_client.get_policy(PolicyArn=policy_arn)
+            print("Waiting...")
+            time.sleep(time_delay)
         except:
+            print("Deleted IAM policy \"" + policy_name + "\" successfully.")
             break
-        time.sleep(5)
 
 # abstraction to create IAM role
 def create_iam_role(user_session, role_name, trust_relationship):
+    print("Creating IAM role \"" + role_name + "\".")
     iam_client = user_session.client("iam")
     response = iam_client.create_role(
         RoleName=role_name,
         AssumeRolePolicyDocument=json.dumps(trust_relationship)     # convert JSON to string
     )
+    time.sleep(time_delay)
     # keep running loop till policy existence reflects
-    while(True):
+    counter=3
+    while(counter>0):
         try:
             response = iam_client.get_role(RoleName=role_name)
+            print("Created IAM role \"" + role_name + "\" successfully.")
             break
         except:
-            None
-        time.sleep(5)
+            print("Waiting...")
+            counter-=1
+            time.sleep(time_delay)
 
 # abstraction to create IAM policy
 def create_iam_policy(user_session, policy_name, policy):
@@ -138,39 +161,50 @@ def create_iam_policy(user_session, policy_name, policy):
     sts_client = user_session.client("sts")
     account_id = sts_client.get_caller_identity()["Account"]
     
+    print("Creating IAM policy \"" + policy_name + "\".")
     iam_client = user_session.client("iam")
     policy_arn = "arn:aws:iam::" + account_id + ":policy/" + policy_name
     response = iam_client.create_policy(
         PolicyName=policy_name,
         PolicyDocument=json.dumps(policy)     # convert JSON to string
     )
+    time.sleep(time_delay)
     # keep running loop till policy existence reflects
-    while(True):
+    counter=3
+    while(counter>0):
         try:
             response = iam_client.get_policy(PolicyArn=policy_arn)
+            print("Created IAM policy \"" + policy_name + "\" successfully.")
             break
         except:
-            None
-        time.sleep(5)
-
+            print("Waiting...")
+            counter-=1
+            time.sleep(time_delay)
+    
 # abstraction to attach IAM policy to IAM role
 def attach_policy_to_role(user_session, role_name, policy_name):
 
     sts_client = user_session.client("sts")
     account_id = sts_client.get_caller_identity()["Account"]
     
+    print("Attaching IAM policy \"" + policy_name +"\" to IAM role \"" + role_name + "\".")
     iam_client = user_session.client("iam")
     policy_arn = "arn:aws:iam::" + account_id + ":policy/" + policy_name
     response = iam_client.attach_role_policy(
         RoleName = role_name,
         PolicyArn = policy_arn
     )
-    while(True):
+    time.sleep(time_delay)
+    # keep running loop till policy attachment reflects in role
+    counter=3
+    while(counter>0):
         response = iam_client.list_attached_role_policies(RoleName=role_name)
         if(len(response['AttachedPolicies']) > 0):
-            time.sleep(5)
+            print("Attached IAM policy \"" + policy_name +"\" to IAM role \"" + role_name + "\" successfully.")
             break
-        time.sleep(5)
+        print("Waiting...")
+        counter-=1        
+        time.sleep(time_delay)
 
 # build image using CodeBuild from files in zip file
 def build_image(user_session, bucket_name, zip_file, image_name):
@@ -206,29 +240,38 @@ def build_image(user_session, bucket_name, zip_file, image_name):
     # and specify the Linux environment that will be used to build the image
     codebuild_project_name = 'codebuild_' + image_name + '_project'
     codebuild_client = user_session.client("codebuild")
-    response = codebuild_client.create_project(
-        name = codebuild_project_name,
-        source = {
-            "type": "S3",   # where to fetch the source files from
-            "location": bucket_name + "/" + image_name + ".zip"    # exact location of the zip in S3 bucket
-        },
-        artifacts = {
-            "type": "S3",   # where to store the artifacts
-            "location": bucket_name   # which bucket to store artifacts in
-        },
-        environment = {
-            "type": "LINUX_CONTAINER",    # using a Linux environment to build the Docker image
-            "image": "aws/codebuild/standard:5.0",    # type of image to use to build Docker image
-            "computeType": "BUILD_GENERAL1_SMALL",    # compute type to use based on the user's choice
-            "privilegedMode": True    # so that a Docker image can be built inside the image
-        },
-        serviceRole=role_name    # role that CodeBuild will use to build project
-    )
+    counter=3
+    while(counter>0):
+        try:
+            response = codebuild_client.create_project(
+                name = codebuild_project_name,
+                source = {
+                    "type": "S3",   # where to fetch the source files from
+                    "location": bucket_name + "/" + image_name + ".zip"    # exact location of the zip in S3 bucket
+                },
+                artifacts = {
+                    "type": "S3",   # where to store the artifacts
+                    "location": bucket_name   # which bucket to store artifacts in
+                },
+                environment = {
+                    "type": "LINUX_CONTAINER",    # using a Linux environment to build the Docker image
+                    "image": "aws/codebuild/standard:5.0",    # type of image to use to build Docker image
+                    "computeType": "BUILD_GENERAL1_SMALL",    # compute type to use based on the user's choice
+                    "privilegedMode": True    # so that a Docker image can be built inside the image
+                },
+                serviceRole=role_name    # role that CodeBuild will use to build project
+            )
+            break
+        except:
+            counter-=1
+            print("Attempt " + str(3-counter) + " to build create CodeBuild project.")
+            time.sleep(time_delay)
 
     response = codebuild_client.start_build(
         projectName = codebuild_project_name
     )
 
+    # running through loop while build status shows termination/successful completion
     while(True):
         build_response = codebuild_client.batch_get_builds(ids=[response['build']['id']])
         build_status = build_response['builds'][0]['buildStatus']
@@ -237,7 +280,7 @@ def build_image(user_session, bucket_name, zip_file, image_name):
             #    name = codebuild_project_name
             #)
             print("Image successfully built.")
-            print("CodebBuild finished with status " + build_status)
+            print("CodeBuild finished with status " + build_status)
             break
         elif build_status == 'FAILED' or build_status == 'FAULT' or build_status == 'STOPPED' or build_status == 'TIMED_OUT':
             #response = codebuild_client.delete_project(
@@ -246,7 +289,8 @@ def build_image(user_session, bucket_name, zip_file, image_name):
             print("Image not successfully built.")
             print("CodeBuild finished with status " + build_status)
             break
-        time.sleep(5)
+        print("Waiting...")
+        time.sleep(time_delay)
 
     # delete zip file from S3 bucket
     delete_file_from_s3(user_session, bucket_name, image_name+'.zip')
@@ -257,6 +301,8 @@ def build_new_base_image(user_session, bucket_name, libraries, repository, image
     sts_client = user_session.client("sts")
     account_id = sts_client.get_caller_identity()["Account"]
     region = user_session.region_name
+
+    print("Building new base image.")
 
     folder_name = "base_image_folder"
     ##################################################
@@ -350,30 +396,51 @@ def create_lambda_using_base_image(user_session, bucket_name, directory, lambda_
     # attaching policies to role to execute CodeBuild to build Docker image
     attach_policy_to_role(user_session, role_name, policy_name)
 
+    print("Creating Lambda function " + lambda_name + "\".")
     lambda_client = user_session.client('lambda')
-    response = lambda_client.create_function(
-        FunctionName=lambda_name,
-        Role = 'arn:aws:iam::' + account_id + ':role/' + role_name,
-        Code = {
-            'ImageUri': account_id + '.dkr.ecr.' + region + '.amazonaws.com/' + repository + ":" + image_tag
-        },
-        PackageType = "Image",
-        Timeout = int(timeout),
-        MemorySize = int(memory_size),
-        Environment = {
-            'Variables': {
-                'bucket': bucket_name,     # bucket where zip file is located
-                'api_id': api_id,     # api_id in the bucket in which zip file is stored
-                'directory': lambda_name        # directory in which all files exist
-            }
-        }
-    )
+    counter=3
+    while(counter>0):
+        try:
+            response = lambda_client.create_function(
+                FunctionName=lambda_name,
+                Role = 'arn:aws:iam::' + account_id + ':role/' + role_name,
+                Code = {
+                    'ImageUri': account_id + '.dkr.ecr.' + region + '.amazonaws.com/' + repository + ":" + image_tag
+                },
+                PackageType = "Image",
+                Timeout = int(timeout),
+                MemorySize = int(memory_size),
+                Environment = {
+                    'Variables': {
+                        'bucket': bucket_name,     # bucket where zip file is located
+                        'api_id': api_id,     # api_id in the bucket in which zip file is stored
+                        'directory': lambda_name        # directory in which all files exist
+                    }
+                }
+            )
+            break
+        except:
+            counter-=1
+            print("Attempt " + str(3-counter) + " to build Lambda function.")
+            time.sleep(time_delay)
+
+    # running through loop until function reflects
+    while(True):
+        try:
+            response = lambda_client.get_function(
+                FunctionName=lambda_name
+            )
+            print("Created Lambda function " + lambda_name + "\" successfully.")
+            break
+        except:
+            None
 
     os.remove(temp_dir + ".zip")     # delete the zip file created in tmp directory
     shutil.rmtree(temp_dir)      # delete the temporary folder created in tmp directory
 
 # check if the image exists in the specified repository with specified image tag
 def check_if_image_exists(user_session, repo_name, image_tag):
+    print("Checking if image \"" + repo_name + ":" + image_tag +"\" exists.")
     ecr_client = user_session.client('ecr')
     try:
         image_details = ecr_client.describe_images(
@@ -390,6 +457,7 @@ def check_if_image_exists(user_session, repo_name, image_tag):
 
 # check if repo exists
 def check_if_repo_exists(user_session, repo_name):
+    print("Checking if repository \"" + repo_name + "\" exists.")
     ecr_client = user_session.client("ecr")
     try:
         # returns
