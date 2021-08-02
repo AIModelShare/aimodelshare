@@ -351,7 +351,7 @@ def model_to_api(model_filepath, model_type, private, categorical, trainingdata,
     categorical = str(categorical).upper()
     if model_type == "tabular" or "keras_tabular" or 'Tabular':
         variablename_and_type_data = extract_varnames_fromtrainingdata(
-            trainingdata)
+            example_data)
     if categorical == "TRUE":
         try:
             labels = y_train.columns.tolist()
