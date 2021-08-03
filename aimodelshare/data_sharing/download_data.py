@@ -40,7 +40,7 @@ def download_layer(layer, layer_count, tmp_img_dir, blobs_resp):
 
 	ublob = layer['digest']
 	layer_id = 'layer_' + str(layer_count) + '_' + ublob[7:]
-	layer_label = ublob[7:] + " (Layer " + str(layer_count) + ")"
+	layer_label = str(round((layer_count/7)*100))+"% complete"
 	layer_dir = tmp_img_dir + '/' + layer_id
 
 	# Creating layer.tar file
@@ -64,7 +64,6 @@ def download_layer(layer, layer_count, tmp_img_dir, blobs_resp):
 					progress_bar(layer_label, nb_traits)
 					acc = 0
 
-	sys.stdout.write("\r{}: Extracting...{}".format(layer_label, " "*50))
 	sys.stdout.flush()
 
 	with open(layer_dir + '/layer.tar', "wb") as file:
@@ -72,8 +71,6 @@ def download_layer(layer, layer_count, tmp_img_dir, blobs_resp):
 		shutil.copyfileobj(unzip_layer, file)
 		unzip_layer.close()
 	os.remove(layer_dir + '/layer_gzip.tar')
-
-	print("\r{}: Pull complete [{}]".format(layer_label, blobs_resp.headers['Content-Length']))
 
 	return layer_id, layer_dir
 
@@ -96,7 +93,6 @@ def pull_image(image_uri):
 
 	tmp_img_dir = tempfile.gettempdir() + '/' + 'tmp_{}_{}'.format(image, tag)
 	os.mkdir(tmp_img_dir)
-	print('Creating image structure in: ' + tmp_img_dir)
 
 	file = open('{}/{}.json'.format(tmp_img_dir, config[7:]), 'wb')
 	file.write(config_resp.content)
@@ -151,7 +147,6 @@ def pull_image(image_uri):
 
 	# Create image tar and clean tmp folder
 	docker_tar = tempfile.gettempdir() + '/' + '_'.join([repository.replace('/', '_'), tag]) + '.tar'
-	sys.stdout.write("Creating archive...")
 	sys.stdout.flush()
 
 	tar = tarfile.open(docker_tar, "w")
@@ -159,7 +154,6 @@ def pull_image(image_uri):
 	tar.close()
 
 	shutil.rmtree(tmp_img_dir)
-	print('\rDocker image pulled: ' + docker_tar)
 
 	return docker_tar
 
@@ -175,7 +169,6 @@ def extract_data_from_image(image_name, file_name):
                 files.append(tl)
         if(len(files)>0):
             break
-    print('Copying data from Docker image...')
     tar_layer.extractall(members=files, path=tempfile.gettempdir())
     if(os.path.isdir(file_name)):
         shutil.rmtree(file_name)
@@ -187,4 +180,4 @@ def download_data(repository):
 	docker_tar = pull_image(repository)
 	extract_data_from_image(docker_tar, data_zip_name)
 	os.remove(docker_tar)
-	print('Data pulled successfully.')
+	print('\n\nData downloaded successfully.')

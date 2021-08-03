@@ -10,6 +10,7 @@ import time
 import json
 import boto3
 import tempfile
+import requests
 
 def create_docker_folder_local(dataset_dir, dataset_name, python_version):
 
@@ -268,3 +269,50 @@ def share_data_codebuild(account_id, region, dataset_dir, dataset_tag='latest', 
     os.remove(template_folder+'.zip')
     
     return {"ecr_uri":registry_uri + '/' + repository + ':' + dataset_tag}
+
+def share_dataset(data_directory="folder_file_path",classification="default", private="FALSE"):
+    aishare_datasetname = input("Enter dataset name:")
+    aishare_datadescription = input(
+        "Enter data description (i.e.- filenames denoting training and test data, file types, and any subfolders where files are stored):")
+    aishare_datatags = input(
+        "Enter tags to help users find your data (i.e.- flower dataset, image, supervised learning, classification")   
+    datalicense=input("Insert license (Optional): ")
+    datacitation=input("Insert citation (Optional): ")
+    modelplaygroundurl=input("Insert AI Model Share model playground url (Optional): ")
+    problemdomain=input("Enter a number signifying your dataset problem domain or data type: 1 = Image 2 = Video 3 = Text 4 = Tabular 5 = Neural Style Transfer 6 = Object Detection 7 = Other \n")
+
+    optiondict={"1":"Image", "2":"Video","3":"Text","4":"Tabular", "5": "Audio","6":"Neural Style Transfer", "7": "Object Detection", "8":"Other"}
+    problemdomainfinal=optiondict.get(problemdomain,"Other")
+
+
+    user_session = boto3.session.Session(aws_access_key_id=os.environ.get("AWS_ACCESS_KEY_ID"),
+                                          aws_secret_access_key = os.environ.get("AWS_SECRET_ACCESS_KEY"), 
+                                         region_name=os.environ.get("AWS_REGION"))
+    account_number = user_session.client(
+        'sts').get_caller_identity().get('Account')
+
+    datauri=share_data_codebuild(account_number,os.environ.get("AWS_REGION"),data_directory)
+
+
+    #TODO: Replace redis data code with new api post call, see helper code below from competition api
+    #TODO: add "dataset:id" as models are ingested on the backend
+    bodydata = {"dataowner": os.environ.get("username"),  # change this to first and last name
+                "dataname":aishare_datasetname ,                
+                'datadescription':aishare_datadescription,
+                'datatags':aishare_datatags,
+                'dataecruri':datauri['ecr_uri'],
+                'datalicense':datalicense,
+                'datacitation':datacitation,
+                'classification':classification,
+                "modelplaygroundurl": modelplaygroundurl,
+                "Private": private,
+                "delete": "FALSE",
+                "problemdomain":problemdomainfinal}
+
+    # datasets api
+    headers_with_authentication = {'Content-Type': 'application/json', 'authorizationToken': os.environ.get("JWT_AUTHORIZATION_TOKEN"), 'Access-Control-Allow-Headers':
+                                   'Content-Type,X-Amz-Date,authorizationToken,Access-Control-Allow-Origin,X-Api-Key,X-Amz-Security-Token,Authorization', 'Access-Control-Allow-Origin': '*'}
+    # modeltoapi lambda function invoked through below url to return new prediction api in response
+    response=requests.post("https://jyz9nn0joe.execute-api.us-east-1.amazonaws.com/dev/modeldata",
+                  json=bodydata, headers=headers_with_authentication)
+    return "Your dataset has been shared to modelshare.org."
