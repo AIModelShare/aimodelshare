@@ -260,13 +260,15 @@ def build_image(user_session, bucket_name, zip_file, image_name):
 # create a base image containing a particular set of libraries in repository with specific image tag
 def build_new_base_image(user_session, bucket_name, libraries, repository, image_tag, python_version):
 
+    unique_name = repository + "_" + image_tag
+
     sts_client = user_session.client("sts")
     account_id = sts_client.get_caller_identity()["Account"]
     region = user_session.region_name
 
     print("Building new base image.")
 
-    folder_name = "base_image_folder"
+    folder_name = "unique_name"
     ##################################################
     #label = "libraries=" + ",".join(libraries)      # label of image will be all string of all libraries
     label = "libraries=test"      # label of image will be all string of all libraries
@@ -316,7 +318,10 @@ def build_new_base_image(user_session, bucket_name, libraries, repository, image
         for file in file_paths:
             zip.write(file, file.replace(temp_dir, ""))      # ignore temporary file path when copying to zip file
 
-    build_image(user_session, bucket_name, temp_dir + ".zip", repository + "_" + image_tag + "_base_image")
+    build_image(user_session, bucket_name, temp_dir + ".zip", unique_name + "_base_image")
+
+    if(os.path.isdir(temp_dir)):
+        shutil.rmtree(temp_dir)
 
 # create lambda function using a base image from a specific repository having a specific tag
 def create_lambda_using_base_image(user_session, bucket_name, directory, lambda_name, api_id, repository, image_tag, memory_size, timeout):
@@ -503,3 +508,6 @@ def deploy_lambda_using_sam(user_session, bucket_name, libraries, directory, lam
             zip.write(file, file.replace(template_folder, ""))      # ignore temporary file path when copying to zip file
 
     build_image(user_session, bucket_name, template_folder + ".zip", repository_name + "_" + image_tag + "_custom_image")
+
+    if(os.path.isdir(template_folder)):
+        shutil.rmtree(template_folder)
