@@ -7,6 +7,7 @@ import zipfile
 from string import Template
 import importlib_resources as pkg_resources
 from . import iam
+from . import sam
 from . import containerization_templates
 
 time_delay=10
@@ -96,15 +97,8 @@ def delete_iam_role(user_session, role_name):
     response = iam_client.delete_role(
         RoleName=role_name
     )
-    # keep running loop till role existence is erased
-    while(True):
-        try:
-            response = iam_client.get_role(RoleName=role_name)
-            print("Waiting...")
-            time.sleep(time_delay)
-        except:
-            print("Deleted IAM role \"" + role_name + "\" successfully.")
-            break
+    # give time to reflect in IAM
+    time.sleep(time_delay)
 
 # abstraction to delete IAM policy
 def delete_iam_policy(user_session, policy_name):
@@ -124,15 +118,8 @@ def delete_iam_policy(user_session, policy_name):
     response = iam_client.delete_policy(
         PolicyArn=policy_arn
     )
-    # keep running loop till policy existence is erased
-    while(True):
-        try:
-            response = iam_client.get_policy(PolicyArn=policy_arn)
-            print("Waiting...")
-            time.sleep(time_delay)
-        except:
-            print("Deleted IAM policy \"" + policy_name + "\" successfully.")
-            break
+    # give time to reflect in IAM
+    time.sleep(time_delay)
 
 # abstraction to create IAM role
 def create_iam_role(user_session, role_name, trust_relationship):
@@ -142,18 +129,8 @@ def create_iam_role(user_session, role_name, trust_relationship):
         RoleName=role_name,
         AssumeRolePolicyDocument=json.dumps(trust_relationship)     # convert JSON to string
     )
+    # give time to reflect in IAM
     time.sleep(time_delay)
-    # keep running loop till policy existence reflects
-    counter=3
-    while(counter>0):
-        try:
-            response = iam_client.get_role(RoleName=role_name)
-            print("Created IAM role \"" + role_name + "\" successfully.")
-            break
-        except:
-            print("Waiting...")
-            counter-=1
-            time.sleep(time_delay)
 
 # abstraction to create IAM policy
 def create_iam_policy(user_session, policy_name, policy):
@@ -168,18 +145,8 @@ def create_iam_policy(user_session, policy_name, policy):
         PolicyName=policy_name,
         PolicyDocument=json.dumps(policy)     # convert JSON to string
     )
+    # give time to reflect in IAM
     time.sleep(time_delay)
-    # keep running loop till policy existence reflects
-    counter=3
-    while(counter>0):
-        try:
-            response = iam_client.get_policy(PolicyArn=policy_arn)
-            print("Created IAM policy \"" + policy_name + "\" successfully.")
-            break
-        except:
-            print("Waiting...")
-            counter-=1
-            time.sleep(time_delay)
     
 # abstraction to attach IAM policy to IAM role
 def attach_policy_to_role(user_session, role_name, policy_name):
@@ -194,17 +161,8 @@ def attach_policy_to_role(user_session, role_name, policy_name):
         RoleName = role_name,
         PolicyArn = policy_arn
     )
+    # give time to reflect in IAM
     time.sleep(time_delay)
-    # keep running loop till policy attachment reflects in role
-    counter=3
-    while(counter>0):
-        response = iam_client.list_attached_role_policies(RoleName=role_name)
-        if(len(response['AttachedPolicies']) > 0):
-            print("Attached IAM policy \"" + policy_name +"\" to IAM role \"" + role_name + "\" successfully.")
-            break
-        print("Waiting...")
-        counter-=1        
-        time.sleep(time_delay)
 
 # build image using CodeBuild from files in zip file
 def build_image(user_session, bucket_name, zip_file, image_name):
@@ -240,9 +198,10 @@ def build_image(user_session, bucket_name, zip_file, image_name):
     # and specify the Linux environment that will be used to build the image
     codebuild_project_name = 'codebuild_' + image_name + '_project'
     codebuild_client = user_session.client("codebuild")
-    counter=3
-    while(counter>0):
+    counter=1
+    while(counter<=3):
         try:
+            print("Attempt " + str(counter) + " to create CodeBuild project.")
             response = codebuild_client.create_project(
                 name = codebuild_project_name,
                 source = {
@@ -263,9 +222,12 @@ def build_image(user_session, bucket_name, zip_file, image_name):
             )
             break
         except:
-            counter-=1
-            print("Attempt " + str(3-counter) + " to build create CodeBuild project.")
-            time.sleep(time_delay)
+            counter+=1
+            if(counter<=3):
+                print("CodeBuild project creation failed. Waiting for dependent resources to reflect. Retrying again in 10 seconds.")
+                time.sleep(time_delay)
+            else:
+                print("CodeBuild project creation failed.")
 
     response = codebuild_client.start_build(
         projectName = codebuild_project_name
@@ -398,9 +360,10 @@ def create_lambda_using_base_image(user_session, bucket_name, directory, lambda_
 
     print("Creating Lambda function " + lambda_name + "\".")
     lambda_client = user_session.client('lambda')
-    counter=3
-    while(counter>0):
+    counter=1
+    while(counter<=0):
         try:
+            print("Attempt " + str(counter) + " to create Lambda function.")
             response = lambda_client.create_function(
                 FunctionName=lambda_name,
                 Role = 'arn:aws:iam::' + account_id + ':role/' + role_name,
@@ -420,9 +383,12 @@ def create_lambda_using_base_image(user_session, bucket_name, directory, lambda_
             )
             break
         except:
-            counter-=1
-            print("Attempt " + str(3-counter) + " to build Lambda function.")
-            time.sleep(time_delay)
+            counter+=1
+            if(counter<=3):
+                print("Lambda function creation failed. Waiting for dependent resources to reflect. Retrying again in 10 seconds.")
+                time.sleep(time_delay)
+            else:
+                print("Lambda function creation failed.")
 
     # running through loop until function reflects
     while(True):
@@ -471,3 +437,69 @@ def check_if_repo_exists(user_session, repo_name):
     except:
         print("The repository \"" + repo_name + "\" does not exist.")
         return False
+
+# deploy lambda funciton using AWS SAM
+def deploy_lambda_using_sam(user_session, bucket_name, libraries, directory, lambda_name, api_id, memory_size, timeout, python_version):
+    
+    unique_name = lambda_name + "_" + api_id
+
+    sts_client = user_session.client("sts")
+    account_id = sts_client.get_caller_identity()["Account"]
+    region = user_session.region_name
+
+    template_folder = tempfile.gettempdir() + "/" + unique_name
+
+    repository_name = unique_name + "_repository"
+    image_tag = "v1"
+    stack_name = unique_name + "_stack"
+    function_name = unique_name
+    role_name = unique_name + "_lambda_role"
+    policy_name = unique_name + "_lambda_policy"
+
+    with open(os.path.join(template_folder, "requirements.txt"), "a") as f:
+        for lib in libraries:
+            f.write('%s\n' % lib)
+
+    os.mkdir(template_folder)
+    os.mkdir('/'.join([template_folder, 'app']))
+
+    data = pkg_resources.read_text(sam, 'buildspec.txt')
+    template = Template(data)
+    newdata = template.substitute(
+        account_id=account_id,
+        region=region,
+        repository_name=repository_name,
+        stack_name=stack_name)
+    with open(os.path.join(template_folder, 'buildspec.yml'), 'w') as file:
+        file.write(newdata)
+
+    data = pkg_resources.read_text(sam, 'Dockerfile.txt')
+    template = Template(data)
+    newdata = template.substitute(
+        python_version=python_version,
+        directory=directory)
+    with open(os.path.join('/'.join([template_folder, 'app']), 'Dockerfile'), 'w') as file:
+        file.write(newdata)
+    
+    data = pkg_resources.read_text(sam, 'template.txt')
+    template = Template(data)
+    newdata = template.substitute(
+        image_tag=image_tag,
+        role_name=role_name,
+        policy_name=policy_name,
+        function_name=function_name,
+        memory_size=memory_size,
+        timeout=timeout)
+    with open(os.path.join(template_folder, 'template.yml'), 'w') as file:
+        file.write(newdata)
+
+    shutil.copytree(directory, '/'.join([template_folder, 'app', directory]))
+
+    file_paths = get_all_file_paths_in_directory(template_folder)    # getting list of strings containing paths of all files
+
+    # zipping all files in the temporary folder to be uploaded to the S3 bucket
+    with zipfile.ZipFile(template_folder + ".zip", "w") as zip:
+        for file in file_paths:
+            zip.write(file, file.replace(template_folder, ""))      # ignore temporary file path when copying to zip file
+
+    build_image(user_session, bucket_name, template_folder + ".zip", repository_name + "_" + image_tag + "_custom_image")

@@ -13,6 +13,7 @@ import sys
 from zipfile import ZipFile, ZIP_STORED, ZipInfo
 import shutil
 from aimodelshare.containerization import create_lambda_using_base_image
+from aimodelshare.containerization import deploy_lambda_using_sam
 
 def create_prediction_api(model_filepath, unique_model_id, model_type,categorical, labels, apiid, custom_libraries, requirements, repo_name, image_tag):
 
@@ -52,7 +53,6 @@ def create_prediction_api(model_filepath, unique_model_id, model_type,categorica
     categorical = categorical.upper()
     # Wait for 5 seconds to ensure aws iam user on user account has time to load into aws's system
     #time.sleep(5)
-
 
     user_session = boto3.session.Session(aws_access_key_id=os.environ.get("AWS_ACCESS_KEY_ID"),
                                           aws_secret_access_key = os.environ.get("AWS_SECRET_ACCESS_KEY"), 
@@ -397,8 +397,8 @@ def create_prediction_api(model_filepath, unique_model_id, model_type,categorica
         with open(os.path.join('file_objects', 'requirements.txt'), 'a') as f:
             for lib in requirements:
                 f.write('%s\n' % lib)
-        from aimodelshare import deploy_container
-        response6 = deploy_container(account_number, os.environ.get("AWS_REGION"), user_session, lambdafxnname, 'file_objects', 'requirements.txt',apiid)
+
+        response6 = deploy_lambda_using_sam(user_session, os.getenv("BUCKET_NAME"), requirements, 'file_objects', lambdafxnname, apiid, 1024, 90, "3.7")
 
     response6evalfxn = lambdaclient.create_function(FunctionName=lambdaevalfxnname, Runtime='python3.7', Role='arn:aws:iam::'+account_number+':role/'+lambdarolename, Handler='main.handler',
                                           Code={
