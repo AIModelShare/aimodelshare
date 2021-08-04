@@ -452,7 +452,7 @@ def check_if_repo_exists(user_session, repo_name):
 # deploy lambda funciton using AWS SAM
 def deploy_lambda_using_sam(user_session, bucket_name, libraries, directory, lambda_name, api_id, memory_size, timeout, python_version):
     
-    unique_name = lambda_name
+    unique_name = lambda_namedirectory
 
     sts_client = user_session.client("sts")
     account_id = sts_client.get_caller_identity()["Account"]
