@@ -28,6 +28,16 @@ response = s3_client.download_file(
   temp_path_directory_zip_file
 )
 
+def get_all_file_paths_in_directory(directory):
+    file_paths = []
+    for root, directories, files in os.walk(directory):
+        for filename in files:
+            filepath = os.path.join(root, filename)
+            file_paths.append(filepath)
+    return file_paths
+
+print(get_all_file_paths_in_directory(temp_path))
+
 with zipfile.ZipFile(temp_path_directory_zip_file, 'r') as zip_ref:
     zip_ref.extractall(temp_path)
 
