@@ -191,7 +191,7 @@ def send_model_data_to_dyndb_and_return_api(api_info, private, categorical, prep
                           "./preprocessor.zip" 
                           searches for an exported zip preprocessor file in the current directory 
     variablename_and_type_data :  list, default='default'
-                                value- extracted from trainingdata
+                                value- extracted from example_data
                                 [variable types,variable columns]
                                 'default' when training data info is not available to extract columns
     
@@ -268,7 +268,7 @@ def send_model_data_to_dyndb_and_return_api(api_info, private, categorical, prep
     return print("\n\n" + finalresult2 + "\n" + final_message + web_dashboard_url)
 
 
-def model_to_api(model_filepath, model_type, private, categorical, trainingdata, y_train,preprocessor_filepath,custom_libraries="FALSE", example_data=None):
+def model_to_api(model_filepath, model_type, private, categorical, y_train,preprocessor_filepath,custom_libraries="FALSE", example_data=None):
     """
       Launches a live prediction REST API for deploying ML models using model parameters and user credentials, provided by the user
       Inputs : 8
@@ -300,10 +300,6 @@ def model_to_api(model_filepath, model_type, private, categorical, trainingdata,
                 value - y values for model
                 [REQUIRED] for classification type models
                 expects a one hot encoded y train data format
-      trainingdata :  training dataset, default='default'
-                      expects a pd dataframe 
-                      value - x values(inputs) for model
-                      [REQUIRED] for tabular data
       private :   bool, default = False
                   True if model and its corresponding data is not public
                   False [DEFAULT] if model and its corresponding data is public   
