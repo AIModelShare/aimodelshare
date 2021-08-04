@@ -147,7 +147,7 @@ def create_iam_policy(user_session, policy_name, policy):
     )
     # give time to reflect in IAM
     time.sleep(time_delay)
-    
+
 # abstraction to attach IAM policy to IAM role
 def attach_policy_to_role(user_session, role_name, policy_name):
 
@@ -382,7 +382,7 @@ def create_lambda_using_base_image(user_session, bucket_name, directory, lambda_
                     'Variables': {
                         'bucket': bucket_name,     # bucket where zip file is located
                         'api_id': api_id,     # api_id in the bucket in which zip file is stored
-                        'directory': lambda_name        # directory in which all files exist
+                        'function_name': lambda_name        # Lambda function name
                     }
                 }
             )
@@ -452,7 +452,7 @@ def check_if_repo_exists(user_session, repo_name):
 # deploy lambda funciton using AWS SAM
 def deploy_lambda_using_sam(user_session, bucket_name, libraries, directory, lambda_name, api_id, memory_size, timeout, python_version):
     
-    unique_name = lambda_name + "_" + api_id
+    unique_name = lambda_name
 
     sts_client = user_session.client("sts")
     account_id = sts_client.get_caller_identity()["Account"]
@@ -513,7 +513,7 @@ def deploy_lambda_using_sam(user_session, bucket_name, libraries, directory, lam
         for file in file_paths:
             zip.write(file, file.replace(template_folder, ""))      # ignore temporary file path when copying to zip file
 
-    build_image(user_session, bucket_name, template_folder + ".zip", repository_name + "_" + image_tag + "_custom_image")
+    build_image(user_session, bucket_name, template_folder + ".zip", api_id + "/" + lambda_name)
 
     if(os.path.isdir(template_folder)):
         shutil.rmtree(template_folder)
