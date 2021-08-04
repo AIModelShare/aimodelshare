@@ -170,7 +170,7 @@ def take_user_info_and_generate_api(model_filepath, model_type, categorical,labe
 
 
 def send_model_data_to_dyndb_and_return_api(api_info, private, categorical, preprocessor_filepath,
-                                            aishare_modelname, aishare_modeldescription, aishare_modeltype, aishare_modelevaluation,
+                                            aishare_modelname, aishare_modeldescription, aishare_modelevaluation, model_type,
                                             aishare_tags, aishare_apicalls, exampledata_json_filepath,variablename_and_type_data="default"):
     """
     Updates dynamodb with model data taken as input from user along with already generated api info
@@ -191,7 +191,7 @@ def send_model_data_to_dyndb_and_return_api(api_info, private, categorical, prep
                           "./preprocessor.zip" 
                           searches for an exported zip preprocessor file in the current directory 
     variablename_and_type_data :  list, default='default'
-                                value- extracted from trainingdata
+                                value- extracted from example_data
                                 [variable types,variable columns]
                                 'default' when training data info is not available to extract columns
     
@@ -220,7 +220,7 @@ def send_model_data_to_dyndb_and_return_api(api_info, private, categorical, prep
                 "apideveloper": os.environ.get("username"),  # change this to first and last name
                 "apimodeldescription": aishare_modeldescription,
                 "apimodelevaluation": aishare_modelevaluation,
-                "apimodeltype": aishare_modeltype,
+                "apimodeltype": model_type,
                 # getting rid of extra quotes that screw up dynamodb string search on apiurls
                 "apiurl": api_info[0].strip('\"'),
                 "bucket_name": bucket_name,
@@ -248,9 +248,9 @@ def send_model_data_to_dyndb_and_return_api(api_info, private, categorical, prep
 
     # Build output {{{
     final_message = ("\nYou can now use your API web dashboard.\n\n"
-                     "To explore your API's functionality, follow this link to your Prediction Playground.\n"
+                     "To explore your API's functionality, follow this link to your Model Playground.\n"
                      "You can make predictions with the Dashboard and access example code from the Programmatic tab.\n")
-    web_dashboard_url = ("http://mlsite5aimodelshare-dev.s3-website.us-east-2.amazonaws.com/detail/"+ response_string)
+    web_dashboard_url = ("https://www.modelshare.org/detail/"+ response_string)
     
     start = api_info[2]
     end = datetime.datetime.now()
@@ -268,7 +268,7 @@ def send_model_data_to_dyndb_and_return_api(api_info, private, categorical, prep
     return print("\n\n" + finalresult2 + "\n" + final_message + web_dashboard_url)
 
 
-def model_to_api(model_filepath, model_type, private, categorical, trainingdata, y_train,preprocessor_filepath,custom_libraries="FALSE", example_data=None):
+def model_to_api(model_filepath, model_type, private, categorical, y_train,preprocessor_filepath,custom_libraries="FALSE", example_data=None):
     """
       Launches a live prediction REST API for deploying ML models using model parameters and user credentials, provided by the user
       Inputs : 8
@@ -300,19 +300,17 @@ def model_to_api(model_filepath, model_type, private, categorical, trainingdata,
                 value - y values for model
                 [REQUIRED] for classification type models
                 expects a one hot encoded y train data format
-      trainingdata :  training dataset, default='default'
-                      expects a pd dataframe 
-                      value - x values(inputs) for model
-                      [REQUIRED] for tabular data
       private :   bool, default = False
                   True if model and its corresponding data is not public
                   False [DEFAULT] if model and its corresponding data is public   
       custom_libraries:   string
                   "TRUE" if user wants to load custom Python libraries to their prediction runtime
                   "FALSE" if user wishes to use AI Model Share base libraries including latest versions of most common ML libs.
-      example_data:  pandas object (for tabular data) OR filepath as string (image, audio, video data)
-                     tabular data - pandas object in same structure expected by preprocessor function
+      example_data:  pandas DataFrame (for tabular & text data) OR filepath as string (image, audio, video data)
+                     tabular data - pandas DataFrame in same structure expected by preprocessor function
                      other data types - absolute path to folder containing example data
+                                        (first five files with relevent file extensions will be accepted)
+                     [REQUIRED] for tabular data
       -----------
       Returns
       print_api_info : prints statements with generated live prediction API details
@@ -325,26 +323,32 @@ def model_to_api(model_filepath, model_type, private, categorical, trainingdata,
     #  2. send_model_data_to_dyndb_and_return_api : to add new record to database with user data, model and api related information
 
     # Get user inputs, pass to other functions  {{{
-    print("We need some information about your model before we can build your API.")
+    print("We need some information about your model before we can build your REST API and interactive Model Playground.")
     print("   ")
 
     requirements = ""
     if(any([custom_libraries=='TRUE',custom_libraries=='true'])):
-        requirements = input("Enter all required Python libraries you need at prediction runtime (separate with commas):")
+        requirements = input("Enter all required Python libraries you need at prediction runtime (separated with commas):")
         _confirm_libraries_exist(requirements)
         
-    aishare_modelname = input("Enter model name:")
-    aishare_modeldescription = input("Enter model description:")
-    aishare_modeltype = input(
-        "Enter model category (i.e.- Text, Image, Audio, Video, or TimeSeries Data:")
+    aishare_modelname = input("Model Name (for AI Model Share Website):")
+    aishare_modeldescription = input("Model Description (Explain what your model does and \n why end-users would find your model useful):")
     aishare_modelevaluation = "unverified" # verified metrics added to playground once 1. a model is submitted to a competition leaderboard and 2. playground owner updates runtime
                                            #...model with update_runtime_model()
     aishare_tags = input(
-        "Enter search categories that describe your model (separate with commas):")
+        "Model Key Words (Search categories that describe your model, separated with commas):")
     aishare_apicalls = 0
     print("   ")
     #  }}}
-    
+
+    # Force user to provide example data for tabular models {{{
+    if any([model_type.lower() == "tabular", model_type.lower() == "timeseries"]):
+        if example_data == None:
+            return print("Error: Example data is required for tabular models. \n Please provide a pandas DataFrame with a sample of your X data (in the format expected by your preprocessor) and try again.")
+    else:
+        pass
+    #}}}
+        
     print("Creating your prediction API. (This process may take several minutes.)\n")
     variablename_and_type_data = None
     private = str(private).upper()
@@ -383,7 +387,7 @@ def model_to_api(model_filepath, model_type, private, categorical, trainingdata,
     
     print_api_info = send_model_data_to_dyndb_and_return_api(
         api_info, private, categorical,preprocessor_filepath, aishare_modelname,
-        aishare_modeldescription, aishare_modeltype, aishare_modelevaluation,
+        aishare_modeldescription, aishare_modelevaluation, model_type,
         aishare_tags, aishare_apicalls, exampledata_json_filepath,variablename_and_type_data)
     
     return api_info[0]
@@ -580,8 +584,8 @@ def _create_exampledata_json(model_type, exampledata_folder_filepath):
     video_extensions = ['.avchd', '.avi', '.flv', '.mov', '.mkv', '.mp4', '.wmv']
     audio_extensions = ['.m4a', '.flac', '.mp3', '.mp4', '.wav', '.wma', '.aac']
      
-    if model_type.lower() == "tabular":
-        tabularjson = exampledata_folder_filepath.to_json()
+    if any([model_type.lower() == "tabular", model_type.lower() == "timeseries", model_type.lower() == "text"]):
+        tabularjson = exampledata_folder_filepath.to_json(orient='split', index=False)
         
     
         with open('exampledata.json', 'w', encoding='utf-8') as f:
