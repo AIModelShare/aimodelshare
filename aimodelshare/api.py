@@ -188,10 +188,10 @@ def create_prediction_api(model_filepath, unique_model_id, model_type,categorica
          data = pkg_resources.read_text(custom_approach, 'lambda_function.py')
          with open(os.path.join('file_objects', 'lambda_function.py'), 'w') as file:
              file.write(data)
-    #else:
-        #data = pkg_resources.read_text(main, 'lambda_function.txt')
-        #with open(os.path.join('file_objects', 'lambda_function.py'), 'w') as file:
-        #    file.write(data)
+    else:
+        data = pkg_resources.read_text(main, 'lambda_function.txt')
+        with open(os.path.join('file_objects', 'lambda_function.py'), 'w') as file:
+            file.write(data)
         
     #with zipfile.ZipFile(os.path.join(temp_dir, 'archive.zip'), 'a') as z:
     #    z.write(os.path.join(temp_dir, 'main.py'), 'main.py')
