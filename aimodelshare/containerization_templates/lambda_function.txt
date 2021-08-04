@@ -41,6 +41,8 @@ print(get_all_file_paths_in_directory(temp_path))
 with zipfile.ZipFile(temp_path_directory_zip_file, 'r') as zip_ref:
     zip_ref.extractall(temp_path)
 
+print(get_all_file_paths_in_directory(temp_path))
+
 sys.path.append(temp_path)
 from model import handler
 
