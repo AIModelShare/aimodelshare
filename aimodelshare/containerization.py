@@ -65,13 +65,13 @@ def upload_file_to_s3(user_session, local_file_path, bucket_name, bucket_file_pa
 
 # abstraction to delete file from S3 bucket
 def delete_file_from_s3(user_session, bucket_name, bucket_file_path):
-    print("Deleting file to \"" + bucket_file_path +"\".")
+    print("Deleting file \"" + bucket_file_path +"\".")
     s3_client = user_session.client("s3")
     s3_client.delete_object(
         Bucket=bucket_name,    # S3 bucket name
         Key=bucket_file_path   # path to file in the S3 bucket
     )
-    print("Deleted file to \"" + bucket_file_path +"\" successfully.")
+    print("Deleted file \"" + bucket_file_path +"\" successfully.")
 
 # abstraction to delete IAM role
 def delete_iam_role(user_session, role_name):
@@ -366,7 +366,7 @@ def create_lambda_using_base_image(user_session, bucket_name, directory, lambda_
     print("Creating Lambda function " + lambda_name + "\".")
     lambda_client = user_session.client('lambda')
     counter=1
-    while(counter<=0):
+    while(counter<=3):
         try:
             print("Attempt " + str(counter) + " to create Lambda function.")
             response = lambda_client.create_function(
@@ -396,7 +396,8 @@ def create_lambda_using_base_image(user_session, bucket_name, directory, lambda_
                 print("Lambda function creation failed.")
 
     # running through loop until function reflects
-    while(True):
+    counter=1
+    while(counter<=3):
         try:
             response = lambda_client.get_function(
                 FunctionName=lambda_name
@@ -404,7 +405,12 @@ def create_lambda_using_base_image(user_session, bucket_name, directory, lambda_
             print("Created Lambda function " + lambda_name + "\" successfully.")
             break
         except:
-            None
+            counter+=1
+            if(counter<=3):
+                print("Lambda function did not reflected. Waiting for Lambda function to reflect.")
+                time.sleep(time_delay)
+            else:
+                print("Lambda function did not reflected.")
 
     os.remove(temp_dir + ".zip")     # delete the zip file created in tmp directory
     shutil.rmtree(temp_dir)      # delete the temporary folder created in tmp directory
