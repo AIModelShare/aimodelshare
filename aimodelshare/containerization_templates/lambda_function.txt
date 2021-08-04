@@ -11,6 +11,15 @@ import zipfile
 import tempfile
 import boto3
 
+
+def get_all_file_paths_in_directory(directory):
+    file_paths = []
+    for root, directories, files in os.walk(directory):
+        for filename in files:
+            filepath = os.path.join(root, filename)
+            file_paths.append(filepath)
+    return file_paths
+
 temp_path = tempfile.gettempdir()
 
 bucket = os.getenv("bucket")
@@ -28,13 +37,7 @@ response = s3_client.download_file(
   temp_path_directory_zip_file
 )
 
-def get_all_file_paths_in_directory(directory):
-    file_paths = []
-    for root, directories, files in os.walk(directory):
-        for filename in files:
-            filepath = os.path.join(root, filename)
-            file_paths.append(filepath)
-    return file_paths
+print(get_all_file_paths_in_directory("./"))
 
 print(get_all_file_paths_in_directory(temp_path))
 
