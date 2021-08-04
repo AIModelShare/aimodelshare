@@ -16,7 +16,7 @@ temp_path = tempfile.gettempdir()
 bucket = os.getenv("bucket")
 api_id = os.getenv("api_id")
 function_name = os.getenv("function_name")
-  
+
 key = api_id + "/" + function_name + ".zip"
 temp_path_directory = "/".join([temp_path, function_name])
 temp_path_directory_zip_file = temp_path_directory + ".zip"
@@ -31,8 +31,7 @@ response = s3_client.download_file(
 with zipfile.ZipFile(temp_path_directory_zip_file, 'r') as zip_ref:
     zip_ref.extractall(temp_path)
 
-sys.path.append(temp_path + "/" + "file_objects")
-
+sys.path.append(temp_path)
 from model import handler
 
 def lambda_handler(event, context):

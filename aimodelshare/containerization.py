@@ -363,8 +363,8 @@ def create_lambda_using_base_image(user_session, bucket_name, directory, lambda_
     # attaching policies to role to execute CodeBuild to build Docker image
     attach_policy_to_role(user_session, role_name, policy_name)
 
-    print("Creating Lambda function " + lambda_name + "\".")
-    lambda_client = user_session.client('lambda')
+    print("Creating Lambda function \"" + lambda_name + "\".")
+    lambda_client = user_session.client("lambda")
     counter=1
     while(counter<=3):
         try:
