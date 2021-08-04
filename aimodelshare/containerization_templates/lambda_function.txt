@@ -13,9 +13,9 @@ import boto3
 
 temp_path = tempfile.gettempdir()
 
-bucket = os.getenv("bucket")
-api_id = os.getenv("api_id")
-function_name = os.getenv("function_name")
+bucket = str(os.getenv("bucket"))
+api_id = str(os.getenv("api_id"))
+function_name = str(os.getenv("function_name"))
   
 key = api_id + "/" + function_name + ".zip"
 temp_path_directory = "/".join([temp_path, function_name])
