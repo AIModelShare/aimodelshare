@@ -3,7 +3,19 @@
 
 
 
-class ModelPlayground: 
+class ModelPlayground:
+    """
+    Parameters:
+    model_type :  string 
+                  values - [ 'Text' , 'Image' , 'Tabular' , 'Timeseries' ] 
+                  type of model data     
+    classification:    bool, default=True
+                        True [DEFAULT] if model is of Classification type with categorical target variables
+                        False if model is of Regression type with continuous target variables
+    private :   bool, default = False
+                    True if model and its corresponding data is not public
+                    False [DEFAULT] if model and its corresponding data is public 
+    """
     def __init__(self, model_type, classification, private, playground_url=None):
         self.model_type = model_type
         self.categorical = classification 
@@ -12,7 +24,7 @@ class ModelPlayground:
     
     
     def __str__(self):
-        return f"This is a description of your model instance with type: {self.model_type}"
+        return f"ModelPlayground instance of model type: {self.model_type}, classification: {self.categorical},  private: {self.private}"
     
     def deploy(self, model_filepath, preprocessor_filepath, y_train, custom_libraries = "FALSE", example_data=None):
         """
@@ -36,19 +48,10 @@ class ModelPlayground:
                                 "./preprocessor.zip" 
                                 searches for an exported zip preprocessor file in the current directory
                                 file is generated using export_preprocessor function from the AI Modelshare library  
-        model_type :  string 
-                      values - [ 'Text' , 'Image' , 'Tabular' , 'Timeseries' ] 
-                      type of model data     
-        categorical:    bool, default=True
-                        True [DEFAULT] if model is of Classification type with categorical target variables
-                        False if model is of Regression type with continuous target variables
         y_train : training labels of size of dataset
                   value - y values for model
                   [REQUIRED] for classification type models
-                  expects a one hot encoded y train data format
-        private :   bool, default = False
-                    True if model and its corresponding data is not public
-                    False [DEFAULT] if model and its corresponding data is public   
+                  expects a one hot encoded y train data format  
         custom_libraries:   string
                     "TRUE" if user wants to load custom Python libraries to their prediction runtime
                     "FALSE" if user wishes to use AI Model Share base libraries including latest versions of most common ML libs.
@@ -82,10 +85,6 @@ class ModelPlayground:
         
         ---------
         Parameters
-        
-        apiurl: string
-                URL of deployed prediction API 
-        
         y_test :  y labels for test data 
                 [REQUIRED] for eval metrics
                 expects a one hot encoded y test data format
@@ -112,24 +111,20 @@ class ModelPlayground:
         The submitted model gets evaluated and compared with all existing models and a leaderboard can be generated 
         ---------------
         Parameters:
-        modelpath:  string ends with '.onnx'
+        model_filepath:  string ends with '.onnx'
                     value - Absolute path to model file [REQUIRED] to be set by the user
                     .onnx is the only accepted model file extension
                     "example_model.onnx" filename for file in directory.
                     "/User/xyz/model/example_model.onnx" absolute path to model file from local directory
-        apiurl :    string 
-                    value - url to the live prediction REST API generated for the user's model 
-                    "https://example.execute-api.us-east-1.amazonaws.com/prod/m"
         prediction_submission:   one hot encoded y_pred
                         value - predictions for test data
                         [REQUIRED] for evaluation metriicts of the submitted model
-        preprocessor:   string,default=None
+        preprocessor_filepath:   string,default=None
                         value - absolute path to preprocessor file 
                         [REQUIRED] to be set by the user
                         "./preprocessor.zip" 
                         searches for an exported zip preprocessor file in the current directory
                         file is generated from preprocessor module using export_preprocessor function from the AI Modelshare library 
-        sample_data:
         -----------------
         Returns
         response:   Model version if the model is submitted sucessfully
@@ -146,25 +141,21 @@ class ModelPlayground:
         
     
     def update_runtime_model(self, model_version=None): 
-        """
-        apiurl: string of API URL that the user wishes to edit
-        new_model_version: string of model version number (from leaderboard) to replace original model 
-        """
         from aimodelshare.model import update_runtime_model as update
         update = update(apiurl = self.playground_url, model_version = model_version)
         return update
         
     def instantiate_model(self, version=None, trained=False): 
-        """
-        Placeholder
-        """ 
         from aimodelshare.aimsonnx import instantiate_model
         model = instantiate_model(apiurl=self.playground_url, trained=trained, version=version)
         return model
     
     def delete_deployment(self, playground_url=None):
         """
-        apiurl: string of API URL the user wishes to delete
+        Delete all components of a Model Playground, including: AWS s3 bucket & contents,
+        attached competitions, prediction REST API, and interactive Model Playground web dashboard.
+        ---------------
+        playground_url: string of API URL the user wishes to delete
 
         WARNING: User must supply high-level credentials in order to delete an API. 
         """
@@ -182,7 +173,7 @@ class Competition:
         self.playground_url = playground_url
     
     def __str__(self):
-        return f"This is a description of your competition class instance"
+        return f"Competition class instance for playground: {self.playground_url}"
         
     def submit_model(self, model_filepath, preprocessor_filepath, prediction_submission, sample_data=None):
         """
@@ -190,24 +181,20 @@ class Competition:
         The submitted model gets evaluated and compared with all existing models and a leaderboard can be generated 
         ---------------
         Parameters:
-        modelpath:  string ends with '.onnx'
+        model_filepath:  string ends with '.onnx'
                     value - Absolute path to model file [REQUIRED] to be set by the user
                     .onnx is the only accepted model file extension
                     "example_model.onnx" filename for file in directory.
                     "/User/xyz/model/example_model.onnx" absolute path to model file from local directory
-        apiurl :    string 
-                    value - url to the live prediction REST API generated for the user's model 
-                    "https://example.execute-api.us-east-1.amazonaws.com/prod/m"
         prediction_submission:   one hot encoded y_pred
                         value - predictions for test data
                         [REQUIRED] for evaluation metriicts of the submitted model
-        preprocessor:   string,default=None
+        preprocessor_filepath:   string,default=None
                         value - absolute path to preprocessor file 
                         [REQUIRED] to be set by the user
                         "./preprocessor.zip" 
                         searches for an exported zip preprocessor file in the current directory
                         file is generated from preprocessor module using export_preprocessor function from the AI Modelshare library 
-        sample_data:
         -----------------
         Returns
         response:   Model version if the model is submitted sucessfully
@@ -223,17 +210,11 @@ class Competition:
         return submission
         
     def instantiate_model(self, version=None, trained=False): 
-        """
-        Placeholder
-        """
         from aimodelshare.aimsonnx import instantiate_model
         model = instantiate_model(apiurl=self.playground_url, trained=trained, version=version)
         return model
 
     def compare_models(self, version_list="None", by_model_type=None, best_model=None, verbose=3):
-        """
-        Placeholder
-        """
         from aimodelshare.aimsonnx import compare_models as compare
         data = compare(apiurl = self.playground_url, 
                       version_list = version_list, 
@@ -243,17 +224,11 @@ class Competition:
         return data
     
     def inspect_y_test(self):
-        """
-        Placeholder
-        """
         from aimodelshare.aimsonnx import inspect_y_test as inspect
         data = inspect(apiurl = self.playground_url)
         return data 
     
     def get_leaderboard(self, category="classification", verbose=3, columns=None):
-        """
-        Placeholder
-        """
         from aimodelshare.leaderboard import get_leaderboard as get_lead
         data = get_lead(category=category, 
                  verbose=verbose,
@@ -262,9 +237,6 @@ class Competition:
         return data
     
     def stylize_leaderboard(self, leaderboard, category="classification"):
-        """
-        Placeholder
-        """
         from aimodelshare.leaderboard import stylize_leaderboard as stylize_lead
         stylized_leaderboard = stylize_lead(leaderboard = leaderboard,
                                             category=category)
@@ -282,20 +254,14 @@ class Data:
         self.playground_url = playground_url 
     
     def __str__(self):
-        return f"This is a description of the (your?) data class."
+        return f"This is a description of the Data class."
 
     def share_dataset(self, data_directory="folder_file_path", classification="default", private="FALSE"): 
-        """
-        Placeholder
-        """
         from aimodelshare.data_sharing.share_data import share_dataset as share
         response = share(data_directory=data_directory, classification=classification, private=private)
         return response
     
     def download_data(self, repository):
-        """
-        Placeholder
-        """
         from aimodelshare.data_sharing.download_data import download_data as download
         datadownload = download(repository)
         return datadownload
