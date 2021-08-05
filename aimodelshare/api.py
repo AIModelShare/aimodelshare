@@ -397,8 +397,10 @@ def create_prediction_api(model_filepath, unique_model_id, model_type,categorica
         with open(os.path.join('file_objects', 'requirements.txt'), 'a') as f:
             for lib in requirements:
                 f.write('%s\n' % lib)
-
-        response6 = deploy_lambda_using_sam(user_session, os.getenv("BUCKET_NAME"), requirements, 'file_objects', lambdafxnname, apiid, 1024, 90, "3.7")
+                
+        from aimodelshare import deploy_container
+        #response6 = deploy_lambda_using_sam(user_session, os.getenv("BUCKET_NAME"), requirements, 'file_objects', lambdafxnname, apiid, 1024, 90, "3.7")
+        response6 = deploy_container(account_number, os.environ.get("AWS_REGION"), user_session, lambdafxnname, 'file_objects', 'requirements.txt',apiid)
 
     response6evalfxn = lambdaclient.create_function(FunctionName=lambdaevalfxnname, Runtime='python3.7', Role='arn:aws:iam::'+account_number+':role/'+lambdarolename, Handler='main.handler',
                                           Code={

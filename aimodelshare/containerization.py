@@ -54,28 +54,28 @@ def create_repository(user_session, repo_name):
 
 # abstraction to upload file to S3 bucket
 def upload_file_to_s3(user_session, local_file_path, bucket_name, bucket_file_path):
-    print("Uploading function files to \"" + bucket_file_path +"\".")
+    #print("Uploading function files to \"" + bucket_file_path +"\".")
     s3_client = user_session.client("s3")
     s3_client.upload_file(
         local_file_path,   # path to file in the local environment
         bucket_name,    # S3 bucket name
         bucket_file_path   # path to file in the S3 bucket
     )
-    print("Uploaded function files to \"" + bucket_file_path +"\" successfully.")
+    #print("Uploaded function files to \"" + bucket_file_path +"\" successfully.")
 
 # abstraction to delete file from S3 bucket
 def delete_file_from_s3(user_session, bucket_name, bucket_file_path):
-    print("Deleting file \"" + bucket_file_path +"\".")
+    #print("Deleting file \"" + bucket_file_path +"\".")
     s3_client = user_session.client("s3")
     s3_client.delete_object(
         Bucket=bucket_name,    # S3 bucket name
         Key=bucket_file_path   # path to file in the S3 bucket
     )
-    print("Deleted file \"" + bucket_file_path +"\" successfully.")
+    #print("Deleted file \"" + bucket_file_path +"\" successfully.")
 
 # abstraction to delete IAM role
 def delete_iam_role(user_session, role_name):
-    print("Deleting IAM role \"" + role_name + "\".")
+    #print("Deleting IAM role \"" + role_name + "\".")
     iam_client = user_session.client("iam")
     # see if role exists
     try:
@@ -99,6 +99,7 @@ def delete_iam_role(user_session, role_name):
     )
     # give time to reflect in IAM
     time.sleep(time_delay)
+    #print("Deleted IAM role \"" + role_name + "\" successfully.")
 
 # abstraction to delete IAM policy
 def delete_iam_policy(user_session, policy_name):
@@ -106,7 +107,7 @@ def delete_iam_policy(user_session, policy_name):
     sts_client = user_session.client("sts")
     account_id = sts_client.get_caller_identity()["Account"]
     
-    print("Deleting IAM policy \"" + policy_name + "\".")
+    #print("Deleting IAM policy \"" + policy_name + "\".")
     iam_client = user_session.client("iam")
     policy_arn = "arn:aws:iam::" + account_id + ":policy/" + policy_name
     # see if policy exists
@@ -120,10 +121,11 @@ def delete_iam_policy(user_session, policy_name):
     )
     # give time to reflect in IAM
     time.sleep(time_delay)
+    #print("Deleted IAM policy \"" + policy_name + "\" successfully.")
 
 # abstraction to create IAM role
 def create_iam_role(user_session, role_name, trust_relationship):
-    print("Creating IAM role \"" + role_name + "\".")
+    #print("Creating IAM role \"" + role_name + "\".")
     iam_client = user_session.client("iam")
     response = iam_client.create_role(
         RoleName=role_name,
@@ -131,14 +133,15 @@ def create_iam_role(user_session, role_name, trust_relationship):
     )
     # give time to reflect in IAM
     time.sleep(time_delay)
-
+    #print("Created IAM role \"" + role_name + "\" successfully.")
+    
 # abstraction to create IAM policy
 def create_iam_policy(user_session, policy_name, policy):
 
     sts_client = user_session.client("sts")
     account_id = sts_client.get_caller_identity()["Account"]
     
-    print("Creating IAM policy \"" + policy_name + "\".")
+    #print("Creating IAM policy \"" + policy_name + "\".")
     iam_client = user_session.client("iam")
     policy_arn = "arn:aws:iam::" + account_id + ":policy/" + policy_name
     response = iam_client.create_policy(
@@ -147,6 +150,7 @@ def create_iam_policy(user_session, policy_name, policy):
     )
     # give time to reflect in IAM
     time.sleep(time_delay)
+    #print("Created IAM policy \"" + policy_name + "\" successfully.")
 
 # abstraction to attach IAM policy to IAM role
 def attach_policy_to_role(user_session, role_name, policy_name):
@@ -154,7 +158,7 @@ def attach_policy_to_role(user_session, role_name, policy_name):
     sts_client = user_session.client("sts")
     account_id = sts_client.get_caller_identity()["Account"]
     
-    print("Attaching IAM policy \"" + policy_name +"\" to IAM role \"" + role_name + "\".")
+    #print("Attaching IAM policy \"" + policy_name +"\" to IAM role \"" + role_name + "\".")
     iam_client = user_session.client("iam")
     policy_arn = "arn:aws:iam::" + account_id + ":policy/" + policy_name
     response = iam_client.attach_role_policy(
@@ -163,6 +167,7 @@ def attach_policy_to_role(user_session, role_name, policy_name):
     )
     # give time to reflect in IAM
     time.sleep(time_delay)
+    #print("Attached IAM policy \"" + policy_name +"\" to IAM role \"" + role_name + "\" successfully.")
 
 # build image using CodeBuild from files in zip file
 def build_image(user_session, bucket_name, zip_file, image_name):
@@ -238,16 +243,16 @@ def build_image(user_session, bucket_name, zip_file, image_name):
         build_response = codebuild_client.batch_get_builds(ids=[response['build']['id']])
         build_status = build_response['builds'][0]['buildStatus']
         if build_status == 'SUCCEEDED':
-            #response = codebuild_client.delete_project(
-            #    name = codebuild_project_name
-            #)
+            response = codebuild_client.delete_project(
+                name = codebuild_project_name
+            )
             print("Image successfully built.")
             print("CodeBuild finished with status " + build_status)
             break
         elif build_status == 'FAILED' or build_status == 'FAULT' or build_status == 'STOPPED' or build_status == 'TIMED_OUT':
-            #response = codebuild_client.delete_project(
-            #    name = codebuild_project_name
-            #)
+            response = codebuild_client.delete_project(
+                name = codebuild_project_name
+            )
             print("Image not successfully built.")
             print("CodeBuild finished with status " + build_status)
             break
@@ -427,7 +432,7 @@ def check_if_image_exists(user_session, repo_name, image_tag):
         )
         print("The image " + "\"" + repo_name + ":" + image_tag + "\"" + " exists.")
         # print details of image
-        print(image_details)
+        #print(image_details)
         return True
     except:
         print("The image " + "\"" + repo_name + ":" + image_tag + "\"" + " does not exist.")
@@ -444,78 +449,8 @@ def check_if_repo_exists(user_session, repo_name):
         )
         print("The repository \"" + repo_name + "\" exists.")
         # print details all images in repo
-        print(repo_details)
+        #print(repo_details)
         return True
     except:
         print("The repository \"" + repo_name + "\" does not exist.")
         return False
-
-# deploy lambda funciton using AWS SAM
-def deploy_lambda_using_sam(user_session, bucket_name, libraries, directory, lambda_name, api_id, memory_size, timeout, python_version):
-    
-    unique_name = lambda_name
-
-    sts_client = user_session.client("sts")
-    account_id = sts_client.get_caller_identity()["Account"]
-    region = user_session.region_name
-
-    template_folder = tempfile.gettempdir() + "/" + unique_name
-
-    repository_name = unique_name + "_repository"
-    image_tag = "v1"
-    stack_name = unique_name + "_stack"
-    function_name = unique_name
-    role_name = unique_name + "_lambda_role"
-    policy_name = unique_name + "_lambda_policy"
-
-    with open(os.path.join(template_folder, "requirements.txt"), "a") as f:
-        for lib in libraries:
-            f.write('%s\n' % lib)
-
-    os.mkdir(template_folder)
-    os.mkdir('/'.join([template_folder, 'app']))
-
-    data = pkg_resources.read_text(sam, 'buildspec.txt')
-    template = Template(data)
-    newdata = template.substitute(
-        account_id=account_id,
-        region=region,
-        repository_name=repository_name,
-        stack_name=stack_name)
-    with open(os.path.join(template_folder, 'buildspec.yml'), 'w') as file:
-        file.write(newdata)
-
-    data = pkg_resources.read_text(sam, 'Dockerfile.txt')
-    template = Template(data)
-    newdata = template.substitute(
-        python_version=python_version,
-        directory=directory)
-    with open(os.path.join('/'.join([template_folder, 'app']), 'Dockerfile'), 'w') as file:
-        file.write(newdata)
-    
-    data = pkg_resources.read_text(sam, 'template.txt')
-    template = Template(data)
-    newdata = template.substitute(
-        image_tag=image_tag,
-        role_name=role_name,
-        policy_name=policy_name,
-        function_name=function_name,
-        memory_size=memory_size,
-        timeout=timeout)
-    with open(os.path.join(template_folder, 'template.yml'), 'w') as file:
-        file.write(newdata)
-
-    shutil.copytree(directory, '/'.join([template_folder, 'app', directory]))
-
-    file_paths = get_all_file_paths_in_directory(template_folder)    # getting list of strings containing paths of all files
-
-    # zipping all files in the temporary folder to be uploaded to the S3 bucket
-    with zipfile.ZipFile(template_folder + ".zip", "w") as zip:
-        for file in file_paths:
-            zip.write(file, file.replace(template_folder, ""))      # ignore temporary file path when copying to zip file
-
-    build_image(user_session, bucket_name, template_folder + ".zip", api_id + "/" + lambda_name)
-
-    os.remove(template_folder + ".zip")    # delete the zip file created in tmp directory
-    if(os.path.isdir(template_folder)):
-        shutil.rmtree(template_folder)
