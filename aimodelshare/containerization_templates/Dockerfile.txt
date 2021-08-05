@@ -1,6 +1,6 @@
 FROM public.ecr.aws/lambda/python:$python_version
 
-COPY $directory/. ./
+COPY lambda_function.py ./
 COPY requirements.txt ./
 
 RUN pip install -r ./requirements.txt

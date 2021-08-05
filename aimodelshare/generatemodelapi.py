@@ -24,8 +24,10 @@ from aimodelshare.modeluser import create_user_getkeyandpassword
 from aimodelshare.preprocessormodules import upload_preprocessor
 from aimodelshare.model import _get_predictionmodel_key, _extract_model_metadata
 from aimodelshare.data_sharing.share_data import share_data_codebuild
+from aimodelshare.containerization import check_if_image_exists
 
-def take_user_info_and_generate_api(model_filepath, model_type, categorical,labels, preprocessor_filepath,custom_libraries, requirements, exampledata_json_filepath):
+
+def take_user_info_and_generate_api(model_filepath, model_type, categorical,labels, preprocessor_filepath,custom_libraries, requirements, exampledata_json_filepath, repo_name, image_tag):
     """
     Generates an api using model parameters and user credentials, from the user
 
@@ -162,7 +164,7 @@ def take_user_info_and_generate_api(model_filepath, model_type, categorical,labe
     # }}}
     
     apiurl = create_prediction_api(model_filepath, unique_model_id,
-                                   model_type, categorical, labels,api_id,custom_libraries, requirements)
+                                   model_type, categorical, labels,api_id,custom_libraries, requirements, repo_name, image_tag)
 
     finalresult = [apiurl["body"], apiurl["statusCode"],
                    now, unique_model_id, os.environ.get("BUCKET_NAME"), input_shape]
@@ -268,7 +270,7 @@ def send_model_data_to_dyndb_and_return_api(api_info, private, categorical, prep
     return print("\n\n" + finalresult2 + "\n" + final_message + web_dashboard_url)
 
 
-def model_to_api(model_filepath, model_type, private, categorical, y_train,preprocessor_filepath,custom_libraries="FALSE", example_data=None):
+def model_to_api(model_filepath, model_type, private, categorical, y_train,preprocessor_filepath,custom_libraries="FALSE", example_data=None, repo_name="aimodelshare-base-image", image_tag="latest"):
     """
       Launches a live prediction REST API for deploying ML models using model parameters and user credentials, provided by the user
       Inputs : 8
@@ -323,6 +325,14 @@ def model_to_api(model_filepath, model_type, private, categorical, y_train,prepr
     #  2. send_model_data_to_dyndb_and_return_api : to add new record to database with user data, model and api related information
 
     # Get user inputs, pass to other functions  {{{
+    user_session = boto3.session.Session(aws_access_key_id=os.environ.get("AWS_ACCESS_KEY_ID"),
+                                          aws_secret_access_key = os.environ.get("AWS_SECRET_ACCESS_KEY"), 
+                                         region_name=os.environ.get("AWS_REGION"))
+
+    if(check_if_image_exists(user_session, repo_name, image_tag)==False):
+        print("Image does not exist.")
+        return
+
     print("We need some information about your model before we can build your REST API and interactive Model Playground.")
     print("   ")
 
@@ -377,7 +387,7 @@ def model_to_api(model_filepath, model_type, private, categorical, y_train,prepr
     # }}}
     
     api_info = take_user_info_and_generate_api( 
-        model_filepath, model_type, categorical, labels,preprocessor_filepath,custom_libraries, requirements, exampledata_json_filepath)
+        model_filepath, model_type, categorical, labels,preprocessor_filepath,custom_libraries, requirements, exampledata_json_filepath, repo_name, image_tag)
 
     ### Progress Update #5/6 {{{
     sys.stdout.write('\r')

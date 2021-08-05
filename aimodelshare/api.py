@@ -12,9 +12,11 @@ import requests
 import sys
 from zipfile import ZipFile, ZIP_STORED, ZipInfo
 import shutil
-from aimodelshare.base_image import lambda_using_base_image
+from aimodelshare.containerization import create_lambda_using_base_image
+from aimodelshare.containerization import deploy_lambda_using_sam
 
-def create_prediction_api(model_filepath, unique_model_id, model_type,categorical, labels, apiid,custom_libraries, requirements):
+def create_prediction_api(model_filepath, unique_model_id, model_type,categorical, labels, apiid, custom_libraries, requirements, repo_name, image_tag):
+
     from zipfile import ZipFile
     import zipfile
     import tempfile
@@ -52,10 +54,10 @@ def create_prediction_api(model_filepath, unique_model_id, model_type,categorica
     # Wait for 5 seconds to ensure aws iam user on user account has time to load into aws's system
     #time.sleep(5)
 
-
     user_session = boto3.session.Session(aws_access_key_id=os.environ.get("AWS_ACCESS_KEY_ID"),
                                           aws_secret_access_key = os.environ.get("AWS_SECRET_ACCESS_KEY"), 
                                          region_name=os.environ.get("AWS_REGION"))
+
     if model_type=='image' :
             model_layer ="arn:aws:lambda:us-east-1:517169013426:layer:keras_image:1"
             eval_layer ="arn:aws:lambda:us-east-1:517169013426:layer:eval_layer_test:6"
@@ -383,11 +385,9 @@ def create_prediction_api(model_filepath, unique_model_id, model_type,categorica
     sys.stdout.write("[============                         ] Progress: 40% - Creating custom containers...                        ")
     sys.stdout.flush()
     # }}}
-
     
     if(any([custom_libraries=='FALSE',custom_libraries=='false'])):
-        from aimodelshare import base_image
-        response6 = lambda_using_base_image(account_number, os.environ.get("AWS_REGION"), user_session, lambdafxnname, 'file_objects', 'requirements.txt',apiid)
+        response6 = create_lambda_using_base_image(user_session, os.getenv("BUCKET_NAME"), 'file_objects', lambdafxnname, apiid, repo_name, image_tag, 1024, 90)
     elif(any([custom_libraries=='TRUE',custom_libraries=='true'])):
 
         requirements = requirements.split(",")
@@ -397,7 +397,9 @@ def create_prediction_api(model_filepath, unique_model_id, model_type,categorica
         with open(os.path.join('file_objects', 'requirements.txt'), 'a') as f:
             for lib in requirements:
                 f.write('%s\n' % lib)
+                
         from aimodelshare import deploy_container
+        #response6 = deploy_lambda_using_sam(user_session, os.getenv("BUCKET_NAME"), requirements, 'file_objects', lambdafxnname, apiid, 1024, 90, "3.7")
         response6 = deploy_container(account_number, os.environ.get("AWS_REGION"), user_session, lambdafxnname, 'file_objects', 'requirements.txt',apiid)
 
     response6evalfxn = lambdaclient.create_function(FunctionName=lambdaevalfxnname, Runtime='python3.7', Role='arn:aws:iam::'+account_number+':role/'+lambdarolename, Handler='main.handler',
