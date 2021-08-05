@@ -5,6 +5,7 @@ import time
 import tempfile
 import zipfile
 from string import Template
+import boto3
 import importlib_resources as pkg_resources
 from . import iam
 from . import sam
@@ -263,7 +264,13 @@ def build_image(user_session, bucket_name, zip_file, image_name):
     delete_file_from_s3(user_session, bucket_name, image_name+'.zip')
 
 # create a base image containing a particular set of libraries in repository with specific image tag
-def build_new_base_image(user_session, bucket_name, libraries, repository, image_tag, python_version):
+def build_new_base_image(libraries, repository, image_tag, python_version):
+
+    user_session = boto3.session.Session(aws_access_key_id=os.environ.get("AWS_ACCESS_KEY_ID"),
+                                         aws_secret_access_key = os.environ.get("AWS_SECRET_ACCESS_KEY"),
+                                         region_name=os.environ.get("AWS_REGION"))
+
+    bucket_name = os.environ.get("BUCKET_NAME")
 
     unique_name = repository + "_" + image_tag
 
