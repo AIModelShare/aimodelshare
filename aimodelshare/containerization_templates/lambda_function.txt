@@ -11,15 +11,6 @@ import zipfile
 import tempfile
 import boto3
 
-
-def get_all_file_paths_in_directory(directory):
-    file_paths = []
-    for root, directories, files in os.walk(directory):
-        for filename in files:
-            filepath = os.path.join(root, filename)
-            file_paths.append(filepath)
-    return file_paths
-
 temp_path = tempfile.gettempdir()
 
 bucket = os.getenv("bucket")
@@ -37,27 +28,13 @@ response = s3_client.download_file(
   temp_path_directory_zip_file
 )
 
-print(get_all_file_paths_in_directory(os.getcwd()))
-
-print(get_all_file_paths_in_directory(temp_path))
-
 with zipfile.ZipFile(temp_path_directory_zip_file, 'r') as zip_ref:
     zip_ref.extractall(temp_path)
-
-print(get_all_file_paths_in_directory(temp_path))
-
-print(os.getcwd())
-
-print(temp_path)
 
 sys.path.append(temp_path)
 from model import handler
 
-print(os.getcwd())
-
-print(get_all_file_paths_in_directory(os.getcwd()))
-
-
 def lambda_handler(event, context):
+    print("lambda_handler from containerization_templates")
     result = handler(event, context)
     return result

@@ -196,7 +196,7 @@ def build_image(user_session, bucket_name, zip_file, image_name):
     # creating CodeBuild project
     # specify which zip to be sourced from S3 that contains all the files to create the image
     # and specify the Linux environment that will be used to build the image
-    codebuild_project_name = 'codebuild_' + image_name + '_project'
+    codebuild_project_name = 'codebuild_' + image_name.replace("/", "_") + '_project'
     codebuild_client = user_session.client("codebuild")
     counter=1
     while(counter<=3):
@@ -412,8 +412,9 @@ def create_lambda_using_base_image(user_session, bucket_name, directory, lambda_
             else:
                 print("Lambda function did not reflected.")
 
-    os.remove(temp_dir + ".zip")     # delete the zip file created in tmp directory
-    shutil.rmtree(temp_dir)      # delete the temporary folder created in tmp directory
+    os.remove(temp_dir + ".zip")    # delete the zip file created in tmp directory
+    if(os.path.isdir(temp_dir)):    # delete the temporary folder created in tmp directory
+        shutil.rmtree(temp_dir)
 
 # check if the image exists in the specified repository with specified image tag
 def check_if_image_exists(user_session, repo_name, image_tag):
@@ -452,7 +453,7 @@ def check_if_repo_exists(user_session, repo_name):
 # deploy lambda funciton using AWS SAM
 def deploy_lambda_using_sam(user_session, bucket_name, libraries, directory, lambda_name, api_id, memory_size, timeout, python_version):
     
-    unique_name = lambda_namedirectory
+    unique_name = lambda_name
 
     sts_client = user_session.client("sts")
     account_id = sts_client.get_caller_identity()["Account"]
@@ -515,5 +516,6 @@ def deploy_lambda_using_sam(user_session, bucket_name, libraries, directory, lam
 
     build_image(user_session, bucket_name, template_folder + ".zip", api_id + "/" + lambda_name)
 
+    os.remove(template_folder + ".zip")    # delete the zip file created in tmp directory
     if(os.path.isdir(template_folder)):
         shutil.rmtree(template_folder)
