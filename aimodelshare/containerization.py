@@ -267,6 +267,11 @@ def build_new_base_image(user_session, bucket_name, libraries, repository, image
 
     unique_name = repository + "_" + image_tag
 
+    try:
+        create_repository(user_session, repository)
+    except:
+        print("Repository already exists.")
+
     sts_client = user_session.client("sts")
     account_id = sts_client.get_caller_identity()["Account"]
     region = user_session.region_name
