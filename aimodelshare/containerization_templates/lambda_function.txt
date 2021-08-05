@@ -37,7 +37,7 @@ response = s3_client.download_file(
   temp_path_directory_zip_file
 )
 
-print(get_all_file_paths_in_directory("./"))
+print(get_all_file_paths_in_directory(os.getcwd()))
 
 print(get_all_file_paths_in_directory(temp_path))
 
@@ -46,8 +46,17 @@ with zipfile.ZipFile(temp_path_directory_zip_file, 'r') as zip_ref:
 
 print(get_all_file_paths_in_directory(temp_path))
 
+print(os.getcwd())
+
+print(temp_path)
+
 sys.path.append(temp_path)
 from model import handler
+
+print(os.getcwd())
+
+print(get_all_file_paths_in_directory(os.getcwd()))
+
 
 def lambda_handler(event, context):
     result = handler(event, context)
