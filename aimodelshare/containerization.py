@@ -5,8 +5,10 @@ import time
 import tempfile
 import zipfile
 from string import Template
+import sys
 import boto3
 import importlib_resources as pkg_resources
+
 from . import iam
 from . import sam
 from . import containerization_templates
@@ -226,6 +228,9 @@ def build_image(user_session, bucket_name, zip_file, image_name):
                 },
                 serviceRole=role_name    # role that CodeBuild will use to build project
             )
+            response = codebuild_client.start_build(
+                projectName = codebuild_project_name
+            )
             break
         except:
             counter+=1
@@ -234,31 +239,33 @@ def build_image(user_session, bucket_name, zip_file, image_name):
                 time.sleep(time_delay)
             else:
                 print("CodeBuild project creation failed.")
-
-    response = codebuild_client.start_build(
-        projectName = codebuild_project_name
-    )
+                delete_file_from_s3(user_session, bucket_name, image_name+'.zip')   # delete zip file from S3 bucket
+                return
 
     # running through loop while build status shows termination/successful completion
+    counter=0
     while(True):
         build_response = codebuild_client.batch_get_builds(ids=[response['build']['id']])
         build_status = build_response['builds'][0]['buildStatus']
         if build_status == 'SUCCEEDED':
-            response = codebuild_client.delete_project(
+            response = codebuild_client.delete_project(     # delete CodeBuild project after process completes
                 name = codebuild_project_name
             )
             print("Image successfully built.")
             print("CodeBuild finished with status " + build_status)
             break
         elif build_status == 'FAILED' or build_status == 'FAULT' or build_status == 'STOPPED' or build_status == 'TIMED_OUT':
-            response = codebuild_client.delete_project(
+            response = codebuild_client.delete_project(     # delete CodeBuild project after process completes
                 name = codebuild_project_name
             )
             print("Image not successfully built.")
             print("CodeBuild finished with status " + build_status)
-            break
-        print("Waiting...")
-        time.sleep(time_delay)
+            break        
+        sys.stdout.write('\r')
+        sys.stdout.write("Waiting" + "."*counter)
+        sys.stdout.flush()
+        counter=(counter+1)%4
+        time.sleep(1)
 
     # delete zip file from S3 bucket
     delete_file_from_s3(user_session, bucket_name, image_name+'.zip')

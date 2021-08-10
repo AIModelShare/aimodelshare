@@ -56,8 +56,10 @@ def create_prediction_api(model_filepath, unique_model_id, model_type,categorica
     user_session = boto3.session.Session(aws_access_key_id=os.environ.get("AWS_ACCESS_KEY_ID"),
                                           aws_secret_access_key = os.environ.get("AWS_SECRET_ACCESS_KEY"), 
                                          region_name=os.environ.get("AWS_REGION"))
-
-    if model_type=='image' :
+    if(model_type=="neural style transfer"):
+            eval_layer ="arn:aws:lambda:us-east-1:517169013426:layer:eval_layer_test:6"
+            auth_layer ="arn:aws:lambda:us-east-1:517169013426:layer:aimsauth_layer:2"
+    elif model_type=='image' :
             model_layer ="arn:aws:lambda:us-east-1:517169013426:layer:keras_image:1"
             eval_layer ="arn:aws:lambda:us-east-1:517169013426:layer:eval_layer_test:6"
             auth_layer ="arn:aws:lambda:us-east-1:517169013426:layer:aimsauth_layer:2"
@@ -120,7 +122,13 @@ def create_prediction_api(model_filepath, unique_model_id, model_type,categorica
 
 
     # write main handlers
-    if model_type == 'text' and categorical == 'TRUE':
+    if(model_type == "neural style transfer"):
+            data = pkg_resources.read_text(main, 'nst.txt')
+            from string import Template
+            t = Template(data)
+            newdata = t.substitute(
+                bucket_name=os.environ.get("BUCKET_NAME"), unique_model_id=unique_model_id)
+    elif model_type == 'text' and categorical == 'TRUE':
             data = pkg_resources.read_text(main, '1.txt')
             from string import Template
             t = Template(data)
@@ -138,14 +146,12 @@ def create_prediction_api(model_filepath, unique_model_id, model_type,categorica
             t = Template(data)            
             newdata = t.substitute(
                 bucket_name=os.environ.get("BUCKET_NAME"), unique_model_id=unique_model_id, labels=labels)
-
     elif model_type == 'image' and categorical == 'FALSE':
             data = pkg_resources.read_text(main, '3.txt')
             from string import Template
             t = Template(data)
             newdata = t.substitute(
                 bucket_name=os.environ.get("BUCKET_NAME"), unique_model_id=unique_model_id)
-
     elif all([model_type == 'tabular', categorical == 'TRUE']):
             data = pkg_resources.read_text(main, '4.txt')
             from string import Template
