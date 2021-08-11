@@ -122,6 +122,9 @@ def predict(event,model,preprocessor):
         fh.write(base64.b64decode(style))
     style_image = preprocessor("/tmp/imagetopredict."+style_file_type)
 
+    content_image = tf.convert_to_tensor(content_image)
+    style_image = tf.convert_to_tensor(style_image)
+
 # Generate prediction using preprocessed input data
     print("The model expects input shape:", model.get_inputs()[0].shape)
     input_name = model.get_inputs()[0].name
