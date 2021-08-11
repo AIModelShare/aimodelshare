@@ -14,6 +14,7 @@ import os.path
 from os import path
 from io import BytesIO
 from PIL import Image
+import tensorflow as tf
 
 def get_model_onnx(runtimemodel_s3_filename="runtime_model.onnx"):
     s3 = boto3.resource('s3')
