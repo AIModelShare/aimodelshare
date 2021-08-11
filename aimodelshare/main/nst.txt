@@ -14,7 +14,6 @@ import os.path
 from os import path
 from io import BytesIO
 from PIL import Image
-import tensorflow as tf
 
 def get_model_onnx(runtimemodel_s3_filename="runtime_model.onnx"):
     s3 = boto3.resource('s3')
@@ -123,15 +122,12 @@ def predict(event,model,preprocessor):
         fh.write(base64.b64decode(style))
     style_image = preprocessor("/tmp/imagetopredict."+style_file_type)
 
-    content_image = tf.convert_to_tensor(content_image)
-    style_image = tf.convert_to_tensor(style_image)
-
 # Generate prediction using preprocessed input data
     print("The model expects input shape:", model.get_inputs()[0].shape)
     input_name = model.get_inputs()[0].name
     res = model.run(None, {
-        "placeholder": content_image.numpy(),
-        "placeholder_1": style_image.numpy()
+        "placeholder": content_image,
+        "placeholder_1": style_image
     })
     
     pil_img = tf.keras.preprocessing.image.array_to_img(res[0].squeeze(axis=0))
