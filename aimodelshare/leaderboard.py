@@ -177,19 +177,29 @@ def stylize_leaderboard(leaderboard, category="classficiation"):
 
     # Setting percentage columns' properties {{{
     if category == "regression":
-        percent_cols = ["r2"]
-        percent_colors = ["#f5f8d6"]
+        percent_cols = ["mse", 'rmse', 'mae', "r2"]
+        percent_colors = ["#f5f8d6", "#c778c8", "#ff4971", "#aadbaa"]
+
+        percent_props = {"color": "#251e1b", "font-size": "12px"}
+
+        for col, color in zip(percent_cols, percent_colors):
+            board = board.bar(align="left", color=color, subset=col, vmin=0, vmax=leaderboard[col].max())
+
+        board = board.set_properties(**percent_props, subset=percent_cols)
+        board = board.format(lambda x: "{:.2f}".format(x), subset=percent_cols)
+
+
     else:
         percent_cols = ["accuracy", "f1_score", "precision", "recall"]
         percent_colors = ["#f5f8d6", "#c778c8", "#ff4971", "#aadbaa"]
 
-    percent_props = {"color": "#251e1b", "font-size": "12px"}
+        percent_props = {"color": "#251e1b", "font-size": "12px"}
 
-    for col, color in zip(percent_cols, percent_colors):
-        board = board.bar(align="left", color=color, subset=col, vmin=0, vmax=1)
+        for col, color in zip(percent_cols, percent_colors):
+            board = board.bar(align="left", color=color, subset=col, vmin=0, vmax=1)
 
-    board = board.set_properties(**percent_props, subset=percent_cols)
-    board = board.format(lambda x: "{:.2f}%".format(x * 100), subset=percent_cols)
+        board = board.set_properties(**percent_props, subset=percent_cols)
+        board = board.format(lambda x: "{:.2f}%".format(x * 100), subset=percent_cols)
     # }}}
 
     return board
