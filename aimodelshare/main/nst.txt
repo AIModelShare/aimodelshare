@@ -14,7 +14,6 @@ import os.path
 from os import path
 from io import BytesIO
 from PIL import Image
-import tensorflow as tf
 
 def get_model_onnx(runtimemodel_s3_filename="runtime_model.onnx"):
     s3 = boto3.resource('s3')
@@ -131,7 +130,7 @@ def predict(event,model,preprocessor):
         "placeholder_1": style_image
     })
     
-    pil_img = tf.keras.preprocessing.image.array_to_img(res[0].squeeze(axis=0))
+    pil_img = Image.fromarray(np.uint8(res[0].squeeze(axis=0)*255))
     buffered = BytesIO()
     pil_img.save(buffered, format="JPEG")
     img_str = base64.b64encode(buffered.getvalue())
