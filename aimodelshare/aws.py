@@ -266,7 +266,7 @@ def configure_credentials():
     f.write(formatted_userpass + formatted_new_creds)
     f.close()
     
-    return print("Configuration successful. New credentials file saved as 'Credentials.txt'")
+    return print("Configuration successful. New credentials file saved as 'credentials.txt'")
 
 __all__ = [
     get_aws_token,

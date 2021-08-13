@@ -32,7 +32,7 @@ class ModelPlayground:
     def __str__(self):
         return f"ModelPlayground instance of model type: {self.model_type}, classification: {self.categorical},  private: {self.private}"
     
-    def deploy(self, model_filepath, preprocessor_filepath, y_train, custom_libraries = "FALSE", example_data=None):
+    def deploy(self, model_filepath, preprocessor_filepath, y_train, example_data=None, custom_libraries = "FALSE"):
         """
         Launches a live prediction REST API for deploying ML models using model parameters and user credentials, provided by the user
         Inputs : 8
@@ -78,8 +78,8 @@ class ModelPlayground:
                                       categorical = self.categorical,
                                       y_train = y_train, 
                                       preprocessor_filepath = preprocessor_filepath, 
-                                      custom_libraries = custom_libraries,
-                                      example_data = example_data)
+                                      example_data = example_data,
+                                      custom_libraries = custom_libraries)
         #remove extra quotes
         self.playground_url = self.playground_url[1:-1]
     
