@@ -241,12 +241,38 @@ def get_token(username, password):
       token =requests.post(api_url,headers=headers,data=json.dumps({"action": "login", "request":newdata}))
       return token.text
 
+def configure_credentials(): 
+    import getpass
+    user = getpass.getpass(prompt="AI Modelshare Username:")
+    pw = getpass.getpass(prompt="AI Modelshare Password:")
+    input_AWS_ACCESS_KEY_ID = getpass.getpass(prompt="AWS_ACCESS_KEY_ID:")
+    input_AWS_SECRET_ACCESS_KEY = getpass.getpass(prompt="AWS_SECRET_ACCESS_KEY:")
+    input_AWS_REGION = getpass.getpass(prompt="AWS_REGION:")
+    
+    
+    #Format output text
+    formatted_userpass = ('[aimodelshare_creds] \n'
+                          'username = "' + user + '"\n'
+                          'password = "' + pw + '"\n\n')
 
+    formatted_new_creds = ("#Deploy Credentials \n"
+                    '[deploy_model]\n'
+                    'AWS_ACCESS_KEY_ID = "' + input_AWS_ACCESS_KEY_ID + '"\n'
+                    'AWS_SECRET_ACCESS_KEY = "' + input_AWS_SECRET_ACCESS_KEY +'"\n'
+                    'AWS_REGION = "' + input_AWS_REGION + '"\n')
+    
+    # Generate .txt file with new credentials 
+    f= open("credentials.txt","w+")
+    f.write(formatted_userpass + formatted_new_creds)
+    f.close()
+    
+    return print("Configuration successful. New credentials file saved as 'Credentials.txt'")
 
 __all__ = [
     get_aws_token,
     get_aws_client,
     run_function_on_lambda,
     get_s3_iam_client,
-    set_credentials
+    set_credentials,
+    configure_credentials
 ]
