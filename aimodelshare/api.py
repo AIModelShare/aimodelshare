@@ -14,7 +14,7 @@ from zipfile import ZipFile, ZIP_STORED, ZipInfo
 import shutil
 from aimodelshare.base_image import lambda_using_base_image
 
-def create_prediction_api(model_filepath, unique_model_id, model_type,categorical, labels, apiid,custom_libraries, requirements):
+def create_prediction_api(model_filepath, unique_model_id, model_type, task_type, labels, apiid,custom_libraries, requirements):
     from zipfile import ZipFile
     import zipfile
     import tempfile
@@ -48,7 +48,7 @@ def create_prediction_api(model_filepath, unique_model_id, model_type,categorica
     else:
       pass 
     model_type = model_type.lower()
-    categorical = categorical.upper()
+    task_type = task_type.lower()
     # Wait for 5 seconds to ensure aws iam user on user account has time to load into aws's system
     #time.sleep(5)
 
@@ -119,57 +119,57 @@ def create_prediction_api(model_filepath, unique_model_id, model_type,categorica
 
 
     # write main handlers
-    if model_type == 'text' and categorical == 'TRUE':
+    if model_type == 'text' and task_type == 'classification':
             data = pkg_resources.read_text(main, '1.txt')
             from string import Template
             t = Template(data)
             newdata = t.substitute(
                 bucket_name=os.environ.get("BUCKET_NAME"), unique_model_id=unique_model_id, labels=labels)
-    elif model_type == 'text' and categorical == 'FALSE':
+    elif model_type == 'text' and task_type == 'regression':
             data = pkg_resources.read_text(main, '1B.txt')
             from string import Template
             t = Template(data)
             newdata = t.substitute(
                 bucket_name=os.environ.get("BUCKET_NAME"), unique_model_id=unique_model_id)
-    elif model_type == 'image' and categorical == 'TRUE':
+    elif model_type == 'image' and task_type == 'classification':
             data = pkg_resources.read_text(main, '2.txt')
             from string import Template
             t = Template(data)            
             newdata = t.substitute(
                 bucket_name=os.environ.get("BUCKET_NAME"), unique_model_id=unique_model_id, labels=labels)
 
-    elif model_type == 'image' and categorical == 'FALSE':
+    elif model_type == 'image' and task_type == 'regression':
             data = pkg_resources.read_text(main, '3.txt')
             from string import Template
             t = Template(data)
             newdata = t.substitute(
                 bucket_name=os.environ.get("BUCKET_NAME"), unique_model_id=unique_model_id)
 
-    elif all([model_type == 'tabular', categorical == 'TRUE']):
+    elif all([model_type == 'tabular', task_type == 'classification']):
             data = pkg_resources.read_text(main, '4.txt')
             from string import Template
             t = Template(data)
             newdata = t.substitute(
                 bucket_name=os.environ.get("BUCKET_NAME"), unique_model_id=unique_model_id, labels=labels)
-    elif all([model_type == 'tabular', categorical == 'FALSE']):
+    elif all([model_type == 'tabular', task_type == 'regression']):
             data = pkg_resources.read_text(main, '5.txt')
             from string import Template
             t = Template(data)
             newdata = t.substitute(
                 bucket_name=os.environ.get("BUCKET_NAME"), unique_model_id=unique_model_id)
-    elif model_type.lower() == 'timeseries' and categorical == 'FALSE':
+    elif model_type.lower() == 'timeseries' and task_type == 'regression':
             data = pkg_resources.read_text(main, '6.txt')
             from string import Template
             t = Template(data)
             newdata = t.substitute(
                 bucket_name=os.environ.get("BUCKET_NAME"), unique_model_id=unique_model_id)
-    elif model_type.lower() == 'audio' and categorical == 'TRUE':
+    elif model_type.lower() == 'audio' and task_type == 'classification':
             data = pkg_resources.read_text(main, '7.txt')
             from string import Template
             t = Template(data)
             newdata = t.substitute(
                 bucket_name=os.environ.get("BUCKET_NAME"), unique_model_id=unique_model_id, labels=labels)
-    elif model_type.lower() == 'video' and categorical == 'TRUE':
+    elif model_type.lower() == 'video' and task_type == 'classification':
             data = pkg_resources.read_text(main, '8.txt')
             from string import Template
             t = Template(data)
@@ -217,11 +217,12 @@ def create_prediction_api(model_filepath, unique_model_id, model_type,categorica
       pass   
 
     # Upload model eval lambda function zipfile to user's model file folder on s3
+    # use task_type
     data = pkg_resources.read_text(main, 'eval_lambda.txt')
     from string import Template
     t = Template(data)
     newdata = t.substitute(
-        bucket_name=os.environ.get("BUCKET_NAME"), unique_model_id=unique_model_id,classification=categorical, categorical=categorical)
+        bucket_name=os.environ.get("BUCKET_NAME"), unique_model_id=unique_model_id, task_type=task_type)
     with open(os.path.join(temp_dir, 'main.py'), 'w') as file:
         file.write(newdata)
 
@@ -253,11 +254,11 @@ def create_prediction_api(model_filepath, unique_model_id, model_type,categorica
       pass  
 
     # Upload model eval lambda function zipfile to user's model file folder on s3
-    if categorical == 'TRUE':
+    if task_type == 'classification':
             newdata = pkg_resources.read_text(main, 'authorization.txt')
             with open(os.path.join(temp_dir, 'main.py'), 'w') as file:
                 file.write(newdata)
-    elif categorical == 'FALSE':
+    elif task_type == 'regression':
             newdata = pkg_resources.read_text(main, 'authorization.txt')
             with open(os.path.join(temp_dir, 'main.py'), 'w') as file:
                 file.write(newdata)

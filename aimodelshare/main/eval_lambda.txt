@@ -109,11 +109,10 @@ def handler(event, context):
 
     if body.get("get_leaderboard","ALL") == "True": 
         
-        category=body["category"]
         verbose=body["verbose"]
         columns=body["columns"]
     
-        leaderboard = get_leaderboard(category, verbose, columns)
+        leaderboard = get_leaderboard("$task_type", verbose, columns)
         
         leaderboard_dict = {"statusCode": 200,
             "headers": {
@@ -128,17 +127,17 @@ def handler(event, context):
         
     if body.get("leaderboard","ALL") == "TRUE":  
 
-        leaderboarddata=get_leaderboarddata_json(yleaderboard_s3_filename="model_eval_data_mastertable.csv")
-        result=get_leaderboard_json(leaderboarddata,category=category, verbose=verbose, columns=columns)
+        leaderboard = get_leaderboard("$task_type")
+        
         leaderboard_dict = {"statusCode": 200,
-                "headers": {
-                "Access-Control-Allow-Origin" : "*",
-                "Access-Control-Allow-Credentials": True,
-                "Allow" : "GET, OPTIONS, POST",
-                "Access-Control-Allow-Methods" : "GET, OPTIONS, POST",
-                "Access-Control-Allow-Headers" : "*"},
-                "body": json.dumps(result)
-                }
+            "headers": {
+            "Access-Control-Allow-Origin" : "*",
+            "Access-Control-Allow-Credentials": True,
+            "Allow" : "GET, OPTIONS, POST",
+            "Access-Control-Allow-Methods" : "GET, OPTIONS, POST",
+            "Access-Control-Allow-Headers" : "*"},
+            "body":  leaderboard.to_json(orient="table")
+            }
         return leaderboard_dict 
         
 ####################################################################
@@ -167,9 +166,9 @@ import importlib
 
 #from s3connect import get_onnx_mem
 
-def analyze_ytest(ytestdata, classification="$categorical"):
+def analyze_ytest(ytestdata, task_type="$task_type"):
     
-    if classification=="TRUE":
+    if task_type=="classification":
          
         class_labels = list(set(ytestdata))
         class_balance = Counter(ytestdata)
@@ -197,9 +196,9 @@ def analyze_ytest(ytestdata, classification="$categorical"):
     return y_stats
 
 
-def model_eval_metrics(y_true, y_pred, classification="$categorical"):
+def model_eval_metrics(y_true, y_pred, task_type="$task_type"):
 
-    if classification=="TRUE":
+    if task_type=="classification":
         try:
             accuracy_eval = accuracy_score(y_true, y_pred)
         except:
@@ -268,7 +267,7 @@ def evaluate_model(body, ytestdata):
     else:
         prediction_list = body["y_pred"]
 
-    result=model_eval_metrics(ytestdata,prediction_list,classification="$categorical")
+    result=model_eval_metrics(ytestdata,prediction_list,task_type="$task_type")
     return result
     
     
@@ -540,7 +539,7 @@ def model_from_string(model_type):
     return model_class
 
 
-def get_leaderboard(category="classification", verbose=3, columns=None):
+def get_leaderboard(task_type="$task_type", verbose=3, columns=None):
     
     s3 = boto3.resource("s3")
     bucket = s3.Bucket("$bucket_name")
@@ -557,7 +556,7 @@ def get_leaderboard(category="classification", verbose=3, columns=None):
     	leaderboard = leaderboard.filter(clf+reg+columns+other)
 
 
-    if category == "classification":
+    if task_type == "classification":
         leaderboard_eval_metrics = leaderboard[clf]
     else:
         leaderboard_eval_metrics = leaderboard[reg]
@@ -572,7 +571,7 @@ def get_leaderboard(category="classification", verbose=3, columns=None):
     	leaderboard = leaderboard.filter(regex=("^(?!.*_act)"))
 
 
-    if category == "classification":
+    if task_type == "classification":
         sort_cols = ["accuracy", "f1_score", "precision", "recall"]
         #leaderboard = leaderboard.drop(columns = ['mse', 'rmse', 'mae', 'r2'])
 
@@ -595,68 +594,6 @@ def get_leaderboard(category="classification", verbose=3, columns=None):
     # }}}
 
     return leaderboard
-
-def get_leaderboarddata_json(yleaderboard_s3_filename="model_eval_data_mastertable.csv"):
-  s3 = boto3.resource("s3")
-  bucket = s3.Bucket("$bucket_name")
-
-  with open("/tmp/model_eval_data_mastertable.csv", "wb") as yleaderboardfo:
-      bucket.download_fileobj("$unique_model_id/model_eval_data_mastertable.csv",  yleaderboardfo)
-  yleaderboarddata = pd.read_csv(open("/tmp/model_eval_data_mastertable.csv", "rb" ) ,sep='\t')
-  return yleaderboarddata
-
-
-def get_leaderboard_json(leaderboard,category="$classification", 
-	verbose=3, columns=None):
-    # Get bucket and model_id for user {{{
-
-    try:
-        if columns:
-        	clf =["accuracy", "f1_score", "precision", "recall"]
-        	reg = ['mse', 'rmse', 'mae', 'r2']
-        	other = ['timestamp']
-        	leaderboard = leaderboard.filter(clf+reg+columns+other)
-
-        leaderboard = leaderboard.replace(0,np.nan).dropna(axis=1,how="all")
-
-        if verbose == 1:
-        	leaderboard = leaderboard.filter(regex=("^(?!.*(_layers|_act))"))
-        elif verbose == 2:
-        	leaderboard = leaderboard.filter(regex=("^(?!.*_act)"))
-
-
-    except Exception as err:
-        raise err
-    # }}}
-
-    # Specifying problem wise columns {{{
-    if category == "classification":
-        sort_cols = ["accuracy", "f1_score", "precision", "recall"]
-        #leaderboard = leaderboard.drop(columns = ['mse', 'rmse', 'mae', 'r2'])
-
-    else:
-        sort_cols = ["-mae", "r2"]
-        #leaderboard = leaderboard.drop(columns = ["accuracy", "f1_score", "precision", "recall"])
-
-    # }}}
-
-    # Sorting leaderboard {{{
-    ranks = []
-    for col in sort_cols:
-        ascending = False
-        if col[0] == "-":
-            col = col[1:]
-            ascending = True
-
-        ranks.append(leaderboard[col].rank(method="dense", ascending=ascending))
-
-    ranks = np.mean(ranks, axis=0)
-    order = np.argsort(ranks)
-
-    leaderboard = leaderboard.loc[order].reset_index().drop("index", axis=1)
-    # }}}
-
-    return leaderboard.to_json(orient="table")
 
 
 
