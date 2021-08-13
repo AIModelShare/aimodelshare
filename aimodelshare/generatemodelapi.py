@@ -248,7 +248,7 @@ def send_model_data_to_dyndb_and_return_api(api_info, private, categorical, prep
 
     # Build output {{{
     final_message = ("\nYou can now use your Model Playground.\n\n"
-                     "To explore your Model Playground's functionality, follow this link:\n"
+                     "Follow this link to explore your Model Playground's functionality\n"
                      "You can make predictions with the Dashboard and access example code from the Programmatic tab.\n")
     web_dashboard_url = ("https://www.modelshare.org/detail/"+ response_string)
     
@@ -256,7 +256,7 @@ def send_model_data_to_dyndb_and_return_api(api_info, private, categorical, prep
     end = datetime.datetime.now()
     difference = (end - start).total_seconds()
     finalresult2 = "Success! Your Model Playground was created in " + \
-        str(int(difference)) + " seconds. \n" + " API Url: " + api_info[0] + "\n"
+        str(int(difference)) + " seconds. \n" + " Playground Url: " + api_info[0] 
 
 
     # }}}
