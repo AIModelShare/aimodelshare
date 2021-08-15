@@ -10,8 +10,9 @@ from .generatemodelapi import model_to_api
 from .containerisation import deploy_container
 from .api import create_prediction_api
 from .data_sharing.download_data import download_data
-from .data_sharing.share_data import share_data_codebuild
+from .data_sharing.share_data import share_data_codebuild, share_dataset
 from .deploy_custom_lambda import deploy_custom_lambda
+from .object_oriented import ModelPlayground, Competition, Data
 #import .sam as sam
 
 __all__ = [
@@ -34,10 +35,15 @@ __all__ = [
     export_preprocessor,
     download_data,
     share_data_codebuild,
+    share_dataset,
     # Tools
     get_model_graph,
     # Containerisation
     deploy_container,
     create_prediction_api,
-    deploy_custom_lambda
+    deploy_custom_lambda,
+    # Object Oriented
+    ModelPlayground,
+    Competition,
+    Data
 ]

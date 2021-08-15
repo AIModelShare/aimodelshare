@@ -506,114 +506,69 @@ def create_prediction_api(model_filepath, unique_model_id, model_type, task_type
 
     # Create and or update lambda and apigateway gateway roles
 
+
     lambdarole2 = {u'Version': u'2012-10-17', u'Statement': [{u'Action': u'sts:AssumeRole', u'Principal': {
         u'Service': [u'lambda.amazonaws.com', u'apigateway.amazonaws.com']}, u'Effect': u'Allow', u'Sid': u''}]}
-    if str(roles['Roles']).find("lambda_invoke_function_assume_apigw_role") > 0:
-        response11 = user_session.client('apigateway').put_integration(
-            restApiId=api_id,
-            resourceId=resource_id,
-            httpMethod='POST',
-            type='AWS_PROXY',
-            integrationHttpMethod='POST',
-            uri='arn:aws:apigateway:us-east-1:lambda:path/2015-03-31/functions/arn:aws:lambda:us-east-1:' +
-            account_number+':function:'+lambdafxnname+'/invocations',
-            credentials='arn:aws:iam::'+account_number+':role/lambda_invoke_function_assume_apigw_role')
-        response11_1 = user_session.client('apigateway').put_integration(
-            restApiId=api_id,
-            resourceId=resource_id,
-            httpMethod='OPTIONS',
-            type='MOCK',
-            requestTemplates={
-                'application/json': '{"statusCode": 200}'
-            },
-            integrationHttpMethod='OPTIONS',
-            uri='arn:aws:apigateway:us-east-1:lambda:path/2015-03-31/functions/arn:aws:lambda:us-east-1:' +
-            account_number+':function:'+lambdafxnname+'/invocations',
-            credentials='arn:aws:iam::'+account_number+':role/lambda_invoke_function_assume_apigw_role')
-        response11_1B = user_session.client('apigateway').put_integration(
-            restApiId=api_id,
-            resourceId=resource_id,
-            httpMethod='OPTIONS',
-            type='MOCK',
-            requestTemplates={
-                'application/json': '{"statusCode": 200}'
-            }
-        )
-        response11_1C = user_session.client('apigateway').put_integration_response(
-            restApiId=api_id,
-            resourceId=resource_id,
-            httpMethod='OPTIONS',
-            statusCode='200',
-            responseParameters={
-                'method.response.header.Access-Control-Allow-Headers': '\'Content-Type,X-Amz-Date,authorizationToken,Access-Control-Allow-Origin,X-Api-Key,X-Amz-Security-Token\'',
-                'method.response.header.Access-Control-Allow-Methods': '\'POST,OPTIONS\'',
-                'method.response.header.Access-Control-Allow-Origin': '\'*\''
-            },
-            responseTemplates={
-                'application/json': '{"statusCode": 200}'
-            }
-        )
-        response11_2 = user_session.client('iam').put_role_policy(
-            PolicyDocument='{"Version":"2012-10-17","Statement":{"Effect":"Allow","Action":"lambda:InvokeFunction","Resource":"*"}}',
-            PolicyName='invokelambda',
-            RoleName='lambda_invoke_function_assume_apigw_role',
-        )
-    else:
 
+    if str(roles['Roles']).find("lambda_invoke_function_assume_apigw_role") > 0:
+        None
+    else:
         response10 = user_session.resource('iam').create_role(
             AssumeRolePolicyDocument=json.dumps(lambdarole2),
             Path='/',
             RoleName='lambda_invoke_function_assume_apigw_role',
         )
-        response11 = user_session.client('apigateway').put_integration(
-            restApiId=api_id,
-            resourceId=resource_id,
-            httpMethod='POST',
-            type='AWS_PROXY',
-            integrationHttpMethod='POST',
-            uri='arn:aws:apigateway:us-east-1:lambda:path/2015-03-31/functions/arn:aws:lambda:us-east-1:' +
-            account_number+':function:'+lambdafxnname+'/invocations',
-            credentials='arn:aws:iam::'+account_number+':role/lambda_invoke_function_assume_apigw_role')
-        response11_1 = user_session.client('apigateway').put_integration(
-            restApiId=api_id,
-            resourceId=resource_id,
-            httpMethod='OPTIONS',
-            type='MOCK',
-            requestTemplates={
-                'application/json': '{"statusCode": 200}'
-            },
-            integrationHttpMethod='OPTIONS',
-            uri='arn:aws:apigateway:us-east-1:lambda:path/2015-03-31/functions/arn:aws:lambda:us-east-1:' +
-            account_number+':function:'+lambdafxnname+'/invocations',
-            credentials='arn:aws:iam::'+account_number+':role/lambda_invoke_function_assume_apigw_role')
-        response11_1B = user_session.client('apigateway').put_integration(
-            restApiId=api_id,
-            resourceId=resource_id,
-            httpMethod='OPTIONS',
-            type='MOCK',
-            requestTemplates={
-                'application/json': '{"statusCode": 200}'
-            }
-        )
-        response11_1C = user_session.client('apigateway').put_integration_response(
-            restApiId=api_id,
-            resourceId=resource_id,
-            httpMethod='OPTIONS',
-            statusCode='200',
-            responseParameters={
-                'method.response.header.Access-Control-Allow-Headers': '\'Content-Type,X-Amz-Date,authorizationToken,Access-Control-Allow-Origin,X-Api-Key,X-Amz-Security-Token\'',
-                'method.response.header.Access-Control-Allow-Methods': '\'POST,OPTIONS\'',
-                'method.response.header.Access-Control-Allow-Origin': '\'*\''
-            },
-            responseTemplates={
-                'application/json': '{"statusCode": 200}'
-            }
-        )
-        response11_2 = user_session.client('iam').put_role_policy(
-            PolicyDocument='{"Version":"2012-10-17","Statement":{"Effect":"Allow","Action":"lambda:InvokeFunction","Resource":"*"}}',
-            PolicyName='invokelambda',
-            RoleName='lambda_invoke_function_assume_apigw_role',
-        )
+        time.sleep(10)
+
+    response11 = user_session.client('apigateway').put_integration(
+        restApiId=api_id,
+        resourceId=resource_id,
+        httpMethod='POST',
+        type='AWS_PROXY',
+        integrationHttpMethod='POST',
+        uri='arn:aws:apigateway:us-east-1:lambda:path/2015-03-31/functions/arn:aws:lambda:us-east-1:' +
+        account_number+':function:'+lambdafxnname+'/invocations',
+        credentials='arn:aws:iam::'+account_number+':role/lambda_invoke_function_assume_apigw_role')
+    response11_1 = user_session.client('apigateway').put_integration(
+        restApiId=api_id,
+        resourceId=resource_id,
+        httpMethod='OPTIONS',
+        type='MOCK',
+        requestTemplates={
+            'application/json': '{"statusCode": 200}'
+        },
+        integrationHttpMethod='OPTIONS',
+        uri='arn:aws:apigateway:us-east-1:lambda:path/2015-03-31/functions/arn:aws:lambda:us-east-1:' +
+        account_number+':function:'+lambdafxnname+'/invocations',
+        credentials='arn:aws:iam::'+account_number+':role/lambda_invoke_function_assume_apigw_role')
+    response11_1B = user_session.client('apigateway').put_integration(
+        restApiId=api_id,
+        resourceId=resource_id,
+        httpMethod='OPTIONS',
+        type='MOCK',
+        requestTemplates={
+            'application/json': '{"statusCode": 200}'
+        }
+    )
+    response11_1C = user_session.client('apigateway').put_integration_response(
+        restApiId=api_id,
+        resourceId=resource_id,
+        httpMethod='OPTIONS',
+        statusCode='200',
+        responseParameters={
+            'method.response.header.Access-Control-Allow-Headers': '\'Content-Type,X-Amz-Date,authorizationToken,Access-Control-Allow-Origin,X-Api-Key,X-Amz-Security-Token\'',
+            'method.response.header.Access-Control-Allow-Methods': '\'POST,OPTIONS\'',
+            'method.response.header.Access-Control-Allow-Origin': '\'*\''
+        },
+        responseTemplates={
+            'application/json': '{"statusCode": 200}'
+        }
+    )
+    response11_2 = user_session.client('iam').put_role_policy(
+        PolicyDocument='{"Version":"2012-10-17","Statement":{"Effect":"Allow","Action":"lambda:InvokeFunction","Resource":"*"}}',
+        PolicyName='invokelambda',
+        RoleName='lambda_invoke_function_assume_apigw_role',
+    )
     response12_1 = user_client.update_rest_api(
         restApiId=api_id,
         patchOperations=[{
@@ -622,113 +577,58 @@ def create_prediction_api(model_filepath, unique_model_id, model_type, task_type
             "value": '{"Version": "2012-10-17","Statement": [{"Effect": "Allow","Principal": "*","Action": "execute-api:Invoke","Resource": "arn:aws:execute-api:'+os.environ.get("AWS_REGION")+':'+account_number+':'+api_id+'/prod/OPTIONS/*"}]}'
         }, ]
     )
-    # start here to update eval fxn integration with api resource_id_eval, lambdaevalfxnname
-    if str(roles['Roles']).find("lambda_invoke_function_assume_apigw_role") > 0:
-        response11 = user_session.client('apigateway').put_integration(
-            restApiId=api_id,
-            resourceId=resource_id_eval,
-            httpMethod='POST',
-            type='AWS_PROXY',
-            integrationHttpMethod='POST',
-            uri='arn:aws:apigateway:us-east-1:lambda:path/2015-03-31/functions/arn:aws:lambda:us-east-1:' +
-            account_number+':function:'+lambdaevalfxnname+'/invocations',
-            credentials='arn:aws:iam::'+account_number+':role/lambda_invoke_function_assume_apigw_role')
-        response11_1 = user_session.client('apigateway').put_integration(
-            restApiId=api_id,
-            resourceId=resource_id_eval,
-            httpMethod='OPTIONS',
-            type='MOCK',
-            requestTemplates={
-                'application/json': '{"statusCode": 200}'
-            },
-            integrationHttpMethod='OPTIONS',
-            uri='arn:aws:apigateway:us-east-1:lambda:path/2015-03-31/functions/arn:aws:lambda:us-east-1:' +
-            account_number+':function:'+lambdaevalfxnname+'/invocations',
-            credentials='arn:aws:iam::'+account_number+':role/lambda_invoke_function_assume_apigw_role')
-        response11_1B = user_session.client('apigateway').put_integration(
-            restApiId=api_id,
-            resourceId=resource_id_eval,
-            httpMethod='OPTIONS',
-            type='MOCK',
-            requestTemplates={
-                'application/json': '{"statusCode": 200}'
-            }
-        )
-        response11_1C = user_session.client('apigateway').put_integration_response(
-            restApiId=api_id,
-            resourceId=resource_id_eval,
-            httpMethod='OPTIONS',
-            statusCode='200',
-            responseParameters={
-                'method.response.header.Access-Control-Allow-Headers': '\'Content-Type,X-Amz-Date,authorizationToken,Access-Control-Allow-Origin,X-Api-Key,X-Amz-Security-Token\'',
-                'method.response.header.Access-Control-Allow-Methods': '\'POST,OPTIONS\'',
-                'method.response.header.Access-Control-Allow-Origin': '\'*\''
-            },
-            responseTemplates={
-                'application/json': '{"statusCode": 200}'
-            }
-        )
-        response11_2 = user_session.client('iam').put_role_policy(
-            PolicyDocument='{"Version":"2012-10-17","Statement":{"Effect":"Allow","Action":"lambda:InvokeFunction","Resource":"*"}}',
-            PolicyName='invokelambda',
-            RoleName='lambda_invoke_function_assume_apigw_role',
-        )
-    else:
 
-        response10 = user_session.resource('iam').create_role(
-            AssumeRolePolicyDocument=json.dumps(lambdarole2),
-            Path='/',
-            RoleName='lambda_invoke_function_assume_apigw_role',
-        )
-        response11 = user_session.client('apigateway').put_integration(
-            restApiId=api_id,
-            resourceId=resource_id_eval,
-            httpMethod='POST',
-            type='AWS_PROXY',
-            integrationHttpMethod='POST',
-            uri='arn:aws:apigateway:us-east-1:lambda:path/2015-03-31/functions/arn:aws:lambda:us-east-1:' +
-            account_number+':function:'+lambdaevalfxnname+'/invocations',
-            credentials='arn:aws:iam::'+account_number+':role/lambda_invoke_function_assume_apigw_role')
-        response11_1 = user_session.client('apigateway').put_integration(
-            restApiId=api_id,
-            resourceId=resource_id_eval,
-            httpMethod='OPTIONS',
-            type='MOCK',
-            requestTemplates={
-                'application/json': '{"statusCode": 200}'
-            },
-            integrationHttpMethod='OPTIONS',
-            uri='arn:aws:apigateway:us-east-1:lambda:path/2015-03-31/functions/arn:aws:lambda:us-east-1:' +
-            account_number+':function:'+lambdaevalfxnname+'/invocations',
-            credentials='arn:aws:iam::'+account_number+':role/lambda_invoke_function_assume_apigw_role')
-        response11_1B = user_session.client('apigateway').put_integration(
-            restApiId=api_id,
-            resourceId=resource_id_eval,
-            httpMethod='OPTIONS',
-            type='MOCK',
-            requestTemplates={
-                'application/json': '{"statusCode": 200}'
-            }
-        )
-        response11_1C = user_session.client('apigateway').put_integration_response(
-            restApiId=api_id,
-            resourceId=resource_id_eval,
-            httpMethod='OPTIONS',
-            statusCode='200',
-            responseParameters={
-                'method.response.header.Access-Control-Allow-Headers': '\'Content-Type,X-Amz-Date,authorizationToken,Access-Control-Allow-Origin,X-Api-Key,X-Amz-Security-Token\'',
-                'method.response.header.Access-Control-Allow-Methods': '\'POST,OPTIONS\'',
-                'method.response.header.Access-Control-Allow-Origin': '\'*\''
-            },
-            responseTemplates={
-                'application/json': '{"statusCode": 200}'
-            }
-        )
-        response11_2 = user_session.client('iam').put_role_policy(
-            PolicyDocument='{"Version":"2012-10-17","Statement":{"Effect":"Allow","Action":"lambda:InvokeFunction","Resource":"*"}}',
-            PolicyName='invokelambda',
-            RoleName='lambda_invoke_function_assume_apigw_role',
-        )
+    # start here to update eval fxn integration with api resource_id_eval, lambdaevalfxnname
+    response11 = user_session.client('apigateway').put_integration(
+        restApiId=api_id,
+        resourceId=resource_id_eval,
+        httpMethod='POST',
+        type='AWS_PROXY',
+        integrationHttpMethod='POST',
+        uri='arn:aws:apigateway:us-east-1:lambda:path/2015-03-31/functions/arn:aws:lambda:us-east-1:' +
+        account_number+':function:'+lambdaevalfxnname+'/invocations',
+        credentials='arn:aws:iam::'+account_number+':role/lambda_invoke_function_assume_apigw_role')
+    response11_1 = user_session.client('apigateway').put_integration(
+        restApiId=api_id,
+        resourceId=resource_id_eval,
+        httpMethod='OPTIONS',
+        type='MOCK',
+        requestTemplates={
+            'application/json': '{"statusCode": 200}'
+        },
+        integrationHttpMethod='OPTIONS',
+        uri='arn:aws:apigateway:us-east-1:lambda:path/2015-03-31/functions/arn:aws:lambda:us-east-1:' +
+        account_number+':function:'+lambdaevalfxnname+'/invocations',
+        credentials='arn:aws:iam::'+account_number+':role/lambda_invoke_function_assume_apigw_role')
+    response11_1B = user_session.client('apigateway').put_integration(
+        restApiId=api_id,
+        resourceId=resource_id_eval,
+        httpMethod='OPTIONS',
+        type='MOCK',
+        requestTemplates={
+            'application/json': '{"statusCode": 200}'
+        }
+    )
+    response11_1C = user_session.client('apigateway').put_integration_response(
+        restApiId=api_id,
+        resourceId=resource_id_eval,
+        httpMethod='OPTIONS',
+        statusCode='200',
+        responseParameters={
+            'method.response.header.Access-Control-Allow-Headers': '\'Content-Type,X-Amz-Date,authorizationToken,Access-Control-Allow-Origin,X-Api-Key,X-Amz-Security-Token\'',
+            'method.response.header.Access-Control-Allow-Methods': '\'POST,OPTIONS\'',
+            'method.response.header.Access-Control-Allow-Origin': '\'*\''
+        },
+        responseTemplates={
+            'application/json': '{"statusCode": 200}'
+        }
+    )
+    response11_2 = user_session.client('iam').put_role_policy(
+        PolicyDocument='{"Version":"2012-10-17","Statement":{"Effect":"Allow","Action":"lambda:InvokeFunction","Resource":"*"}}',
+        PolicyName='invokelambda',
+        RoleName='lambda_invoke_function_assume_apigw_role',
+    )
+        
     response12_1 = user_client.update_rest_api(
         restApiId=api_id,
         patchOperations=[{
@@ -738,8 +638,6 @@ def create_prediction_api(model_filepath, unique_model_id, model_type, task_type
         }, ]
     )
 
-
-
     responseauthfxnapigateway = user_session.client('apigateway').create_authorizer(
         restApiId=api_id,
         name='aimscustomauthfxn',
@@ -747,7 +645,6 @@ def create_prediction_api(model_filepath, unique_model_id, model_type, task_type
         authorizerUri="arn:aws:apigateway:"+ os.environ.get("AWS_REGION") +":lambda:path/2015-03-31/functions/arn:aws:lambda:"+os.environ.get("AWS_REGION")+":"+account_number+":function:"+lambdaauthfxnname+"/invocations",
         identitySource="method.request.header.authorizationToken",
         authorizerResultTtlInSeconds=0
-        
     )
 
     responseauthfxnapigateway = user_session.client('apigateway').get_authorizers(
@@ -764,7 +661,7 @@ def create_prediction_api(model_filepath, unique_model_id, model_type, task_type
         Principal='apigateway.amazonaws.com',
         SourceArn='arn:aws:execute-api:'+os.environ.get("AWS_REGION")+':' +
         account_number+':'+api_id+'/authorizers/'+authorizerid,
-    )    
+    )
     
     response_modmthd_addauth = user_session.client('apigateway').update_method(
         restApiId=api_id,
@@ -812,6 +709,7 @@ def create_prediction_api(model_filepath, unique_model_id, model_type, task_type
                 "Access-Control-Allow-Credentials": True
             },
             "body": json.dumps(result)}
+
 
 
 def get_api_json():
@@ -989,10 +887,10 @@ def delete_deployment(apiurl):
     # Provide Warning & Have user confirm deletion 
     print("Running this function will permanently delete all resources tied to this deployment, \n including the eval lambda and all models submitted to the model competition.\n")
     confirmation = input(prompt="To confirm, type 'permanently delete':")
-    if confirmation.lower() == "permanently delete":
+    if confirmation.lower() == "permanently delete" or confirmation.lower() == "'permanently delete'":
         pass
     else:
-        return  
+        return print("'Delete Deployment' unsuccessful: operation cancelled by user.")
 
     # Confirm that creds are loaded, print warning if not
     if all(["AWS_ACCESS_KEY_ID" in os.environ, 
