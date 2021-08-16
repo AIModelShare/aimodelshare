@@ -225,8 +225,8 @@ def import_quickstart_data():
     #unpack y_train
     y_train = pd.read_csv("quickstart_materials/y_train.csv")
     
-    success_message = ("\nSuccess! Your Quick Start materials have been downloaded. \n"
-                       "You are now ready to run the tutorial.")
+    success_message = ("\nSuccess! Your Quick Start materials have been downloaded to the 'quickstart_materials' folder.\n"
+                       "Example flower images are stored in the example_data folder.")
     
     print(success_message)
     return model, y_train
