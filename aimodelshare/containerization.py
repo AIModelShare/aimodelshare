@@ -9,6 +9,9 @@ import sys
 import boto3
 import importlib_resources as pkg_resources
 
+import uuid
+import requests
+
 from . import iam
 from . import sam
 from . import containerization_templates
@@ -235,10 +238,10 @@ def build_image(user_session, bucket_name, zip_file, image_name):
         except:
             counter+=1
             if(counter<=3):
-                print("CodeBuild project creation failed. Waiting for dependent resources to reflect. Retrying again in 10 seconds.")
+                #print("CodeBuild project creation failed. Waiting for dependent resources to reflect. Retrying again in 10 seconds.")
                 time.sleep(time_delay)
             else:
-                print("CodeBuild project creation failed.")
+                #print("CodeBuild project creation failed.")
                 delete_file_from_s3(user_session, bucket_name, image_name+'.zip')   # delete zip file from S3 bucket
                 return
 
@@ -352,7 +355,9 @@ def build_new_base_image(libraries, repository, image_tag, python_version):
         shutil.rmtree(temp_dir)
 
 # create lambda function using a base image from a specific repository having a specific tag
-def create_lambda_using_base_image(user_session, bucket_name, directory, lambda_name, api_id, repository, image_tag, memory_size, timeout):
+def create_lambda_using_base_image(user_session, bucket_name, directory, lambda_name, api_id, repository, image_tag, memory_size, timeout, update, base_image_api_endpoint):
+
+    clone_base_image(user_session, repository, image_tag, "517169013426", update, base_image_api_endpoint)
 
     sts_client = user_session.client("sts")
     account_id = sts_client.get_caller_identity()["Account"]
@@ -391,7 +396,7 @@ def create_lambda_using_base_image(user_session, bucket_name, directory, lambda_
     # attaching policies to role to execute CodeBuild to build Docker image
     attach_policy_to_role(user_session, role_name, policy_name)
 
-    print("Creating Lambda function \"" + lambda_name + "\".")
+    #print("Creating Lambda function \"" + lambda_name + "\".")
     lambda_client = user_session.client("lambda")
     counter=1
     while(counter<=3):
@@ -430,15 +435,16 @@ def create_lambda_using_base_image(user_session, bucket_name, directory, lambda_
             response = lambda_client.get_function(
                 FunctionName=lambda_name
             )
-            print("Created Lambda function " + lambda_name + "\" successfully.")
+            #print("Created Lambda function " + lambda_name + "\" successfully.")
             break
         except:
             counter+=1
             if(counter<=3):
-                print("Lambda function did not reflected. Waiting for Lambda function to reflect.")
+                #print("Lambda function did not reflected. Waiting for Lambda function to reflect.")
                 time.sleep(time_delay)
             else:
-                print("Lambda function did not reflected.")
+                None
+                #print("Lambda function did not reflected.")
 
     os.remove(temp_dir + ".zip")    # delete the zip file created in tmp directory
     if(os.path.isdir(temp_dir)):    # delete the temporary folder created in tmp directory
@@ -466,7 +472,6 @@ def check_if_repo_exists(user_session, repo_name):
     print("Checking if repository \"" + repo_name + "\" exists.")
     ecr_client = user_session.client("ecr")
     try:
-        # returns
         repo_details = ecr_client.describe_images(
             repositoryName=repo_name
         )
@@ -477,3 +482,86 @@ def check_if_repo_exists(user_session, repo_name):
     except:
         print("The repository \"" + repo_name + "\" does not exist.")
         return False
+
+# delete statement with specific Sid in ECR
+def delete_registry_permission(user_session, statement_id):
+    ecr_client = user_session.client("ecr")
+    try:
+        registry_policy = ecr_client.get_registry_policy()
+        policy_json = json.loads(registry_policy['policyText'])
+        for statement in policy_json["Statement"]:
+            if(statement["Sid"]==statement_id):
+                policy_json["Statement"].remove(statement)
+                break
+        time.sleep(5)
+    except:
+        None
+
+# add statement with specific Sid in ECR
+def add_registry_permission(user_session, statement_id, account_id):
+    ecr_client = user_session.client("ecr")
+    policy=json.dumps({
+        "Version":"2012-10-17",
+        "Statement":[
+            {
+                "Sid": statement_id,
+                "Principal": {
+                    "AWS": "arn:aws:iam::" + account_id + ":root"
+                },
+                "Action": "ecr:*",
+                "Resource": "*",
+                "Effect": "Allow"
+            }
+        ]
+    })
+    response = ecr_client.put_registry_policy(policyText=policy)
+    time.sleep(5)
+
+# create base image having repository:image_tag identity from source account if image not present, update base image if update flag set to true
+def clone_base_image(user_session, repository, image_tag, source_account_id, update=False, api_endpoint=""):
+
+    if(check_if_image_exists(user_session, repository, image_tag) and update==False):
+        result = {"Success" : "Base image \"" + repository + ":" + image_tag + "\" already exists on this user's account."}
+    elif(len(api_endpoint)>0):
+        sts_client = user_session.client("sts")
+
+        account_id = sts_client.get_caller_identity()["Account"]
+        region = user_session.region_name
+
+        ecr_client = user_session.client('ecr')
+
+        statement_id = source_account_id + "_image_clone_access"
+
+        delete_registry_permission(user_session, statement_id)
+        add_registry_permission(user_session, statement_id, account_id)
+
+        bodydata = {
+            "useraccountnumber": str(account_id),  # change this to first and last name
+            "region": region,
+            "repository": repository,
+            "image_tag": image_tag
+        }
+        
+        # datasets api
+        headers_with_authentication = {'Content-Type': 'application/json',
+                                       'authorizationToken': os.environ.get("JWT_AUTHORIZATION_TOKEN"),
+                                       'Access-Control-Allow-Headers': 'Content-Type,X-Amz-Date,authorizationToken,Access-Control-Allow-Origin,X-Api-Key,X-Amz-Security-Token,Authorization',
+                                       'Access-Control-Allow-Origin': '*'}
+
+        # modeltoapi lambda function invoked through below url to return new prediction api in response
+        response = requests.post(api_endpoint, json=bodydata, headers=headers_with_authentication)
+        time.sleep(5)
+
+        # Delete registry policy
+        delete_registry_permission(user_session, statement_id)
+
+        #client.delete_registry_policy()
+        result = {"Success" : "New base image loaded to user's account"}
+    else:
+        result = {"Success" : "API endpoint not valid/not provided and image does not exist either."}
+
+    return result
+
+
+
+
