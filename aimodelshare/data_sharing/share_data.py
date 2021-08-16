@@ -272,7 +272,7 @@ def share_data_codebuild(account_id, region, dataset_dir, dataset_tag='latest', 
     return {"ecr_uri":registry_uri + '/' + repository + ':' + dataset_tag}
 
 def share_dataset(data_directory="folder_file_path",classification="default", private="FALSE"):
-    data_directory=lower(str(data_directory))
+    data_directory=str(data_directory).lower()
     aishare_datasetname = input("Enter dataset name:")
     aishare_datadescription = input(
         "Enter data description (i.e.- filenames denoting training and test data, file types, and any subfolders where files are stored):")
