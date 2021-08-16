@@ -225,22 +225,14 @@ def create_prediction_api(model_filepath, unique_model_id, model_type,categorica
       pass   
 
     # Upload model eval lambda function zipfile to user's model file folder on s3
-    if categorical == 'TRUE':
-            data = pkg_resources.read_text(main, 'eval_lambda.txt')
-            from string import Template
-            t = Template(data)
-            newdata = t.substitute(
-                bucket_name=os.environ.get("BUCKET_NAME"), unique_model_id=unique_model_id,classification="classification")
-            with open(os.path.join(temp_dir, 'main.py'), 'w') as file:
-                file.write(newdata)
-    elif categorical == 'FALSE':
-            data = pkg_resources.read_text(main, 'eval_lambda.txt')
-            from string import Template
-            t = Template(data)
-            newdata = t.substitute(
-                bucket_name=os.environ.get("BUCKET_NAME"), unique_model_id=unique_model_id,classification="None")
-            with open(os.path.join(temp_dir, 'main.py'), 'w') as file:
-                file.write(newdata)
+    data = pkg_resources.read_text(main, 'eval_lambda.txt')
+    from string import Template
+    t = Template(data)
+    newdata = t.substitute(
+        bucket_name=os.environ.get("BUCKET_NAME"), unique_model_id=unique_model_id,classification=categorical, categorical=categorical)
+    with open(os.path.join(temp_dir, 'main.py'), 'w') as file:
+        file.write(newdata)
+
     with zipfile.ZipFile(os.path.join(temp_dir, 'archive2.zip'), 'a') as z:
         z.write(os.path.join(temp_dir, 'main.py'), 'main.py')
 
@@ -520,6 +512,7 @@ def create_prediction_api(model_filepath, unique_model_id, model_type,categorica
 
     # Create and or update lambda and apigateway gateway roles
 
+
     lambdarole2 = {u'Version': u'2012-10-17', u'Statement': [{u'Action': u'sts:AssumeRole', u'Principal': {
         u'Service': [u'lambda.amazonaws.com', u'apigateway.amazonaws.com']}, u'Effect': u'Allow', u'Sid': u''}]}
 
@@ -724,6 +717,7 @@ def create_prediction_api(model_filepath, unique_model_id, model_type,categorica
             "body": json.dumps(result)}
 
 
+
 def get_api_json():
     apijson = '''
         {
@@ -899,10 +893,10 @@ def delete_deployment(apiurl):
     # Provide Warning & Have user confirm deletion 
     print("Running this function will permanently delete all resources tied to this deployment, \n including the eval lambda and all models submitted to the model competition.\n")
     confirmation = input(prompt="To confirm, type 'permanently delete':")
-    if confirmation.lower() == "permanently delete":
+    if confirmation.lower() == "permanently delete" or confirmation.lower() == "'permanently delete'":
         pass
     else:
-        return print("'Delete Deployment' unsuccessful.")
+        return print("'Delete Deployment' unsuccessful: operation cancelled by user.")
 
     # Confirm that creds are loaded, print warning if not
     if all(["AWS_ACCESS_KEY_ID" in os.environ, 

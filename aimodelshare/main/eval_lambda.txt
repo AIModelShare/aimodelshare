@@ -129,7 +129,7 @@ def handler(event, context):
     if body.get("leaderboard","ALL") == "TRUE":  
 
         leaderboarddata=get_leaderboarddata_json(yleaderboard_s3_filename="model_eval_data_mastertable.csv")
-        result=get_leaderboard_json(leaderboarddata,category="classification", verbose=3, columns=None)
+        result=get_leaderboard_json(leaderboarddata,category=category, verbose=verbose, columns=columns)
         leaderboard_dict = {"statusCode": 200,
                 "headers": {
                 "Access-Control-Allow-Origin" : "*",
@@ -167,8 +167,7 @@ import importlib
 
 #from s3connect import get_onnx_mem
 
-
-def analyze_ytest(ytestdata, classification="TRUE"):
+def analyze_ytest(ytestdata, classification="$categorical"):
     
     if classification=="TRUE":
          
@@ -198,7 +197,7 @@ def analyze_ytest(ytestdata, classification="TRUE"):
     return y_stats
 
 
-def model_eval_metrics(y_true, y_pred,classification="TRUE"):
+def model_eval_metrics(y_true, y_pred, classification="$categorical"):
 
     if classification=="TRUE":
         try:
@@ -269,7 +268,7 @@ def evaluate_model(body, ytestdata):
     else:
         prediction_list = body["y_pred"]
 
-    result=model_eval_metrics(ytestdata,prediction_list,classification="TRUE")
+    result=model_eval_metrics(ytestdata,prediction_list,classification="$categorical")
     return result
     
     
