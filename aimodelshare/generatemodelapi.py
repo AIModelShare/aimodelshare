@@ -24,7 +24,7 @@ from aimodelshare.modeluser import create_user_getkeyandpassword
 from aimodelshare.preprocessormodules import upload_preprocessor
 from aimodelshare.model import _get_predictionmodel_key, _extract_model_metadata
 from aimodelshare.data_sharing.share_data import share_data_codebuild
-from aimodelshare.containerization import check_if_image_exists
+from aimodelshare.containerization import clone_base_image
 
 
 def take_user_info_and_generate_api(model_filepath, model_type, categorical,labels, preprocessor_filepath,custom_libraries, requirements, exampledata_json_filepath, repo_name, image_tag):
@@ -164,7 +164,7 @@ def take_user_info_and_generate_api(model_filepath, model_type, categorical,labe
     # }}}
     
     apiurl = create_prediction_api(model_filepath, unique_model_id,
-                                   model_type, categorical, labels,api_id,custom_libraries, requirements, repo_name, image_tag, update, base_image_api_endpoint)
+                                   model_type, categorical, labels,api_id,custom_libraries, requirements, repo_name, image_tag)
 
     finalresult = [apiurl["body"], apiurl["statusCode"],
                    now, unique_model_id, os.environ.get("BUCKET_NAME"), input_shape]
@@ -329,9 +329,7 @@ def model_to_api(model_filepath, model_type, private, categorical, y_train,prepr
                                           aws_secret_access_key = os.environ.get("AWS_SECRET_ACCESS_KEY"), 
                                          region_name=os.environ.get("AWS_REGION"))
 
-    if(check_if_image_exists(user_session, repo_name, image_tag)==False):
-        print("Image does not exist.")
-        return
+    clone_base_image(user_session, repository, image_tag, "517169013426", update, base_image_api_endpoint)
 
     print("We need some information about your model before we can build your REST API and interactive Model Playground.")
     print("   ")
@@ -387,7 +385,7 @@ def model_to_api(model_filepath, model_type, private, categorical, y_train,prepr
     # }}}
     
     api_info = take_user_info_and_generate_api( 
-        model_filepath, model_type, categorical, labels,preprocessor_filepath,custom_libraries, requirements, exampledata_json_filepath, repo_name, image_tag, update, base_image_api_endpoint)
+        model_filepath, model_type, categorical, labels,preprocessor_filepath,custom_libraries, requirements, exampledata_json_filepath, repo_name, image_tag)
 
     ### Progress Update #5/6 {{{
     sys.stdout.write('\r')

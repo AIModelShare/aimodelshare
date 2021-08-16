@@ -355,9 +355,7 @@ def build_new_base_image(libraries, repository, image_tag, python_version):
         shutil.rmtree(temp_dir)
 
 # create lambda function using a base image from a specific repository having a specific tag
-def create_lambda_using_base_image(user_session, bucket_name, directory, lambda_name, api_id, repository, image_tag, memory_size, timeout, update, base_image_api_endpoint):
-
-    clone_base_image(user_session, repository, image_tag, "517169013426", update, base_image_api_endpoint)
+def create_lambda_using_base_image(user_session, bucket_name, directory, lambda_name, api_id, repository, image_tag, memory_size, timeout):
 
     sts_client = user_session.client("sts")
     account_id = sts_client.get_caller_identity()["Account"]
