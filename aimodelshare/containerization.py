@@ -520,6 +520,7 @@ def clone_base_image(user_session, repository, image_tag, source_account_id, upd
 
     if(check_if_image_exists(user_session, repository, image_tag) and update==False):
         result = {"Success" : "Base image \"" + repository + ":" + image_tag + "\" already exists on this user's account."}
+        return True
     elif(len(api_endpoint)>0):
         sts_client = user_session.client("sts")
 
@@ -555,11 +556,10 @@ def clone_base_image(user_session, repository, image_tag, source_account_id, upd
 
         #client.delete_registry_policy()
         result = {"Success" : "New base image loaded to user's account"}
+        return True
     else:
         result = {"Success" : "API endpoint not valid/not provided and image does not exist either."}
-
-    return result
-
+        return False
 
 
 

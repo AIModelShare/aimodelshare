@@ -329,7 +329,8 @@ def model_to_api(model_filepath, model_type, private, categorical, y_train,prepr
                                           aws_secret_access_key = os.environ.get("AWS_SECRET_ACCESS_KEY"), 
                                          region_name=os.environ.get("AWS_REGION"))
 
-    clone_base_image(user_session, repository, image_tag, "517169013426", update, base_image_api_endpoint)
+    if(clone_base_image(user_session, repo_name, image_tag, "517169013426", update, base_image_api_endpoint)==False):
+        return
 
     print("We need some information about your model before we can build your REST API and interactive Model Playground.")
     print("   ")
