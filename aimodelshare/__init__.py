@@ -9,7 +9,7 @@ from .modeluser import get_jwt_token, create_user_getkeyandpassword
 from .generatemodelapi import model_to_api
 from .containerisation import deploy_container
 from .api import create_prediction_api
-from .data_sharing.download_data import download_data
+from .data_sharing.download_data import download_data, import_quickstart_data
 from .data_sharing.share_data import share_data_codebuild, share_dataset
 from .deploy_custom_lambda import deploy_custom_lambda
 from .object_oriented import ModelPlayground, Competition, Data
