@@ -496,7 +496,7 @@ def delete_registry_permission(user_session, statement_id):
         None
 
 # add statement with specific Sid in ECR
-def add_registry_permission(user_session, statement_id, account_id):
+def add_registry_permission(user_session, statement_id, source_account_id, account_id, region):
     ecr_client = user_session.client("ecr")
     policy=json.dumps({
         "Version":"2012-10-17",
@@ -504,10 +504,10 @@ def add_registry_permission(user_session, statement_id, account_id):
             {
                 "Sid": statement_id,
                 "Principal": {
-                    "AWS": "arn:aws:iam::" + account_id + ":root"
+                    "AWS": "arn:aws:iam::" + source_account_id + ":root"
                 },
                 "Action": "ecr:*",
-                "Resource": "*",
+                "Resource": [ "arn:aws:ecr:"+region+":"+account_id+":repository/*"],
                 "Effect": "Allow"
             }
         ]
@@ -532,7 +532,7 @@ def clone_base_image(user_session, repository, image_tag, source_account_id, upd
         statement_id = source_account_id + "_image_clone_access"
 
         delete_registry_permission(user_session, statement_id)
-        add_registry_permission(user_session, statement_id, account_id)
+        add_registry_permission(user_session, statement_id, source_account_id, account_id, region)
 
         bodydata = {
             "useraccountnumber": str(account_id),  # change this to first and last name
@@ -556,6 +556,9 @@ def clone_base_image(user_session, repository, image_tag, source_account_id, upd
 
         #client.delete_registry_policy()
         result = {"Success" : "New base image loaded to user's account"}
+
+        print(result)
+
         return True
     else:
         result = {"Success" : "API endpoint not valid/not provided and image does not exist either."}

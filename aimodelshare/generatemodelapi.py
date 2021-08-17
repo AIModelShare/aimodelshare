@@ -326,7 +326,7 @@ def model_to_api(model_filepath, model_type, private, categorical, y_train,prepr
 
     # Get user inputs, pass to other functions  {{{
     user_session = boto3.session.Session(aws_access_key_id=os.environ.get("AWS_ACCESS_KEY_ID"),
-                                          aws_secret_access_key = os.environ.get("AWS_SECRET_ACCESS_KEY"), 
+                                         aws_secret_access_key = os.environ.get("AWS_SECRET_ACCESS_KEY"), 
                                          region_name=os.environ.get("AWS_REGION"))
 
     if(clone_base_image(user_session, repo_name, image_tag, "517169013426", update, base_image_api_endpoint)==False):
