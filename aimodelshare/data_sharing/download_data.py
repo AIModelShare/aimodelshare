@@ -40,11 +40,11 @@ def download_layer(layer, layer_count, tmp_img_dir, blobs_resp):
 
 	ublob = layer['digest']
 	layer_id = 'layer_' + str(layer_count) + '_' + ublob[7:]
-	layer_label = str(round((layer_count/7)*100))+"% complete"
+	layer_label = ""
 	layer_dir = tmp_img_dir + '/' + layer_id
 
 	# Creating layer.tar file
-	sys.stdout.write(layer_label + ': Downloading...')
+	sys.stdout.write(layer_label + 'Downloading...')
 	sys.stdout.flush()
 
 	# Stream download and follow the progress
@@ -106,7 +106,7 @@ def pull_image(image_uri):
 	content[0]['RepoTags'].append(image_uri)
 
 	layer_count=0
-	layers = resp.json()['layers']
+	layers = resp.json()['layers'][6:]
 
 	for layer in layers:
 
