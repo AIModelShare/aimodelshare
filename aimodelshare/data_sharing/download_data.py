@@ -182,10 +182,11 @@ def download_data(repository):
 	os.remove(docker_tar)
 	print('\n\nData downloaded successfully.')
 
-def import_quickstart_data():
+def dev_import_quickstart_data():
     from aimodelshare.data_sharing.download_data import download_data
     import tensorflow as tf
     import pandas as pd
+    import os
     
      # Confirm that creds are loaded, print warning if not
     if all(["AWS_ACCESS_KEY_ID" in os.environ, 
@@ -203,7 +204,7 @@ def import_quickstart_data():
     
     #Instantiate Model 
     print("\nPreparing downloaded files for use...")
-    model = tf.keras.models.load_model('flowermodel.h5')
+    model = tf.keras.models.load_model('quickstart_materials/flowermodel.h5')
     
     #unpack y_train
     y_train = pd.read_csv("quickstart_materials/y_train.csv")
