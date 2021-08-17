@@ -184,10 +184,6 @@ def download_data(repository):
 
 def import_quickstart_data():
     from aimodelshare.data_sharing.download_data import download_data
-    from aimodelshare.aimsonnx import _get_metadata
-    import onnx
-    import ast
-    import numpy as np 
     import tensorflow as tf
     import pandas as pd
     
@@ -207,26 +203,13 @@ def import_quickstart_data():
     
     #Instantiate Model 
     print("\nPreparing downloaded files for use...")
-    modelpath = "quickstart_materials/onnx_cnn1.onnx"
-    onnx_model = onnx.load(modelpath)
-    
-    meta_dict = _get_metadata(onnx_model)
-    model_config = ast.literal_eval(meta_dict['model_config'])
-    model = tf.keras.Sequential().from_config(model_config)
-    model_weights = json.loads(meta_dict['model_weights'])
-    
-    def to_array(x):
-        return np.array(x, dtype="float32")
-    
-    model_weights = list(map(to_array, model_weights))
-    
-    model.set_weights(model_weights)
+    model = tf.keras.models.load_model('flowermodel.h5')
     
     #unpack y_train
     y_train = pd.read_csv("quickstart_materials/y_train.csv")
     
-    success_message = ("\nSuccess! Your Quick Start materials have been downloaded to the 'quickstart_materials' folder.\n"
-                       "Example flower images are stored in the example_data folder.")
+    success_message = ("\nSuccess! Your Quick Start materials have been downloaded. \n"
+                       "You are now ready to run the tutorial.")
     
     print(success_message)
     return model, y_train
