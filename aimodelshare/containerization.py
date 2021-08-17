@@ -490,6 +490,7 @@ def delete_registry_permission(user_session, statement_id):
         for statement in policy_json["Statement"]:
             if(statement["Sid"]==statement_id):
                 policy_json["Statement"].remove(statement)
+                response = ecr_client.put_registry_policy(json.dumps(policy_json))
                 break
         time.sleep(5)
     except:
