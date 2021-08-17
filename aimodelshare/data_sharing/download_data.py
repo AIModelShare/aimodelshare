@@ -182,7 +182,7 @@ def download_data(repository):
 	os.remove(docker_tar)
 	print('\n\nData downloaded successfully.')
 
-def dev_import_quickstart_data():
+def import_quickstart_data():
     from aimodelshare.data_sharing.download_data import download_data
     import tensorflow as tf
     import pandas as pd
