@@ -520,8 +520,7 @@ def add_registry_permission(user_session, statement_id, source_account_id, accou
 def clone_base_image(user_session, repository, image_tag, source_account_id, update=False, api_endpoint=""):
 
     if(check_if_image_exists(user_session, repository, image_tag) and update==False):
-        result = {"Success" : "Base image \"" + repository + ":" + image_tag + "\" already exists on this user's account."}
-        return True
+        result = {"Status": 1, "Success" : "Base image \"" + repository + ":" + image_tag + "\" already exists on this user's account."}
     elif(len(api_endpoint)>0):
         sts_client = user_session.client("sts")
 
@@ -556,12 +555,10 @@ def clone_base_image(user_session, repository, image_tag, source_account_id, upd
         delete_registry_permission(user_session, statement_id)
 
         #client.delete_registry_policy()
-        result = {"Success" : "New base image loaded to user's account"}
+        result = {"Status": 1, "Success" : "New base image loaded to user's account"}
 
-        print(result)
-
-        return True
+        #print(result)
     else:
-        result = {"Success" : "API endpoint not valid/not provided and image does not exist either."}
-        return False
+        result = {"Status": 0, "Success" : "API endpoint not valid/not provided and image does not exist either."}
+    return result
 
