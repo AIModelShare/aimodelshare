@@ -340,11 +340,10 @@ def _keras_to_onnx(model, transfer_learning=None,
     tf.get_logger().setLevel('ERROR') # probably not good practice
     model.save(temp_dir)
 
-    output_path = os.path.join(temp_dir, 'temp.onnx')
+    output_path = os.path.join(temp_dir, "keras_metadata.pb")
     modelstringtest="python -m tf2onnx.convert --saved-model "+temp_dir+" --output "+output_path+" --opset 13"
     os.system(modelstringtest)
     onx = onnx.load(output_path)
-
 
     # generate metadata dict 
     metadata = {}
