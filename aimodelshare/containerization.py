@@ -29,7 +29,7 @@ def get_all_file_paths_in_directory(directory):
 
 # abstraction to get the details of a repository
 def get_repository_details(user_session, repo_name):
-    print("Fetching details of repository \"" + repo_name + "\".")
+    #print("Fetching details of repository \"" + repo_name + "\".")
     ecr_client = user_session.client("ecr")
     try:
         repo_details = ecr_client.describe_repositories(repositoryNames=[repo_name])['repositories']
@@ -39,24 +39,24 @@ def get_repository_details(user_session, repo_name):
 
 # abstraction to get the details of an image
 def get_image_details(user_session, repo_name, image_tag):
-    print("Fecthing details of image \"" + repo_name + ":" + image_tag + "\".")
+    #print("Fecthing details of image \"" + repo_name + ":" + image_tag + "\".")
     ecr_client = user_session.client('ecr')
     try:
         image_details = ecr_client.describe_images(repositoryName=repo_name, imageIds=[{'imageTag': image_tag}])['imageDetails']
-        print("Fetched details of image \"" + repo_name + ":" + image_tag + "\" successfully.")
+        #print("Fetched details of image \"" + repo_name + ":" + image_tag + "\" successfully.")
     except:
-        print("No such image \"" + repo_name + ":" + image_tag + "\" exists.")
+        #print("No such image \"" + repo_name + ":" + image_tag + "\" exists.")
         image_details = []
     return image_details
 
 # abstraction to create repository with name repo_name
 def create_repository(user_session, repo_name):
-    print("Creating repository \"" + repo_name + "\".")
+    #print("Creating repository \"" + repo_name + "\".")
     ecr_client = user_session.client('ecr')
     response = ecr_client.create_repository(
         repositoryName=repo_name
     )
-    print("Created repository  \"" + repo_name + "\" successfully.")
+    #print("Created repository  \"" + repo_name + "\" successfully.")
 
 # abstraction to upload file to S3 bucket
 def upload_file_to_s3(user_session, local_file_path, bucket_name, bucket_file_path):
@@ -238,10 +238,10 @@ def build_image(user_session, bucket_name, zip_file, image_name):
         except:
             counter+=1
             if(counter<=3):
-                #print("CodeBuild project creation failed. Waiting for dependent resources to reflect. Retrying again in 10 seconds.")
+                print("CodeBuild project creation failed. Waiting for dependent resources to reflect. Retrying again in 10 seconds.")
                 time.sleep(time_delay)
             else:
-                #print("CodeBuild project creation failed.")
+                print("CodeBuild project creation failed.")
                 delete_file_from_s3(user_session, bucket_name, image_name+'.zip')   # delete zip file from S3 bucket
                 return
 
@@ -399,7 +399,7 @@ def create_lambda_using_base_image(user_session, bucket_name, directory, lambda_
     counter=1
     while(counter<=3):
         try:
-            print("Attempt " + str(counter) + " to create Lambda function.")
+            #print("Attempt " + str(counter) + " to create Lambda function.")
             response = lambda_client.create_function(
                 FunctionName=lambda_name,
                 Role = 'arn:aws:iam::' + account_id + ':role/' + role_name,
@@ -450,35 +450,35 @@ def create_lambda_using_base_image(user_session, bucket_name, directory, lambda_
 
 # check if the image exists in the specified repository with specified image tag
 def check_if_image_exists(user_session, repo_name, image_tag):
-    print("Checking if image \"" + repo_name + ":" + image_tag +"\" exists.")
+    #print("Checking if image \"" + repo_name + ":" + image_tag +"\" exists.")
     ecr_client = user_session.client('ecr')
     try:
         image_details = ecr_client.describe_images(
             repositoryName=repo_name,
             imageIds=[{'imageTag': image_tag}]
         )
-        print("The image " + "\"" + repo_name + ":" + image_tag + "\"" + " exists.")
+        #print("The image " + "\"" + repo_name + ":" + image_tag + "\"" + " exists.")
         # print details of image
         #print(image_details)
         return True
     except:
-        print("The image " + "\"" + repo_name + ":" + image_tag + "\"" + " does not exist.")
+        #print("The image " + "\"" + repo_name + ":" + image_tag + "\"" + " does not exist.")
         return False
 
 # check if repo exists
 def check_if_repo_exists(user_session, repo_name):
-    print("Checking if repository \"" + repo_name + "\" exists.")
+    #print("Checking if repository \"" + repo_name + "\" exists.")
     ecr_client = user_session.client("ecr")
     try:
         repo_details = ecr_client.describe_images(
             repositoryName=repo_name
         )
-        print("The repository \"" + repo_name + "\" exists.")
+        #print("The repository \"" + repo_name + "\" exists.")
         # print details all images in repo
         #print(repo_details)
         return True
     except:
-        print("The repository \"" + repo_name + "\" does not exist.")
+        #print("The repository \"" + repo_name + "\" does not exist.")
         return False
 
 # delete statement with specific Sid in ECR
@@ -564,6 +564,4 @@ def clone_base_image(user_session, repository, image_tag, source_account_id, upd
     else:
         result = {"Success" : "API endpoint not valid/not provided and image does not exist either."}
         return False
-
-
 
