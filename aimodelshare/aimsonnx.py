@@ -338,7 +338,7 @@ def _keras_to_onnx(model, transfer_learning=None,
     temp_dir = tempfile.gettempdir()
 
     tf.get_logger().setLevel('ERROR') # probably not good practice
-    model.save(temp_dir)
+    model.save(temp_dir, save_format='h5')
 
     output_path = os.path.join(temp_dir, 'temp.onnx')
     modelstringtest="python -m tf2onnx.convert --saved-model "+temp_dir+" --output "+output_path+" --opset 13"
