@@ -209,21 +209,20 @@ def import_quickstart_data():
     print("\nPreparing downloaded files for use...")
     model = tf.keras.models.load_model('quickstart_materials/flowermodel.h5')
     model_2 = tf.keras.models.load_model('quickstart_materials/flowermodel_2.h5')
-    model_3 = tf.keras.models.load_model('quickstart_materials/flowermodel_3.h5')
     
     #unpack data
-    y_train = pd.read_csv("quickstart_materials/flower_data_directory/y_train.csv")
+    y_train = pd.read_csv("quickstart_materials/y_train.csv")
+    y_test = pd.read_csv("quickstart_materials/y_test.csv")
+    y_test_labels=list(y_test.idxmax(axis=1))
     
-    with open("quickstart_materials/flower_data_directory/X_test.pkl", "rb") as fp:  
+    with open("quickstart_materials/X_test.pkl", "rb") as fp:  
         X_test = pickle.load(fp)
     
-    with open("quickstart_materials/flower_data_directory/y_test_labels.txt", "rb") as fp:  
-        y_test_labels = pickle.load(fp)
-    
-    
+    #create stand-in 'data directory' folder
+    os.mkdir('data-directory-example')
+
     success_message = ("\nSuccess! Your Quick Start materials have been downloaded. \n"
                        "You are now ready to run the tutorial.")
     
     print(success_message)
-    return model, model_2, model_3, y_train, X_test, y_test_labels
-
+    return model, model_2, y_train, X_test, y_test, y_test_labels
