@@ -216,9 +216,9 @@ def create_prediction_api(model_filepath, unique_model_id, model_type,categorica
     else:
       pass   
     
-    if categorical==any(["TRUE","True","true"]):
+    if categorical==any(["TRUE","True","true", True]):
         task_type="classification"
-    elif categorical==any(["False","False","false"]):
+    elif categorical==any(["False","False","false", False]):
         task_type="regression"
     else:
         task_type="custom"
