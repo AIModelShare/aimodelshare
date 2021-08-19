@@ -337,9 +337,24 @@ def _keras_to_onnx(model, transfer_learning=None,
     temp_dir = os.path.join(tempfile.gettempdir(), 'test')
     temp_dir = tempfile.gettempdir()
 
+
+
+    
     tf.get_logger().setLevel('ERROR') # probably not good practice
+    output_path = os.path.join(temp_dir, 'temp.onnx')
+
     model.save(temp_dir)
 
+    # Convert the model
+    converter = tf.lite.TFLiteConverter.from_saved_model(temp_dir) # path to the SavedModel directory
+    tflite_model = converter.convert()
+
+    # Save the model.
+    with open(os.path.join(temp_dir,'tempmodel.tflite'), 'wb') as f:
+      f.write(tflite_model)
+
+    modelstringtest="python -m tf2onnx.convert --tflite "+os.path.join(temp_dir,'tempmodel.tflite')+" --output "+output_path+" --opset 13"
+    os.system(modelstringtest)
     output_path = os.path.join(temp_dir, 'temp.onnx')
     modelstringtest="python -m tf2onnx.convert --saved-model "+temp_dir+" --output "+output_path+" --opset 13"
     os.system(modelstringtest)
