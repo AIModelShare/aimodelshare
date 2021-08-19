@@ -311,7 +311,7 @@ def _sklearn_to_onnx(model, initial_types, transfer_learning=None,
 
 
 def _keras_to_onnx(model, transfer_learning=None,
-                  deep_learning=None, task_type=None, epochs=None, input_shape=None):
+                  deep_learning=None, task_type=None, epochs=None):
     '''Extracts metadata from keras model object.'''
 
     # check whether this is a fitted keras model
@@ -372,7 +372,7 @@ def _keras_to_onnx(model, transfer_learning=None,
     # placeholders, need to be inferred from data 
     metadata['target_distribution'] = None
     metadata['input_type'] = None
-    metadata['input_shape'] = input_shape
+    metadata['input_shape'] = None
     metadata['input_dtypes'] = None       
     metadata['input_distribution'] = None
 
@@ -568,7 +568,7 @@ def _pytorch_to_onnx(model, model_input, transfer_learning=None,
 
 def model_to_onnx(model, framework, model_input=None, initial_types=None,
                   transfer_learning=None, deep_learning=None, task_type=None, 
-                  epochs=None, input_shape=None):
+                  epochs=None):
     
     '''Transforms sklearn, keras, or pytorch model object into ONNX format 
     and extracts model metadata dictionary. The model metadata dictionary 
@@ -646,7 +646,7 @@ def model_to_onnx(model, framework, model_input=None, initial_types=None,
         onnx = _keras_to_onnx(model, transfer_learning=transfer_learning, 
                               deep_learning=deep_learning, 
                               task_type=task_type,
-                              epochs=epochs, input_shape=input_shape)
+                              epochs=epochs)
 
         
     elif framework == 'pytorch':
