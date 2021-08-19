@@ -357,7 +357,7 @@ def _keras_to_onnx(model, transfer_learning=None,
     metadata['ml_framework'] = 'keras'
 
     # get model type from model object
-    metadata['model_type'] =  str(model.__class__.__name__)
+    metadata['model_type'] = str(model.__class__.__name__)
 
     # get transfer learning bool from user input
     metadata['transfer_learning'] = transfer_learning
@@ -499,7 +499,7 @@ def _pytorch_to_onnx(model, model_input, transfer_learning=None,
     # placeholders, need to be inferred from data 
     metadata['target_distribution'] = None
     metadata['input_type'] = None
-    metadata['input_shape'] = None
+    metadata['input_shape'] = ""
     metadata['input_dtypes'] = None       
     metadata['input_distribution'] = None
 

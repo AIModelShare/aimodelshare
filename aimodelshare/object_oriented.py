@@ -32,7 +32,7 @@ class ModelPlayground:
         Inputs : 8
         Output : model launched to an API
                 detaled API info printed out
-      
+
         -----------
         Parameters 
         
