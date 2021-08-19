@@ -182,11 +182,14 @@ def download_data(repository):
 	os.remove(docker_tar)
 	print('\n\nData downloaded successfully.')
 
+
+
 def import_quickstart_data():
     from aimodelshare.data_sharing.download_data import download_data
     import tensorflow as tf
     import pandas as pd
     import os
+    import pickle
     
      # Confirm that creds are loaded, print warning if not
     if all(["AWS_ACCESS_KEY_ID" in os.environ, 
@@ -205,13 +208,22 @@ def import_quickstart_data():
     #Instantiate Model 
     print("\nPreparing downloaded files for use...")
     model = tf.keras.models.load_model('quickstart_materials/flowermodel.h5')
+    model_2 = tf.keras.models.load_model('quickstart_materials/flowermodel_2.h5')
+    model_3 = tf.keras.models.load_model('quickstart_materials/flowermodel_3.h5')
     
-    #unpack y_train
-    y_train = pd.read_csv("quickstart_materials/y_train.csv")
+    #unpack data
+    y_train = pd.read_csv("quickstart_materials/flower_data_directory/y_train.csv")
+    
+    with open("quickstart_materials/flower_data_directory/X_test.pkl", "rb") as fp:  
+        X_test = pickle.load(fp)
+    
+    with open("quickstart_materials/flower_data_directory/y_test_labels.txt", "rb") as fp:  
+        y_test_labels = pickle.load(fp)
+    
     
     success_message = ("\nSuccess! Your Quick Start materials have been downloaded. \n"
                        "You are now ready to run the tutorial.")
     
     print(success_message)
-    return model, y_train
+    return model, model_2, model_3, y_train, X_test, y_test_labels
 
