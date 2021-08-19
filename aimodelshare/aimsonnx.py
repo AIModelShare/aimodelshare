@@ -311,7 +311,7 @@ def _sklearn_to_onnx(model, initial_types, transfer_learning=None,
 
 
 def _keras_to_onnx(model, transfer_learning=None,
-                  deep_learning=None, task_type=None, epochs=None):
+                  deep_learning=None, task_type=None, epochs=None, input_shape=None):
     '''Extracts metadata from keras model object.'''
 
     # check whether this is a fitted keras model
@@ -340,10 +340,11 @@ def _keras_to_onnx(model, transfer_learning=None,
     tf.get_logger().setLevel('ERROR') # probably not good practice
     model.save(temp_dir)
 
-    output_path = os.path.join(temp_dir, "keras_metadata.pb")
+    output_path = os.path.join(temp_dir, 'temp.onnx')
     modelstringtest="python -m tf2onnx.convert --saved-model "+temp_dir+" --output "+output_path+" --opset 13"
     os.system(modelstringtest)
     onx = onnx.load(output_path)
+
 
     # generate metadata dict 
     metadata = {}
@@ -357,7 +358,7 @@ def _keras_to_onnx(model, transfer_learning=None,
     metadata['ml_framework'] = 'keras'
 
     # get model type from model object
-    metadata['model_type'] = str(model.__class__.__name__)
+    metadata['model_type'] =  str(model.__class__.__name__)
 
     # get transfer learning bool from user input
     metadata['transfer_learning'] = transfer_learning
@@ -371,7 +372,7 @@ def _keras_to_onnx(model, transfer_learning=None,
     # placeholders, need to be inferred from data 
     metadata['target_distribution'] = None
     metadata['input_type'] = None
-    metadata['input_shape'] = None
+    metadata['input_shape'] = input_shape
     metadata['input_dtypes'] = None       
     metadata['input_distribution'] = None
 
@@ -499,7 +500,7 @@ def _pytorch_to_onnx(model, model_input, transfer_learning=None,
     # placeholders, need to be inferred from data 
     metadata['target_distribution'] = None
     metadata['input_type'] = None
-    metadata['input_shape'] = ""
+    metadata['input_shape'] = None
     metadata['input_dtypes'] = None       
     metadata['input_distribution'] = None
 
@@ -567,7 +568,7 @@ def _pytorch_to_onnx(model, model_input, transfer_learning=None,
 
 def model_to_onnx(model, framework, model_input=None, initial_types=None,
                   transfer_learning=None, deep_learning=None, task_type=None, 
-                  epochs=None):
+                  epochs=None, input_shape=None):
     
     '''Transforms sklearn, keras, or pytorch model object into ONNX format 
     and extracts model metadata dictionary. The model metadata dictionary 
@@ -645,7 +646,7 @@ def model_to_onnx(model, framework, model_input=None, initial_types=None,
         onnx = _keras_to_onnx(model, transfer_learning=transfer_learning, 
                               deep_learning=deep_learning, 
                               task_type=task_type,
-                              epochs=epochs)
+                              epochs=epochs, input_shape=input_shape)
 
         
     elif framework == 'pytorch':
