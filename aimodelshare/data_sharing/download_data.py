@@ -19,7 +19,7 @@ def get_auth_head_no_aws_auth(auth_url, registry, repository, type):
 	return auth_head
 
 def progress_bar(layer_label, nb_traits):
-	sys.stdout.write('\r' + layer_label + ': Downloading [')
+	sys.stdout.write('\r' + layer_label + 'Downloading [')
 	for i in range(0, nb_traits):
 		if i == nb_traits - 1:
 			sys.stdout.write('>')
