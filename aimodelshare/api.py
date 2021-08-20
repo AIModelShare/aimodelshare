@@ -216,9 +216,9 @@ def create_prediction_api(model_filepath, unique_model_id, model_type,categorica
     else:
       pass   
     
-    if categorical==any(["TRUE","True","true", True]):
+    if categorical==any(['TRUE',"True","true"]):
         task_type="classification"
-    elif categorical==any(["False","False","false", False]):
+    elif categorical==any(['False',"False","false"]):
         task_type="regression"
     else:
         task_type="custom"
@@ -228,7 +228,7 @@ def create_prediction_api(model_filepath, unique_model_id, model_type,categorica
     from string import Template
     t = Template(data)
     newdata = t.substitute(
-        bucket_name=os.environ.get("BUCKET_NAME"), unique_model_id=unique_model_id, task_type=task_type)
+        bucket_name=os.environ.get("BUCKET_NAME"), unique_model_id=unique_model_id, task_type=task_type, classification=categorical, categorical=categorical)
     with open(os.path.join(temp_dir, 'main.py'), 'w') as file:
         file.write(newdata)
 
