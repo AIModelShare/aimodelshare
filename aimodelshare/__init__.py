@@ -13,6 +13,7 @@ from .data_sharing.download_data import download_data
 from .data_sharing.share_data import share_data_codebuild, share_dataset
 from .deploy_custom_lambda import deploy_custom_lambda
 from .object_oriented import ModelPlayground, Competition, Data
+from .reproducibility import capture_reproducibility_env, set_reproducibility_env, submit_reproducibility_env
 #import .sam as sam
 
 __all__ = [
