@@ -289,8 +289,6 @@ def submit_model(
 
     eval_metrics=json.loads(prediction.text)
 
-    print(eval_metrics)
-
 
     if all(value == None for value in eval_metrics.values()):
         print("Failed to calculate evaluation metrics. Please check the format of the submitted predictions.")
