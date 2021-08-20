@@ -42,7 +42,9 @@ def handler(event, context):
         
         ytestdata=get_ytestdata(ytest_s3_filename="ytest.pkl")
         
-        eval_result = evaluate_model(body, ytestdata)import boto3
+        eval_result = evaluate_model(body, ytestdata)
+
+import boto3
 import pandas as pd
 import os
 import json
@@ -719,16 +721,16 @@ def upload_file(file_name, bucket, object_name=None):
         return False
     return True
         
-        eval_dict = {"statusCode": 200,
-        "headers": {
-        "Access-Control-Allow-Origin" : "*",
-        "Access-Control-Allow-Credentials": True,
-        "Allow" : "GET, OPTIONS, POST",
-        "Access-Control-Allow-Methods" : "GET, OPTIONS, POST",
-        "Access-Control-Allow-Headers" : "*"},
-        "body": json.dumps(eval_result)
-        }
-        return eval_dict
+    eval_dict = {"statusCode": 200,
+    "headers": {
+    "Access-Control-Allow-Origin" : "*",
+    "Access-Control-Allow-Credentials": True,
+    "Allow" : "GET, OPTIONS, POST",
+    "Access-Control-Allow-Methods" : "GET, OPTIONS, POST",
+    "Access-Control-Allow-Headers" : "*"},
+    "body": json.dumps(eval_result)
+    }
+    return eval_dict
         
     if body.get("return_y","ALL") == "True":
         

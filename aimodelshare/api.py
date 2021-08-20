@@ -216,19 +216,19 @@ def create_prediction_api(model_filepath, unique_model_id, model_type,categorica
     else:
       pass   
     
-    if categorical==any(["TRUE","True","true"]):
-        task_type="classification"
-    elif categorical==any(["False","False","false"]):
-        task_type="regression"
+    if any([categorical=="TRUE",categorical=="True",categorical=="true"]):
+         task_type="classification"
+    elif any([categorical=="FALSE", categorical=="False", categorical=="false"]):
+         task_type="regression"
     else:
-        task_type="custom"
+         task_type="custom"
     # Upload model eval lambda function zipfile to user's model file folder on s3
     # use task_type
     data = pkg_resources.read_text(main, 'eval_lambda.txt')
     from string import Template
     t = Template(data)
     newdata = t.substitute(
-        bucket_name=os.environ.get("BUCKET_NAME"), unique_model_id=unique_model_id, task_type=task_type)
+        bucket_name=os.environ.get("BUCKET_NAME"), unique_model_id=unique_model_id, task_type=task_type, classification=categorical, categorical=categorical)
     with open(os.path.join(temp_dir, 'main.py'), 'w') as file:
         file.write(newdata)
 
