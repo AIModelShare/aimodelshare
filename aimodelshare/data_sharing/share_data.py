@@ -148,7 +148,7 @@ def share_data_codebuild(account_id, region, dataset_dir, dataset_tag='latest', 
 
     s3_client = session.resource('s3', region_name=region)
 
-    bucket_name = "aimodelshare"+"-"str(account_id)+"-"+"share_data"
+    bucket_name = "aimodelshare"+"-"+str(account_id)+"-"+"share_data"
     
     try:
         s3_client.create_bucket(
