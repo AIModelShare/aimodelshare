@@ -517,7 +517,7 @@ def add_registry_permission(user_session, statement_id, source_account_id, accou
     time.sleep(5)
 
 # create base image having repository:image_tag identity from source account if image not present, update base image if update flag set to true
-def clone_base_image(user_session, repository, image_tag, source_account_id, update=False, api_endpoint=""):
+def clone_base_image(user_session, repository, image_tag, source_account_id, api_endpoint="", update=False):
 
     if(check_if_image_exists(user_session, repository, image_tag) and update==False):
         result = {"Status": 1, "Success" : "Base image \"" + repository + ":" + image_tag + "\" already exists on this user's account."}
