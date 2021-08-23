@@ -249,16 +249,18 @@ def send_model_data_to_dyndb_and_return_api(api_info, private, categorical, prep
     response_string = response_string[1:-1]
 
     # Build output {{{
-    final_message = ("\nYou can now use your API web dashboard.\n\n"
-                     "To explore your API's functionality, follow this link to your Model Playground.\n"
+    final_message = ("\nYou can now use your Model Playground.\n\n"
+                     "Follow this link to explore your Model Playground's functionality\n"
                      "You can make predictions with the Dashboard and access example code from the Programmatic tab.\n")
     web_dashboard_url = ("https://www.modelshare.org/detail/"+ response_string)
     
     start = api_info[2]
     end = datetime.datetime.now()
     difference = (end - start).total_seconds()
-    finalresult2 = "Your AI Model Share API was created in " + \
-        str(int(difference)) + " seconds." + " API Url: " + api_info[0]
+    finalresult2 = "Success! Your Model Playground was created in " + \
+        str(int(difference)) + " seconds. \n" + " Playground Url: " + api_info[0] 
+
+
     # }}}
 
     ### Progress Update #6/6 {{{

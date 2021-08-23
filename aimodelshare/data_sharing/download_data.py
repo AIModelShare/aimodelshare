@@ -19,7 +19,7 @@ def get_auth_head_no_aws_auth(auth_url, registry, repository, type):
 	return auth_head
 
 def progress_bar(layer_label, nb_traits):
-	sys.stdout.write('\r' + layer_label + ': Downloading [')
+	sys.stdout.write('\r' + layer_label + 'Downloading [')
 	for i in range(0, nb_traits):
 		if i == nb_traits - 1:
 			sys.stdout.write('>')
@@ -181,3 +181,48 @@ def download_data(repository):
 	extract_data_from_image(docker_tar, data_zip_name)
 	os.remove(docker_tar)
 	print('\n\nData downloaded successfully.')
+
+
+
+def import_quickstart_data():
+    from aimodelshare.data_sharing.download_data import download_data
+    import tensorflow as tf
+    import pandas as pd
+    import os
+    import pickle
+    
+     # Confirm that creds are loaded, print warning if not
+    if all(["AWS_ACCESS_KEY_ID" in os.environ, 
+            "AWS_SECRET_ACCESS_KEY" in os.environ,
+            "AWS_REGION" in os.environ,
+           "username" in os.environ, 
+           "password" in os.environ]):
+        pass
+    else:
+        return print("'Download unsuccessful. Please provide credentials with set_credentials().")
+    
+    #Download Quick Start materials
+    quickstart_repository = "public.ecr.aws/y2e2a1d6/quickstart_materials-repository:latest"
+    download_data(quickstart_repository)
+    
+    #Instantiate Model 
+    print("\nPreparing downloaded files for use...")
+    model = tf.keras.models.load_model('quickstart_materials/flowermodel.h5')
+    model_2 = tf.keras.models.load_model('quickstart_materials/flowermodel_2.h5')
+    
+    #unpack data
+    y_train = pd.read_csv("quickstart_materials/y_train.csv")
+    y_test = pd.read_csv("quickstart_materials/y_test.csv")
+    y_test_labels=list(y_test.idxmax(axis=1))
+    
+    with open("quickstart_materials/X_test.pkl", "rb") as fp:  
+        X_test = pickle.load(fp)
+    
+    #create stand-in 'data directory' folder
+    os.mkdir('data-directory-example')
+
+    success_message = ("\nSuccess! Your Quick Start materials have been downloaded. \n"
+                       "You are now ready to run the tutorial.")
+    
+    print(success_message)
+    return model, model_2, y_train, X_test, y_test, y_test_labels
