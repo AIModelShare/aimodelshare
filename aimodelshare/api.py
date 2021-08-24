@@ -14,7 +14,7 @@ from zipfile import ZipFile, ZIP_STORED, ZipInfo
 import shutil
 from aimodelshare.containerization import create_lambda_using_base_image
 
-def create_prediction_api(model_filepath, unique_model_id, model_type,categorical, labels, apiid, custom_libraries, requirements, repo_name, image_tag):
+def create_prediction_api(model_filepath, unique_model_id, model_type,categorical, labels, apiid, custom_libraries, requirements, repo_name="", image_tag=""):
 
     from zipfile import ZipFile
     import zipfile
