@@ -116,10 +116,12 @@ def create_prediction_api(model_filepath, unique_model_id, model_type,categorica
 
     from . import custom_approach
 
+    file_objects_folder_path = os.path.join(temp_dir, 'file_objects')
+
     if model_type.lower() != "custom":  # file_objects already initialized if custom
-        if os.path.exists('file_objects'):
-            shutil.rmtree('file_objects')
-        os.mkdir('file_objects')
+        if os.path.exists(file_objects_folder_path):
+            shutil.rmtree(file_objects_folder_path)
+        os.mkdir(file_objects_folder_path)
 
 
     # write main handlers
@@ -187,16 +189,16 @@ def create_prediction_api(model_filepath, unique_model_id, model_type,categorica
          with open("custom_lambda.py", 'r') as in_file:     
              newdata = in_file.read()
 
-    with open(os.path.join('file_objects', 'model.py'), 'w') as file:
+    with open(os.path.join(file_objects_folder_path, 'model.py'), 'w') as file:
         file.write(newdata)
 
     if(model_type.lower() == 'custom'):
          data = pkg_resources.read_text(custom_approach, 'lambda_function.py')
-         with open(os.path.join('file_objects', 'lambda_function.py'), 'w') as file:
+         with open(os.path.join(file_objects_folder_path, 'lambda_function.py'), 'w') as file:
              file.write(data)
     else:
         data = pkg_resources.read_text(main, 'lambda_function.txt')
-        with open(os.path.join('file_objects', 'lambda_function.py'), 'w') as file:
+        with open(os.path.join(file_objects_folder_path, 'lambda_function.py'), 'w') as file:
             file.write(data)
         
     #with zipfile.ZipFile(os.path.join(temp_dir, 'archive.zip'), 'a') as z:
@@ -392,20 +394,20 @@ def create_prediction_api(model_filepath, unique_model_id, model_type,categorica
     # }}}
     
     if(any([custom_libraries=='FALSE',custom_libraries=='false'])):
-        response6 = create_lambda_using_base_image(user_session, os.getenv("BUCKET_NAME"), 'file_objects', lambdafxnname, apiid, repo_name, image_tag, 3072, 90)
+        response6 = create_lambda_using_base_image(user_session, os.getenv("BUCKET_NAME"), file_objects_folder_path, lambdafxnname, apiid, repo_name, image_tag, 3072, 90)
     elif(any([custom_libraries=='TRUE',custom_libraries=='true'])):
 
         requirements = requirements.split(",")
         for i in range(len(requirements)):
             requirements[i] = requirements[i].strip(" ")
 
-        with open(os.path.join('file_objects', 'requirements.txt'), 'a') as f:
+        with open(os.path.join(file_objects_folder_path, 'requirements.txt'), 'a') as f:
             for lib in requirements:
                 f.write('%s\n' % lib)
                 
         from aimodelshare import deploy_container
-        #response6 = deploy_lambda_using_sam(user_session, os.getenv("BUCKET_NAME"), requirements, 'file_objects', lambdafxnname, apiid, 1024, 90, "3.7")
-        response6 = deploy_container(account_number, os.environ.get("AWS_REGION"), user_session, lambdafxnname, 'file_objects', 'requirements.txt',apiid)
+        #response6 = deploy_lambda_using_sam(user_session, os.getenv("BUCKET_NAME"), requirements, file_objects_folder_path, lambdafxnname, apiid, 1024, 90, "3.7")
+        response6 = deploy_container(account_number, os.environ.get("AWS_REGION"), user_session, lambdafxnname, file_objects_folder_path, 'requirements.txt',apiid)
 
     response6evalfxn = lambdaclient.create_function(FunctionName=lambdaevalfxnname, Runtime='python3.7', Role='arn:aws:iam::'+account_number+':role/'+lambdarolename, Handler='main.handler',
                                           Code={
