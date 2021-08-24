@@ -14,7 +14,7 @@ from zipfile import ZipFile, ZIP_STORED, ZipInfo
 import shutil
 from aimodelshare.containerization import create_lambda_using_base_image
 
-def create_prediction_api(model_filepath, unique_model_id, model_type,categorical, labels, apiid, custom_libraries, requirements, repo_name="", image_tag=""):
+def create_prediction_api(model_filepath, unique_model_id, model_type, categorical, labels, apiid, custom_libraries, requirements, repo_name="", image_tag=""):
 
     from zipfile import ZipFile
     import zipfile
@@ -189,14 +189,13 @@ def create_prediction_api(model_filepath, unique_model_id, model_type,categorica
          with open("custom_lambda.py", 'r') as in_file:     
              newdata = in_file.read()
 
-    with open(os.path.join(file_objects_folder_path, 'model.py'), 'w') as file:
-        file.write(newdata)
-
     if(model_type.lower() == 'custom'):
          data = pkg_resources.read_text(custom_approach, 'lambda_function.py')
          with open(os.path.join(file_objects_folder_path, 'lambda_function.py'), 'w') as file:
              file.write(data)
     else:
+        with open(os.path.join(file_objects_folder_path, 'model.py'), 'w') as file:
+            file.write(newdata)
         data = pkg_resources.read_text(main, 'lambda_function.txt')
         with open(os.path.join(file_objects_folder_path, 'lambda_function.py'), 'w') as file:
             file.write(data)
