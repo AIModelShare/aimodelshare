@@ -95,7 +95,7 @@ def deploy_container(account_id, region, session, project_name, model_dir, requi
     newdata = template.substitute(
         account_id=account_id,
         region=region, #os.environ.get("region"),
-        repository=repository,
+        repository_name=repository,
         stack_name=stack_name)
     with open(os.path.join(template_folder, 'buildspec.yml'), 'w') as file:
         file.write(newdata)
