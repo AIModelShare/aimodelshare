@@ -189,13 +189,14 @@ def create_prediction_api(model_filepath, unique_model_id, model_type, categoric
          with open("custom_lambda.py", 'r') as in_file:     
              newdata = in_file.read()
 
+    with open(os.path.join(file_objects_folder_path, 'model.py'), 'w') as file:
+        file.write(newdata)
+
     if(model_type.lower() == 'custom'):
          data = pkg_resources.read_text(custom_approach, 'lambda_function.py')
          with open(os.path.join(file_objects_folder_path, 'lambda_function.py'), 'w') as file:
              file.write(data)
     else:
-        with open(os.path.join(file_objects_folder_path, 'model.py'), 'w') as file:
-            file.write(newdata)
         data = pkg_resources.read_text(main, 'lambda_function.txt')
         with open(os.path.join(file_objects_folder_path, 'lambda_function.py'), 'w') as file:
             file.write(data)
