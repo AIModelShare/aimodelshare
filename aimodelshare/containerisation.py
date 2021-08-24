@@ -8,7 +8,7 @@ import time
 import importlib.resources as pkg_resources
 from string import Template
 
-def deploy_container(account_id, region, session, project_name, model_dir, requirements_file_path, apiid, memory_size='1024', timeout='90', python_version='3.7'):
+def deploy_container(account_id, region, session, project_name, model_dir, apiid, memory_size='1024', timeout='90', python_version='3.7'):
 
     codebuild_bucket_name=os.environ.get("BUCKET_NAME") # s3 bucket name to create  #TODO: use same bucket and subfolder we used previously to store this data
                                                         # Why? AWS limits users to 100 total buckets!  Our old code only creates one per user per acct.
@@ -110,7 +110,7 @@ def deploy_container(account_id, region, session, project_name, model_dir, requi
 
     template = Template(data)
     newdata = template.substitute(
-        docker_tag=docker_tag, #os.environ.get("docker_tag"),
+        image_tag=docker_tag, #os.environ.get("docker_tag"),
         role_name=role_name,
         policy_name=policy_name,
         function_name=function_name,
@@ -128,8 +128,7 @@ def deploy_container(account_id, region, session, project_name, model_dir, requi
     template = Template(data)
     newdata = template.substitute(
         python_version=python_version,
-        model_dir=model_dir,
-        requirements_file_path=requirements_file_path)
+        directory=model_dir)
     with open(os.path.join('/'.join([template_folder, 'app']), 'Dockerfile'), 'w') as file:
         file.write(newdata)
         
