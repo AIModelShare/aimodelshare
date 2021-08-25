@@ -73,12 +73,14 @@ def deploy_custom_lambda(input_json_exampledata, output_json_exampledata, lambda
 
     temp_dir = tempfile.gettempdir()
 
+    file_objects_folder_path = os.path.join(temp_dir, 'file_objects')
+
     # if 'file_objects' is not the name of deployment directory deployment_dir, 'file_objects' directory
     # is created and contents of the deployment_dir directory are copied to 'file_objects' directory
-    if deployment_dir != 'file_objects':
-        if os.path.exists('file_objects'):
-            shutil.rmtree('file_objects')
-        shutil.copytree(deployment_dir, 'file_objects')
+    if deployment_dir != file_objects_folder_path:
+        if os.path.exists(file_objects_folder_path):
+            shutil.rmtree(file_objects_folder_path)
+        shutil.copytree(deployment_dir, file_objects_folder_path)
 
     # if 'custom_lambda.py' is not the name of the custom lambda .py file lambda_filepath, 'custom_lambda.py' file
     # is created and contents of lambda_filepath .py file is written into 'custom_lambda.py'
