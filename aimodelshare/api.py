@@ -4,15 +4,23 @@ import random
 import boto3
 import botocore
 import tempfile
-import zipfile
 import shutil
 import time
 import functools
 import requests
 import sys
-from zipfile import ZipFile, ZIP_STORED, ZipInfo
+import zipfile
 import shutil
 from aimodelshare.containerization import create_lambda_using_base_image
+
+import tempfile
+
+def delete_files_from_temp_dir(temp_dir_file_deletion_list):
+    temp_dir = tempfile.gettempdir()
+    for file_name in temp_dir_file_deletion_list:
+        file_path=os.path.join(temp_dir, file_name)
+        if(os.path.exists(file_path)):
+            os.remove(file_path)
 
 def create_prediction_api(model_filepath, unique_model_id, model_type, categorical, labels, apiid, custom_libraries, requirements, repo_name="", image_tag=""):
 
@@ -21,41 +29,29 @@ def create_prediction_api(model_filepath, unique_model_id, model_type, categoric
     import tempfile
     # create temporary folder
     temp_dir = tempfile.gettempdir()
-    import os
-    if os.path.exists(os.path.join(temp_dir, 'archive.zip')):
-      os.remove(os.path.join(temp_dir, 'archive.zip'))
-    else:
-      pass
-    if os.path.exists(os.path.join(temp_dir, 'archivetest.zip')):
-      os.remove(os.path.join(temp_dir, 'archivetest.zip'))
-    else:
-      pass 	
+    
+    temp_dir_file_deletion_list = ['archive.zip', 'archivetest.zip', 'archiveeval.zip', 'archiveauth.zip', 'main.py', 'ytest.pkl']
+    delete_files_from_temp_dir(temp_dir_file_deletion_list)
 
-    if os.path.exists(os.path.join(temp_dir, 'archive2.zip')):
-      os.remove(os.path.join(temp_dir, 'archive2.zip'))
-    else:
-      pass         
+    aws_access_key_id=str(os.environ.get("AWS_ACCESS_KEY_ID"))
+    aws_secret_access_key=str(os.environ.get("AWS_SECRET_ACCESS_KEY"))
+    region_name=str(os.environ.get("AWS_REGION"))
+    bucket_name=str(os.environ.get("BUCKET_NAME"))
 
-    if os.path.exists(os.path.join(temp_dir, 'archive3.zip')):
-      os.remove(os.path.join(temp_dir, 'archive3.zip'))
-    else:
-      pass 
-    if os.path.exists(os.path.join(temp_dir,'main.py')):
-      os.remove(os.path.join(temp_dir,'main.py'))
-    else:
-      pass 
-    if os.path.exists(os.path.join(temp_dir,'ytest.pkl')):
-      os.remove(os.path.join(temp_dir,'ytest.pkl'))
-    else:
-      pass 
-    model_type = model_type.lower()
+    # convert strings to lowercase/uppercase for compatibility
+    model_type = model_type.lower() 
     categorical = categorical.upper()
+
     # Wait for 5 seconds to ensure aws iam user on user account has time to load into aws's system
     #time.sleep(5)
 
-    user_session = boto3.session.Session(aws_access_key_id=os.environ.get("AWS_ACCESS_KEY_ID"),
-                                          aws_secret_access_key = os.environ.get("AWS_SECRET_ACCESS_KEY"), 
-                                          region_name=os.environ.get("AWS_REGION"))
+    # get session
+    user_session = boto3.session.Session(
+        aws_access_key_id=aws_access_key_id,
+        aws_secret_access_key=aws_secret_access_key,
+        region_name=region_name
+    )
+
     if(model_type=="neural style transfer"):
             model_layer ="arn:aws:lambda:us-east-1:517169013426:layer:keras_image:1"
             eval_layer ="arn:aws:lambda:us-east-1:517169013426:layer:eval_layer_test:6"
@@ -93,14 +89,8 @@ def create_prediction_api(model_filepath, unique_model_id, model_type, categoric
 
     # Update note:  dyndb data to add.  apiname. (include username too)
 
-
-    account_number = user_session.client(
-        'sts').get_caller_identity().get('Account')
-
-    import tempfile
-    from zipfile import ZipFile
-    import zipfile
-    import os
+    account_number = user_session.client('sts').get_caller_identity().get('Account')    # not used until really later
+    s3_client = user_session.client('s3')
 
     # create temporary folder
     temp_dir = tempfile.gettempdir()
@@ -116,211 +106,127 @@ def create_prediction_api(model_filepath, unique_model_id, model_type, categoric
 
     from . import custom_approach
 
+    ####################################################################################################
+
+    # MODEL
+
+    ####################################################################################################
+
     file_objects_folder_path = os.path.join(temp_dir, 'file_objects')
 
-    if model_type.lower() != "custom":  # file_objects already initialized if custom
+    if model_type != "custom":  # file_objects already initialized if custom
         if os.path.exists(file_objects_folder_path):
             shutil.rmtree(file_objects_folder_path)
         os.mkdir(file_objects_folder_path)
 
+    from string import Template
 
-    # write main handlers
-    if(model_type == "neural style transfer"):
-            data = pkg_resources.read_text(main, 'nst.txt')
-            from string import Template
-            t = Template(data)
-            newdata = t.substitute(
-                bucket_name=os.environ.get("BUCKET_NAME"), unique_model_id=unique_model_id)
-    elif model_type == 'text' and categorical == 'TRUE':
-            data = pkg_resources.read_text(main, '1.txt')
-            from string import Template
-            t = Template(data)
-            newdata = t.substitute(
-                bucket_name=os.environ.get("BUCKET_NAME"), unique_model_id=unique_model_id, labels=labels)
-    elif model_type == 'text' and categorical == 'FALSE':
-            data = pkg_resources.read_text(main, '1B.txt')
-            from string import Template
-            t = Template(data)
-            newdata = t.substitute(
-                bucket_name=os.environ.get("BUCKET_NAME"), unique_model_id=unique_model_id)
-    elif model_type == 'image' and categorical == 'TRUE':
-            data = pkg_resources.read_text(main, '2.txt')
-            from string import Template
-            t = Template(data)            
-            newdata = t.substitute(
-                bucket_name=os.environ.get("BUCKET_NAME"), unique_model_id=unique_model_id, labels=labels)
-    elif model_type == 'image' and categorical == 'FALSE':
-            data = pkg_resources.read_text(main, '3.txt')
-            from string import Template
-            t = Template(data)
-            newdata = t.substitute(
-                bucket_name=os.environ.get("BUCKET_NAME"), unique_model_id=unique_model_id)
-    elif all([model_type == 'tabular', categorical == 'TRUE']):
-            data = pkg_resources.read_text(main, '4.txt')
-            from string import Template
-            t = Template(data)
-            newdata = t.substitute(
-                bucket_name=os.environ.get("BUCKET_NAME"), unique_model_id=unique_model_id, labels=labels)
-    elif all([model_type == 'tabular', categorical == 'FALSE']):
-            data = pkg_resources.read_text(main, '5.txt')
-            from string import Template
-            t = Template(data)
-            newdata = t.substitute(
-                bucket_name=os.environ.get("BUCKET_NAME"), unique_model_id=unique_model_id)
-    elif model_type.lower() == 'timeseries' and categorical == 'FALSE':
-            data = pkg_resources.read_text(main, '6.txt')
-            from string import Template
-            t = Template(data)
-            newdata = t.substitute(
-                bucket_name=os.environ.get("BUCKET_NAME"), unique_model_id=unique_model_id)
-    elif model_type.lower() == 'audio' and categorical == 'TRUE':
-            data = pkg_resources.read_text(main, '7.txt')
-            from string import Template
-            t = Template(data)
-            newdata = t.substitute(
-                bucket_name=os.environ.get("BUCKET_NAME"), unique_model_id=unique_model_id, labels=labels)
-    elif model_type.lower() == 'video' and categorical == 'TRUE':
-            data = pkg_resources.read_text(main, '8.txt')
-            from string import Template
-            t = Template(data)
-            newdata = t.substitute(
-                bucket_name=os.environ.get("BUCKET_NAME"), unique_model_id=unique_model_id, labels=labels)
-    elif model_type.lower() == 'custom':
-         with open("custom_lambda.py", 'r') as in_file:     
-             newdata = in_file.read()
+    if(model_type=="custom"):   # custom task and output type
+        task_type="custom"
+        lambda_data = pkg_resources.read_text(custom_approach, 'lambda_function.txt')
+        with open("custom_lambda.py", 'r') as in_file:     
+            model_data = in_file.read()
+    else:
+        lambda_data = pkg_resources.read_text(main, 'lambda_function.py')
+        if(categorical=="TRUE"):   # model is categorical
+            task_type="classification"
+            if(model_type=="text"):
+                model_data = pkg_resources.read_text(main, '1.txt')
+            elif(model_type=="image"):
+                model_data = pkg_resources.read_text(main, "2.txt")
+            elif(model_type=="tabular"):
+                model_data = pkg_resources.read_text(main, "4.txt")
+            elif(model_type=="audio"):
+                model_data = pkg_resources.read_text(main, "7.txt")
+            elif(model_type=="video"):
+                model_data = pkg_resources.read_text(main, "8.txt")
+            model_t = Template(model_data)
+            model_data = model_t.substitute(bucket_name=bucket_name, unique_model_id=unique_model_id, labels=labels)
+        else:   # model is NOT categorical
+            task_type="regression"
+            if(model_type=="neural style transfer"):
+                model_data = pkg_resources.read_text(main, "nst.txt")
+            elif(model_type=="text"):
+                model_data = pkg_resources.read_text(main, "1B.txt")
+            elif(model_type=="image"):
+                model_data = pkg_resources.read_text(main, "3.txt")
+            elif(model_type=="tabular"):
+                model_data = pkg_resources.read_text(main, "5.txt")
+            elif(model_type=="timeseries"):
+                model_data = pkg_resources.read_text(main, "6.txt")
+            model_t = Template(model_data)
+            model_data = model_t.substitute(bucket_name=bucket_name, unique_model_id=unique_model_id)
 
     with open(os.path.join(file_objects_folder_path, 'model.py'), 'w') as file:
-        file.write(newdata)
+        file.write(model_data)
 
-    if(model_type.lower() == 'custom'):
-         data = pkg_resources.read_text(custom_approach, 'lambda_function.py')
-         with open(os.path.join(file_objects_folder_path, 'lambda_function.py'), 'w') as file:
-             file.write(data)
-    else:
-        data = pkg_resources.read_text(main, 'lambda_function.txt')
-        with open(os.path.join(file_objects_folder_path, 'lambda_function.py'), 'w') as file:
-            file.write(data)
-        
-    #with zipfile.ZipFile(os.path.join(temp_dir, 'archive.zip'), 'a') as z:
-    #    z.write(os.path.join(temp_dir, 'main.py'), 'main.py')
+    with open(os.path.join(file_objects_folder_path, 'lambda_function.py'), 'w') as file:
+        file.write(lambda_data)
 
-    # preprocessor upload
+    temp_dir_file_deletion_list = ['archive.zip', 'main.py']
+    delete_files_from_temp_dir(temp_dir_file_deletion_list)
 
-    # Upload lambda function zipfile to user's model file folder on s3
-    # try:
-    #     # This should go to developer's account from my account
-    #     s3_client = user_session.client('s3')
-    #     s3_client.upload_file(os.path.join(
-    #          temp_dir, 'archive.zip'), os.environ.get("BUCKET_NAME"),  unique_model_id+"/"+'archivetest.zip')
+    ####################################################################################################
 
-    # except Exception as e:
-    #     print(e)
+    # EVAL
 
-    if os.path.exists(os.path.join(temp_dir,'main.py')):
-      os.remove(os.path.join(temp_dir,'main.py'))
-    else:
-      pass  
+    ####################################################################################################
 
-    if os.path.exists(os.path.join(temp_dir,'archive.zip')):
-      os.remove(os.path.join(temp_dir,'archive.zip'))
-    else:
-      pass   
-    
-    if any([categorical=="TRUE",categorical=="True",categorical=="true"]):
-         task_type="classification"
-    elif any([categorical=="FALSE", categorical=="False", categorical=="false"]):
-         task_type="regression"
-    else:
-         task_type="custom"
-    # Upload model eval lambda function zipfile to user's model file folder on s3
-    # use task_type
-    data = pkg_resources.read_text(main, 'eval_lambda.txt')
-    from string import Template
-    t = Template(data)
-    newdata = t.substitute(
-        bucket_name=os.environ.get("BUCKET_NAME"), unique_model_id=unique_model_id, task_type=task_type, classification=categorical, categorical=categorical)
+    eval_data = pkg_resources.read_text(main, 'eval_lambda.txt')
+    eval_t = Template(eval_data)
+    eval_data = eval_t.substitute(bucket_name=bucket_name,
+        unique_model_id=unique_model_id,
+        task_type=task_type,
+        classification=categorical,
+        categorical=categorical
+    )
+
     with open(os.path.join(temp_dir, 'main.py'), 'w') as file:
-        file.write(newdata)
-
+        file.write(eval_data)
     with zipfile.ZipFile(os.path.join(temp_dir, 'archive2.zip'), 'a') as z:
         z.write(os.path.join(temp_dir, 'main.py'), 'main.py')
 
-    # preprocessor upload
-
-    # Upload lambda function zipfile to user's model file folder on s3
     try:
-        # This should go to developer's account from my account
-        s3_client = user_session.client('s3')
-        s3_client.upload_file(os.path.join(
-            temp_dir, 'archive2.zip'), os.environ.get("BUCKET_NAME"),  unique_model_id+"/"+'archiveeval.zip')
-
+        s3_client.upload_file(os.path.join(temp_dir, 'archive2.zip'), bucket_name, unique_model_id + "/" + 'archiveeval.zip')
     except Exception as e:
         print(e)
 
-    import os
+    temp_dir_file_deletion_list = ['archive2.zip', 'main.py']
+    delete_files_from_temp_dir(temp_dir_file_deletion_list)
 
-    if os.path.exists(os.path.join(temp_dir,'main.py')):
-      os.remove(os.path.join(temp_dir,'main.py'))
-    else:
-      pass         
+    ####################################################################################################
 
-    if os.path.exists(os.path.join(temp_dir,'archive2.zip')):
-      os.remove(os.path.join(temp_dir,'archive2.zip'))
-    else:
-      pass  
+    # AUTH
 
-    # Upload model eval lambda function zipfile to user's model file folder on s3
-    if categorical == 'TRUE':
-            newdata = pkg_resources.read_text(main, 'authorization.txt')
-            with open(os.path.join(temp_dir, 'main.py'), 'w') as file:
-                file.write(newdata)
-    elif categorical == 'FALSE':
-            newdata = pkg_resources.read_text(main, 'authorization.txt')
-            with open(os.path.join(temp_dir, 'main.py'), 'w') as file:
-                file.write(newdata)
+    ####################################################################################################
+
+    auth_data = pkg_resources.read_text(main, 'authorization.txt')
+    
+    with open(os.path.join(temp_dir, 'main.py'), 'w') as file:
+        file.write(auth_data)
     with zipfile.ZipFile(os.path.join(temp_dir, 'archive3.zip'), 'a') as z:
         z.write(os.path.join(temp_dir, 'main.py'), 'main.py')
 
-    # preprocessor upload
-
-    # Upload lambda function zipfile to user's model file folder on s3
     try:
-        # This should go to developer's account from my account
-        s3_client = user_session.client('s3')
-        s3_client.upload_file(os.path.join(
-            temp_dir, 'archive3.zip'), os.environ.get("BUCKET_NAME"),  unique_model_id+"/"+'archiveauth.zip')
-
+        s3_client.upload_file(os.path.join(temp_dir, 'archive3.zip'), bucket_name, unique_model_id + "/" + 'archiveauth.zip')
     except Exception as e:
         print(e)
 
-    if model_type.lower() == 'custom':
-        s3_client.upload_file(os.path.join(
-            temp_dir, 'exampledata.json'), os.environ.get("BUCKET_NAME"),  unique_model_id+"/"+"exampledata.json")
+    temp_dir_file_deletion_list = ['archive3.zip', 'main.py']
+    delete_files_from_temp_dir(temp_dir_file_deletion_list)
+
+    ####################################################################################################
+
+    if model_type == 'custom':
+        try:
+            s3_client.upload_file(os.path.join(temp_dir, 'exampledata.json'), bucket_name, unique_model_id + "/" + "exampledata.json")
+        except:
+            print(e)
  
-    import os
-    if os.path.exists(os.path.join(temp_dir, 'archive.zip')):
-      os.remove(os.path.join(temp_dir, 'archive.zip'))
-    else:
-      pass
-    if os.path.exists(os.path.join(temp_dir, 'archivetest.zip')):
-      os.remove(os.path.join(temp_dir, 'archivetest.zip'))
-    else:
-      pass 	
+    temp_dir_file_deletion_list = ['archive.zip', 'archivetest.zip', 'archive2.zip', 'archive3.zip', 'main.py', 'exampledata.json']
+    delete_files_from_temp_dir(temp_dir_file_deletion_list)
 
-    if os.path.exists(os.path.join(temp_dir, 'archive2.zip')):
-      os.remove(os.path.join(temp_dir, 'archive2.zip'))
-    else:
-      pass         
-
-    if os.path.exists(os.path.join(temp_dir, 'archive3.zip')):
-      os.remove(os.path.join(temp_dir, 'archive3.zip'))
-    else:
-      pass 
-    if os.path.exists(os.path.join(temp_dir,'main.py')):
-      os.remove(os.path.join(temp_dir,'main.py'))
-    else:
-      pass 
-
+    ####################################################################################################
 
     # Create and/or update roles for lambda function you will create below
     lambdarole1 = {u'Version': u'2012-10-17', u'Statement': [
