@@ -123,6 +123,8 @@ def export_preprocessor(preprocessor_fxn,directory, globs=globals()):
     except Exception as e:
         print(e)
 
+    return print("Your preprocessor is now saved to 'preprocessor.zip'")
+
 def upload_preprocessor(preprocessor_path, client, bucket, model_id, model_version):
 
   try:
