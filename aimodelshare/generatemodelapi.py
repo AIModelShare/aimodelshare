@@ -25,7 +25,7 @@ from aimodelshare.preprocessormodules import upload_preprocessor
 from aimodelshare.model import _get_predictionmodel_key, _extract_model_metadata
 from aimodelshare.data_sharing.share_data import share_data_codebuild
 
-def take_user_info_and_generate_api(model_filepath, model_type, categorical,labels, preprocessor_filepath,custom_libraries, requirements, exampledata_json_filepath):
+def take_user_info_and_generate_api(model_filepath, model_type, task_type,labels, preprocessor_filepath,custom_libraries, requirements, exampledata_json_filepath):
     """
     Generates an api using model parameters and user credentials, from the user
 
@@ -46,9 +46,9 @@ def take_user_info_and_generate_api(model_filepath, model_type, categorical,labe
     model_type :  string 
                 values - [ 'text' , 'image' , 'tabular' , 'timeseries' ]
                 Type of model data 
-    categorical:  string
-                  "TRUE" if model is Classification, categorical type
-                  "FALSE" if model is continuous, Regression type
+    task_type:  string
+                  "classification" if model is Classification, categorical type
+                  "regression" if model is continuous, Regression type
     labels:   list
             value - labels for training data
             can be extracted from columns of y train or can be provided by the user
@@ -162,14 +162,14 @@ def take_user_info_and_generate_api(model_filepath, model_type, categorical,labe
     # }}}
     
     apiurl = create_prediction_api(model_filepath, unique_model_id,
-                                   model_type, categorical, labels,api_id,custom_libraries, requirements)
+                                   model_type, task_type, labels,api_id,custom_libraries, requirements)
 
     finalresult = [apiurl["body"], apiurl["statusCode"],
                    now, unique_model_id, os.environ.get("BUCKET_NAME"), input_shape]
     return finalresult
 
 
-def send_model_data_to_dyndb_and_return_api(api_info, private, categorical, preprocessor_filepath,
+def send_model_data_to_dyndb_and_return_api(api_info, private, task_type, preprocessor_filepath,
                                             aishare_modelname, aishare_modeldescription, aishare_modelevaluation, model_type,
                                             aishare_tags, aishare_apicalls, exampledata_json_filepath,variablename_and_type_data="default"):
     """
@@ -183,9 +183,9 @@ def send_model_data_to_dyndb_and_return_api(api_info, private, categorical, prep
     private :   string, default="FALSE"
               TRUE if model and its corresponding data is not public
               FALSE if model and its corresponding data is public            
-    categorical: string, default="TRUE"
-                  TRUE if model is of Classification type with categorical variables
-                  FALSE if model is Regression type with continuous variables
+    task_type: string
+                "classification" if model is of Classification type with categorical variables
+                "regression" if model is Regression type with continuous variables
     preprocessor_filepath:  string
                           value - Absolute path to preprocessor file [REQUIRED] to be set by the user
                           "./preprocessor.zip" 
@@ -228,7 +228,7 @@ def send_model_data_to_dyndb_and_return_api(api_info, private, categorical, prep
                 "modelname": aishare_modelname,
                 "tags": aishare_tags,
                 "Private": private,
-                "Categorical": categorical,
+                "categorical": 'FALSE',
                 "delete": "FALSE",
                 "input_feature_dtypes": variablename_and_type_data[0],
                 "input_feature_names": variablename_and_type_data[1],
@@ -268,7 +268,7 @@ def send_model_data_to_dyndb_and_return_api(api_info, private, categorical, prep
     return print("\n\n" + finalresult2 + "\n" + final_message + web_dashboard_url)
 
 
-def model_to_api(model_filepath, model_type, private, categorical, y_train,preprocessor_filepath,custom_libraries="FALSE", example_data=None):
+def model_to_api(model_filepath, model_type, private, task_type, y_train, preprocessor_filepath,custom_libraries="FALSE", example_data=None):
     """
       Launches a live prediction REST API for deploying ML models using model parameters and user credentials, provided by the user
       Inputs : 8
@@ -293,9 +293,9 @@ def model_to_api(model_filepath, model_type, private, categorical, y_train,prepr
       model_type :  string 
                     values - [ 'Text' , 'Image' , 'Tabular' , 'Timeseries' ] 
                     type of model data     
-      categorical:    bool, default=True
-                      True [DEFAULT] if model is of Classification type with categorical target variables
-                      False if model is of Regression type with continuous target variables
+      task_type:    bool, default=True
+                      "classification" if model is of Classification type with categorical target variables
+                      "regression" if model is of Regression type with continuous target variables
       y_train : training labels of size of dataset
                 value - y values for model
                 [REQUIRED] for classification type models
@@ -343,7 +343,7 @@ def model_to_api(model_filepath, model_type, private, categorical, y_train,prepr
 
     # Force user to provide example data for tabular models {{{
     if any([model_type.lower() == "tabular", model_type.lower() == "timeseries"]):
-        if example_data == None:
+        if example_data is None:
             return print("Error: Example data is required for tabular models. \n Please provide a pandas DataFrame with a sample of your X data (in the format expected by your preprocessor) and try again.")
     else:
         pass
@@ -352,11 +352,11 @@ def model_to_api(model_filepath, model_type, private, categorical, y_train,prepr
     print("Creating your prediction API. (This process may take several minutes.)\n")
     variablename_and_type_data = None
     private = str(private).upper()
-    categorical = str(categorical).upper()
+    task_type = str(task_type).lower()
     if model_type == "tabular" or "keras_tabular" or 'Tabular':
         variablename_and_type_data = extract_varnames_fromtrainingdata(
             example_data)
-    if categorical == "TRUE":
+    if task_type == "classification":
         try:
             labels = y_train.columns.tolist()
         except:
@@ -377,7 +377,7 @@ def model_to_api(model_filepath, model_type, private, categorical, y_train,prepr
     # }}}
     
     api_info = take_user_info_and_generate_api( 
-        model_filepath, model_type, categorical, labels,preprocessor_filepath,custom_libraries, requirements, exampledata_json_filepath)
+        model_filepath, model_type, task_type, labels,preprocessor_filepath,custom_libraries, requirements, exampledata_json_filepath)
 
     ### Progress Update #5/6 {{{
     sys.stdout.write('\r')
@@ -386,7 +386,7 @@ def model_to_api(model_filepath, model_type, private, categorical, y_train,prepr
     # }}}
     
     print_api_info = send_model_data_to_dyndb_and_return_api(
-        api_info, private, categorical,preprocessor_filepath, aishare_modelname,
+        api_info, private, task_type,preprocessor_filepath, aishare_modelname,
         aishare_modeldescription, aishare_modelevaluation, model_type,
         aishare_tags, aishare_apicalls, exampledata_json_filepath,variablename_and_type_data)
     

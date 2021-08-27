@@ -321,7 +321,7 @@ def submit_model(
 
 
     # check if keras model object was passed
-    elif isinstance(cnn2, (tf.keras.models.Model)):
+    elif isinstance(model, (tf.keras.models.Model)):
 
         # generate tempfile for onnx object 
         temp_dir = tempfile.gettempdir()

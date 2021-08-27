@@ -16,15 +16,15 @@ class ModelPlayground:
                     True if model and its corresponding data is not public
                     False [DEFAULT] if model and its corresponding data is public 
     """
-    def __init__(self, model_type, classification, private, playground_url=None):
+    def __init__(self, model_type, task_type, private, playground_url=None):
         self.model_type = model_type
-        self.categorical = classification 
+        self.task_type = task_type 
         self.private = private
         self.playground_url = playground_url
     
     
     def __str__(self):
-        return f"ModelPlayground instance of model type: {self.model_type}, classification: {self.categorical},  private: {self.private}"
+        return f"ModelPlayground instance of model type: {self.model_type}, task_type: {self.task_type},  private: {self.private}"
     
     def deploy(self, model_filepath, preprocessor_filepath, y_train, custom_libraries = "FALSE", example_data=None):
         """
@@ -69,7 +69,7 @@ class ModelPlayground:
         self.playground_url = model_to_api(model_filepath=model_filepath, 
                                       model_type = self.model_type, 
                                       private = self.private, 
-                                      categorical = self.categorical,
+                                      task_type = self.task_type,
                                       y_train = y_train, 
                                       preprocessor_filepath = preprocessor_filepath, 
                                       custom_libraries = custom_libraries,
@@ -228,7 +228,7 @@ class Competition:
         data = inspect(apiurl = self.playground_url)
         return data 
     
-    def get_leaderboard(self, category="classification", verbose=3, columns=None):
+    def get_leaderboard(self, verbose=3, columns=None):
         from aimodelshare.leaderboard import get_leaderboard as get_lead
         data = get_lead(category=category, 
                  verbose=verbose,
@@ -236,7 +236,7 @@ class Competition:
                  apiurl = self.playground_url)
         return data
     
-    def stylize_leaderboard(self, leaderboard, category="classification"):
+    def stylize_leaderboard(self, leaderboard):
         from aimodelshare.leaderboard import stylize_leaderboard as stylize_lead
         stylized_leaderboard = stylize_lead(leaderboard = leaderboard,
                                             category=category)
