@@ -7,6 +7,7 @@ import pandas as pd
 import requests 
 import json
 import ast
+import tempfile
 
 from datetime import datetime
 
@@ -71,6 +72,34 @@ def _upload_onnx_model(modelpath, client, bucket, model_id, model_version):
     except Exception as err:
         return err
     # }}}
+
+def _upload_native_model(modelpath, client, bucket, model_id, model_version):
+    # Check the model {{{
+    if not os.path.exists(modelpath):
+        raise FileNotFoundError(f"The model file at {modelpath} does not exist")
+
+    file_name = os.path.basename(modelpath)
+    file_name, file_ext = os.path.splitext(file_name)
+
+    assert (
+        file_ext == ".onnx"
+    ), "modelshareai api only supports .onnx models at the moment"
+    # }}}
+
+    # Upload the model {{{
+    try:
+        client["client"].upload_file(
+            modelpath, bucket, model_id + "/onnx_model_mostrecent.onnx"
+        )
+        client["client"].upload_file(
+            modelpath,
+            bucket,
+            model_id + "/onnx_model_v" + str(model_version) + file_ext,
+        )
+    except Exception as err:
+        return err
+    # }}}
+
 
 def _upload_preprocessor(preprocessor, client, bucket, model_id, model_version):
 
@@ -155,7 +184,7 @@ def _update_leaderboard(
     # }}}
 
 def submit_model(
-    modelpath,
+    model,
     apiurl,
     prediction_submission=None,
     preprocessor=None,
@@ -233,8 +262,8 @@ def submit_model(
 
     # Delete recent model and/or preprocessor {{{
     recent_models = filter(lambda f: "mostrecent" in f, model_files)
-    for model in recent_models:
-        _delete_s3_object(aws_client, bucket, model_id, model)
+    for mod in recent_models:
+        _delete_s3_object(aws_client, bucket, model_id, mod)
 
     model_files = list(filter(lambda f: "mostrecent" not in f, model_files))
     # }}}
@@ -261,10 +290,58 @@ def submit_model(
     # }}}
 
     # Upload the model {{{
-    err = _upload_onnx_model(modelpath, aws_client, bucket, model_id, model_version)
-    if err is not None:
-        raise err
-    # }}}
+    # check if onnx object was passed
+    if isinstance(model, (onnx.ModelProto)):
+
+        # generate tempfile for onnx object 
+        temp_dir = tempfile.gettempdir()
+        modelpath = os.path.join(temp_dir, 'temp_file.onnx')
+
+        with open(modelpath, "wb") as f:
+            f.write(model.SerializeToString())
+
+        # Upload the model
+        err = _upload_onnx_model(modelpath, aws_client, bucket, model_id, model_version)
+        if err is not None:
+            raise err
+
+
+    # check if path of saved onnx model was passed
+    elif os.path.isfile(model) and model.split('.')[-1] == 'onnx':
+
+        modelpath = model
+
+        # Upload the model
+        err = _upload_onnx_model(modelpath, aws_client, bucket, model_id, model_version)
+        if err is not None:
+            raise err
+
+
+    # check if keras model object was passed
+    elif isinstance(model, (tf.keras.models.Model)):
+
+        # generate tempfile for onnx object 
+        temp_dir = tempfile.gettempdir()
+        modelpath = os.path.join(temp_dir, 'temp_file.h5')
+
+        model.save(modelpath)
+
+        # Upload native model object 
+        err = _upload_native_model(modelpath, aws_client, bucket, model_id, model_version)
+        if err is not None:
+            raise err
+
+
+    # check if path to saved keras h5 model was passed
+    elif os.path.isfile(str(model)) and model.split('.')[-1] == 'h5':
+
+        modelpath = model
+
+        # Upload native model object 
+        err = _upload_native_model(modelpath, aws_client, bucket, model_id, model_version)
+        if err is not None:
+            raise err
+
 
     if prediction_submission is not None:
         if type(prediction_submission) is not list:

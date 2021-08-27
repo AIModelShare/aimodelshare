@@ -138,7 +138,7 @@ class ModelPlayground:
         
         """
         from aimodelshare.model import submit_model as submit
-        submission = submit(modelpath = model_filepath, 
+        submission = submit(model = model_filepath, 
                             apiurl = self.playground_url,
                             prediction_submission = prediction_submission, 
                             preprocessor = preprocessor_filepath,
@@ -208,7 +208,7 @@ class Competition:
         
         """
         from aimodelshare.model import submit_model as submit
-        submission = submit(modelpath = model_filepath, 
+        submission = submit(model = model_filepath, 
                               apiurl = self.playground_url,
                               prediction_submission = prediction_submission, 
                               preprocessor = preprocessor_filepath,
