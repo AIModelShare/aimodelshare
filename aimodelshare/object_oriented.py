@@ -27,12 +27,13 @@ class ModelPlayground:
         self.categorical = classification 
         self.private = private
         self.playground_url = playground_url
-    
-    
+        self.image_id=""
+        self.api_endpoint="https://vupwujn586.execute-api.us-east-1.amazonaws.com/dev/copybasetouseracct"
+
     def __str__(self):
         return f"ModelPlayground instance of model type: {self.model_type}, classification: {self.categorical},  private: {self.private}"
     
-    def deploy(self, model_filepath, preprocessor_filepath, y_train, example_data=None, custom_libraries = "FALSE", image_id="", api_endpoint=""):
+    def deploy(self, model_filepath, preprocessor_filepath, y_train, example_data=None, custom_libraries = "FALSE"):
         """
         Launches a live prediction REST API for deploying ML models using model parameters and user credentials, provided by the user
         Inputs : 8
@@ -71,6 +72,18 @@ class ModelPlayground:
         print_api_info : prints statements with generated live prediction API details
                         also prints steps to update the model submissions by the user/team
         """
+
+        if(self.model_type!="custom"):
+            if(self.model_type=="image"):
+                base_image_id="image"
+            elif(self.model_type=="text"):
+                base_image_id="text"
+            elif(self.model_type=="neural style transfer"):
+                base_image_id="nst"
+            else:
+                base_image_id="v3"
+            self.image_id="aimodelshare_base_image"+":"+base_image_id
+
         from aimodelshare.generatemodelapi import model_to_api
         self.playground_url = model_to_api(model_filepath=model_filepath, 
                                       model_type = self.model_type, 
@@ -80,8 +93,8 @@ class ModelPlayground:
                                       preprocessor_filepath = preprocessor_filepath, 
                                       example_data = example_data,
                                       custom_libraries = custom_libraries,
-                                      image=image_id,
-                                      base_image_api_endpoint=api_endpoint)
+                                      image=self.image_id,
+                                      base_image_api_endpoint=self.api_endpoint)
         #remove extra quotes
         self.playground_url = self.playground_url[1:-1]
     
