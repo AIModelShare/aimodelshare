@@ -127,7 +127,7 @@ def create_prediction_api(model_filepath, unique_model_id, model_type, categoric
         with open("custom_lambda.py", 'r') as in_file:     
             model_data = in_file.read()
     else:
-        lambda_data = pkg_resources.read_text(main, 'lambda_function.py')
+        lambda_data = pkg_resources.read_text(main, 'lambda_function.txt')
         if(categorical=="TRUE"):   # model is categorical
             task_type="classification"
             if(model_type=="text"):
