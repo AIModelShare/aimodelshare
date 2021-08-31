@@ -1,0 +1,40 @@
+# SET ENVIRONMENT VARIALBES FOR BUCKETS
+
+# "bucket": "aimodehshare",
+# "api_id": "354mdp3021",
+# "function_name": "modfunction161070"
+
+import sys
+import os
+import json
+import zipfile
+import tempfile
+import boto3
+
+temp_path = tempfile.gettempdir()
+
+bucket = os.getenv("bucket")
+api_id = os.getenv("api_id")
+function_name = os.getenv("function_name")
+
+key = api_id + "/" + function_name + ".zip"
+temp_path_directory = "/".join([temp_path, function_name])
+temp_path_directory_zip_file = temp_path_directory + ".zip"
+
+s3_client = boto3.client('s3')
+response = s3_client.download_file(
+  bucket,
+  key,
+  temp_path_directory_zip_file
+)
+
+with zipfile.ZipFile(temp_path_directory_zip_file, 'r') as zip_ref:
+    zip_ref.extractall(temp_path)
+
+sys.path.append(temp_path)
+from model import handler
+
+def lambda_handler(event, context):
+    print("lambda_handler from containerization_templates")
+    result = handler(event, context)
+    return result

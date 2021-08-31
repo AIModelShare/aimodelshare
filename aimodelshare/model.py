@@ -337,14 +337,13 @@ def submit_model(
     # }}}
     modelsubmissiontags=input("Insert search tags to help users find your model (optional): ")
     modelsubmissiondescription=input("Provide any useful notes about your model (optional): ")
-    aimsurl=input("Share code: Insert AI Model Share url to Jupyter notebook with model code(optional): ")
-    githuburl=input("Share code: Insert Github url to Jupyter notebook with model code(optional): ")
 
     #Update competition data
     bodydata = {"apiurl": apiurl,
                 "submissions": model_version,
                  "contributoruniquenames":os.environ.get('username'),
-                }
+                "versionupdateputsubmit":"TRUE"
+                                }
     
     # Get the response
     headers_with_authentication = {'Content-Type': 'application/json', 'authorizationToken': os.environ.get("AWS_TOKEN"), 'Access-Control-Allow-Headers':
@@ -373,10 +372,7 @@ def submit_model(
                 "modelsummary":json.dumps(inspect_pd.to_json()),
                 "Private":"FALSE",
                 "modelsubmissiondescription": modelsubmissiondescription,
-                "modelsubmissiontags":modelsubmissiontags ,
-
-                "githubipynburl":githuburl,
-                "aimsipynburl": aimsurl}
+                "modelsubmissiontags":modelsubmissiontags}
 
     bodydatamodels.update(modelleaderboarddata_cleaned)
     d = bodydatamodels
@@ -395,7 +391,13 @@ def submit_model(
     # competitiondata lambda function invoked through below url to update model submissions and contributors
     response=requests.post("https://eeqq8zuo9j.execute-api.us-east-1.amazonaws.com/dev/modeldata",
                   json=bodydatamodels_allstrings, headers=headers_with_authentication)
-    return "Your model has been submitted as model version "+str(model_version)
+    if str(response.status_code)=="200":
+        code_comp_result="To submit code used to create this model or to view current leaderboard navigate to Model Playground: \n\n https://www.modelshare.org/detail/model:"+response.text.split(":")[1]  
+    else:
+        code_comp_result="" #TODO: reponse 403 indicates that user needs to reset credentials.  Need to add a creds check to top of function.
+    
+    
+    return print("\nYour model has been submitted as model version "+str(model_version)+ "\n\n"+code_comp_result)
 
   
 def update_runtime_model(apiurl, model_version=None):

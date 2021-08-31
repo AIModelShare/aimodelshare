@@ -11,6 +11,7 @@ import json
 import boto3
 import tempfile
 import requests
+import uuid
 
 def create_docker_folder_local(dataset_dir, dataset_name, python_version):
 
@@ -147,21 +148,23 @@ def share_data_codebuild(account_id, region, dataset_dir, dataset_tag='latest', 
 
     s3_client = session.resource('s3', region_name=region)
 
+    bucket_name = "aimodelshare"+str(account_id)+"sharedata"
+    
     try:
         s3_client.create_bucket(
-            Bucket='aimodelsharedata',
+            Bucket=bucket_name,
             CreateBucketConfiguration = {
                 'LocationConstraint': region
             }
         )
     except:
         s3_client.create_bucket(
-            Bucket='aimodelsharedata'
+            Bucket=bucket_name
         )
     
     s3_resource = session.resource('s3', region_name=region)
 
-    bucket_versioning = s3_resource.BucketVersioning('aimodelsharedata')
+    bucket_versioning = s3_resource.BucketVersioning(bucket_name)
     response = bucket_versioning.enable()
 
     # ecr = session.client('ecr')
@@ -214,7 +217,7 @@ def share_data_codebuild(account_id, region, dataset_dir, dataset_tag='latest', 
 
     s3_client = session.client('s3')
     s3_client.upload_file(''.join([template_folder, '.zip']),
-                          'aimodelsharedata',
+                          bucket_name,
                           ''.join([dataset_name+'_'+dataset_tag, '.zip']))
 
     if(flag==0):
@@ -227,7 +230,7 @@ def share_data_codebuild(account_id, region, dataset_dir, dataset_tag='latest', 
             name=codebuild_dataset_name,
             source={
                 'type': 'S3',
-                'location': 'aimodelsharedata' + '/' + dataset_name+'_'+dataset_tag + '.zip'
+                'location': bucket_name + '/' + dataset_name+'_'+dataset_tag + '.zip'
             },
             artifacts={
                 'type': 'NO_ARTIFACTS',
@@ -248,7 +251,7 @@ def share_data_codebuild(account_id, region, dataset_dir, dataset_tag='latest', 
             name=codebuild_dataset_name,
             source={
                 'type': 'S3',
-                'location': 'aimodelsharedata' + '/' + dataset_name+'_'+dataset_tag + '.zip'
+                'location': bucket_name + '/' + dataset_name+'_'+dataset_tag + '.zip'
             },
             artifacts={
                 'type': 'NO_ARTIFACTS',

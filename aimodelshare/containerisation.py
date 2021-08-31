@@ -95,7 +95,7 @@ def deploy_container(account_id, region, session, project_name, model_dir, requi
     newdata = template.substitute(
         account_id=account_id,
         region=region, #os.environ.get("region"),
-        repository=repository,
+        repository_name=repository,
         stack_name=stack_name)
     with open(os.path.join(template_folder, 'buildspec.yml'), 'w') as file:
         file.write(newdata)
@@ -110,7 +110,7 @@ def deploy_container(account_id, region, session, project_name, model_dir, requi
 
     template = Template(data)
     newdata = template.substitute(
-        docker_tag=docker_tag, #os.environ.get("docker_tag"),
+        image_tag=docker_tag, #os.environ.get("docker_tag"),
         role_name=role_name,
         policy_name=policy_name,
         function_name=function_name,
@@ -128,7 +128,7 @@ def deploy_container(account_id, region, session, project_name, model_dir, requi
     template = Template(data)
     newdata = template.substitute(
         python_version=python_version,
-        model_dir=model_dir,
+        directory=model_dir,
         requirements_file_path=requirements_file_path)
     with open(os.path.join('/'.join([template_folder, 'app']), 'Dockerfile'), 'w') as file:
         file.write(newdata)
