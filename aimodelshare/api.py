@@ -123,7 +123,7 @@ def create_prediction_api(model_filepath, unique_model_id, model_type, categoric
 
     if(model_type=="custom"):   # custom task and output type
         task_type="custom"
-        lambda_data = pkg_resources.read_text(custom_approach, 'lambda_function.txt')
+        lambda_data = pkg_resources.read_text(custom_approach, 'lambda_function.py')
         with open("custom_lambda.py", 'r') as in_file:     
             model_data = in_file.read()
     else:
