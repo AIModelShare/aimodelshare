@@ -219,3 +219,58 @@ def import_quickstart_data():
     
     print(success_message)
     return model, y_test_labels
+
+
+
+def import_quickstart_data_part2():
+    from aimodelshare.data_sharing.download_data import download_data
+    import tensorflow as tf
+    import pandas as pd
+    import os
+    import pickle
+    import shutil 
+    
+     # Confirm that creds are loaded, print warning if not
+    if all(["AWS_ACCESS_KEY_ID" in os.environ, 
+            "AWS_SECRET_ACCESS_KEY" in os.environ,
+            "AWS_REGION" in os.environ,
+           "username" in os.environ, 
+           "password" in os.environ]):
+        pass
+    else:
+        return print("'Download unsuccessful. Please provide credentials with set_credentials().")
+    
+    #Download Quick Start materials
+    quickstart_repository = "public.ecr.aws/y2e2a1d6/quickstart_materials_part2-repository:latest"
+    download_data(quickstart_repository)
+    
+    #Instantiate Model 
+    print("\nPreparing downloaded files for use...")
+    model_2 = tf.keras.models.load_model('quickstart_materials_part2/flowermodel_2.h5')
+    
+    #unpack data
+    with open("quickstart_materials_part2/X_test.pkl", "rb") as fp:  
+        X_test = pickle.load(fp)
+    
+    with open("quickstart_materials_part2/X_train.pkl", "rb") as fp:  
+        X_train = pickle.load(fp)
+    
+    y_train = pd.read_csv("quickstart_materials_part2/y_train.csv")
+    y_test = pd.read_csv("quickstart_materials_part2/y_test.csv")
+    
+    #move data files to folder to upload with create_competiton
+    os.mkdir('data-directory')
+    
+    files = ['quickstart_materials_part2/X_train.pkl', 
+             'quickstart_materials_part2/X_test.pkl', 
+             'quickstart_materials_part2/y_train.csv']
+    
+    for f in files:
+        shutil.move(f, 'data-directory')
+
+    success_message = ("\nSuccess! Your Quick Start materials have been downloaded. \n"
+                       "You are now ready to run the tutorial.")
+    
+    print(success_message)
+    return model_2, X_test, X_train, y_train, y_test
+
