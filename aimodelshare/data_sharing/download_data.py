@@ -183,36 +183,6 @@ def download_data(repository):
 	print('\n\nData downloaded successfully.')
 
 
-
-def import_quickstart_data():
-    from aimodelshare.data_sharing.download_data import download_data
-    import tensorflow as tf
-    import os
-    import pickle
-    
-     
-    
-    #Download Quick Start materials
-    quickstart_repository = "public.ecr.aws/y2e2a1d6/quickstart_materials-repository:latest"
-    download_data(quickstart_repository)
-    
-    #Instantiate Model 
-    print("\nPreparing downloaded files for use...")
-    model = tf.keras.models.load_model('quickstart_materials/flowermodel.h5')
-    
-    #unpack data
-    with open("quickstart_materials/y_test_labels.txt", "rb") as fp:  
-        y_test_labels = pickle.load(fp)
-
-
-    success_message = ("\nSuccess! Your Quick Start materials have been downloaded. \n"
-                       "You are now ready to run the tutorial.")
-    
-    print(success_message)
-    return model, y_test_labels
-
-
-
 def import_quickstart_data(tutorial, section="modelplayground"):
     from aimodelshare.data_sharing.download_data import download_data
     import tensorflow as tf
@@ -244,8 +214,8 @@ def import_quickstart_data(tutorial, section="modelplayground"):
         model = tf.keras.models.load_model('quickstart_materials/flowermodel.h5')
             
         #unpack data
-        with open("quickstart_materials/y_test_labels.txt", "rb") as fp:  
-            y_test_labels = pickle.load(fp)
+        with open("quickstart_materials/y_train_labels.txt", "rb") as fp:  
+            y_train_labels = pickle.load(fp)
     #}}}
 
     #{{{ prepare competition materials
@@ -274,7 +244,7 @@ def import_quickstart_data(tutorial, section="modelplayground"):
     print(success_message)
 
     if section == "modelplayground":
-        return model, y_test_labels
+        return model, y_train_labels
 
     if section == "competition": 
         return model_2, y_test_labels
