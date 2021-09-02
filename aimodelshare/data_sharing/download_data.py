@@ -183,13 +183,12 @@ def download_data(repository):
 	print('\n\nData downloaded successfully.')
 
 
-
-def import_quickstart_data():
+def import_quickstart_data(tutorial, section="modelplayground"):
     from aimodelshare.data_sharing.download_data import download_data
     import tensorflow as tf
-    import pandas as pd
     import os
     import pickle
+    import shutil 
     
      # Confirm that creds are loaded, print warning if not
     if all(["AWS_ACCESS_KEY_ID" in os.environ, 
@@ -202,27 +201,51 @@ def import_quickstart_data():
         return print("'Download unsuccessful. Please provide credentials with set_credentials().")
     
     #Download Quick Start materials
-    quickstart_repository = "public.ecr.aws/y2e2a1d6/quickstart_materials-repository:latest"
+    if all([tutorial == "flowers", section == "modelplayground"]):
+        quickstart_repository = "public.ecr.aws/y2e2a1d6/quickstart_materials-repository:latest"     
+    if all([tutorial == "flowers", section == "competition"]):
+        quickstart_repository = "public.ecr.aws/y2e2a1d6/quickstart_flowers_competition-repository:latest"
     download_data(quickstart_repository)
+
+    #{{{ prepare modelplayground materials
+    if section == "modelplayground": 
+        #Instantiate Model 
+        print("\nPreparing downloaded files for use...")
+        model = tf.keras.models.load_model('quickstart_materials/flowermodel.h5')
+            
+        #unpack data
+        with open("quickstart_materials/y_train_labels.txt", "rb") as fp:  
+            y_train_labels = pickle.load(fp)
+    #}}}
+
+    #{{{ prepare competition materials
+    if section == "competition":
+        #Instantiate Model 
+        print("\nPreparing downloaded files for use...")
+        model_2 = tf.keras.models.load_model('quickstart_flowers_competition/flowermodel_2.h5')
     
-    #Instantiate Model 
-    print("\nPreparing downloaded files for use...")
-    model = tf.keras.models.load_model('quickstart_materials/flowermodel.h5')
-    model_2 = tf.keras.models.load_model('quickstart_materials/flowermodel_2.h5')
-    
-    #unpack data
-    y_train = pd.read_csv("quickstart_materials/y_train.csv")
-    y_test = pd.read_csv("quickstart_materials/y_test.csv")
-    y_test_labels=list(y_test.idxmax(axis=1))
-    
-    with open("quickstart_materials/X_test.pkl", "rb") as fp:  
-        X_test = pickle.load(fp)
-    
-    #create stand-in 'data directory' folder
-    os.mkdir('data-directory-example')
+        #unpack data
+        with open("quickstart_flowers_competition/y_test_labels.txt", "rb") as fp:  
+            y_test_labels = pickle.load(fp)
+            
+        #move data files to folder to upload with create_competiton
+        os.mkdir('flower_competition_data')
+            
+        folders = ['quickstart_flowers_competition/test_images', 
+                   'quickstart_flowers_competition/train_images']
+            
+        for f in folders:
+            shutil.move(f, 'flower_competition_data')
+    #}}}
 
     success_message = ("\nSuccess! Your Quick Start materials have been downloaded. \n"
                        "You are now ready to run the tutorial.")
     
     print(success_message)
-    return model, model_2, y_train, X_test, y_test, y_test_labels
+
+    if section == "modelplayground":
+        return model, y_train_labels
+
+    if section == "competition": 
+        return model_2, y_test_labels
+
