@@ -184,6 +184,39 @@ def _update_leaderboard(
         return err
     # }}}
 
+
+def upload_model_dict(modelpath, aws_client, bucket, model_id, model_version):
+
+    # get model summary from onnx
+    onnx_model = onnx.load(modelpath)
+    meta_dict = _get_metadata(onnx_model)
+
+    if meta_dict['ml_framework'] == 'keras':
+        inspect_pd = _model_summary(meta_dict)
+        
+    elif meta_dict['ml_framework'] in ['sklearn', 'xgboost']:
+        model_config = meta_dict["model_config"]
+        model_config = ast.literal_eval(model_config)
+        inspect_pd = pd.DataFrame({'param_name': model_config.keys(),
+                                   'param_value': model_config.values()})
+
+    key = model_id+'/inspect_pd.json'
+    
+    try:
+      resp = aws_client['client'].get_object(Bucket=bucket, Key=key)
+      data = resp.get('Body').read()
+      model_dict = json.loads(data)
+    except: 
+      model_dict = {}
+
+    model_dict[str(model_version)] = inspect_pd.to_dict()
+
+    aws_client['client'].put_object(Bucket=bucket, Key=key, Body=json.dumps(model_dict).encode())
+
+    return 1
+
+
+
 def submit_model(
     model,
     apiurl,
@@ -306,6 +339,8 @@ def submit_model(
         if err is not None:
             raise err
 
+        upload_model_dict(modelpath, aws_client, bucket, model_id, model_version)    
+
 
     # check if path of saved onnx model was passed
     elif os.path.isfile(str(model)) and model.split('.')[-1] == 'onnx':
@@ -316,6 +351,9 @@ def submit_model(
         err = _upload_onnx_model(modelpath, aws_client, bucket, model_id, model_version)
         if err is not None:
             raise err
+
+        upload_model_dict(modelpath, aws_client, bucket, model_id, model_version)    
+
 
 
     # check if keras model object was passed
@@ -473,6 +511,7 @@ def submit_model(
     # competitiondata lambda function invoked through below url to update model submissions and contributors
     response=requests.post("https://eeqq8zuo9j.execute-api.us-east-1.amazonaws.com/dev/modeldata",
                   json=bodydatamodels_allstrings, headers=headers_with_authentication)
+
     return "Your model has been submitted as model version "+str(model_version)
 
   

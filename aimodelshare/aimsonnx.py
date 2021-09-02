@@ -985,11 +985,12 @@ def compare_models_aws(apiurl, version_list=None,
             temp_pd = temp_pd.iloc[:,0:verbose]
 
             temp_pd = temp_pd.add_prefix('Model_'+str(i)+'_')    
-            comp_pd = pd.concat([comp_pd, temp_pd], axis=1)
+            comp_pd = pd.concat([comp_pd, temp_pd], axis=1, ignore_index=True)
 
 
         layer_names = _get_layer_names()
-        
+
+        '''
         dense_layers = [i for i in layer_names[0] if 'Dense' in i]
         df_styled = comp_pd.style.apply(lambda x: ["background: tomato" if v in dense_layers else "" for v in x], 
                                 axis = 1)
@@ -1010,7 +1011,6 @@ def compare_models_aws(apiurl, version_list=None,
         df_styled = df_styled.apply(lambda x: ["background: lightgreen" if v in pool_layers else "" for v in x], 
                                 axis = 1)
 
-        '''
         rest_layers = [i for i in layer_names[0] if i not in dense_layers+drop_layers+conv_layers+seq_layers+pool_layers]
         df_styled = df_styled.apply(lambda x: ["background: lightgrey" if v in rest_layers else "" for v in x], 
                                 axis = 1)
