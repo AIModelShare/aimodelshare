@@ -229,13 +229,13 @@ def import_quickstart_data(tutorial, section="modelplayground"):
             y_test_labels = pickle.load(fp)
             
         #move data files to folder to upload with create_competiton
-        os.mkdir('data-directory')
+        os.mkdir('flower_competition_data')
             
         folders = ['quickstart_flowers_competition/test_images', 
                    'quickstart_flowers_competition/train_images']
             
         for f in folders:
-            shutil.move(f, 'data-directory')
+            shutil.move(f, 'flower_competition_data')
     #}}}
 
     success_message = ("\nSuccess! Your Quick Start materials have been downloaded. \n"
