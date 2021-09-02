@@ -8,7 +8,7 @@ from aimodelshare.aws import run_function_on_lambda, get_aws_client
 from aimodelshare.aimsonnx import _get_layer_names
 
 
-def get_leaderboard_aws(apiurl, verbose=3, columns=None):
+def get_leaderboard_aws(apiurl, category="classification", verbose=3, columns=None):
     # Confirm that creds are loaded, print warning if not
     if all(["AWS_ACCESS_KEY_ID" in os.environ, 
             "AWS_SECRET_ACCESS_KEY" in os.environ,
@@ -49,16 +49,10 @@ def get_leaderboard_aws(apiurl, verbose=3, columns=None):
         other = ['timestamp']
 
         if columns:
-            leaderboard = leaderboard.filter(clf+reg+columns+other)
-
-        # infer task type from leaderboard
-        if leaderboard[clf].sum().sum():
-            task_type = 'classification'
-        else:
-            task_type = 'regression'
+        	leaderboard = leaderboard.filter(clf+reg+columns+other)
 
 
-        if task_type == 'classification':
+        if category == "classification":
             leaderboard_eval_metrics = leaderboard[clf]
         else:
             leaderboard_eval_metrics = leaderboard[reg]
@@ -68,16 +62,16 @@ def get_leaderboard_aws(apiurl, verbose=3, columns=None):
         leaderboard = pd.concat([leaderboard_eval_metrics, leaderboard_model_meta], axis=1, ignore_index=False)
 
         if verbose == 1:
-            leaderboard = leaderboard.filter(regex=("^(?!.*(_layers|_act))"))
+        	leaderboard = leaderboard.filter(regex=("^(?!.*(_layers|_act))"))
         elif verbose == 2:
-            leaderboard = leaderboard.filter(regex=("^(?!.*_act)"))
+        	leaderboard = leaderboard.filter(regex=("^(?!.*_act)"))
 
     except Exception as err:
         raise err
     # }}}
 
     # Specifying problem wise columns {{{
-    if task_type == "classification":
+    if category == "classification":
         sort_cols = ["accuracy", "f1_score", "precision", "recall"]
         #leaderboard = leaderboard.drop(columns = ['mse', 'rmse', 'mae', 'r2'])
 
@@ -106,7 +100,7 @@ def get_leaderboard_aws(apiurl, verbose=3, columns=None):
     return leaderboard
 
 
-def get_leaderboard_lambda(apiurl, verbose=3, columns=None):
+def get_leaderboard_lambda(apiurl, category="classification", verbose=3, columns=None):
     if all(["AWS_ACCESS_KEY_ID" in os.environ, 
             "AWS_SECRET_ACCESS_KEY" in os.environ,
             "AWS_REGION" in os.environ, 
@@ -127,6 +121,7 @@ def get_leaderboard_lambda(apiurl, verbose=3, columns=None):
                "compare_models": "False",
                "version_list": "None",
                "get_leaderboard": "True",
+               "category": category,
                "verbose": verbose,
                "columns": columns}
     
@@ -141,7 +136,7 @@ def get_leaderboard_lambda(apiurl, verbose=3, columns=None):
     return leaderboard_pd
 
 
-def get_leaderboard(apiurl, verbose=3, columns=None):
+def get_leaderboard(apiurl, category="classification", verbose=3, columns=None):
 
     if all(["AWS_ACCESS_KEY_ID" in os.environ, 
             "AWS_SECRET_ACCESS_KEY" in os.environ,
@@ -154,16 +149,16 @@ def get_leaderboard(apiurl, verbose=3, columns=None):
 
     
     try: 
-        leaderboard_pd = get_leaderboard_lambda(apiurl, verbose, columns)
+        leaderboard_pd = get_leaderboard_lambda(apiurl, category, verbose, columns)
     except: 
-        leaderboard_pd = get_leaderboard_aws(apiurl, verbose, columns)
+        leaderboard_pd = get_leaderboard_aws(apiurl, category, verbose, columns)
     
     return leaderboard_pd
 
 
 
 
-def stylize_leaderboard(leaderboard):
+def stylize_leaderboard(leaderboard, category="classficiation"):
     # Dropping some columns {{{
     drop_cols = ["timestamp"]
     leaderboard = leaderboard.drop(drop_cols, axis=1)
@@ -180,14 +175,8 @@ def stylize_leaderboard(leaderboard):
     board = board.set_properties(**default_props)
     # }}}
 
-    # infer task type 
-    if 'accuracy' in leaderboard.columns.tolist(): 
-        task_type = 'classification'
-    else: 
-        task_type = 'regression'
-
     # Setting percentage columns' properties {{{
-    if task_type == "regression":
+    if category == "regression":
         percent_cols = ["mse", 'rmse', 'mae', "r2"]
         percent_colors = ["#f5f8d6", "#c778c8", "#ff4971", "#aadbaa"]
 

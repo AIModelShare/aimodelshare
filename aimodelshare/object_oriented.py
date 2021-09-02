@@ -138,7 +138,7 @@ class ModelPlayground:
         
         """
         from aimodelshare.model import submit_model as submit
-        submission = submit(model = model_filepath, 
+        submission = submit(modelpath = model_filepath, 
                             apiurl = self.playground_url,
                             prediction_submission = prediction_submission, 
                             preprocessor = preprocessor_filepath,
@@ -208,7 +208,7 @@ class Competition:
         
         """
         from aimodelshare.model import submit_model as submit
-        submission = submit(model = model_filepath, 
+        submission = submit(modelpath = model_filepath, 
                               apiurl = self.playground_url,
                               prediction_submission = prediction_submission, 
                               preprocessor = preprocessor_filepath,
@@ -234,16 +234,18 @@ class Competition:
         data = inspect(apiurl = self.playground_url)
         return data 
     
-    def get_leaderboard(self, verbose=3, columns=None):
+    def get_leaderboard(self, category="classification", verbose=3, columns=None):
         from aimodelshare.leaderboard import get_leaderboard as get_lead
-        data = get_lead(verbose=verbose,
+        data = get_lead(category=category, 
+                 verbose=verbose,
                  columns=columns, 
                  apiurl = self.playground_url)
         return data
     
-    def stylize_leaderboard(self, leaderboard):
+    def stylize_leaderboard(self, leaderboard, category="classification"):
         from aimodelshare.leaderboard import stylize_leaderboard as stylize_lead
-        stylized_leaderboard = stylize_lead(leaderboard = leaderboard)
+        stylized_leaderboard = stylize_lead(leaderboard = leaderboard,
+                                            category=category)
         return stylized_leaderboard
 
 

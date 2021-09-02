@@ -43,6 +43,52 @@ def handler(event, context):
         ytestdata=get_ytestdata(ytest_s3_filename="ytest.pkl")
         
         eval_result = evaluate_model(body, ytestdata)
+
+import boto3
+import pandas as pd
+import os
+import json
+import pickle
+import six
+import onnx
+
+# from aimslambda import analyze_ytest, evaluate_model, inspect_model, compare_models
+# from s3connect import get_ytestdata, get_onnx_mem, get_onnx_temp
+
+
+####################################################################
+########################### main handler ###########################
+
+def handler(event, context):
+    
+    body = event["body"]
+    if isinstance(body, six.string_types):
+        body = json.loads(body)
+    
+    for key, value in body.items():
+        if value == "None":
+            body[key]=None
+
+    if body.get("exampledata", "ALL") == "True" or body.get("exampledata", "ALL") == "TRUE":
+
+        exampledata=get_exampledata(example_data_filename = "exampledata.json")
+        
+        exdata_dict = {"statusCode": 200,
+        "headers": {
+        "Access-Control-Allow-Origin" : "*",
+        "Access-Control-Allow-Credentials": True,
+        "Allow" : "GET, OPTIONS, POST",
+        "Access-Control-Allow-Methods" : "GET, OPTIONS, POST",
+        "Access-Control-Allow-Headers" : "*"},
+        "body": json.dumps(exampledata)
+        }
+        return exdata_dict 
+        
+    if body.get("return_eval","ALL")  == "True":
+        
+        ytestdata=get_ytestdata(ytest_s3_filename="ytest.pkl")
+        
+        eval_result = evaluate_model(body, ytestdata)
         
         eval_dict = {"statusCode": 200,
         "headers": {
@@ -594,6 +640,700 @@ def get_leaderboard(task_type="$task_type", verbose=3, columns=None):
     # }}}
 
     return leaderboard
+
+
+
+####################################################################
+############################ S3 connect ############################
+
+
+import boto3
+import pandas as pd
+import os
+import json
+import pickle
+import six
+import onnx
+import logging
+from botocore.exceptions import ClientError
+
+def get_exampledata(example_data_filename = "exampledata.json"):
+    s3 = boto3.resource("s3")
+    bucket = s3.Bucket("$bucket_name")
+
+    with open("/tmp/exampledata.json", "wb") as exampledatapath:
+        bucket.download_fileobj("$unique_model_id/exampledata.json",  exampledatapath)
+    exampledatajson = json.load(open("/tmp/exampledata.json","rb") ) 
+    return exampledatajson
+
+def get_ytestdata(ytest_s3_filename="ytest.pkl"):
+    
+    s3 = boto3.resource("s3")
+    bucket = s3.Bucket("$bucket_name")
+
+    with open("/tmp/ytest.pkl", "wb") as ytestfo:
+        bucket.download_fileobj("$unique_model_id/ytest.pkl",  ytestfo)
+    ytestdata = pickle.load(open("/tmp/ytest.pkl", "rb" ) )
+    return ytestdata
+  
+
+def get_onnx_temp(version):
+  
+    onnx_model_name = "onnx_model_v{version}.onnx".format(version = version)
+    s3 = boto3.resource("s3")
+    bucket = s3.Bucket("$bucket_name")
+    with open("/tmp/"+onnx_model_name, "wb") as onnxfo:
+      bucket.download_fileobj("$unique_model_id/"+onnx_model_name, onnxfo)
+    onnx_model = onnx.load("/tmp/"+onnx_model_name)
+    return onnx_model
+    
+    
+def get_onnx_mem(version):
+  
+    onnx_model_name = "onnx_model_v{version}.onnx".format(version = version)
+    s3 = boto3.resource('s3')
+    obj = s3.Object("$bucket_name", "$unique_model_id/"+onnx_model_name)
+    onnx_string = obj.get()['Body'].read()
+    onnx_model = onnx.load_from_string(onnx_string)
+
+    return onnx_model
+
+
+def upload_file(file_name, bucket, object_name=None):
+    """Upload a file to an S3 bucket
+
+    :param file_name: File to upload
+    :param bucket: Bucket to upload to
+    :param object_name: S3 object name. If not specified then file_name is used
+    :return: True if file was uploaded, else False
+    """
+
+    # If S3 object_name was not specified, use file_name
+    if object_name is None:
+        object_name = file_name
+
+    # Upload the file
+    s3_client = boto3.client('s3')
+    try:
+        response = s3_client.upload_file(file_name, bucket, object_name)
+    except ClientError as e:
+        logging.error(e)
+        return False
+    return True
+        
+    eval_dict = {"statusCode": 200,
+    "headers": {
+    "Access-Control-Allow-Origin" : "*",
+    "Access-Control-Allow-Credentials": True,
+    "Allow" : "GET, OPTIONS, POST",
+    "Access-Control-Allow-Methods" : "GET, OPTIONS, POST",
+    "Access-Control-Allow-Headers" : "*"},
+    "body": json.dumps(eval_result)
+    }
+    return eval_dict
+        
+    if body.get("return_y","ALL") == "True":
+        
+        ytestdata=get_ytestdata(ytest_s3_filename="ytest.pkl")
+        y_stats = analyze_ytest(ytestdata)
+    
+        ytest_dict = {"statusCode": 200,
+        "headers": {
+        "Access-Control-Allow-Origin" : "*",
+        "Access-Control-Allow-Credentials": True,
+        "Allow" : "GET, OPTIONS, POST",
+        "Access-Control-Allow-Methods" : "GET, OPTIONS, POST",
+        "Access-Control-Allow-Headers" : "*"},
+        "body": json.dumps(y_stats)
+        }
+        return ytest_dict
+        
+    if body.get("inspect_model","ALL") == "True": 
+    
+        version = body["version"]
+
+        inspect_pd = inspect_model(version)
+        
+        inspect_dict = {"statusCode": 200,
+            "headers": {
+            "Access-Control-Allow-Origin" : "*",
+            "Access-Control-Allow-Credentials": True,
+            "Allow" : "GET, OPTIONS, POST",
+            "Access-Control-Allow-Methods" : "GET, OPTIONS, POST",
+            "Access-Control-Allow-Headers" : "*"},
+            "body": json.dumps(inspect_pd.to_dict())
+            }
+        return inspect_dict
+        
+        
+    if body.get("compare_models","ALL") == "True": 
+    
+        version_list = body["version_list"]
+
+        compare_pd = compare_models(version_list)
+        
+        compare_dict = {"statusCode": 200,
+            "headers": {
+            "Access-Control-Allow-Origin" : "*",
+            "Access-Control-Allow-Credentials": True,
+            "Allow" : "GET, OPTIONS, POST",
+            "Access-Control-Allow-Methods" : "GET, OPTIONS, POST",
+            "Access-Control-Allow-Headers" : "*"},
+            "body": json.dumps(compare_pd.to_dict())
+            }
+        return compare_dict
+
+
+    if body.get("get_leaderboard","ALL") == "True": 
+        
+        category=body["category"]
+        verbose=body["verbose"]
+        columns=body["columns"]
+    
+        leaderboard = get_leaderboard(category, verbose, columns)
+        
+        leaderboard_dict = {"statusCode": 200,
+            "headers": {
+            "Access-Control-Allow-Origin" : "*",
+            "Access-Control-Allow-Credentials": True,
+            "Allow" : "GET, OPTIONS, POST",
+            "Access-Control-Allow-Methods" : "GET, OPTIONS, POST",
+            "Access-Control-Allow-Headers" : "*"},
+            "body": json.dumps(leaderboard.to_dict())
+            }
+        return leaderboard_dict  
+        
+    if body.get("leaderboard","ALL") == "TRUE":  
+
+        leaderboarddata=get_leaderboarddata_json(yleaderboard_s3_filename="model_eval_data_mastertable.csv")
+        result=get_leaderboard_json(leaderboarddata,category=category, verbose=verbose, columns=columns)
+        leaderboard_dict = {"statusCode": 200,
+                "headers": {
+                "Access-Control-Allow-Origin" : "*",
+                "Access-Control-Allow-Credentials": True,
+                "Allow" : "GET, OPTIONS, POST",
+                "Access-Control-Allow-Methods" : "GET, OPTIONS, POST",
+                "Access-Control-Allow-Headers" : "*"},
+                "body": json.dumps(result)
+                }
+        return leaderboard_dict 
+        
+####################################################################
+######################### aimsonnx lambda ##########################
+
+
+import sklearn
+from sklearn.metrics import accuracy_score
+from sklearn.metrics import f1_score
+from sklearn.metrics import precision_score
+from sklearn.metrics import recall_score
+from sklearn.metrics import roc_auc_score
+from sklearn.metrics import mean_squared_error
+from sklearn.metrics import r2_score
+from sklearn.metrics import mean_absolute_error
+from collections import Counter 
+from math import sqrt
+import json
+import pandas as pd
+import numpy as np
+import ast
+import six
+import gc
+import importlib
+
+
+#from s3connect import get_onnx_mem
+
+def analyze_ytest(ytestdata, classification="$categorical"):
+    
+    if classification=="TRUE":
+         
+        class_labels = list(set(ytestdata))
+        class_balance = Counter(ytestdata)
+        label_dtypes = Counter([str(type(i)) for i in ytestdata])
+     
+        y_stats = {"ytest_example": ytestdata[0:5],
+        "y_length": len(ytestdata),
+        "class_labels": class_labels,
+        "class_balance": class_balance,
+        "label_dtypes": label_dtypes}
+        
+    else:
+        y_mean = np.mean(ytestdata)
+        y_min = np.min(ytestdata)
+        y_max = np.max(ytestdata)
+        y_sd = np.std(ytestdata)
+     
+        y_stats = {"ytest_example": ytestdata[0:5],
+        "y_length": len(ytestdata),
+        "y_mean": y_mean,
+        "y_min": y_min,
+        "y_max": y_max,
+        "y_sd": y_sd}
+        
+    return y_stats
+
+
+def model_eval_metrics(y_true, y_pred, classification="$categorical"):
+
+    if classification=="TRUE":
+        try:
+            accuracy_eval = accuracy_score(y_true, y_pred)
+        except:
+            accuracy_eval = None
+
+        try:
+            f1_score_eval = f1_score(y_true, y_pred,average="macro",zero_division=0)
+        except:
+            f1_score_eval = None
+            
+        try:    
+            precision_eval = precision_score(y_true, y_pred,average="macro",zero_division=0)
+        except: 
+            precision_eval = None
+            
+        try:    
+            recall_eval = recall_score(y_true, y_pred,average="macro",zero_division=0)
+        except:
+            recall_eval = None
+        
+        mse_eval = None
+        rmse_eval = None
+        mae_eval = None
+        r2_eval = None
+        
+        metricdata = {'accuracy': [accuracy_eval], 'f1_score': [f1_score_eval], 'precision': [precision_eval], 'recall': [recall_eval], 'mse': [mse_eval], 'rmse': [rmse_eval], 'mae': [mae_eval], 'r2': [r2_eval]}
+        finalmetricdata = pd.DataFrame.from_dict(metricdata)
+        
+    else:
+        
+        try:
+            mse_eval = mean_squared_error(y_true, y_pred)
+        except:
+            mse_eval = None
+            
+        try:
+            rmse_eval = sqrt(mean_squared_error(y_true, y_pred))
+        except:
+            rmse_eval = None
+        
+        try:
+            mae_eval = mean_absolute_error(y_true, y_pred)
+        except: 
+            mae_eval = None
+            
+        try:
+            r2_eval = r2_score(y_true, y_pred)
+        except:
+            r2_eval = None
+        
+        accuracy_eval = None
+        f1_score_eval = None
+        precision_eval = None
+        recall_eval = None
+        
+        metricdata = {'accuracy': [accuracy_eval], 'f1_score': [f1_score_eval], 'precision': [precision_eval], 'recall': [recall_eval], 'mse': [mse_eval], 'rmse': [rmse_eval], 'mae': [mae_eval], 'r2': [r2_eval]}
+        finalmetricdata = pd.DataFrame.from_dict(metricdata)
+
+    return finalmetricdata.to_dict('records')[0]
+
+
+def evaluate_model(body, ytestdata):
+
+    if isinstance(body["y_pred"], six.string_types):
+        prediction_list = json.loads(body["y_pred"])
+    else:
+        prediction_list = body["y_pred"]
+
+    result=model_eval_metrics(ytestdata,prediction_list,classification="$categorical")
+    return result
+    
+    
+def inspect_model(version):
+    
+    onnx_model = get_onnx_mem(version)
+
+    meta_dict = _get_metadata(onnx_model)
+
+    if meta_dict['ml_framework'] == 'keras':
+        inspect_pd = _model_summary(meta_dict)
+        
+    elif meta_dict['ml_framework'] in ['sklearn', 'xgboost']:
+        model_config = meta_dict["model_config"]
+        model_config = ast.literal_eval(model_config)
+        inspect_pd = pd.DataFrame({'param_name': model_config.keys(),
+                                   'param_value': model_config.values()})
+    
+    return inspect_pd
+    
+    
+
+def _model_summary(meta_dict, from_onnx=False):
+    '''Creates model summary table from model metadata dict.'''
+    
+    assert(isinstance(meta_dict, dict)), \
+    "Please pass valid metadata dict."
+    
+    assert('model_architecture' in meta_dict.keys()), \
+    "Please make sure model architecture data is included."
+
+    if from_onnx == True:
+        architecture = meta_dict['metadata_onnx']["model_architecture"]
+    else:
+        architecture = meta_dict["model_architecture"] 
+       
+        
+    model_summary = pd.DataFrame({'Layer':architecture['layers_sequence'],
+                          #'Activation':architecture['activations_sequence'],
+                          'Shape':architecture['layers_shapes'],
+                          'Params':architecture['layers_n_params']})
+        
+    return model_summary
+    
+
+def _get_metadata(onnx_model):
+    '''Fetches previously extracted model metadata from ONNX object
+    and returns model metadata dict.'''
+    
+    # double check this 
+    #assert(isinstance(onnx_model, onnx.onnx_ml_pb2.ModelProto)), \
+     #"Please pass a onnx model object."
+    
+    try: 
+        onnx_meta = onnx_model.metadata_props
+
+        onnx_meta_dict = {'model_metadata': ''}
+
+        for i in onnx_meta:
+            onnx_meta_dict[i.key] = i.value
+
+        onnx_meta_dict = ast.literal_eval(onnx_meta_dict['model_metadata'])
+        
+        #if onnx_meta_dict['model_config'] != None and \
+        #onnx_meta_dict['ml_framework'] != 'pytorch':
+        #    onnx_meta_dict['model_config'] = ast.literal_eval(onnx_meta_dict['model_config'])
+        
+        if onnx_meta_dict['model_architecture'] != None:
+            onnx_meta_dict['model_architecture'] = ast.literal_eval(onnx_meta_dict['model_architecture'])
+            
+        if onnx_meta_dict['metadata_onnx'] != None:
+            onnx_meta_dict['metadata_onnx'] = ast.literal_eval(onnx_meta_dict['metadata_onnx'])
+        
+        # onnx_meta_dict['model_image'] = onnx_to_image(onnx_model) # didnt want to include image dependencies in lambda
+
+    except Exception as e:
+    
+        print(e)
+        
+        onnx_meta_dict = ast.literal_eval(onnx_meta_dict)
+        
+    return onnx_meta_dict
+    
+    
+
+def compare_models(version_list=None, 
+    by_model_type=None, best_model=None, verbose=3):
+    
+    ml_framework_list = []
+    model_type_list = []
+    
+    for i in version_list:
+        
+        try: 
+            print('check if pd is already in s3')
+            1/0
+        except: 
+            onnx_model = get_onnx_mem(i)
+            meta_dict = _get_metadata(onnx_model)
+            del onnx_model
+            gc.collect()
+        
+        ml_framework_list.append(meta_dict['ml_framework'])
+        model_type_list.append(meta_dict['model_type'])
+        del meta_dict
+        gc.collect()
+    
+    if not all(x==ml_framework_list[0] for x in ml_framework_list):
+        raise Exception("Incongruent frameworks. Please compare models from the same ML frameworks.")
+        
+    if not all(x==model_type_list[0] for x in model_type_list):
+        raise Exception("Incongruent model types. Please compare models of the same model type.")
+    
+    if ml_framework_list[0] == 'sklearn':
+        
+        model_type = model_type_list[0]
+        model_class = model_from_string(model_type)
+        default = model_class()
+        default_config = default.get_params()
+        
+        comp_pd = pd.DataFrame({'param_name': default_config.keys(),
+                           'param_value': default_config.values()})
+        
+        for i in version_list: 
+            
+            temp_pd = inspect_model(version=i)
+            comp_pd = pd.concat([comp_pd, temp_pd.drop(columns='param_name')], axis=1)
+            del temp_pd
+            gc.collect()
+        
+        comp_pd.columns = ['param_name', 'model_default'] + ["Model_"+str(i) for i in version_list]
+        
+        df_styled = comp_pd
+
+        
+    if ml_framework_list[0] == 'keras':
+
+        comp_pd = pd.DataFrame()
+
+        for i in version_list: 
+
+            temp_pd = inspect_model(version=i)
+
+            temp_pd = temp_pd.iloc[:,0:verbose]
+
+            temp_pd = temp_pd.add_prefix('Model_'+str(i)+'_')    
+            comp_pd = pd.concat([comp_pd, temp_pd], axis=1)
+            del temp_pd
+            gc.collect()
+            
+        df_styled = comp_pd
+
+    return df_styled
+
+
+def model_from_string(model_type):
+    models_modules_dict = {'ABCMeta': 'sklearn.naive_bayes',
+        'ARDRegression': 'sklearn.linear_model',
+        'AdaBoostClassifier': 'sklearn.ensemble',
+        'AdaBoostRegressor': 'sklearn.ensemble',
+        'BaggingClassifier': 'sklearn.ensemble',
+        'BaggingRegressor': 'sklearn.ensemble',
+        'BallTree': 'sklearn.neighbors',
+        'BaseDecisionTree': 'sklearn.tree',
+        'BaseEnsemble': 'sklearn.ensemble',
+        'BaseEstimator': 'sklearn.naive_bayes',
+        'BayesianGaussianMixture': 'sklearn.mixture',
+        'BayesianRidge': 'sklearn.linear_model',
+        'BernoulliNB': 'sklearn.naive_bayes',
+        'BernoulliRBM': 'sklearn.neural_network',
+        'CategoricalNB': 'sklearn.naive_bayes',
+        'ClassifierMixin': 'sklearn.naive_bayes',
+        'ComplementNB': 'sklearn.naive_bayes',
+        'DecisionTreeClassifier': 'sklearn.tree',
+        'DecisionTreeRegressor': 'sklearn.tree',
+        'DistanceMetric': 'sklearn.neighbors',
+        'ElasticNet': 'sklearn.linear_model',
+        'ElasticNetCV': 'sklearn.linear_model',
+        'ExtraTreeClassifier': 'sklearn.tree',
+        'ExtraTreeRegressor': 'sklearn.tree',
+        'ExtraTreesClassifier': 'sklearn.ensemble',
+        'ExtraTreesRegressor': 'sklearn.ensemble',
+        'GammaRegressor': 'sklearn.linear_model',
+        'GaussianMixture': 'sklearn.mixture',
+        'GaussianNB': 'sklearn.naive_bayes',
+        'GaussianProcessClassifier': 'sklearn.gaussian_process',
+        'GaussianProcessRegressor': 'sklearn.gaussian_process',
+        'GradientBoostingClassifier': 'sklearn.ensemble',
+        'GradientBoostingRegressor': 'sklearn.ensemble',
+        'Hinge': 'sklearn.linear_model',
+        'Huber': 'sklearn.linear_model',
+        'HuberRegressor': 'sklearn.linear_model',
+        'IsolationForest': 'sklearn.ensemble',
+        'IsotonicRegression': 'sklearn.isotonic',
+        'KDTree': 'sklearn.neighbors',
+        'KNeighborsClassifier': 'sklearn.neighbors',
+        'KNeighborsRegressor': 'sklearn.neighbors',
+        'KNeighborsTransformer': 'sklearn.neighbors',
+        'KernelDensity': 'sklearn.neighbors',
+        'LabelBinarizer': 'sklearn.naive_bayes',
+        'Lars': 'sklearn.linear_model',
+        'LarsCV': 'sklearn.linear_model',
+        'Lasso': 'sklearn.linear_model',
+        'LassoCV': 'sklearn.linear_model',
+        'LassoLars': 'sklearn.linear_model',
+        'LassoLarsCV': 'sklearn.linear_model',
+        'LassoLarsIC': 'sklearn.linear_model',
+        'LinearRegression': 'sklearn.linear_model',
+        'LinearSVC': 'sklearn.svm',
+        'LinearSVR': 'sklearn.svm',
+        'LocalOutlierFactor': 'sklearn.neighbors',
+        'Log': 'sklearn.linear_model',
+        'LogisticRegression': 'sklearn.linear_model',
+        'LogisticRegressionCV': 'sklearn.linear_model',
+        'MLPClassifier': 'sklearn.neural_network',
+        'MLPRegressor': 'sklearn.neural_network',
+        'MetaEstimatorMixin': 'sklearn.multiclass',
+        'ModifiedHuber': 'sklearn.linear_model',
+        'MultiOutputMixin': 'sklearn.multiclass',
+        'MultiTaskElasticNet': 'sklearn.linear_model',
+        'MultiTaskElasticNetCV': 'sklearn.linear_model',
+        'MultiTaskLasso': 'sklearn.linear_model',
+        'MultiTaskLassoCV': 'sklearn.linear_model',
+        'MultinomialNB': 'sklearn.naive_bayes',
+        'NearestCentroid': 'sklearn.neighbors',
+        'NearestNeighbors': 'sklearn.neighbors',
+        'NeighborhoodComponentsAnalysis': 'sklearn.neighbors',
+        'NotFittedError': 'sklearn.multiclass',
+        'NuSVC': 'sklearn.svm',
+        'NuSVR': 'sklearn.svm',
+        'OneClassSVM': 'sklearn.svm',
+        'OneVsOneClassifier': 'sklearn.multiclass',
+        'OneVsRestClassifier': 'sklearn.multiclass',
+        'OrthogonalMatchingPursuit': 'sklearn.linear_model',
+        'OrthogonalMatchingPursuitCV': 'sklearn.linear_model',
+        'OutputCodeClassifier': 'sklearn.multiclass',
+        'Parallel': 'sklearn.multiclass',
+        'PassiveAggressiveClassifier': 'sklearn.linear_model',
+        'PassiveAggressiveRegressor': 'sklearn.linear_model',
+        'Perceptron': 'sklearn.linear_model',
+        'PoissonRegressor': 'sklearn.linear_model',
+        'RANSACRegressor': 'sklearn.linear_model',
+        'RadiusNeighborsClassifier': 'sklearn.neighbors',
+        'RadiusNeighborsRegressor': 'sklearn.neighbors',
+        'RadiusNeighborsTransformer': 'sklearn.neighbors',
+        'RandomForestClassifier': 'sklearn.ensemble',
+        'RandomForestRegressor': 'sklearn.ensemble',
+        'RandomTreesEmbedding': 'sklearn.ensemble',
+        'RegressorMixin': 'sklearn.isotonic',
+        'Ridge': 'sklearn.linear_model',
+        'RidgeCV': 'sklearn.linear_model',
+        'RidgeClassifier': 'sklearn.linear_model',
+        'RidgeClassifierCV': 'sklearn.linear_model',
+        'SGDClassifier': 'sklearn.linear_model',
+        'SGDRegressor': 'sklearn.linear_model',
+        'SVC': 'sklearn.svm',
+        'SVR': 'sklearn.svm',
+        'SquaredLoss': 'sklearn.linear_model',
+        'StackingClassifier': 'sklearn.ensemble',
+        'StackingRegressor': 'sklearn.ensemble',
+        'TheilSenRegressor': 'sklearn.linear_model',
+        'TransformerMixin': 'sklearn.isotonic',
+        'TweedieRegressor': 'sklearn.linear_model',
+        'VotingClassifier': 'sklearn.ensemble',
+        'VotingRegressor': 'sklearn.ensemble'}
+
+    module = models_modules_dict[model_type]
+    model_class = getattr(importlib.import_module(module), model_type)
+    return model_class
+
+
+def get_leaderboard(category="classification", verbose=3, columns=None):
+    
+    s3 = boto3.resource("s3")
+    bucket = s3.Bucket("$bucket_name")
+    with open("/tmp/"+"model_eval_data_mastertable.csv", "wb") as lbfo:
+      bucket.download_fileobj("$unique_model_id/"+"model_eval_data_mastertable.csv", lbfo)
+    leaderboard = pd.read_csv("/tmp/"+"model_eval_data_mastertable.csv", sep="\t")
+
+
+    clf =["accuracy", "f1_score", "precision", "recall"]
+    reg = ['mse', 'rmse', 'mae', 'r2']
+    other = ['timestamp']
+
+    if columns:
+    	leaderboard = leaderboard.filter(clf+reg+columns+other)
+
+
+    if category == "classification":
+        leaderboard_eval_metrics = leaderboard[clf]
+    else:
+        leaderboard_eval_metrics = leaderboard[reg]
+
+    leaderboard_model_meta = leaderboard.drop(clf+reg, axis=1).replace(0,np.nan).dropna(axis=1,how="all")
+
+    leaderboard = pd.concat([leaderboard_eval_metrics, leaderboard_model_meta], axis=1, ignore_index=False)
+
+    if verbose == 1:
+    	leaderboard = leaderboard.filter(regex=("^(?!.*(_layers|_act))"))
+    elif verbose == 2:
+    	leaderboard = leaderboard.filter(regex=("^(?!.*_act)"))
+
+
+    if category == "classification":
+        sort_cols = ["accuracy", "f1_score", "precision", "recall"]
+        #leaderboard = leaderboard.drop(columns = ['mse', 'rmse', 'mae', 'r2'])
+
+    else:
+        sort_cols = ["-mae", "r2"]
+
+    ranks = []
+    for col in sort_cols:
+        ascending = False
+        if col[0] == "-":
+            col = col[1:]
+            ascending = True
+
+        ranks.append(leaderboard[col].rank(method="dense", ascending=ascending))
+
+    ranks = np.mean(ranks, axis=0)
+    order = np.argsort(ranks)
+
+    leaderboard = leaderboard.loc[order].reset_index().drop("index", axis=1)
+    # }}}
+
+    return leaderboard
+
+def get_leaderboarddata_json(yleaderboard_s3_filename="model_eval_data_mastertable.csv"):
+  s3 = boto3.resource("s3")
+  bucket = s3.Bucket("$bucket_name")
+
+  with open("/tmp/model_eval_data_mastertable.csv", "wb") as yleaderboardfo:
+      bucket.download_fileobj("$unique_model_id/model_eval_data_mastertable.csv",  yleaderboardfo)
+  yleaderboarddata = pd.read_csv(open("/tmp/model_eval_data_mastertable.csv", "rb" ) ,sep='\t')
+  return yleaderboarddata
+
+
+def get_leaderboard_json(leaderboard,category="$classification", 
+	verbose=3, columns=None):
+    # Get bucket and model_id for user {{{
+
+    try:
+        if columns:
+        	clf =["accuracy", "f1_score", "precision", "recall"]
+        	reg = ['mse', 'rmse', 'mae', 'r2']
+        	other = ['timestamp']
+        	leaderboard = leaderboard.filter(clf+reg+columns+other)
+
+        leaderboard = leaderboard.replace(0,np.nan).dropna(axis=1,how="all")
+
+        if verbose == 1:
+        	leaderboard = leaderboard.filter(regex=("^(?!.*(_layers|_act))"))
+        elif verbose == 2:
+        	leaderboard = leaderboard.filter(regex=("^(?!.*_act)"))
+
+
+    except Exception as err:
+        raise err
+    # }}}
+
+    # Specifying problem wise columns {{{
+    if category == "classification":
+        sort_cols = ["accuracy", "f1_score", "precision", "recall"]
+        #leaderboard = leaderboard.drop(columns = ['mse', 'rmse', 'mae', 'r2'])
+
+    else:
+        sort_cols = ["-mae", "r2"]
+        #leaderboard = leaderboard.drop(columns = ["accuracy", "f1_score", "precision", "recall"])
+
+    # }}}
+
+    # Sorting leaderboard {{{
+    ranks = []
+    for col in sort_cols:
+        ascending = False
+        if col[0] == "-":
+            col = col[1:]
+            ascending = True
+
+        ranks.append(leaderboard[col].rank(method="dense", ascending=ascending))
+
+    ranks = np.mean(ranks, axis=0)
+    order = np.argsort(ranks)
+
+    leaderboard = leaderboard.loc[order].reset_index().drop("index", axis=1)
+    # }}}
+
+    return leaderboard.to_json(orient="table")
 
 
 
