@@ -8,6 +8,7 @@ import requests
 import json
 import ast
 import tempfile
+import tensorflow as tf
 
 from datetime import datetime
 
@@ -307,7 +308,7 @@ def submit_model(
 
 
     # check if path of saved onnx model was passed
-    elif os.path.isfile(model) and model.split('.')[-1] == 'onnx':
+    elif os.path.isfile(str(model)) and model.split('.')[-1] == 'onnx':
 
         modelpath = model
 
