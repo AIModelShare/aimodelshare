@@ -80,6 +80,8 @@ class ModelPlayground:
                 base_image_id="text"
             elif(self.model_type=="neural style transfer"):
                 base_image_id="nst"
+            elif(self.model_type=="tabular"):
+                base_image_id="tabular"
             else:
                 base_image_id="v3"
             self.image_id="aimodelshare_base_image"+":"+base_image_id
