@@ -8,6 +8,7 @@ from sklearn.model_selection import GridSearchCV, RandomizedSearchCV
 import torch
 import xgboost
 import tensorflow as tf
+from pyspark.ml import PipelineModel, Model
 
 # onnx modules
 import onnx
@@ -19,7 +20,7 @@ from onnx.tools.net_drawer import GetPydotGraph, GetOpNodeProducer
 import importlib
 import onnxmltools
 import onnxruntime as rt
-
+from onnxmltools import convert_sparkml
 
 # aims modules
 from aimodelshare.aws import run_function_on_lambda, get_aws_client
@@ -308,7 +309,130 @@ def _sklearn_to_onnx(model, initial_types, transfer_learning=None,
 
     return onx
 
+def _pyspark_to_onnx(model, initial_types, spark_session, 
+                    transfer_learning=None, deep_learning=None, 
+                    task_type=None):
+    '''Extracts metadata from pyspark model object.'''
+    
+    # deal with pipelines and parameter search 
+    if isinstance(model, (TrainValidationSplitModel, CrossValidatorModel)):
+        model = model.bestModel
 
+    # Look for the last model in the pipeline
+    if isinstance(model, PipelineModel):
+        for t in model.stages:
+            if isinstance(t, Model):
+                model = t
+
+    # convert to onnx
+    onx = convert_sparkml(model, 'Pyspark model', initial_types, 
+                         spark_session=spark_session)
+            
+    # generate metadata dict 
+    metadata = {}
+    
+    # placeholders, need to be generated elsewhere
+    metadata['model_id'] = None
+    metadata['data_id'] = None
+    metadata['preprocessor_id'] = None
+    
+    # infer ml framework from function call
+    metadata['ml_framework'] = 'pyspark'
+    
+    # get model type from model object
+    model_type = str(model).split(':')[0]
+    metadata['model_type'] = model_type
+    
+    # get transfer learning bool from user input
+    metadata['transfer_learning'] = transfer_learning
+
+    # get deep learning bool from user input
+    metadata['deep_learning'] = deep_learning
+    
+    # get task type from user input
+    metadata['task_type'] = task_type
+    
+    # placeholders, need to be inferred from data 
+    metadata['target_distribution'] = None
+    metadata['input_type'] = None
+    metadata['input_shape'] = None
+    metadata['input_dtypes'] = None       
+    metadata['input_distribution'] = None
+    
+    # get model config dict from pyspark model object
+    model_config = {}
+    for key, value in rf_model.extractParamMap().items():
+        model_config[key.name] = value
+    metadata['model_config'] = str(model_config)
+
+    # get weights for pretrained models 
+    temp_dir = tempfile.gettempdir()
+    temp_path = os.path.join(temp_dir, 'temp_file_name')
+
+    with open(temp_path, 'wb') as f:
+        pickle.dump(model, f)
+
+    with open(temp_path, "rb") as f:
+        pkl_str = f.read()
+
+    metadata['model_weights'] = pkl_str
+    
+    # get model state from sklearn model object
+    metadata['model_state'] = None
+
+    # get model architecture    
+    if model_type == 'MultilayerPerceptronClassificationModel':
+
+        #  https://spark.apache.org/docs/latest/ml-classification-regression.html#multilayer-perceptron-classifier
+        loss = 'log-loss'
+        hidden_layer_activation = 'sigmoid'
+        output_layer_activation = 'softmax'
+
+        n_params = []
+        layer_dims = model.getLayers()
+        hidden_layers = layer_dims[1:-1]
+        for i in range(len(layer_dims)-1):
+            n_params.append(layer_dims[i]*layer_dims[i+1] + layer_dims[i+1])
+
+        # insert data into model architecture dict 
+        model_architecture = {'layers_number': len(hidden_layers),
+                              'layers_sequence': ['Dense']*len(hidden_layers),
+                              'layers_summary': {'Dense': len(hidden_layers)},
+                              'layers_n_params': n_params, #double check 
+                              'layers_shapes': hidden_layers,
+                              'activations_sequence': [hidden_layer_activation]*len(hidden_layers) + [output_layer_activation],
+                              'activations_summary': {hidden_layer_activation: len(hidden_layers), output_layer_activation: 1},
+                              'loss': loss,
+                              'optimizer': model.getSolver()
+                             }
+
+        metadata['model_architecture'] = str(model_architecture)
+
+
+    else:
+        model_architecture = {}
+
+        if hasattr(model, 'coefficients'):
+            model_architecture['layers_n_params'] = [len(model.coef_.flatten())]
+        if hasattr(model, 'getSolver') and callable(model.getSolver):
+            model_architecture['optimizer'] = model.getSolver()
+
+        metadata['model_architecture'] = str(model_architecture)
+
+    metadata['memory_size'] = asizeof.asizeof(model)    
+
+    # placeholder, needs evaluation engine
+    metadata['eval_metrics'] = None  
+    
+    # add metadata from onnx object
+    # metadata['metadata_onnx'] = str(_extract_onnx_metadata(onx, framework='sklearn'))
+    metadata['metadata_onnx'] = None
+
+    meta = onx.metadata_props.add()
+    meta.key = 'model_metadata'
+    meta.value = str(metadata)
+
+    return onx
 
 def _keras_to_onnx(model, transfer_learning=None,
                   deep_learning=None, task_type=None, epochs=None):
@@ -583,7 +707,7 @@ def _pytorch_to_onnx(model, model_input, transfer_learning=None,
 
 def model_to_onnx(model, framework, model_input=None, initial_types=None,
                   transfer_learning=None, deep_learning=None, task_type=None, 
-                  epochs=None):
+                  epochs=None, spark_session=None):
     
     '''Transforms sklearn, keras, or pytorch model object into ONNX format 
     and extracts model metadata dictionary. The model metadata dictionary 
@@ -616,7 +740,7 @@ def model_to_onnx(model, framework, model_input=None, initial_types=None,
     '''
 
     # assert that framework exists
-    frameworks = ['sklearn', 'keras', 'pytorch', 'xgboost']
+    frameworks = ['sklearn', 'keras', 'pytorch', 'xgboost', 'pyspark']
     assert framework in frameworks, \
     'Please choose "sklearn", "keras", "pytorch", or "xgboost".'
     
@@ -671,6 +795,12 @@ def model_to_onnx(model, framework, model_input=None, initial_types=None,
                                 task_type=task_type,
                                 epochs=epochs)
 
+    elif framework == 'pyspark':
+        onnx = _pyspark_to_onnx(model, initial_types=initial_types, 
+                                transfer_learning=transfer_learning, 
+                                deep_learning=deep_learning, 
+                                task_type=task_type,
+                                spark_session=spark_session)
 
     try: 
         rt.InferenceSession(onnx.SerializeToString())   
@@ -769,8 +899,8 @@ def _get_leaderboard_data(onnx_model, eval_metrics=None):
 
 
 
-    # get sklearn model metrics
-    elif metadata_raw['ml_framework'] == 'sklearn' or metadata_raw['ml_framework'] == 'xgboost':
+    # get sklearn & pyspark model metrics
+    elif metadata_raw['ml_framework'] in ['sklearn', 'xgboost', 'pyspark']:
         metadata['depth'] = 0
 
         try:
@@ -865,7 +995,7 @@ def inspect_model_aws(apiurl, version=None):
     if meta_dict['ml_framework'] == 'keras':
         inspect_pd = _model_summary(meta_dict)
         
-    elif meta_dict['ml_framework'] in ['sklearn', 'xgboost']:
+    elif meta_dict['ml_framework'] in ['sklearn', 'xgboost', 'pyspark']:
         model_config = meta_dict["model_config"]
         model_config = ast.literal_eval(model_config)
         inspect_pd = pd.DataFrame({'param_name': model_config.keys(),
@@ -953,7 +1083,7 @@ def compare_models_aws(apiurl, version_list=None,
     if not all(x==model_type_list[0] for x in model_type_list):
         raise Exception("Incongruent model types. Please compare models of the same model type.")
     
-    if ml_framework_list[0] == 'sklearn':
+    if ml_framework_list[0] == 'sklearn' or ml_framework_list[0] == 'pyspark':
         
         model_type = model_type_list[0]
         model_class = model_from_string(model_type)
@@ -1136,6 +1266,26 @@ def instantiate_model(apiurl, version=None, trained=False):
     ml_framework = meta_dict['ml_framework']
     
     if ml_framework == 'sklearn':
+
+        if trained == False:
+            model_type = meta_dict['model_type']
+            model_class = model_from_string(model_type)
+            model = model_class(**model_config)
+
+        if trained == True:
+            
+            model_pkl = meta_dict['model_weights']
+
+            temp_dir = tempfile.gettempdir()
+            temp_path = os.path.join(temp_dir, 'temp_file_name')
+
+            with open(temp_path, "wb") as f:
+                f.write(model_pkl)
+
+            with open(temp_path, 'rb') as f:
+                model = pickle.load(f)
+
+    if ml_framework == 'pyspark':
 
         if trained == False:
             model_type = meta_dict['model_type']
