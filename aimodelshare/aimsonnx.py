@@ -9,6 +9,7 @@ import torch
 import xgboost
 import tensorflow as tf
 from pyspark.ml import PipelineModel, Model
+from pyspark.ml.tuning import CrossValidatorModel, TrainValidationSplitModel
 
 # onnx modules
 import onnx
@@ -361,7 +362,7 @@ def _pyspark_to_onnx(model, initial_types, spark_session,
     
     # get model config dict from pyspark model object
     model_config = {}
-    for key, value in rf_model.extractParamMap().items():
+    for key, value in model.extractParamMap().items():
         model_config[key.name] = value
     metadata['model_config'] = str(model_config)
 
@@ -369,9 +370,8 @@ def _pyspark_to_onnx(model, initial_types, spark_session,
     temp_dir = tempfile.gettempdir()
     temp_path = os.path.join(temp_dir, 'temp_file_name')
 
-    with open(temp_path, 'wb') as f:
-        pickle.dump(model, f)
-
+    model.save(temp_path)
+    
     with open(temp_path, "rb") as f:
         pkl_str = f.read()
 
@@ -742,7 +742,7 @@ def model_to_onnx(model, framework, model_input=None, initial_types=None,
     # assert that framework exists
     frameworks = ['sklearn', 'keras', 'pytorch', 'xgboost', 'pyspark']
     assert framework in frameworks, \
-    'Please choose "sklearn", "keras", "pytorch", or "xgboost".'
+    'Please choose "sklearn", "keras", "pytorch", "pyspark" or "xgboost".'
     
     # assert model input type THIS IS A PLACEHOLDER
     if model_input != None:
@@ -1083,10 +1083,29 @@ def compare_models_aws(apiurl, version_list=None,
     if not all(x==model_type_list[0] for x in model_type_list):
         raise Exception("Incongruent model types. Please compare models of the same model type.")
     
-    if ml_framework_list[0] == 'sklearn' or ml_framework_list[0] == 'pyspark':
+    if ml_framework_list[0] == 'sklearn':
         
         model_type = model_type_list[0]
         model_class = model_from_string(model_type)
+        default = model_class()
+        default_config = default.get_params()
+        
+        comp_pd = pd.DataFrame({'param_name': default_config.keys(),
+                           'param_value': default_config.values()})
+        
+        for i in version_list: 
+            
+            temp_pd = inspect_model(apiurl, version=i)
+            comp_pd = comp_pd.merge(temp_pd, on='param_name')
+        
+        comp_pd.columns = ['param_name', 'model_default'] + ["Model_"+str(i) for i in version_list]
+        
+        df_styled = comp_pd.style.apply(lambda x: ["background: tomato" if v != x.iloc[0] else "" for v in x], 
+                                        axis = 1, subset=comp_pd.columns[1:])
+
+    if ml_framework_list[0] == 'pyspark':
+        model_type = model_type_list[0]
+        model_class = pyspark_model_from_string(model_type)
         default = model_class()
         default_config = default.get_params()
         
@@ -1293,8 +1312,11 @@ def instantiate_model(apiurl, version=None, trained=False):
         with open(temp_path, "wb") as f:
             f.write(model_pkl)
 
-        with open(temp_path, 'rb') as f:
-            model = pickle.load(f)
+        model_type = meta_dict['model_type']
+        model_class = pyspark_model_from_string(model_type)
+        model = model_class(**model_config)
+
+        model = model.load(temp_path)
 
     if ml_framework == 'keras':
 
@@ -1357,6 +1379,31 @@ def _get_sklearn_modules():
 
 def model_from_string(model_type):
     models_modules_dict = _get_sklearn_modules()
+    module = models_modules_dict[model_type]
+    model_class = getattr(importlib.import_module(module), model_type)
+    return model_class
+
+def _get_pyspark_modules():
+    
+    import pyspark.ml
+
+    pyspark_modules = ['classification', 'clustering', 'regression']
+
+    models_modules_dict = {}
+
+    for i in pyspark_modules:
+        models_list = [j for j in dir(eval('pyspark.ml.'+i)) if callable(getattr(eval('pyspark.ml.'+i), j))]
+        models_list = [j for j in models_list if re.match('^[A-Z]', j)]
+
+        for k in models_list: 
+            models_modules_dict[k] = 'pyspark.ml.'+i
+    
+    return models_modules_dict
+
+
+
+def pyspark_model_from_string(model_type):
+    models_modules_dict = _get_pyspark_modules()
     module = models_modules_dict[model_type]
     model_class = getattr(importlib.import_module(module), model_type)
     return model_class
