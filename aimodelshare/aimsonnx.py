@@ -1204,11 +1204,6 @@ def compare_models(apiurl, version_list="None",
     return compare_pd
 
 
-
-
-
-
-
 def _get_onnx_from_bucket(apiurl, aws_client, version=None):
 
     # generate name of onnx model in bucket
@@ -1287,24 +1282,19 @@ def instantiate_model(apiurl, version=None, trained=False):
 
     if ml_framework == 'pyspark':
 
-        if trained == False:
-            model_type = meta_dict['model_type']
-            model_class = model_from_string(model_type)
-            model = model_class(**model_config)
+        # pyspark model object is always trained. The unfitted / untrained one 
+        # is the estimator and cannot be treated as model. 
+        # Model is transformer and created by estimator
+        model_pkl = meta_dict['model_weights']
 
-        if trained == True:
-            
-            model_pkl = meta_dict['model_weights']
+        temp_dir = tempfile.gettempdir()
+        temp_path = os.path.join(temp_dir, 'temp_file_name')
 
-            temp_dir = tempfile.gettempdir()
-            temp_path = os.path.join(temp_dir, 'temp_file_name')
+        with open(temp_path, "wb") as f:
+            f.write(model_pkl)
 
-            with open(temp_path, "wb") as f:
-                f.write(model_pkl)
-
-            with open(temp_path, 'rb') as f:
-                model = pickle.load(f)
-
+        with open(temp_path, 'rb') as f:
+            model = pickle.load(f)
 
     if ml_framework == 'keras':
 
