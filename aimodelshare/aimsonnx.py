@@ -1163,7 +1163,7 @@ def instantiate_model(apiurl, version=None, trained=False):
 
         if trained == True: 
             model = tf.keras.Sequential().from_config(model_config)
-            model_weights = ast.literal_eval(meta_dict['model_weights'])
+            model_weights = json.loads(meta_dict['model_weights'])
 
             def to_array(x):
                 return np.array(x, dtype="float32")
