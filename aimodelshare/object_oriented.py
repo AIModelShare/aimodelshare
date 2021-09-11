@@ -33,7 +33,7 @@ class ModelPlayground:
     def __str__(self):
         return f"ModelPlayground instance of model type: {self.model_type}, classification: {self.categorical},  private: {self.private}"
     
-    def deploy(self, model_filepath, preprocessor_filepath, y_train, example_data=None, custom_libraries = "FALSE"):
+    def deploy(self, model_filepath, preprocessor_filepath, y_train, example_data=None, base_image_uri="", custom_libraries = "FALSE"):
         """
         Launches a live prediction REST API for deploying ML models using model parameters and user credentials, provided by the user
         Inputs : 8
@@ -73,7 +73,7 @@ class ModelPlayground:
                         also prints steps to update the model submissions by the user/team
         """
 
-        if(self.model_type!="custom"):
+        if(self.model_type!="custom" and base_image_uri==""):
             if(self.model_type=="image"):
                 base_image_id="image"
             elif(self.model_type=="text"):
@@ -85,6 +85,8 @@ class ModelPlayground:
             else:
                 base_image_id="v3"
             self.image_id="aimodelshare_base_image"+":"+base_image_id
+        else:
+            self.image_id=base_image_uri
 
         from aimodelshare.generatemodelapi import model_to_api
         self.playground_url = model_to_api(model_filepath=model_filepath, 
