@@ -35,6 +35,7 @@ import re
 import pickle
 import requests
 import sys
+from zipfile import ZipFile
 
 from pympler import asizeof
 
@@ -310,6 +311,33 @@ def _sklearn_to_onnx(model, initial_types, transfer_learning=None,
 
     return onx
 
+def get_pyspark_model_files_paths(directory):
+    # initializing empty file paths list
+    file_paths = []
+  
+    # crawling through directory and subdirectories
+    for root, directories, files in os.walk(directory):
+        for directory in directories:
+          for sub_root, sub_directories, sub_files in os.walk(os.path.join(root, directory)):
+            for sub_directory in sub_directories:
+              for sub_sub_root, _, sub_sub_files in os.walk(os.path.join(sub_root, sub_directory)):
+                for filename in sub_sub_files:
+                  # join the two strings in order to form the full filepath.
+                  filepath = os.path.join(sub_sub_root, filename)
+                  file_paths.append(filepath)
+            for filename in sub_files:
+              # join the two strings in order to form the full filepath.
+              filepath = os.path.join(sub_root, filename)
+              file_paths.append(filepath)
+
+        for filename in files:
+          # join the two strings in order to form the full filepath.
+          filepath = os.path.join(root, filename)
+          file_paths.append(filepath)
+
+    # returning all file paths
+    return file_paths
+
 def _pyspark_to_onnx(model, initial_types, spark_session, 
                     transfer_learning=None, deep_learning=None, 
                     task_type=None):
@@ -370,9 +398,18 @@ def _pyspark_to_onnx(model, initial_types, spark_session,
     temp_dir = tempfile.gettempdir()
     temp_path = os.path.join(temp_dir, 'temp_file_name')
 
-    model.save(temp_path)
+    model.write().overwrite().save(temp_path)
+
+    # calling function to get all file paths in the directory
+    file_paths = get_pyspark_model_files_paths(temp_path)
+
+    temp_zip_path = os.path.join(temp_dir, 'temp_file_name.zip')
+    with ZipFile(temp_zip_path,'w') as zip:
+        # writing each file one by one
+        for file in file_paths:
+            zip.write(file)
     
-    with open(temp_path, "rb") as f:
+    with open(temp_zip_path, "rb") as f:
         pkl_str = f.read()
 
     metadata['model_weights'] = pkl_str
@@ -1307,11 +1344,18 @@ def instantiate_model(apiurl, version=None, trained=False):
         model_pkl = meta_dict['model_weights']
 
         temp_dir = tempfile.gettempdir()
+        temp_path_zip = os.path.join(temp_dir, 'temp_file_name.zip')
         temp_path = os.path.join(temp_dir, 'temp_file_name')
-
-        with open(temp_path, "wb") as f:
+        with open(temp_path_zip, "wb") as f:
             f.write(model_pkl)
-
+        
+        with ZipFile(temp_path_zip, 'r') as zip:
+            zip.printdir()
+            
+            # It will extract the whole path (tmp/....)
+            # Set it to the root
+            zip.extractall("/")
+                
         model_type = meta_dict['model_type']
         model_class = pyspark_model_from_string(model_type)
         model = model_class(**model_config)
