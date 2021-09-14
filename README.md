@@ -10,10 +10,12 @@
 
 * ***Deployed models receive an individual Model Playground listing information about all deployed models. Each of these pages includes a fully functional prediction dashboard that allows end-users to input text, tabular, or image data and receive live predictions.*** 
 
-# Use aimodelshare Python library to deploy your model
+* ***Moreover, users can build on model playgrounds by 1) creating ML model competitions, 2) uploading Jupyter notebooks to share code, 3) sharing model architectures and 4) sharing data... with all shared artifacts automatically creating a data science user portfolio.*** 
+
+# Use aimodelshare Python library to deploy your model, create a new ML competition, and more.
 * [Tutorials for deploying models](https://www.modelshare.org/search/deploy?search=ALL&problemdomain=ALL&gettingstartedguide=TRUE&pythonlibrariesused=ALL&tags=ALL&pageNum=1).
 
-# Find model detail pages and generate predictions
+# Find model playground web-dashboards to generate predictions now.
 * [View deployed models and generate predictions at modelshare.org](https://www.modelshare.org)
 
 # Installation
