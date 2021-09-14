@@ -14,6 +14,7 @@ import sys
 import base64
 import mimetypes
 import numpy as np
+import pandas as pd
 from aimodelshare.tools import extract_varnames_fromtrainingdata, _get_extension_from_filepath
 from aimodelshare.aws import get_s3_iam_client, run_function_on_lambda
 from aimodelshare.bucketpolicy import _custom_upload_policy
@@ -358,7 +359,7 @@ def model_to_api(model_filepath, model_type, private, categorical, y_train, prep
 
     # Force user to provide example data for tabular models {{{
     if any([model_type.lower() == "tabular", model_type.lower() == "timeseries"]):
-        if example_data == None:
+        if not isinstance(example_data, pd.DataFrame):
             return print("Error: Example data is required for tabular models. \n Please provide a pandas DataFrame with a sample of your X data (in the format expected by your preprocessor) and try again.")
     else:
         pass

@@ -8,6 +8,8 @@ from sklearn.model_selection import GridSearchCV, RandomizedSearchCV
 import torch
 import xgboost
 import tensorflow as tf
+import pyspark
+from pyspark.sql import SparkSession
 from pyspark.ml import PipelineModel, Model
 from pyspark.ml.tuning import CrossValidatorModel, TrainValidationSplitModel
 
@@ -35,6 +37,8 @@ import re
 import pickle
 import requests
 import sys
+import shutil
+from pathlib import Path
 from zipfile import ZipFile
 
 from pympler import asizeof
@@ -396,14 +400,14 @@ def _pyspark_to_onnx(model, initial_types, spark_session,
 
     # get weights for pretrained models 
     temp_dir = tempfile.gettempdir()
-    temp_path = os.path.join(temp_dir, 'temp_file_name')
+    temp_path = os.path.join(temp_dir, 'temp_pyspark_model')
 
     model.write().overwrite().save(temp_path)
 
     # calling function to get all file paths in the directory
     file_paths = get_pyspark_model_files_paths(temp_path)
 
-    temp_zip_path = os.path.join(temp_dir, 'temp_file_name.zip')
+    temp_zip_path = os.path.join(temp_dir, 'temp_pyspark_model.zip')
     with ZipFile(temp_zip_path,'w') as zip:
         # writing each file one by one
         for file in file_paths:
@@ -1144,7 +1148,11 @@ def compare_models_aws(apiurl, version_list=None,
         model_type = model_type_list[0]
         model_class = pyspark_model_from_string(model_type)
         default = model_class()
-        default_config = default.get_params()
+
+        # get model config dict from pyspark model object
+        default_config = {}
+        for key, value in default.extractParamMap().items():
+            default_config[key.name] = value
         
         comp_pd = pd.DataFrame({'param_name': default_config.keys(),
                            'param_value': default_config.values()})
@@ -1344,21 +1352,49 @@ def instantiate_model(apiurl, version=None, trained=False):
         model_pkl = meta_dict['model_weights']
 
         temp_dir = tempfile.gettempdir()
-        temp_path_zip = os.path.join(temp_dir, 'temp_file_name.zip')
-        temp_path = os.path.join(temp_dir, 'temp_file_name')
+        temp_path_zip = os.path.join(temp_dir, 'temp_pyspark_model.zip')
+        temp_path = os.path.join(temp_dir, 'temp_pyspark_model')
+        
         with open(temp_path_zip, "wb") as f:
             f.write(model_pkl)
         
-        with ZipFile(temp_path_zip, 'r') as zip:
-            zip.printdir()
-            
-            # It will extract the whole path (tmp/....)
-            # Set it to the root
-            zip.extractall("/")
+        dirname_idx = -1
+        with ZipFile(temp_path_zip, 'r') as zip_file:
+            for member in zip_file.namelist():
+                filename = os.path.basename(member)
+                # skip directories
+                if not filename:
+                    continue
+
+                if dirname_idx == -1:
+                    for dirname in member.split("/")[:-1]: # exclude filename
+                        dirname_idx += 1
+                        if dirname == 'temp_pyspark_model':
+                            break
+
+                dir_path = os.path.join(
+                    temp_path, 
+                    "/".join(member.split("/")[dirname_idx+1:-1])
+                )
                 
+                Path(dir_path).mkdir(parents=True, exist_ok=True)
+                
+                # copy file (taken from zipfile's extract)
+                source = zip_file.open(member)
+                target = open(os.path.join(dir_path, filename), "wb")
+                with source, target:
+                    shutil.copyfileobj(source, target)
+        
         model_type = meta_dict['model_type']
         model_class = pyspark_model_from_string(model_type)
-        model = model_class(**model_config)
+        # model_config is for the Estimator not the Transformer / Model
+        model = model_class()
+
+        # Need spark session and context to instantiate model object
+        spark = SparkSession \
+            .builder \
+            .appName('Pyspark Model') \
+            .getOrCreate()
 
         model = model.load(temp_path)
 
@@ -1428,9 +1464,6 @@ def model_from_string(model_type):
     return model_class
 
 def _get_pyspark_modules():
-    
-    import pyspark.ml
-
     pyspark_modules = ['classification', 'clustering', 'regression']
 
     models_modules_dict = {}
@@ -1443,7 +1476,6 @@ def _get_pyspark_modules():
             models_modules_dict[k] = 'pyspark.ml.'+i
     
     return models_modules_dict
-
 
 
 def pyspark_model_from_string(model_type):
