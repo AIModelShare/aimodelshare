@@ -265,7 +265,7 @@ def import_quickstart_data(tutorial, section="modelplayground"):
 
             #Data Prep:
                 # convert rupees to $ (for smaller MSEs)
-                y = y.mul(.014)
+            y = y.mul(.014)
                 # A: Split units from mileage and convert units 
             Correct_Mileage= []
             for i in X.mileage:
