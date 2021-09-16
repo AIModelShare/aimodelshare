@@ -208,14 +208,18 @@ def import_quickstart_data(tutorial, section="modelplayground"):
     
     if all([tutorial == "titanic", section == "modelplayground"]):
         quickstart_repository = "public.ecr.aws/y2e2a1d6/titanic_quickstart-repository:latest" 
+
+    if all([tutorial == "cars", section == "modelplayground"]):
+        quickstart_repository = "public.ecr.aws/y2e2a1d6/quickstart_car_sales_competition-repository:latest" 
+
     download_data(quickstart_repository)
 
-    #{{{ prepare modelplayground materials
+    #{{{ Prepare modelplayground materials
     if section == "modelplayground": 
-        #Instantiate Model 
         print("\nPreparing downloaded files for use...")
         
         if tutorial == "flowers":
+           #instantiate model
             model = tf.keras.models.load_model('quickstart_materials/flowermodel.h5')
             
             #unpack data
@@ -225,6 +229,7 @@ def import_quickstart_data(tutorial, section="modelplayground"):
         if tutorial == "titanic":
             from sklearn.model_selection import train_test_split
             import pandas as pd
+            #read in data
             data = pd.read_csv("titanic_quickstart/titanic_data.csv")
             y = data['survived']
             y = y.map({0: 'died', 1: 'survived'}) 
@@ -248,7 +253,56 @@ def import_quickstart_data(tutorial, section="modelplayground"):
             
             #make y_test_labels for competition
             y_test_labels = y_test.to_list()
-        #}}}
+
+        if tutorial == "cars":
+            from sklearn.model_selection import train_test_split
+
+            # read in data
+            import pandas as pd
+            data = pd.read_csv("quickstart_car_sales_competition/used_car_dataset.csv")
+            y = data['selling_price']
+            X = data.drop(['selling_price', 'torque', 'name'], axis=1)
+
+            #Data Prep:   
+                # A: Split units from mileage and convert units 
+            Correct_Mileage= []
+            for i in X.mileage:
+                if str(i).endswith('km/kg'):
+                    i = i[:-6]
+                    i = float(i)*1.40
+                    Correct_Mileage.append(float(i))
+                elif str(i).endswith('kmpl'):
+                    i = i[:-5]
+                    Correct_Mileage.append(float(i))
+                else: 
+                    Correct_Mileage.append(None)
+            X['mileage']=Correct_Mileage
+
+                  #B: Split units from engine, & max_pwer
+            X['engine'] = X['engine'].str.replace(' CC', '')
+            X['engine'] = pd.to_numeric(X['engine'])
+
+            X['max_power'] = X['max_power'].str.replace(' bhp', '')
+            X['max_power'] = pd.to_numeric(X['max_power'])
+
+            #create subset as exampledata 
+            example_data = pd.DataFrame(X[0:4])
+
+            #create data directory for competition
+            X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2)
+            training_data = X_train
+            training_data = pd.merge(X_train, y_train, left_index=True, right_index=True)
+            training_data.to_csv("training_data.csv")
+
+            test_data = X_test
+            test_data.to_csv("test_data.csv")
+
+            os.mkdir('used_car_competition_data')
+            files = ['training_data.csv', 
+                        'test_data.csv']
+            for f in files:
+                shutil.move(f, 'used_car_competition_data')
+    #}}}
 
     #{{{ prepare competition materials
     if section == "competition":
@@ -283,3 +337,6 @@ def import_quickstart_data(tutorial, section="modelplayground"):
     
     if tutorial == "titanic":
         return X_train, X_test, y_train, y_test, example_data, y_test_labels
+
+    if tutorial == "cars":
+        return X_train, X_test, y_train, y_test, example_data
