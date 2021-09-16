@@ -243,12 +243,12 @@ def import_quickstart_data(tutorial, section="modelplayground"):
             files = ['training_data.csv', 
                    'test_data.csv']
             
-        for f in files:
-            shutil.move(f, 'titanic_competition_data')
+            for f in files:
+                shutil.move(f, 'titanic_competition_data')
             
-        #make y_test_labels for competition
-        y_test_labels = y_test.to_list()
-    #}}}
+            #make y_test_labels for competition
+            y_test_labels = y_test.to_list()
+        #}}}
 
     #{{{ prepare competition materials
     if section == "competition":
@@ -283,4 +283,3 @@ def import_quickstart_data(tutorial, section="modelplayground"):
     
     if tutorial == "titanic":
         return X_train, X_test, y_train, y_test, example_data, y_test_labels
-
