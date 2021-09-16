@@ -263,7 +263,9 @@ def import_quickstart_data(tutorial, section="modelplayground"):
             y = data['selling_price']
             X = data.drop(['selling_price', 'torque', 'name'], axis=1)
 
-            #Data Prep:   
+            #Data Prep:
+                # convert rupees to $ (for smaller MSEs)
+                y = y.mul(.014)
                 # A: Split units from mileage and convert units 
             Correct_Mileage= []
             for i in X.mileage:
