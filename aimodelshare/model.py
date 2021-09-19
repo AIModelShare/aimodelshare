@@ -272,8 +272,8 @@ def submit_model(
         else: 
             pass
 
-        if all(isinstance(x, (np.int64)) for x in prediction_submission):
-              prediction_submission = [int(i) for i in prediction_submission]
+        if all(isinstance(x, (np.float64)) for x in prediction_submission):
+              prediction_submission = [float(i) for i in prediction_submission]
         else: 
             pass
 

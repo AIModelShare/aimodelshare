@@ -880,7 +880,7 @@ def _get_metadata(onnx_model):
         if onnx_meta_dict['metadata_onnx'] != None:
             onnx_meta_dict['metadata_onnx'] = ast.literal_eval(onnx_meta_dict['metadata_onnx'])
         
-        onnx_meta_dict['model_image'] = onnx_to_image(onnx_model)
+        #onnx_meta_dict['model_image'] = onnx_to_image(onnx_model)
 
     except Exception as e:
     
