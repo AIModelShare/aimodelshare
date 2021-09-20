@@ -238,7 +238,7 @@ def create_prediction_api(model_filepath, unique_model_id, model_type, categoric
     from string import Template
     t = Template(data)
     newdata = t.substitute(
-        bucket_name=os.environ.get("BUCKET_NAME"), unique_model_id=unique_model_id, task_type=task_type, classification=categorical, categorical=categorical)
+        bucket_name=os.environ.get("BUCKET_NAME"), unique_model_id=unique_model_id, task_type=task_type)
     with open(os.path.join(temp_dir, 'main.py'), 'w') as file:
         file.write(newdata)
 
