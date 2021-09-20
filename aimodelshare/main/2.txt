@@ -78,8 +78,6 @@ preprocessor=get_preprocessor(preprocessor_s3_filename="runtime_preprocessor.zip
 
 def predict(event,model,preprocessor):
 
-  labels=$labels
-  
 # Load base64 encoded image stored within "data" key of event dictionary
   print(event["body"])
   body = event["body"]
@@ -119,14 +117,17 @@ def predict(event,model,preprocessor):
   
   prob = res[0]
 
-  def predict_classes(x): # adjusted from keras github code
-    if len(x.shape)==2:
-        index = x.argmax(axis=-1)
-        return list(map(lambda x: labels[x], index))
+  def predict_classes(x): 
+    proba=x
+    if proba.shape[-1] > 1:
+      return proba.argmax(axis=-1)
     else:
-        return list(x)
+      return (proba > 0.5).astype("int32")
       
-  result=predict_classes(prob)
+  prediction_index=predict_classes(prob)
+
+  labels=$labels
+  result=list(map(lambda x: labels[x], prediction_index))
 
   os.remove("/tmp/imagetopredict."+image_file_type)
 

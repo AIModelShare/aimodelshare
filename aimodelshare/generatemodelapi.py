@@ -459,8 +459,8 @@ def create_competition(apiurl, data_directory, y_test, generate_credentials_file
         else: 
             pass
 
-        if all(isinstance(x, (np.float64)) for x in y_test):
-              y_test = [float(i) for i in y_test]
+        if all(isinstance(x, (np.int64)) for x in y_test):
+              y_test = [int(i) for i in y_test]
         else: 
             pass
 
