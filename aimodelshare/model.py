@@ -7,6 +7,8 @@ import pandas as pd
 import requests 
 import json
 import ast
+import tempfile
+import tensorflow as tf
 
 from datetime import datetime
 
@@ -71,6 +73,34 @@ def _upload_onnx_model(modelpath, client, bucket, model_id, model_version):
     except Exception as err:
         return err
     # }}}
+
+def _upload_native_model(modelpath, client, bucket, model_id, model_version):
+    # Check the model {{{
+    if not os.path.exists(modelpath):
+        raise FileNotFoundError(f"The model file at {modelpath} does not exist")
+
+    file_name = os.path.basename(modelpath)
+    file_name, file_ext = os.path.splitext(file_name)
+
+    assert (
+        file_ext == ".onnx"
+    ), "modelshareai api only supports .onnx models at the moment"
+    # }}}
+
+    # Upload the model {{{
+    try:
+        client["client"].upload_file(
+            modelpath, bucket, model_id + "/onnx_model_mostrecent.onnx"
+        )
+        client["client"].upload_file(
+            modelpath,
+            bucket,
+            model_id + "/onnx_model_v" + str(model_version) + file_ext,
+        )
+    except Exception as err:
+        return err
+    # }}}
+
 
 def _upload_preprocessor(preprocessor, client, bucket, model_id, model_version):
 
@@ -154,8 +184,41 @@ def _update_leaderboard(
         return err
     # }}}
 
+
+def upload_model_dict(modelpath, aws_client, bucket, model_id, model_version):
+
+    # get model summary from onnx
+    onnx_model = onnx.load(modelpath)
+    meta_dict = _get_metadata(onnx_model)
+
+    if meta_dict['ml_framework'] == 'keras':
+        inspect_pd = _model_summary(meta_dict)
+        
+    elif meta_dict['ml_framework'] in ['sklearn', 'xgboost']:
+        model_config = meta_dict["model_config"]
+        model_config = ast.literal_eval(model_config)
+        inspect_pd = pd.DataFrame({'param_name': model_config.keys(),
+                                   'param_value': model_config.values()})
+
+    key = model_id+'/inspect_pd.json'
+    
+    try:
+      resp = aws_client['client'].get_object(Bucket=bucket, Key=key)
+      data = resp.get('Body').read()
+      model_dict = json.loads(data)
+    except: 
+      model_dict = {}
+
+    model_dict[str(model_version)] = inspect_pd.to_dict()
+
+    aws_client['client'].put_object(Bucket=bucket, Key=key, Body=json.dumps(model_dict).encode())
+
+    return 1
+
+
+
 def submit_model(
-    modelpath,
+    model,
     apiurl,
     prediction_submission=None,
     preprocessor=None,
@@ -233,8 +296,8 @@ def submit_model(
 
     # Delete recent model and/or preprocessor {{{
     recent_models = filter(lambda f: "mostrecent" in f, model_files)
-    for model in recent_models:
-        _delete_s3_object(aws_client, bucket, model_id, model)
+    for mod in recent_models:
+        _delete_s3_object(aws_client, bucket, model_id, mod)
 
     model_files = list(filter(lambda f: "mostrecent" not in f, model_files))
     # }}}
@@ -261,10 +324,63 @@ def submit_model(
     # }}}
 
     # Upload the model {{{
-    err = _upload_onnx_model(modelpath, aws_client, bucket, model_id, model_version)
-    if err is not None:
-        raise err
-    # }}}
+    # check if onnx object was passed
+    if isinstance(model, (onnx.ModelProto)):
+
+        # generate tempfile for onnx object 
+        temp_dir = tempfile.gettempdir()
+        modelpath = os.path.join(temp_dir, 'temp_file.onnx')
+
+        with open(modelpath, "wb") as f:
+            f.write(model.SerializeToString())
+
+        # Upload the model
+        err = _upload_onnx_model(modelpath, aws_client, bucket, model_id, model_version)
+        if err is not None:
+            raise err
+
+        upload_model_dict(modelpath, aws_client, bucket, model_id, model_version)    
+
+
+    # check if path of saved onnx model was passed
+    elif os.path.isfile(str(model)) and model.split('.')[-1] == 'onnx':
+
+        modelpath = model
+
+        # Upload the model
+        err = _upload_onnx_model(modelpath, aws_client, bucket, model_id, model_version)
+        if err is not None:
+            raise err
+
+        upload_model_dict(modelpath, aws_client, bucket, model_id, model_version)    
+
+
+
+    # check if keras model object was passed
+    elif isinstance(model, (tf.keras.models.Model)):
+
+        # generate tempfile for onnx object 
+        temp_dir = tempfile.gettempdir()
+        modelpath = os.path.join(temp_dir, 'temp_file.h5')
+
+        model.save(modelpath)
+
+        # Upload native model object 
+        err = _upload_native_model(modelpath, aws_client, bucket, model_id, model_version)
+        if err is not None:
+            raise err
+
+
+    # check if path to saved keras h5 model was passed
+    elif os.path.isfile(str(model)) and model.split('.')[-1] == 'h5':
+
+        modelpath = model
+
+        # Upload native model object 
+        err = _upload_native_model(modelpath, aws_client, bucket, model_id, model_version)
+        if err is not None:
+            raise err
+
 
     if prediction_submission is not None:
         if type(prediction_submission) is not list:
@@ -272,8 +388,8 @@ def submit_model(
         else: 
             pass
 
-        if all(isinstance(x, (np.float64)) for x in prediction_submission):
-              prediction_submission = [float(i) for i in prediction_submission]
+        if all(isinstance(x, (np.int64)) for x in prediction_submission):
+              prediction_submission = [int(i) for i in prediction_submission]
         else: 
             pass
 
@@ -391,6 +507,7 @@ def submit_model(
     # competitiondata lambda function invoked through below url to update model submissions and contributors
     response=requests.post("https://eeqq8zuo9j.execute-api.us-east-1.amazonaws.com/dev/modeldata",
                   json=bodydatamodels_allstrings, headers=headers_with_authentication)
+
     if str(response.status_code)=="200":
         code_comp_result="To submit code used to create this model or to view current leaderboard navigate to Model Playground: \n\n https://www.modelshare.org/detail/model:"+response.text.split(":")[1]  
     else:
@@ -398,7 +515,6 @@ def submit_model(
     
     
     return print("\nYour model has been submitted as model version "+str(model_version)+ "\n\n"+code_comp_result)
-
   
 def update_runtime_model(apiurl, model_version=None):
     """
