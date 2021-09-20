@@ -205,50 +205,18 @@ def import_quickstart_data(tutorial, section="modelplayground"):
         quickstart_repository = "public.ecr.aws/y2e2a1d6/quickstart_materials-repository:latest"     
     if all([tutorial == "flowers", section == "competition"]):
         quickstart_repository = "public.ecr.aws/y2e2a1d6/quickstart_flowers_competition-repository:latest"
-    
-    if all([tutorial == "titanic", section == "modelplayground"]):
-        quickstart_repository = "public.ecr.aws/y2e2a1d6/titanic_quickstart-repository:latest" 
     download_data(quickstart_repository)
 
     #{{{ prepare modelplayground materials
     if section == "modelplayground": 
         #Instantiate Model 
         print("\nPreparing downloaded files for use...")
-        
-        if tutorial == "flowers":
-            model = tf.keras.models.load_model('quickstart_materials/flowermodel.h5')
+        model = tf.keras.models.load_model('quickstart_materials/flowermodel.h5')
             
-            #unpack data
-            with open("quickstart_materials/y_train_labels.txt", "rb") as fp:  
-                y_train_labels = pickle.load(fp)
-        
-        if tutorial == "titanic":
-            from sklearn.model_selection import train_test_split
-            import pandas as pd
-            data = pd.read_csv("titanic_quickstart/titanic_data.csv")
-            y = data['survived']
-            y = y.map({0: 'died', 1: 'survived'}) 
-            X = data.drop(['survived','sibsp','parch','ticket','name','cabin','boat','body','home.dest'], axis=1)
-            #create subset as exampledata 
-            example_data = pd.DataFrame(X[0:4])
-            # create data directory for competition
-            X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2)
-            training_data = pd.merge(X_train, y_train, left_index=True, right_index=True)
-            training_data.to_csv("training_data.csv")
-
-            test_data = X_test
-            test_data.to_csv("test_data.csv")
-            
-            os.mkdir('titanic_competition_data')
-            files = ['training_data.csv', 
-                   'test_data.csv']
-            
-            for f in files:
-                shutil.move(f, 'titanic_competition_data')
-            
-            #make y_test_labels for competition
-            y_test_labels = y_test.to_list()
-        #}}}
+        #unpack data
+        with open("quickstart_materials/y_train_labels.txt", "rb") as fp:  
+            y_train_labels = pickle.load(fp)
+    #}}}
 
     #{{{ prepare competition materials
     if section == "competition":
@@ -275,11 +243,9 @@ def import_quickstart_data(tutorial, section="modelplayground"):
     
     print(success_message)
 
-    if all([tutorial == "flowers", section == "modelplayground"]):
+    if section == "modelplayground":
         return model, y_train_labels
 
-    if all ([tutorial == "flowers", section == "competition"]): 
+    if section == "competition": 
         return model_2, y_test_labels
-    
-    if tutorial == "titanic":
-        return X_train, X_test, y_train, y_test, example_data, y_test_labels
+
