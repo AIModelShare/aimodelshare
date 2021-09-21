@@ -14,7 +14,7 @@ from datetime import datetime
 
 from aimodelshare.aws import run_function_on_lambda, get_token, get_aws_token, get_aws_client
 
-from aimodelshare.aimsonnx import _get_leaderboard_data, inspect_model, _get_metadata, _model_summary
+from aimodelshare.aimsonnx import _get_leaderboard_data, inspect_model, _get_metadata, _model_summary, model_from_string
 
 
 def _get_file_list(client, bucket, model_id):
@@ -192,12 +192,20 @@ def upload_model_dict(modelpath, aws_client, bucket, model_id, model_version):
     meta_dict = _get_metadata(onnx_model)
 
     if meta_dict['ml_framework'] == 'keras':
+
         inspect_pd = _model_summary(meta_dict)
         
     elif meta_dict['ml_framework'] in ['sklearn', 'xgboost']:
+
         model_config = meta_dict["model_config"]
         model_config = ast.literal_eval(model_config)
+
+        model_class = model_from_string(meta_dict['model_type'])
+        default = model_class()
+        default_config = default.get_params()
+
         inspect_pd = pd.DataFrame({'param_name': model_config.keys(),
+                                   'default_value': default_config.values(),
                                    'param_value': model_config.values()})
 
     key = model_id+'/inspect_pd.json'
@@ -477,10 +485,17 @@ def submit_model(
         inspect_pd = _model_summary(meta_dict)
         
     elif meta_dict['ml_framework'] in ['sklearn', 'xgboost']:
+
         model_config = meta_dict["model_config"]
         model_config = ast.literal_eval(model_config)
+
+        model_class = model_from_string(meta_dict['model_type'])
+        default = model_class()
+        default_config = default.get_params()
+
         inspect_pd = pd.DataFrame({'param_name': model_config.keys(),
-                                   'param_value': model_config.values()})
+                                   'default_value': default_config.values(),
+                                   'param_value': model_config.values()})            
     
     #Update model architecture data
     bodydatamodels = {
