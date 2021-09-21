@@ -38,7 +38,6 @@ class ModelPlayground:
         Inputs : 8
         Output : model launched to an API
                 detaled API info printed out
-
         -----------
         Parameters 
         
@@ -138,7 +137,7 @@ class ModelPlayground:
         
         """
         from aimodelshare.model import submit_model as submit
-        submission = submit(modelpath = model_filepath, 
+        submission = submit(model = model_filepath, 
                             apiurl = self.playground_url,
                             prediction_submission = prediction_submission, 
                             preprocessor = preprocessor_filepath,
@@ -162,7 +161,6 @@ class ModelPlayground:
         attached competitions, prediction REST API, and interactive Model Playground web dashboard.
         ---------------
         playground_url: string of API URL the user wishes to delete
-
         WARNING: User must supply high-level credentials in order to delete an API. 
         """
         from aimodelshare.api import delete_deployment
@@ -208,7 +206,7 @@ class Competition:
         
         """
         from aimodelshare.model import submit_model as submit
-        submission = submit(modelpath = model_filepath, 
+        submission = submit(model = model_filepath, 
                               apiurl = self.playground_url,
                               prediction_submission = prediction_submission, 
                               preprocessor = preprocessor_filepath,
@@ -234,18 +232,16 @@ class Competition:
         data = inspect(apiurl = self.playground_url)
         return data 
     
-    def get_leaderboard(self, category="classification", verbose=3, columns=None):
+    def get_leaderboard(self, verbose=3, columns=None):
         from aimodelshare.leaderboard import get_leaderboard as get_lead
-        data = get_lead(category=category, 
-                 verbose=verbose,
+        data = get_lead(verbose=verbose,
                  columns=columns, 
                  apiurl = self.playground_url)
         return data
     
-    def stylize_leaderboard(self, leaderboard, category="classification"):
+    def stylize_leaderboard(self, leaderboard):
         from aimodelshare.leaderboard import stylize_leaderboard as stylize_lead
-        stylized_leaderboard = stylize_lead(leaderboard = leaderboard,
-                                            category=category)
+        stylized_leaderboard = stylize_lead(leaderboard = leaderboard)
         return stylized_leaderboard
 
 
@@ -271,8 +267,4 @@ class Data:
         from aimodelshare.data_sharing.download_data import download_data as download
         datadownload = download(repository)
         return datadownload
-
-
-
-
 
