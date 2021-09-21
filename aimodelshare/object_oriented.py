@@ -221,7 +221,7 @@ class Competition:
     def inspect_model(self, apiurl, version=None):
         from aimodelshare.aimsonnx import inspect_model
         inspect_pd = inspect_model(apiurl=self.playground_url, version=version)
-        return model
+        return inspect_pd
 
     def compare_models(self, version_list="None", by_model_type=None, best_model=None, verbose=3):
         from aimodelshare.aimsonnx import compare_models as compare
