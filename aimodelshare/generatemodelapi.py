@@ -332,7 +332,11 @@ def model_to_api(model_filepath, model_type, private, categorical, y_train, prep
                                          region_name=os.environ.get("AWS_REGION"))
 
     repo_name, image_tag = image.split(':')
-
+    if model_type=="tabular":
+        image_tag="tabular
+    else:
+        pass
+    
     response = clone_base_image(user_session, repo_name, image_tag, "517169013426", base_image_api_endpoint, update)
     if(response["Status"]==0):
         print(response["Success"])
