@@ -121,7 +121,57 @@ def set_credentials(credential_file=None, type="deploy_model", apiurl="apiurl", 
 
   return
 
+def set_credentials_public(credential_file=None, type="submit_model", apiurl="apiurl", manual = True):
+  import os
+  import getpass
+  from aimodelshare.aws import get_aws_token
+  from aimodelshare.modeluser import get_jwt_token, create_user_getkeyandpassword
 
+  ##TODO: Require that "type" is provided, to ensure correct env vars get loaded
+  flag = False
+
+  # Set AI Modelshare Username & Password
+  if all([manual == True, credential_file==None]):
+    user = getpass.getpass(prompt="AI Modelshare Username:")
+    os.environ["username"] = user
+    pw = getpass.getpass(prompt="AI Modelshare Password:")
+    os.environ["password"] = pw
+  
+  else: 
+    f = open(credential_file)
+
+    for line in f:
+      if "aimodelshare_creds" in line or "AIMODELSHARE_CREDS" in line:
+        for line in f:
+          if line == "\n":
+            break
+          try:
+            value = line.split("=", 1)[1].strip()
+            value = value[1:-1]
+            key = line.split("=", 1)[0].strip()
+            os.environ[key.lower()] = value
+
+          except LookupError: 
+            print(* "Warning: Review format of", credential_file, ". Format should be variablename = 'variable_value'")
+            break
+  
+  #Validate Username & Password
+  try: 
+    os.environ["AWS_TOKEN"]=get_aws_token()
+
+    print("AI Model Share login credentials set successfully.")
+  except: 
+    print("Credential confirmation unsuccessful. Check username & password and try again.")
+    return
+  
+   # Set AWS creds from file
+ 
+  try:
+    f.close()
+  except:
+    pass
+
+  return
 
 def get_aws_token():
     config = botocore.config.Config(signature_version=botocore.UNSIGNED)
