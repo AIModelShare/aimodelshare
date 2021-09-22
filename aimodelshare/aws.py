@@ -326,5 +326,6 @@ __all__ = [
     run_function_on_lambda,
     get_s3_iam_client,
     set_credentials,
-    configure_credentials
+    configure_credentials,
+    set_credentials_public
 ]
