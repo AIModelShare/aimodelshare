@@ -411,7 +411,7 @@ def model_to_api(model_filepath, model_type, private, categorical, y_train, prep
     
     return api_info[0]
 
-def create_competition(apiurl, data_directory, y_test, generate_credentials_file = True):
+def create_competition(apiurl, data_directory, y_test, generate_credentials_file = False):
     """
     Creates a model competition for a deployed prediction REST API
     Inputs : 2
@@ -539,29 +539,16 @@ def create_competition(apiurl, data_directory, y_test, generate_credentials_file
     requests.post("https://o35jwfakca.execute-api.us-east-1.amazonaws.com/dev/modeldata",
                   json=bodydata, headers=headers_with_authentication)
 
-    
-    #Format output text
-    formatted_userpass = ('[aimodelshare_creds] \n'
-                'username = "Your_Username_Here" \n'
-                'password = "Your_Password_Here"\n\n')
-
-    formatted_new_creds = ("#Credentials for Competition: " + api_id + "\n"
-                '[submit_model:"' + apiurl + '"]\n'
-                'AWS_ACCESS_KEY_ID = "' + os.environ.get("AI_MODELSHARE_ACCESS_KEY_ID") + '"\n'
-                'AWS_SECRET_ACCESS_KEY = "' + os.environ.get("AI_MODELSHARE_SECRET_ACCESS_KEY") +'"\n'
-                'AWS_REGION = "' + os.environ.get("AWS_REGION") + '"\n')
-    
+      
     final_message = ("\n Success! Model competition created. \n\n"
                 "Your team members can now make use of the following functions: \n"
                 "submit_model() to submit new models to the competition leaderboard. \n"
                 "download_data('"+datauri['ecr_uri']+"') to download your competition data.  \n\n"
                 "You may update your prediction API runtime model with the update_runtime_model() function.\n\n"
                 "To upload new models and/or preprocessors to this API, team members should use \n"
-                "the following credentials:\n\n" + formatted_new_creds + "\n"
-                "(This aws key/password combination limits team members to file upload access only.)\n\n")
+                "the following credentials:\n\nset_credentials(apiurl='" + apiurl + "')\n"
+                "(They can then use the submit_model() function to submit new models to your competition.)\n\n")
   
-    file_generated_message = ("These credentials have been saved as: " + txt_file_name + ".")
-
     # Generate .txt file with new credentials 
     if generate_credentials_file == True:
         final_message = final_message + file_generated_message
