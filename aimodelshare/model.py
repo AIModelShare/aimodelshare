@@ -592,7 +592,7 @@ def submit_model(
         submit_model_public(model_filepath=model,
                             apiurl=apiurl,
                             prediction_submission=prediction_submission,
-                            preprocessor=preprocessor)
+                            preprocessor=preprocessor,sample_data=sample_data)
 
 def submit_model_public(
     model_filepath=None,
@@ -977,7 +977,7 @@ def _extract_model_metadata(model, eval_metrics=None):
     return metadata
 
 __all__ = [
-    submit_model,
+    submit_model,submit_model_public
     _extract_model_metadata,
     update_runtime_model
 ]
