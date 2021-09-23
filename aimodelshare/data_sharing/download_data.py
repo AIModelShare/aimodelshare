@@ -190,16 +190,7 @@ def import_quickstart_data(tutorial, section="modelplayground"):
     import pickle
     import shutil 
     
-     # Confirm that creds are loaded, print warning if not
-    if all(["AWS_ACCESS_KEY_ID" in os.environ, 
-            "AWS_SECRET_ACCESS_KEY" in os.environ,
-            "AWS_REGION" in os.environ,
-           "username" in os.environ, 
-           "password" in os.environ]):
-        pass
-    else:
-        return print("'Download unsuccessful. Please provide credentials with set_credentials().")
-    
+   
     #Download Quick Start materials
     if all([tutorial == "flowers", section == "modelplayground"]):
         quickstart_repository = "public.ecr.aws/y2e2a1d6/quickstart_materials-repository:latest"     
