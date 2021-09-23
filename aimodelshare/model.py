@@ -194,7 +194,7 @@ def upload_model_dict(modelpath, aws_client, bucket, model_id, model_version):
     if meta_dict['ml_framework'] == 'keras':
         inspect_pd = _model_summary(meta_dict)
         
-    elif meta_dict['ml_framework'] in ['sklearn', 'xgboost']:
+    elif meta_dict['ml_framework'] in ['sklearn', 'xgboost', 'pyspark']:
         model_config = meta_dict["model_config"]
         model_config = ast.literal_eval(model_config)
         inspect_pd = pd.DataFrame({'param_name': model_config.keys(),
