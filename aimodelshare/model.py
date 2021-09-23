@@ -290,7 +290,7 @@ def upload_model_dict(modelpath, aws_client, bucket, model_id, model_version):
 
 
 def submit_model(
-    model_path=None,
+    model=None,
     apiurl,
     prediction_submission=None,
     preprocessor=None,
@@ -589,7 +589,7 @@ def submit_model(
 
             return print("\nYour model has been submitted as model version "+str(model_version)+ "\n\n"+code_comp_result)
     else:
-        submit_model_public(model_filepath=model_path,
+        submit_model_public(model_filepath=model,
                             apiurl=apiurl,
                             prediction_submission=prediction_submission,
                             preprocessor=preprocessor)
