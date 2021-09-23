@@ -290,7 +290,7 @@ def upload_model_dict(modelpath, aws_client, bucket, model_id, model_version):
 
 
 def submit_model(
-    model=None,
+    model,
     apiurl,
     prediction_submission=None,
     preprocessor=None,
