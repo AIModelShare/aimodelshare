@@ -364,6 +364,7 @@ def create_prediction_api(model_filepath, unique_model_id, model_type, categoric
             lambdaevalfxnname +
             ':*:*"],"Effect": "Allow"},{"Action": ["s3:ListBucket"],"Resource": ["arn:aws:s3:::' +
             os.environ.get("BUCKET_NAME")+'"],"Effect": "Allow"},{"Action": ["s3:GetObject"],"Resource": ["arn:aws:s3:::' +
+            os.environ.get("BUCKET_NAME")+'/*"],"Effect": "Allow"},{"Action": ["s3:PutObject"],"Resource": ["arn:aws:s3:::' +
             os.environ.get("BUCKET_NAME")+'/*"],"Effect": "Allow"}]}',
             PolicyName='S3AccessandcloudwatchlogPolicy'+str(random.randint(1, 1000000)),
             RoleName=lambdarolename,
