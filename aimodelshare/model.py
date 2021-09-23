@@ -589,8 +589,8 @@ def submit_model(
     return print("\nYour model has been submitted as model version "+str(model_version)+ "\n\n"+code_comp_result)
 
 def submit_model_public(
-    model,
-    apiurl,
+    model_filepath=None,
+    apiurl=None,
     prediction_submission=None,
     preprocessor=None,
     sample_data=None,
