@@ -977,7 +977,7 @@ def _extract_model_metadata(model, eval_metrics=None):
     return metadata
 
 __all__ = [
-    submit_model,submit_model_public
+    submit_model,submit_model_public,
     _extract_model_metadata,
     update_runtime_model
 ]
