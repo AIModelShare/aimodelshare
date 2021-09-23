@@ -316,28 +316,14 @@ def _sklearn_to_onnx(model, initial_types, transfer_learning=None,
     return onx
 
 def get_pyspark_model_files_paths(directory):
+    # Get list of relative path of all model files
+
     # initializing empty file paths list
     file_paths = []
   
-    # crawling through directory and subdirectories
-    for root, directories, files in os.walk(directory):
-        for directory in directories:
-          for sub_root, sub_directories, sub_files in os.walk(os.path.join(root, directory)):
-            for sub_directory in sub_directories:
-              for sub_sub_root, _, sub_sub_files in os.walk(os.path.join(sub_root, sub_directory)):
-                for filename in sub_sub_files:
-                  # join the two strings in order to form the full filepath.
-                  filepath = os.path.join(sub_sub_root, filename)
-                  file_paths.append(filepath)
-            for filename in sub_files:
-              # join the two strings in order to form the full filepath.
-              filepath = os.path.join(sub_root, filename)
-              file_paths.append(filepath)
-
-        for filename in files:
-          # join the two strings in order to form the full filepath.
-          filepath = os.path.join(root, filename)
-          file_paths.append(filepath)
+    for path in Path(directory).rglob('*'):
+        if not path.is_dir():
+            file_paths.append(path.relative_to(directory))
 
     # returning all file paths
     return file_paths
@@ -407,17 +393,24 @@ def _pyspark_to_onnx(model, initial_types, spark_session,
     # calling function to get all file paths in the directory
     file_paths = get_pyspark_model_files_paths(temp_path)
 
-    temp_zip_path = os.path.join(temp_dir, 'temp_pyspark_model.zip')
-    with ZipFile(temp_zip_path,'w') as zip:
+    temp_path_zip = os.path.join(temp_dir, 'temp_pyspark_model.zip')
+    with ZipFile(temp_path_zip, 'w') as zip:
         # writing each file one by one
         for file in file_paths:
-            zip.write(file)
+            zip.write(os.path.join(temp_path, file), file)
     
-    with open(temp_zip_path, "rb") as f:
+    with open(temp_path_zip, "rb") as f:
         pkl_str = f.read()
 
     metadata['model_weights'] = pkl_str
     
+    # clean up temp directory files for future runs
+    try:
+        shutil.rmtree(temp_path)
+        os.remove(temp_path_zip)
+    except:
+        pass
+
     # get model state from sklearn model object
     metadata['model_state'] = None
 
@@ -454,7 +447,7 @@ def _pyspark_to_onnx(model, initial_types, spark_session,
         model_architecture = {}
 
         if hasattr(model, 'coefficients'):
-            model_architecture['layers_n_params'] = [len(model.coef_.flatten())]
+            model_architecture['layers_n_params'] = [model.coefficients.size]
         if hasattr(model, 'getSolver') and callable(model.getSolver):
             model_architecture['optimizer'] = model.getSolver()
 
@@ -1355,35 +1348,15 @@ def instantiate_model(apiurl, version=None, trained=False):
         temp_path_zip = os.path.join(temp_dir, 'temp_pyspark_model.zip')
         temp_path = os.path.join(temp_dir, 'temp_pyspark_model')
         
+        if not os.path.exists(temp_path):
+            os.mkdir(temp_path)
+
         with open(temp_path_zip, "wb") as f:
             f.write(model_pkl)
         
         dirname_idx = -1
         with ZipFile(temp_path_zip, 'r') as zip_file:
-            for member in zip_file.namelist():
-                filename = os.path.basename(member)
-                # skip directories
-                if not filename:
-                    continue
-
-                if dirname_idx == -1:
-                    for dirname in member.split("/")[:-1]: # exclude filename
-                        dirname_idx += 1
-                        if dirname == 'temp_pyspark_model':
-                            break
-
-                dir_path = os.path.join(
-                    temp_path, 
-                    "/".join(member.split("/")[dirname_idx+1:-1])
-                )
-                
-                Path(dir_path).mkdir(parents=True, exist_ok=True)
-                
-                # copy file (taken from zipfile's extract)
-                source = zip_file.open(member)
-                target = open(os.path.join(dir_path, filename), "wb")
-                with source, target:
-                    shutil.copyfileobj(source, target)
+            zip_file.extractall(temp_path)
         
         model_type = meta_dict['model_type']
         model_class = pyspark_model_from_string(model_type)
@@ -1397,6 +1370,13 @@ def instantiate_model(apiurl, version=None, trained=False):
             .getOrCreate()
 
         model = model.load(temp_path)
+
+        # clean up temp directory files for future runs
+        try:
+            shutil.rmtree(temp_path)
+            os.remove(temp_path_zip)
+        except:
+            pass
 
     if ml_framework == 'keras':
 
@@ -1464,16 +1444,16 @@ def model_from_string(model_type):
     return model_class
 
 def _get_pyspark_modules():
-    pyspark_modules = ['classification', 'clustering', 'regression']
+    pyspark_modules = ['ml', 'ml.feature', 'ml.classification', 'ml.clustering', 'ml.regression']
 
     models_modules_dict = {}
 
     for i in pyspark_modules:
-        models_list = [j for j in dir(eval('pyspark.ml.'+i)) if callable(getattr(eval('pyspark.ml.'+i), j))]
+        models_list = [j for j in dir(eval('pyspark.'+i)) if callable(getattr(eval('pyspark.'+i), j))]
         models_list = [j for j in models_list if re.match('^[A-Z]', j)]
 
         for k in models_list: 
-            models_modules_dict[k] = 'pyspark.ml.'+i
+            models_modules_dict[k] = 'pyspark.'+i
     
     return models_modules_dict
 
