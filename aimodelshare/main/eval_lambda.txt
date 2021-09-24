@@ -103,7 +103,8 @@ def handler(event, context):
         else:
             finalfiles.append("model_eval_data_mastertable.csv")
             finalfiles.append("onnx_model_mostrecent.onnx")
-            finalfiles=finalfiles+numbersinfiles    
+            finalfiles.append("onnx_model_v"+str(prevmodelversion+1)+".onnx")
+            finalfiles.append("preprocessor_v"+str(prevmodelversion+1)+".zip")  
     
         
             
