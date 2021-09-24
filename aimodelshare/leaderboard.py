@@ -107,10 +107,7 @@ def get_leaderboard_aws(apiurl, verbose=3, columns=None):
 
 
 def get_leaderboard_lambda(apiurl, verbose=3, columns=None):
-    if all(["AWS_ACCESS_KEY_ID" in os.environ, 
-            "AWS_SECRET_ACCESS_KEY" in os.environ,
-            "AWS_REGION" in os.environ, 
-           "username" in os.environ, 
+    if all(["username" in os.environ, 
            "password" in os.environ]):
         pass
     else:
@@ -143,10 +140,7 @@ def get_leaderboard_lambda(apiurl, verbose=3, columns=None):
 
 def get_leaderboard(apiurl, verbose=3, columns=None):
 
-    if all(["AWS_ACCESS_KEY_ID" in os.environ, 
-            "AWS_SECRET_ACCESS_KEY" in os.environ,
-            "AWS_REGION" in os.environ, 
-           "username" in os.environ, 
+    if all(["username" in os.environ, 
            "password" in os.environ]):
         pass
     else:
