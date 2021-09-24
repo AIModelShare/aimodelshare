@@ -678,7 +678,7 @@ def submit_model_public(
     prediction = requests.post(apiurl_eval,headers=headers,data=json.dumps(post_dict)) 
 
     eval_metrics=json.loads(prediction.text)
-    print(eval_metrics)
+    #print(eval_metrics)
 
     if all(value == None for value in eval_metrics.values()):
         return print("Failed to calculate evaluation metrics. Please check the format of the submitted predictions.")
