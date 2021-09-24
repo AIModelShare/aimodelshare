@@ -113,7 +113,7 @@ def handler(event, context):
         print(numbersinfiles)
         
         #TODO: Change method params with string template params in eval_lambda / also need to change bucket and prefix for file lists
-        expires_in = 600
+        expires_in = 6000
         
         getdict={}
         putdict={}
