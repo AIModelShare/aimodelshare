@@ -273,19 +273,13 @@ def evaluate_model(body, ytestdata):
     
 def inspect_model(version):
     
-    onnx_model = get_onnx_mem(version)
-
-    meta_dict = _get_metadata(onnx_model)
-
-    if meta_dict['ml_framework'] == 'keras':
-        inspect_pd = _model_summary(meta_dict)
-        
-    elif meta_dict['ml_framework'] in ['sklearn', 'xgboost']:
-        model_config = meta_dict["model_config"]
-        model_config = ast.literal_eval(model_config)
-        inspect_pd = pd.DataFrame({'param_name': model_config.keys(),
-                                   'param_value': model_config.values()})
+    s3 = boto3.resource('s3')
+    obj = s3.Object("$bucket_name", "$unique_model_id/"+"inspect_pd.json")
+    data = obj.get()['Body'].read()
+    model_dict = json.loads(data)
     
+    inspect_pd = pd.DataFrame(model_dict.get(str(version)))
+
     return inspect_pd
     
     
