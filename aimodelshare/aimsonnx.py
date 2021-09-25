@@ -926,9 +926,9 @@ def inspect_model_dict(apiurl, version=None):
     key = model_id+'/inspect_pd.json'
     
     try:
-      resp = aws_client['client'].get_object(Bucket=bucket, Key=key)
-      data = resp.get('Body').read()
-      model_dict = json.loads(data)
+        resp = aws_client['client'].get_object(Bucket=bucket, Key=key)
+        data = resp.get('Body').read()
+        model_dict = json.loads(data)
     except Exception as e:
         print(e)
 
@@ -949,11 +949,11 @@ def inspect_model(apiurl, version=None):
         return print("'Inspect Model' unsuccessful. Please provide credentials with set_credentials().")
 
     try:
-        inspect_pd = inspect_model_dict(apiurl, version)
+        inspect_pd = inspect_model_lambda(apiurl, version)
     except:
 
         try: 
-            inspect_pd = inspect_model_lambda(apiurl, version)
+            inspect_pd = inspect_model_dict(apiurl, version)
         except: 
             inspect_pd = inspect_model_aws(apiurl, version)
     
@@ -994,8 +994,8 @@ def compare_models_aws(apiurl, version_list=None,
     if not all(x==ml_framework_list[0] for x in ml_framework_list):
         raise Exception("Incongruent frameworks. Please compare models from the same ML frameworks.")
         
-    if not all(x==model_type_list[0] for x in model_type_list):
-        raise Exception("Incongruent model types. Please compare models of the same model type.")
+    '''if not all(x==model_type_list[0] for x in model_type_list):
+        raise Exception("Incongruent model types. Please compare models of the same model type.")'''
     
     if ml_framework_list[0] == 'sklearn':
         
@@ -1003,16 +1003,23 @@ def compare_models_aws(apiurl, version_list=None,
         model_class = model_from_string(model_type)
         default = model_class()
         default_config = default.get_params()
-        
-        comp_pd = pd.DataFrame({'param_name': default_config.keys(),
-                           'param_value': default_config.values()})
+
+        comp_pd = pd.DataFrame()
+    
         
         for i in version_list: 
             
             temp_pd = inspect_model(apiurl, version=i)
-            comp_pd = comp_pd.merge(temp_pd, on='param_name')
-        
-        comp_pd.columns = ['param_name', 'model_default'] + ["Model_"+str(i) for i in version_list]
+
+            buffer = pd.DataFrame({"": ['', 'Version'], "": ['', int(i)]})
+
+            try:
+                comp_pd = pd.concat([comp_pd, buffer, temp_pd], ignore_index=True).reset_index(drop=True)
+            except Exception as e:
+                print(e)
+
+        '''
+        comp_pd.columns = ['param_name', 'model_default'] + ["Model_"+str(i) for i in version_list]'''
         
         df_styled = comp_pd.style.apply(lambda x: ["background: tomato" if v != x.iloc[0] else "" for v in x], 
                                         axis = 1, subset=comp_pd.columns[1:])

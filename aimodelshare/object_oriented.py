@@ -218,7 +218,7 @@ class Competition:
         model = instantiate_model(apiurl=self.playground_url, trained=trained, version=version)
         return model
 
-    def inspect_model(self, apiurl, version=None):
+    def inspect_model(self, version=None):
         from aimodelshare.aimsonnx import inspect_model
         inspect_pd = inspect_model(apiurl=self.playground_url, version=version)
         return inspect_pd
