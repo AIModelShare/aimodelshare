@@ -411,7 +411,7 @@ def model_to_api(model_filepath, model_type, private, categorical, y_train, prep
     
     return api_info[0]
 
-def create_competition(apiurl, data_directory, y_test, generate_credentials_file = False):
+def create_competition(apiurl, data_directory, y_test,  email_list=[]):
     """
     Creates a model competition for a deployed prediction REST API
     Inputs : 2
@@ -428,13 +428,12 @@ def create_competition(apiurl, data_directory, y_test, generate_credentials_file
             expects a one hot encoded y test data format
             
     data_directory : folder storing training data and test data (excluding Y test data)
-    generate_credentials_file (OPTIONAL): Default is True
-                                          Function will output .txt file with new credentials
+    email_list: list of comma separated emails for users who are allowed to submit models to competition
+                                          
     ---------
     Returns
-    finalresultteams3info : Submit_model credentials with access to S3 bucket
-    (api_id)_credentials.txt : .txt file with submit_model credentials,
-                                formatted for use with set_credentials() function 
+    finalmessage : Information such as how to submit models to competition
+
     """
 
     # create temporary folder
@@ -472,39 +471,13 @@ def create_competition(apiurl, data_directory, y_test, generate_credentials_file
     pickle.dump(y_test,open(ytest_path,"wb"))
     s3["client"].upload_file(ytest_path, os.environ.get("BUCKET_NAME"),  model_id + "/ytest.pkl")
 
-    # Reset user policy
-    create_user_getkeyandpassword()
-    # Detach & Delete current policy  
-    policy_response = iam["client"].get_policy(
-        PolicyArn=os.environ.get("POLICY_ARN")
-    )
-    user_policy = iam["resource"].UserPolicy(
-        os.environ.get("IAM_USERNAME"), policy_response['Policy']['PolicyName'])
-    response = iam["client"].detach_user_policy(
-        UserName= os.environ.get("IAM_USERNAME"),
-        PolicyArn=os.environ.get("POLICY_ARN")
-    )
 
-    # Create & attach new policy that only allows file upload to bucket
-    policy = iam["resource"].Policy(os.environ.get("POLICY_ARN"))
-    response = policy.delete()
-    s3upload_policy = _custom_upload_policy(os.environ.get("BUCKET_NAME"), 
-                                            model_id)
-    s3uploadpolicy_name = 'temporaryaccessAImodelsharePolicy' + \
-        str(uuid.uuid1().hex)
-    s3uploadpolicy_response = iam["client"].create_policy(
-        PolicyName=s3uploadpolicy_name,
-        PolicyDocument=json.dumps(s3upload_policy)
-    )
-    user = iam["resource"].User(os.environ.get("IAM_USERNAME"))
-    response = user.attach_policy(
-        PolicyArn=s3uploadpolicy_response['Policy']['Arn']
-    )
-    
     # get api_id from apiurl, generate txt file name
     api_url_trim = apiurl.split('https://')[1]
     api_id = api_url_trim.split(".")[0]
-    txt_file_name = api_id+"_credentials.txt"
+
+    #create and upload json file with list of authorized users who can submit to this competition.
+    _create_competitionuserauth_json(apiurl, email_list)
 
     aishare_competitionname = input("Enter competition name:")
     aishare_competitiondescription = input("Enter competition description:")
@@ -546,22 +519,55 @@ def create_competition(apiurl, data_directory, y_test, generate_credentials_file
                 "download_data('"+datauri['ecr_uri']+"') to download your competition data.  \n\n"
                 "You may update your prediction API runtime model with the update_runtime_model() function.\n\n"
                 "To upload new models and/or preprocessors to this API, team members should use \n"
-                "the following credentials:\n\nset_credentials(apiurl='" + apiurl + "')\n"
-                "(They can then use the submit_model() function to submit new models to your competition.)\n\n")
+                "the following credentials:\n\napiurl='" + apiurl + "'+\nai.set_credentials(apiurl)\n"
+                "They can then instantiate the competition using: \n\ncompetition= ai.Competition(apiurl)\n"
+                "Lastly, they can submit new models to the competition using:\n\ncompetition.submit_model(model_filepath, prediction_submission_list, preprocessor_filepath) function to submit new models to your competition.)\n\n")
   
-    # Generate .txt file with new credentials 
-    if generate_credentials_file == True:
-        final_message = final_message + file_generated_message
-
-        f= open(txt_file_name,"w+")
-        f.write(formatted_userpass + formatted_new_creds)
-        f.close()
-
-
-
     return print(final_message)
 
+def _create_competitionuserauth_json(apiurl, email_list=[]): 
+      import json
+      if all(["AWS_ACCESS_KEY_ID" in os.environ, 
+            "AWS_SECRET_ACCESS_KEY" in os.environ,
+            "AWS_REGION" in os.environ,
+           "username" in os.environ, 
+           "password" in os.environ]):
+        pass
+      else:
+          return print("'Update Runtime Model' unsuccessful. Please provide credentials with set_credentials().")
 
+      # Create user session
+      aws_client=get_aws_client(aws_key=os.environ.get('AWS_ACCESS_KEY_ID'), 
+                                aws_secret=os.environ.get('AWS_SECRET_ACCESS_KEY'), 
+                                aws_region=os.environ.get('AWS_REGION'))
+      
+      user_sess = boto3.session.Session(aws_access_key_id=os.environ.get('AWS_ACCESS_KEY_ID'), 
+                                        aws_secret_access_key=os.environ.get('AWS_SECRET_ACCESS_KEY'), 
+                                        region_name=os.environ.get('AWS_REGION'))
+      
+      s3 = user_sess.resource('s3')
+
+      # Get bucket and model_id for user based on apiurl {{{
+      response, error = run_function_on_lambda(
+          apiurl, **{"delete": "FALSE", "versionupdateget": "TRUE"}
+      )
+      if error is not None:
+          raise error
+
+      _, api_bucket, model_id = json.loads(response.content.decode("utf-8"))
+      # }}}
+
+      import json  
+      import tempfile
+      tempdir = tempfile.TemporaryDirectory()
+      with open(tempdir.name+'/competitionuserdata.json', 'w', encoding='utf-8') as f:
+          json.dump({"emaillist": email_list, "public":"FALSE"}, f, ensure_ascii=False, indent=4)
+
+      aws_client['client'].upload_file(
+            tempdir.name+"/competitionuserdata.json", api_bucket, model_id + "/competitionuserdata.json"
+        )
+      
+      return 
 
 def _confirm_libraries_exist(requirements):
   requirements = requirements.split(",")
