@@ -678,15 +678,13 @@ def submit_model_public(
         prediction = requests.post(apiurl_eval,headers=headers,data=json.dumps(post_dict)) 
 
         eval_metrics=json.loads(prediction.text)
-        print(eval_metrics)
-        print(type(eval_metrics))
     except:
         pass
 
     if any([isinstance(eval_metrics, dict)]):
         pass        
     else:
-        return print(eval_metrics)    
+        return print(eval_metrics[0])    
     
 
     if all(value == None for value in eval_metrics.values()):
