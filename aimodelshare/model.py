@@ -682,7 +682,7 @@ def submit_model_public(
         pass
 
     if any([isinstance(eval_metrics, dict)==False]):
-        return print(eval_metrics[0])    
+        return print(eval_metrics)    
     
     #print(eval_metrics)
 
