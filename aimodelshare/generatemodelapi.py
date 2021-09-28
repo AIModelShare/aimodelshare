@@ -516,9 +516,10 @@ def create_competition(apiurl, data_directory, y_test,  email_list=[]):
     final_message = ("\n Success! Model competition created. \n\n"
                 "You may now update your prediction API runtime model and verify evaluation metrics with the update_runtime_model() function.\n\n"
                 "To upload new models and/or preprocessors to this API, team members should use \n"
-                "the following credentials:\n\napiurl='" + apiurl"'+\nai.set_credentials(apiurl=apiurl)\n\n"
+                "the following credentials:\n\napiurl='" + apiurl+"'"+"\nai.set_credentials(apiurl=apiurl)\n\n"
                 "They can then submit models to your competition by using the following code: \n\ncompetition= ai.Competition(apiurl)\n"
                 "download_data('"+datauri['ecr_uri']+"') \n"
+                 "# Use this data to preprocess data and train model. Write and save preprocessor fxn, save moddel to onnx file, generate predicted y values using X test data, then submit a model below.
                 "competition.submit_model(model_filepath, prediction_submission_list, preprocessor_filepath)")
   
     return print(final_message)
