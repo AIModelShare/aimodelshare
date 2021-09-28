@@ -681,7 +681,7 @@ def submit_model_public(
     except:
         pass
 
-    if any([eval_metrics[0].find("Unauthorized")>0]):
+    if any([eval_metrics[0].find("You do not have access to submit models")>0]):
         return print(eval_metrics[0])    
     
     #print(eval_metrics)
