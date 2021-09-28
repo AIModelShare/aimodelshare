@@ -82,7 +82,7 @@ class ModelPlayground:
         #remove extra quotes
         self.playground_url = self.playground_url[1:-1]
     
-    def create_competition(self, data_directory, y_test, generate_credentials_file = False):
+    def create_competition(self, data_directory, y_test, email_list = []):
         """
         Creates a model competition for a deployed prediction REST API
         Inputs : 2
@@ -95,19 +95,18 @@ class ModelPlayground:
                 expects a one hot encoded y test data format
                 
         data_directory : folder storing training data and test data (excluding Y test data)
-        generate_credentials_file (OPTIONAL): Default is True
-                                              Function will output .txt file with new credentials
+        email_list: list of comma separated emails for users who are allowed to submit models to competition
+
         ---------
         Returns
-        finalresultteams3info : Submit_model credentials with access to S3 bucket
-        (api_id)_credentials.txt : .txt file with submit_model credentials,
-                                    formatted for use with set_credentials() function 
+        finalmessage : Information such as how to submit models to competition
+        
         """
         from aimodelshare.generatemodelapi import create_competition as to_competition
         competition = to_competition(self.playground_url, 
                                     data_directory, 
                                     y_test, 
-                                    generate_credentials_file)
+                                    email_list)
         return competition
         
     def submit_model(self, model_filepath, preprocessor_filepath, prediction_submission, sample_data=None):
