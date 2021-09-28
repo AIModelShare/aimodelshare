@@ -678,11 +678,10 @@ def submit_model_public(
         prediction = requests.post(apiurl_eval,headers=headers,data=json.dumps(post_dict)) 
 
         eval_metrics=json.loads(prediction.text)
-        print(eval_metrics)
     except:
         pass
 
-    if any([eval_metrics[0].find("You do not have access to submit models")>0]):
+    if any([isinstance(eval_metrics, dict)==False]):
         return print(eval_metrics[0])    
     
     #print(eval_metrics)
