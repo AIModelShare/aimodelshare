@@ -15,7 +15,7 @@ import base64
 import mimetypes
 import numpy as np
 from aimodelshare.tools import extract_varnames_fromtrainingdata, _get_extension_from_filepath
-from aimodelshare.aws import get_s3_iam_client, run_function_on_lambda
+from aimodelshare.aws import get_s3_iam_client, run_function_on_lambda, get_token, get_aws_token, get_aws_client
 from aimodelshare.bucketpolicy import _custom_upload_policy
 from aimodelshare.exceptions import AuthorizationError, AWSAccessError, AWSUploadError
 from aimodelshare.api import create_prediction_api
