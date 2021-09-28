@@ -519,7 +519,7 @@ def create_competition(apiurl, data_directory, y_test,  email_list=[]):
                 "the following credentials:\n\napiurl='" + apiurl+"'"+"\nai.set_credentials(apiurl=apiurl)\n\n"
                 "They can then submit models to your competition by using the following code: \n\ncompetition= ai.Competition(apiurl)\n"
                 "download_data('"+datauri['ecr_uri']+"') \n"
-                 "# Use this data to preprocess data and train model. Write and save preprocessor fxn, save moddel to onnx file, generate predicted y values using X test data, then submit a model below.
+                 "# Use this data to preprocess data and train model. Write and save preprocessor fxn, save model to onnx file, generate predicted y values\n using X test data, then submit a model below.\n\n"
                 "competition.submit_model(model_filepath, prediction_submission_list, preprocessor_filepath)")
   
     return print(final_message)
