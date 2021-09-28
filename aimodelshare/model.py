@@ -678,6 +678,7 @@ def submit_model_public(
         prediction = requests.post(apiurl_eval,headers=headers,data=json.dumps(post_dict)) 
 
         eval_metrics=json.loads(prediction.text)
+        print(eval_metrics)
     except:
         pass
 
