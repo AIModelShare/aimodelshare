@@ -682,11 +682,10 @@ def submit_model_public(
         pass
 
     if any([isinstance(eval_metrics, dict)]):
-        pass
+        
     else:
         return print(eval_metrics)    
     
-    #print(eval_metrics)
 
     if all(value == None for value in eval_metrics.values()):
         return print("Failed to calculate evaluation metrics. Please check the format of the submitted predictions.")
