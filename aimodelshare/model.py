@@ -667,17 +667,23 @@ def submit_model_public(
         else: 
             pass
 
+    try:
 
+        post_dict = {"y_pred": prediction_submission,
+                "return_eval": "True",
+                "return_y": "False"}
 
-    post_dict = {"y_pred": prediction_submission,
-            "return_eval": "True",
-            "return_y": "False"}
+        headers = { 'Content-Type':'application/json', 'authorizationToken': os.environ.get("AWS_TOKEN"), } 
+        apiurl_eval=apiurl[:-1]+"eval"
+        prediction = requests.post(apiurl_eval,headers=headers,data=json.dumps(post_dict)) 
 
-    headers = { 'Content-Type':'application/json', 'authorizationToken': os.environ.get("AWS_TOKEN"), } 
-    apiurl_eval=apiurl[:-1]+"eval"
-    prediction = requests.post(apiurl_eval,headers=headers,data=json.dumps(post_dict)) 
+        eval_metrics=json.loads(prediction.text)
+    except:
+        pass
 
-    eval_metrics=json.loads(prediction.text)
+    if any([eval_metrics[0].find("Unauthorized")>0]):
+        return print(eval_metrics[0])    
+    
     #print(eval_metrics)
 
     if all(value == None for value in eval_metrics.values()):
