@@ -1575,7 +1575,7 @@ def create_presigned_post(bucket_name, object_name,
     
 def get_authorizedcompetitionuserdata(example_data_filename = "competitionuserdata.json"):
     s3 = boto3.resource("s3")
-    bucket = s3.Bucket("$bucket")
+    bucket = s3.Bucket("$bucket_name")
 
     with open("/tmp/competitionuserdata.json", "wb") as exampledatapath:
         bucket.download_fileobj("$unique_model_id/competitionuserdata.json",  exampledatapath)
