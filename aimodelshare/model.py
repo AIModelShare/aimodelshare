@@ -681,7 +681,9 @@ def submit_model_public(
     except:
         pass
 
-    if any([isinstance(eval_metrics, dict)==False]):
+    if any([isinstance(eval_metrics, dict)]):
+        pass
+    else:
         return print(eval_metrics)    
     
     #print(eval_metrics)
