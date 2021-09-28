@@ -514,14 +514,12 @@ def create_competition(apiurl, data_directory, y_test,  email_list=[]):
 
       
     final_message = ("\n Success! Model competition created. \n\n"
-                "Your team members can now make use of the following functions: \n"
-                "submit_model() to submit new models to the competition leaderboard. \n"
-                "download_data('"+datauri['ecr_uri']+"') to download your competition data.  \n\n"
-                "You may update your prediction API runtime model with the update_runtime_model() function.\n\n"
+                "You may now update your prediction API runtime model and verify evaluation metrics with the update_runtime_model() function.\n\n"
                 "To upload new models and/or preprocessors to this API, team members should use \n"
-                "the following credentials:\n\napiurl='" + apiurl + "'+\nai.set_credentials(apiurl)\n"
-                "They can then instantiate the competition using: \n\ncompetition= ai.Competition(apiurl)\n"
-                "Lastly, they can submit new models to the competition using:\n\ncompetition.submit_model(model_filepath, prediction_submission_list, preprocessor_filepath) function to submit new models to your competition.)\n\n")
+                "the following credentials:\n\napiurl='" + apiurl"'+\nai.set_credentials(apiurl=apiurl)\n\n"
+                "They can then submit models to your competition by using the following code: \n\ncompetition= ai.Competition(apiurl)\n"
+                "download_data('"+datauri['ecr_uri']+"') \n"
+                "competition.submit_model(model_filepath, prediction_submission_list, preprocessor_filepath)")
   
     return print(final_message)
 
