@@ -35,7 +35,7 @@ class ModelPlayground:
     def deploy(self, model_filepath, preprocessor_filepath, y_train, example_data=None, custom_libraries = "FALSE"):
         """
         Launches a live prediction REST API for deploying ML models using model parameters and user credentials, provided by the user
-        Inputs : 8
+        Inputs : 7
         Output : model launched to an API
                 detaled API info printed out
         -----------
@@ -84,8 +84,8 @@ class ModelPlayground:
     def create_competition(self, data_directory, y_test, email_list = []):
         """
         Creates a model competition for a deployed prediction REST API
-        Inputs : 2
-        Output : Submit credentials for model competition
+        Inputs : 4
+        Output : Create ML model competition and allow authorized users to submit models to resulting leaderboard/competition
         
         ---------
         Parameters
