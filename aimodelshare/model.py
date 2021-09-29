@@ -377,7 +377,7 @@ def submit_model(
     if all([isinstance(eval_metrics, dict),"message" not in eval_metrics]):
         pass        
     else:
-        if all([isinstance(eval_metrics, list)])
+        if all([isinstance(eval_metrics, list)]):
             return print(eval_metrics[0])
         else:
             return print(eval_metrics)
