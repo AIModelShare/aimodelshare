@@ -414,8 +414,8 @@ def model_to_api(model_filepath, model_type, private, categorical, y_train, prep
 def create_competition(apiurl, data_directory, y_test,  email_list=[]):
     """
     Creates a model competition for a deployed prediction REST API
-    Inputs : 2
-    Output : Submit credentials for model competition
+    Inputs : 4
+    Output : Create ML model competition and allow authorized users to submit models to resulting leaderboard/competition
     
     ---------
     Parameters
@@ -434,6 +434,11 @@ def create_competition(apiurl, data_directory, y_test,  email_list=[]):
     finalmessage : Information such as how to submit models to competition
 
     """
+    if all(isinstance(email_list, list)):
+        if all(len(email_list>0)):
+            pass
+    else:
+        return print("email_list argument empty or incorrectly formatted.  Please provide a list of emails for authorized competition participants formatted as strings.")
 
     # create temporary folder
     temp_dir = tempfile.gettempdir()
