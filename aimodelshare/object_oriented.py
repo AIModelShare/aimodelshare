@@ -202,11 +202,10 @@ class Competition:
         
         """
         from aimodelshare.model import submit_model as submit
-        submission = submit(model = model_filepath, 
+        submission = submit(model_filepath = model_filepath, 
                               apiurl = self.playground_url,
                               prediction_submission = prediction_submission, 
-                              preprocessor = preprocessor_filepath,
-                              sample_data = sample_data)
+                              preprocessor = preprocessor_filepath)
         return submission
         
     def instantiate_model(self, version=None, trained=False): 
