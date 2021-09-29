@@ -380,7 +380,7 @@ def submit_model(
         if all([isinstance(eval_metrics, list)]):
             return print(eval_metrics[0])
         else:
-            return print(eval_metrics)
+            return print('Unauthorized user: You do not have access to submit models to, or request data from, this competition.')
     
 
     if all(value == None for value in eval_metrics.values()):
