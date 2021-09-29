@@ -581,8 +581,8 @@ def update_access_list(apiurl, email_list=[],update_type="Add"):
               URL of deployed prediction API 
       
       email_list: [REQUIRED] list of comma separated emails for users who are allowed to submit models to competition.  Emails should be strings in a list.
-      update_type:[REQUIRED] options, string: 'Add', 'Remove', 'Replace_list' Add appends user emails to original list, Remove deletes users from list, and 
-                  'Replace_list' overwrites the original list with the new list provided.    
+      update_type:[REQUIRED] options, string: 'Add', 'Remove', 'Replace_list','Get. Add appends user emails to original list, Remove deletes users from list, 
+                  'Replace_list' overwrites the original list with the new list provided, and Get returns the current list.    
       -----------------
       Returns
       response:   "Success" upon successful request
@@ -626,6 +626,7 @@ def update_access_list(apiurl, email_list=[],update_type="Add"):
       _, api_bucket, model_id = json.loads(response.content.decode("utf-8"))
       # }}}
 
+      email_list=json.loads(json.dumps(email_list))
       if update_type=="Replace_list":
           import json  
           import tempfile
@@ -644,7 +645,7 @@ def update_access_list(apiurl, email_list=[],update_type="Add"):
           content_object = aws_client['resource'].Object(bucket_name=api_bucket, key=model_id + "/competitionuserdata.json")
           file_content = content_object.get()['Body'].read().decode('utf-8')
           json_content = json.loads(file_content)
-
+          print(json_content)
           email_list_old=json_content["emaillist"]
           email_list_new=email_list_old+email_list
           
@@ -663,8 +664,10 @@ def update_access_list(apiurl, email_list=[],update_type="Add"):
           content_object = aws_client['resource'].Object(bucket_name=api_bucket, key=model_id + "/competitionuserdata.json")
           file_content = content_object.get()['Body'].read().decode('utf-8')
           json_content = json.loads(file_content)
+          print(json_content)
+
           email_list_old=json_content["emaillist"]
-          email_list_new=list(set(email_list_old) - set(email_list))
+          email_list_new=list(set(list(email_list_old)) - set(email_list))
           
           tempdir = tempfile.TemporaryDirectory()
           with open(tempdir.name+'/competitionuserdata.json', 'w', encoding='utf-8') as f:
@@ -673,6 +676,15 @@ def update_access_list(apiurl, email_list=[],update_type="Add"):
           aws_client['client'].upload_file(
                 tempdir.name+"/competitionuserdata.json", api_bucket, model_id + "/competitionuserdata.json"
             )
+      elif update_type=="Get":
+          import json  
+          import tempfile
+          
+          aws_client['resource']
+          content_object = aws_client['resource'].Object(bucket_name=api_bucket, key=model_id + "/competitionuserdata.json")
+          file_content = content_object.get()['Body'].read().decode('utf-8')
+          json_content = json.loads(file_content)
+          return json_content
       else:
           pass
 
