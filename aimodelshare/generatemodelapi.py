@@ -423,12 +423,11 @@ def create_competition(apiurl, data_directory, y_test,  email_list=[]):
     apiurl: string
             URL of deployed prediction API 
     
-    y_test :  y labels for test data 
-            [REQUIRED] for eval metrics
-            expects a one hot encoded y test data format
+    y_test :  list of y values for test data used to generate metrics from predicted values from X test data submitted via the submit_model() function
+                [REQUIRED] to generate eval metrics in competition leaderboard
             
     data_directory : folder storing training data and test data (excluding Y test data)
-    email_list: list of comma separated emails for users who are allowed to submit models to competition
+    email_list: [REQUIRED] list of comma separated emails for users who are allowed to submit models to competition.  Emails should be strings in a list.
                                           
     ---------
     Returns
