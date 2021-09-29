@@ -119,14 +119,14 @@ class ModelPlayground:
                     .onnx is the only accepted model file extension
                     "example_model.onnx" filename for file in directory.
                     "/User/xyz/model/example_model.onnx" absolute path to model file from local directory
-        prediction_submission: [REQUIRED] list of predictions from X test data that will be used to evaluate model prediction error against y test data.
-                         Use mycompetition.inspect_y_test() to view example of list expected by competition.
         preprocessor_filepath:   string,default=None
                         value - absolute path to preprocessor file 
                         [REQUIRED] to be set by the user
                         "./preprocessor.zip" 
                         searches for an exported zip preprocessor file in the current directory
                         file is generated from preprocessor module using export_preprocessor function from the AI Modelshare library 
+        prediction_submission: [REQUIRED] list of predictions from X test data that will be used to evaluate model prediction error against y test data.
+                         Use mycompetition.inspect_y_test() to view example of list expected by competition.
         -----------------
         Returns
         response:   Model version if the model is submitted sucessfully
