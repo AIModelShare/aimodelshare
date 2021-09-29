@@ -570,7 +570,113 @@ def _create_competitionuserauth_json(apiurl, email_list=[]):
             tempdir.name+"/competitionuserdata.json", api_bucket, model_id + "/competitionuserdata.json"
         )
       
-      return 
+      return
+
+def update_access_list(apiurl, email_list=[],update_type="Add"): 
+      """
+      Updates list of authenticated participants who can submit new models to a competition.
+      ---------------
+      Parameters:
+      apiurl: string
+              URL of deployed prediction API 
+      
+      email_list: [REQUIRED] list of comma separated emails for users who are allowed to submit models to competition.  Emails should be strings in a list.
+      update_type:[REQUIRED] options, string: 'Add', 'Remove', 'Replace_list' Add appends user emails to original list, Remove deletes users from list, and 
+                  'Replace_list' overwrites the original list with the new list provided.    
+      -----------------
+      Returns
+      response:   "Success" upon successful request
+
+      """
+      import json
+      import os
+      if all(["AWS_ACCESS_KEY_ID" in os.environ, 
+            "AWS_SECRET_ACCESS_KEY" in os.environ,
+            "AWS_REGION" in os.environ,
+           "username" in os.environ, 
+           "password" in os.environ]):
+        pass
+      else:
+          return print("'Update unsuccessful. Please provide credentials with set_credentials().")
+
+      if all([isinstance(email_list, list)]):
+          if all([len(email_list)>0]):
+              pass
+      else:
+          return print("email_list argument empty or incorrectly formatted.  Please provide a list of emails for authorized competition participants formatted as strings.")
+
+      # Create user session
+      aws_client=get_aws_client(aws_key=os.environ.get('AWS_ACCESS_KEY_ID'), 
+                                aws_secret=os.environ.get('AWS_SECRET_ACCESS_KEY'), 
+                                aws_region=os.environ.get('AWS_REGION'))
+      
+      user_sess = boto3.session.Session(aws_access_key_id=os.environ.get('AWS_ACCESS_KEY_ID'), 
+                                        aws_secret_access_key=os.environ.get('AWS_SECRET_ACCESS_KEY'), 
+                                        region_name=os.environ.get('AWS_REGION'))
+      
+      s3 = user_sess.resource('s3')
+
+      # Get bucket and model_id for user based on apiurl {{{
+      response, error = run_function_on_lambda(
+          apiurl, **{"delete": "FALSE", "versionupdateget": "TRUE"}
+      )
+      if error is not None:
+          raise error
+
+      _, api_bucket, model_id = json.loads(response.content.decode("utf-8"))
+      # }}}
+
+      if update_type=="Replace_list":
+          import json  
+          import tempfile
+          tempdir = tempfile.TemporaryDirectory()
+          with open(tempdir.name+'/competitionuserdata.json', 'w', encoding='utf-8') as f:
+              json.dump({"emaillist": email_list, "public":"FALSE"}, f, ensure_ascii=False, indent=4)
+
+          aws_client['client'].upload_file(
+                tempdir.name+"/competitionuserdata.json", api_bucket, model_id + "/competitionuserdata.json"
+            )
+      elif update_type=="Add":
+          import json  
+          import tempfile
+          
+          aws_client['resource']
+          content_object = aws_client['resource'].Object(bucket_name=api_bucket, key=model_id + "/competitionuserdata.json")
+          file_content = content_object.get()['Body'].read().decode('utf-8')
+          json_content = json.loads(file_content)
+
+          email_list_old=json_content["emaillist"]
+          email_list_new=email_list_old+email_list
+          
+          tempdir = tempfile.TemporaryDirectory()
+          with open(tempdir.name+'/competitionuserdata.json', 'w', encoding='utf-8') as f:
+              json.dump({"emaillist": email_list_new, "public":"FALSE"}, f, ensure_ascii=False, indent=4)
+
+          aws_client['client'].upload_file(
+                tempdir.name+"/competitionuserdata.json", api_bucket, model_id + "/competitionuserdata.json"
+            )
+      elif update_type=="Remove":
+          import json  
+          import tempfile
+          
+          aws_client['resource']
+          content_object = aws_client['resource'].Object(bucket_name=api_bucket, key=model_id + "/competitionuserdata.json")
+          file_content = content_object.get()['Body'].read().decode('utf-8')
+          json_content = json.loads(file_content)
+          email_list_old=json_content["emaillist"]
+          email_list_new=list(set(email_list_old) - set(email_list))
+          
+          tempdir = tempfile.TemporaryDirectory()
+          with open(tempdir.name+'/competitionuserdata.json', 'w', encoding='utf-8') as f:
+              json.dump({"emaillist": email_list_new, "public":"FALSE"}, f, ensure_ascii=False, indent=4)
+
+          aws_client['client'].upload_file(
+                tempdir.name+"/competitionuserdata.json", api_bucket, model_id + "/competitionuserdata.json"
+            )
+      else:
+          pass
+
+      return "Success: Your competition participant access list is now updated."
 
 def _confirm_libraries_exist(requirements):
   requirements = requirements.split(",")
