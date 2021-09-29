@@ -140,10 +140,7 @@ class ModelPlayground:
                             preprocessor = preprocessor_filepath)
         return submission
         
-    def update_access_list(self, email_list=[],update_type="Replace_list"): 
-        from aimodelshare.generatemodelapi import update_access_list as update_list
-        update = update_list(apiurl = self.playground_url, email_list=[],update_type="Replace_list")
-        return update
+
     
     def update_runtime_model(self, model_version=None): 
         from aimodelshare.model import update_runtime_model as update
@@ -242,6 +239,11 @@ class Competition:
         from aimodelshare.leaderboard import stylize_leaderboard as stylize_lead
         stylized_leaderboard = stylize_lead(leaderboard = leaderboard)
         return stylized_leaderboard
+    
+    def update_access_list(self, email_list=[],update_type="Replace_list"): 
+        from aimodelshare.generatemodelapi import update_access_list as update_list
+        update = update_list(apiurl = self.playground_url, email_list=[],update_type="Replace_list")
+        return update
 
 
 
