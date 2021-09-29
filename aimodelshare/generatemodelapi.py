@@ -434,8 +434,8 @@ def create_competition(apiurl, data_directory, y_test,  email_list=[]):
     finalmessage : Information such as how to submit models to competition
 
     """
-    if all(isinstance(email_list, list)):
-        if all(len(email_list>0)):
+    if all([isinstance(email_list, list)]):
+        if all([len(email_list>0)]):
             pass
     else:
         return print("email_list argument empty or incorrectly formatted.  Please provide a list of emails for authorized competition participants formatted as strings.")
