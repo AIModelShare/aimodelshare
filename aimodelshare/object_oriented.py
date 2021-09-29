@@ -53,10 +53,9 @@ class ModelPlayground:
                                 "./preprocessor.zip" 
                                 searches for an exported zip preprocessor file in the current directory
                                 file is generated using export_preprocessor function from the AI Modelshare library  
-        y_train : training labels of size of dataset
-                  value - y values for model
+        y_train : training labels for classification models.
                   [REQUIRED] for classification type models
-                  expects a one hot encoded y train data format  
+                  expects pandas dataframe of one hot encoded y train data
         custom_libraries:   string
                     "TRUE" if user wants to load custom Python libraries to their prediction runtime
                     "FALSE" if user wishes to use AI Model Share base libraries including latest versions of most common ML libs.
@@ -90,12 +89,12 @@ class ModelPlayground:
         
         ---------
         Parameters
-        y_test :  y labels for test data 
-                [REQUIRED] for eval metrics
-                expects a one hot encoded y test data format
-                
+        y_test :  list of y values for test data used to generate metrics from predicted values from X test data submitted via the submit_model() function
+                [REQUIRED] to generate eval metrics in competition leaderboard
+                                
         data_directory : folder storing training data and test data (excluding Y test data)
-        email_list: list of comma separated emails for users who are allowed to submit models to competition
+        email_list: [REQUIRED] list of comma separated emails for users who are allowed to submit models to competition.  Emails should be strings in a list.
+        
 
         ---------
         Returns
@@ -120,9 +119,8 @@ class ModelPlayground:
                     .onnx is the only accepted model file extension
                     "example_model.onnx" filename for file in directory.
                     "/User/xyz/model/example_model.onnx" absolute path to model file from local directory
-        prediction_submission:   one hot encoded y_pred
-                        value - predictions for test data
-                        [REQUIRED] for evaluation metriicts of the submitted model
+        prediction_submission: [REQUIRED] list of predictions from X test data that will be used to evaluate model prediction error against y test data.
+                         Use mycompetition.inspect_y_test() to view example of list expected by competition.
         preprocessor_filepath:   string,default=None
                         value - absolute path to preprocessor file 
                         [REQUIRED] to be set by the user
