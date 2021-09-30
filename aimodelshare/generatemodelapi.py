@@ -586,7 +586,6 @@ def update_access_list(apiurl, email_list=[],update_type="Add"):
       -----------------
       Returns
       response:   "Success" upon successful request
-
       """
       import json
       import os
@@ -656,6 +655,7 @@ def update_access_list(apiurl, email_list=[],update_type="Add"):
           aws_client['client'].upload_file(
                 tempdir.name+"/competitionuserdata.json", api_bucket, model_id + "/competitionuserdata.json"
             )
+          return "Success: Your competition participant access list is now updated."
       elif update_type=="Remove":
           import json  
           import tempfile
@@ -676,6 +676,7 @@ def update_access_list(apiurl, email_list=[],update_type="Add"):
           aws_client['client'].upload_file(
                 tempdir.name+"/competitionuserdata.json", api_bucket, model_id + "/competitionuserdata.json"
             )
+          return "Success: Your competition participant access list is now updated."
       elif update_type=="Get":
           import json  
           import tempfile
@@ -686,9 +687,8 @@ def update_access_list(apiurl, email_list=[],update_type="Add"):
           json_content = json.loads(file_content)
           return json_content
       else:
-          pass
+          return "Error: Check inputs and resubmit."
 
-      return "Success: Your competition participant access list is now updated."
 
 def _confirm_libraries_exist(requirements):
   requirements = requirements.split(",")
@@ -768,5 +768,5 @@ __all__ = [
     take_user_info_and_generate_api,
     send_model_data_to_dyndb_and_return_api,
     model_to_api,
-    create_competition,
+    create_competition,update_access_list
 ]
