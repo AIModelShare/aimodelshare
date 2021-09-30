@@ -644,7 +644,7 @@ def update_access_list(apiurl, email_list=[],update_type="Add"):
           content_object = aws_client['resource'].Object(bucket_name=api_bucket, key=model_id + "/competitionuserdata.json")
           file_content = content_object.get()['Body'].read().decode('utf-8')
           json_content = json.loads(file_content)
-          print(json_content)
+          print(json_content['emaillist'])
           email_list_old=json_content["emaillist"]
           email_list_new=email_list_old+email_list
           
@@ -664,7 +664,7 @@ def update_access_list(apiurl, email_list=[],update_type="Add"):
           content_object = aws_client['resource'].Object(bucket_name=api_bucket, key=model_id + "/competitionuserdata.json")
           file_content = content_object.get()['Body'].read().decode('utf-8')
           json_content = json.loads(file_content)
-          print(json_content)
+          print(json_content['emaillist'])
 
           email_list_old=json_content["emaillist"]
           email_list_new=list(set(list(email_list_old)) - set(email_list))
