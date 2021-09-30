@@ -685,7 +685,7 @@ def update_access_list(apiurl, email_list=[],update_type="Add"):
           content_object = aws_client['resource'].Object(bucket_name=api_bucket, key=model_id + "/competitionuserdata.json")
           file_content = content_object.get()['Body'].read().decode('utf-8')
           json_content = json.loads(file_content)
-          return json_content
+          return json_content['emaillist']
       else:
           return "Error: Check inputs and resubmit."
 
