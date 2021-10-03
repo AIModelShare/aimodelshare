@@ -234,12 +234,16 @@ def import_quickstart_data(tutorial, section="modelplayground"):
             not_clickbait['label'] = "not clickbait"
             not_clickbait.columns = ['headline', 'label']
 
-            # t/t/s
+            # train/test/split
             from sklearn.model_selection import train_test_split
             X = clickbait.append(not_clickbait)
             y = X['label']
             X = X.drop(['label'], axis=1)
             X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2)
+            X_test.reset_index(drop=True, inplace=True)
+            X_test = X_test.squeeze()
+            X_train.reset_index(drop=True, inplace=True)
+            X_train = X_train.squeeze()
 
             # exampledata
             example_data = X_train[0:5]
