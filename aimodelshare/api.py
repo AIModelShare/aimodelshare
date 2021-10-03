@@ -362,7 +362,9 @@ def create_prediction_api(model_filepath, unique_model_id, model_type, categoric
             PolicyDocument='{"Version":"2012-10-17","Statement":[{"Action": ["logs:CreateLogStream"], "Resource": ["arn:aws:logs:us-east-1:'+account_number+':log-group:/aws/lambda/'+lambdaevalfxnname +
             ':*"],"Effect": "Allow"},{"Action": ["logs:PutLogEvents"],"Resource": ["arn:aws:logs:us-east-1:'+account_number+':log-group:/aws/lambda/' +
             lambdaevalfxnname +
-            ':*:*"],"Effect": "Allow"},{"Action": ["s3:GetObject"],"Resource": ["arn:aws:s3:::' +
+            ':*:*"],"Effect": "Allow"},{"Action": ["s3:ListBucket"],"Resource": ["arn:aws:s3:::' +
+            os.environ.get("BUCKET_NAME")+'"],"Effect": "Allow"},{"Action": ["s3:GetObject"],"Resource": ["arn:aws:s3:::' +
+            os.environ.get("BUCKET_NAME")+'/*"],"Effect": "Allow"},{"Action": ["s3:PutObject"],"Resource": ["arn:aws:s3:::' +
             os.environ.get("BUCKET_NAME")+'/*"],"Effect": "Allow"}]}',
             PolicyName='S3AccessandcloudwatchlogPolicy'+str(random.randint(1, 1000000)),
             RoleName=lambdarolename,
@@ -415,7 +417,7 @@ def create_prediction_api(model_filepath, unique_model_id, model_type, categoric
                                           Code={
                                               'S3Bucket': os.environ.get("BUCKET_NAME"),
                                               'S3Key':  unique_model_id+"/"+'archiveeval.zip'
-                                          }, Timeout=90, MemorySize=2048, Layers=[eval_layer])  # ADD ANOTHER LAYER ARN .. THE ONE SPECIFIC TO MODEL TYPE
+                                          }, Timeout=90, MemorySize=2048, Layers=[eval_layer,auth_layer])  # ADD ANOTHER LAYER ARN .. THE ONE SPECIFIC TO MODEL TYPE
 
     response6authfxn = lambdaclient.create_function(FunctionName=lambdaauthfxnname, Runtime='python3.7', Role='arn:aws:iam::'+account_number+':role/'+lambdarolename, Handler='main.handler',
                                           Code={
