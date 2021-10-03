@@ -182,7 +182,6 @@ def download_data(repository):
 	os.remove(docker_tar)
 	print('\n\nData downloaded successfully.')
 
-
 def import_quickstart_data(tutorial, section="modelplayground"):
     from aimodelshare.data_sharing.download_data import download_data
     import tensorflow as tf
@@ -202,6 +201,9 @@ def import_quickstart_data(tutorial, section="modelplayground"):
 
     if all([tutorial == "cars", section == "modelplayground"]):
         quickstart_repository = "public.ecr.aws/y2e2a1d6/quickstart_car_sales_competition-repository:latest" 
+        
+    if all([tutorial == "clickbait", section == "modelplayground"]):
+        quickstart_repository = "public.ecr.aws/y2e2a1d6/quickstart_clickbait_materials-repository:latest" 
 
     download_data(quickstart_repository)
 
@@ -216,7 +218,44 @@ def import_quickstart_data(tutorial, section="modelplayground"):
             #unpack data
             with open("quickstart_materials/y_train_labels.txt", "rb") as fp:  
                 y_train_labels = pickle.load(fp)
+                
+        if tutorial == "clickbait":
+            import pandas as pd 
+            #instantiate models
+            lstm_model = tf.keras.models.load_model('quickstart_clickbait_materials/lstm_model1.h5')
+            lstm_model2 = tf.keras.models.load_model('quickstart_clickbait_materials/lstm_model2.h5')
+           
+            # bring in data 
+            clickbait = pd.read_csv('quickstart_clickbait_materials/clickbait_data',  sep="\n", header = None)
+            clickbait['label'] = "clickbait"
+            clickbait.columns = ['headline', 'label']
         
+            not_clickbait = pd.read_csv('quickstart_clickbait_materials/non_clickbait_data',  sep="\n", header = None)
+            not_clickbait['label'] = "not clickbait"
+            not_clickbait.columns = ['headline', 'label']
+
+            # t/t/s
+            from sklearn.model_selection import train_test_split
+            X = clickbait.append(not_clickbait)
+            y = X['label']
+            X = X.drop(['label'], axis=1)
+            X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2)
+
+            # exampledata
+            example_data = X_train[0:5]
+            
+            # Create data directory for competition 
+            X_train.to_csv("X_train.csv")
+            X_test.to_csv("X_test.csv")
+            y_train.to_csv("y_train.csv")
+            
+            os.mkdir('clickbait_competition_data')
+            
+            files = ['X_train.csv', 'X_test.csv', 'y_train.csv']
+                        
+            for f in files:
+                shutil.move(f, 'clickbait_competition_data')
+
         if tutorial == "titanic":
             from sklearn.model_selection import train_test_split
             import pandas as pd
@@ -333,3 +372,6 @@ def import_quickstart_data(tutorial, section="modelplayground"):
 
     if tutorial == "cars":
         return X_train, X_test, y_train, y_test, example_data
+    
+    if tutorial == "clickbait":
+        return X_train, X_test, y_train, y_test, example_data, lstm_model, lstm_model2
