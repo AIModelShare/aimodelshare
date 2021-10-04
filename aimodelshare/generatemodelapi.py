@@ -719,10 +719,10 @@ def _create_exampledata_json(model_type, exampledata_folder_filepath):
      
     if any([model_type.lower() == "tabular", model_type.lower() == "timeseries", model_type.lower() == "text"]):
         #confirm data type is data frame, try to convert if not [necessary for front end]
+        import pandas as pd
         if isinstance(exampledata_folder_filepath, pd.DataFrame):
             pass
         else:
-            import pandas as pd
             exampledata_folder_filepath = pd.DataFrame(exampledata_folder_filepath)
             exampledata_folder_filepath.columns = ['text']
             
