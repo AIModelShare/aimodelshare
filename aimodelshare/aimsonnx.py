@@ -1260,7 +1260,8 @@ def compare_models_lambda(apiurl, version_list="None",
     apiurl_eval=apiurl[:-1]+"eval"
 
     compare_json = requests.post(apiurl_eval,headers=headers,data=json.dumps(post_dict)) 
-
+    print(json.loads(compare_json.text))
+    
     compare_pd = pd.DataFrame(json.loads(compare_json.text))
 
     return compare_pd
@@ -1511,7 +1512,7 @@ def inspect_y_test(apiurl):
   post_dict = {"y_pred": [],
                "return_eval": "False",
                "return_y": "True"}
-    
+
   headers = { 'Content-Type':'application/json', 'authorizationToken': os.environ.get("AWS_TOKEN"),} 
 
   apiurl_eval=apiurl[:-1]+"eval"

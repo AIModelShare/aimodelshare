@@ -371,8 +371,8 @@ def submit_model(
         prediction = requests.post(apiurl_eval,headers=headers,data=json.dumps(post_dict)) 
 
         eval_metrics=json.loads(prediction.text)
-    except:
-        pass
+    except Exception as e:
+        print(e)
 
     if all([isinstance(eval_metrics, dict),"message" not in eval_metrics]):
         pass        
