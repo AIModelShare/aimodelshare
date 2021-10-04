@@ -1010,19 +1010,63 @@ def compare_models_aws(apiurl, version_list=None,
         for i in version_list: 
             
             temp_pd = inspect_model(apiurl, version=i)
+            #temp_pd.insert(loc=0, column='Version', value=[int(i)]*temp_pd.shape[0])
 
-            buffer = pd.DataFrame({"": ['', 'Version'], "": ['', int(i)]})
+            #buffer = pd.DataFrame({"": ['', 'Version'], "": ['', int(i)]})
+            buffer = pd.DataFrame({"": ['', ''], "": ['', '']})
+
+            info = pd.DataFrame({
+                '0': ['', '', ''], 
+                '1': ['', '', ''], 
+                '2': ['', '', ''], 
+                '3': ['', '', ''], 
+                '4': ['', '', ''], 
+                '5': ['', '', ''],
+                '6': ['Model version', int(i), ''],
+                '7': ['ML framework', 'sklearn', ''], 
+                '8': ['Model type', 'XXX', ''], 
+                '9': ['', '', ''],
+                '10': ['', '', ''], 
+                '11': ['', '', ''], 
+                '12': ['param_name', 'default_value', 'param_value'],
+                '13': ['', '', ''], 
+                '14': ['', '', ''], 
+                '15': ['', '', '']}).T
+
+            info.columns = ['param_name', 'default_value', 'param_value']
 
             try:
-                comp_pd = pd.concat([comp_pd, buffer, temp_pd], ignore_index=True).reset_index(drop=True)
+                comp_pd = pd.concat([comp_pd, info, temp_pd], axis=0, ignore_index=True)
             except Exception as e:
                 print(e)
 
         '''
         comp_pd.columns = ['param_name', 'model_default'] + ["Model_"+str(i) for i in version_list]'''
         
+        comp_pd = comp_pd.reset_index(drop=True)
+        comp_pd.columns = ['',' ','  ']
+
+        #comp_pd = comp_pd.fillna('')
         df_styled = comp_pd.style.apply(lambda x: ["background: tomato" if v != x.iloc[0] else "" for v in x], 
                                         axis = 1, subset=comp_pd.columns[1:])
+        #df_styled = df_styled.format("{:.1f}").hide_columns()
+
+        df_styled = df_styled.hide_index()
+        #df_styled = df_styled.hide_columns()
+
+        def highlight(s):
+            if s.iloc[0] in ['Version', 'Framework', 'Model type']:
+                return ['background-color: #000000'] * len(s)
+
+            elif s.iloc[0] in ["param_name"]: 
+                return ['background-color: white'] * len(s)
+
+            else:
+                return [None] * len(s)
+
+        df_styled.apply(highlight, axis=1)
+
+        return df_styled
 
         
     if ml_framework_list[0] == 'keras':
@@ -1038,29 +1082,7 @@ def compare_models_aws(apiurl, version_list=None,
             temp_pd = temp_pd.add_prefix('Model_'+str(i)+'_')    
             comp_pd = pd.concat([comp_pd, temp_pd], axis=1, ignore_index=True)
 
-
-        layer_names = _get_layer_names()
-
-        '''
-        dense_layers = [i for i in layer_names[0] if 'Dense' in i]
-        df_styled = comp_pd.style.apply(lambda x: ["background: tomato" if v in dense_layers else "" for v in x], 
-                                axis = 1)
-        drop_layers = [i for i in layer_names[0] if 'Dropout' in i]
-        df_styled = comp_pd.style.apply(lambda x: ["background: lightblue" if v in drop_layers else "" for v in x], 
-                                axis = 1)
-        conv_layers = [i for i in layer_names[0] if 'Conv' in i]
-        df_styled = df_styled.apply(lambda x: ["background: yellow" if v in conv_layers else "" for v in x], 
-                                axis = 1)
-        seq_layers = [i for i in layer_names[0] if 'RNN' in i or 'LSTM' in i or 'GRU' in i] + ['Bidirectional']
-        df_styled = df_styled.apply(lambda x: ["background: orange" if v in seq_layers else "" for v in x], 
-                                axis = 1)
-        pool_layers = [i for i in layer_names[0] if 'Pool' in i]
-        df_styled = df_styled.apply(lambda x: ["background: lightgreen" if v in pool_layers else "" for v in x], 
-                                axis = 1)
-        rest_layers = [i for i in layer_names[0] if i not in dense_layers+drop_layers+conv_layers+seq_layers+pool_layers]
-        df_styled = df_styled.apply(lambda x: ["background: lightgrey" if v in rest_layers else "" for v in x], 
-                                axis = 1)
-        '''
+        df_styled = comp_pd
 
     return df_styled
 
@@ -1116,8 +1138,35 @@ def compare_models(apiurl, version_list="None",
     except: 
         compare_pd = compare_models_aws(apiurl, version_list, 
             by_model_type, best_model, verbose)
-    
-    return compare_pd
+
+
+    df_styled = compare_pd
+
+    layer_names = _get_layer_names()
+
+    dense_layers = [i for i in layer_names[0] if 'Dense' in i]
+    df_styled = df_styled.style.apply(lambda x: ["background: #DFFF00" if v in dense_layers else "" for v in x], 
+                            axis = 1)
+    drop_layers = [i for i in layer_names[0] if 'Dropout' in i]
+    df_styled = df_styled.apply(lambda x: ["background: #FFBF00" if v in drop_layers else "" for v in x], 
+                            axis = 1)
+    conv_layers = [i for i in layer_names[0] if 'Conv' in i]
+    df_styled = df_styled.apply(lambda x: ["background: #FF7F50" if v in conv_layers else "" for v in x], 
+                            axis = 1)
+    seq_layers = [i for i in layer_names[0] if 'RNN' in i or 'LSTM' in i or 'GRU' in i] + ['Bidirectional']
+    df_styled = df_styled.apply(lambda x: ["background: #DE3163" if v in seq_layers else "" for v in x], 
+                            axis = 1)
+    pool_layers = [i for i in layer_names[0] if 'Pool' in i]
+    df_styled = df_styled.apply(lambda x: ["background: #9FE2BF" if v in pool_layers else "" for v in x], 
+                            axis = 1)
+    rest_layers = [i for i in layer_names[0] if i not in dense_layers+drop_layers+conv_layers+seq_layers+pool_layers]
+    df_styled = df_styled.apply(lambda x: ["background: lightgrey" if v in rest_layers else "" for v in x], 
+                            axis = 1)
+
+
+    df_styled = df_styled.style.set_properties(**{'color': 'lawngreen'})
+
+    return df_styled
 
 
 
