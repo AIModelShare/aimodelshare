@@ -1038,10 +1038,7 @@ def inspect_model_aws(apiurl, version=None):
     return inspect_pd
 
 def inspect_model_lambda(apiurl, version=None):
-    if all(["AWS_ACCESS_KEY_ID" in os.environ, 
-            "AWS_SECRET_ACCESS_KEY" in os.environ,
-            "AWS_REGION" in os.environ, 
-           "username" in os.environ, 
+    if all(["username" in os.environ, 
            "password" in os.environ]):
         pass
     else:
@@ -1103,10 +1100,7 @@ def inspect_model_dict(apiurl, version=None):
 
 
 def inspect_model(apiurl, version=None):
-    if all(["AWS_ACCESS_KEY_ID" in os.environ, 
-            "AWS_SECRET_ACCESS_KEY" in os.environ,
-            "AWS_REGION" in os.environ, 
-           "username" in os.environ, 
+    if all(["username" in os.environ, 
            "password" in os.environ]):
         pass
     else:
@@ -1247,10 +1241,7 @@ def compare_models_aws(apiurl, version_list=None,
 
 def compare_models_lambda(apiurl, version_list="None", 
     by_model_type=None, best_model=None, verbose=3):
-    if all(["AWS_ACCESS_KEY_ID" in os.environ, 
-            "AWS_SECRET_ACCESS_KEY" in os.environ,
-            "AWS_REGION" in os.environ, 
-           "username" in os.environ, 
+    if all(["username" in os.environ, 
            "password" in os.environ]):
         pass
     else:
@@ -1278,10 +1269,7 @@ def compare_models_lambda(apiurl, version_list="None",
 def compare_models(apiurl, version_list="None", 
     by_model_type=None, best_model=None, verbose=3):
 
-    if all(["AWS_ACCESS_KEY_ID" in os.environ, 
-            "AWS_SECRET_ACCESS_KEY" in os.environ,
-            "AWS_REGION" in os.environ, 
-           "username" in os.environ, 
+    if all(["username" in os.environ, 
            "password" in os.environ]):
         pass
     else:
@@ -1514,10 +1502,7 @@ def print_y_stats(y_stats):
 def inspect_y_test(apiurl):
 
   # Confirm that creds are loaded, print warning if not
-  if all(["AWS_ACCESS_KEY_ID" in os.environ, 
-          "AWS_SECRET_ACCESS_KEY" in os.environ,
-          "AWS_REGION" in os.environ,
-          "username" in os.environ, 
+  if all(["username" in os.environ, 
           "password" in os.environ]):
       pass
   else:
