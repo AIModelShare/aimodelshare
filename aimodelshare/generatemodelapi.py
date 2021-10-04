@@ -718,6 +718,13 @@ def _create_exampledata_json(model_type, exampledata_folder_filepath):
     audio_extensions = ['.m4a', '.flac', '.mp3', '.mp4', '.wav', '.wma', '.aac']
      
     if any([model_type.lower() == "tabular", model_type.lower() == "timeseries", model_type.lower() == "text"]):
+        #confirm data type is data frame, try to convert if not [necessary for front end]
+        if isinstance(exampledata_folder_filepath, pd.DataFrame):
+            pass
+        else: 
+            exampledata_folder_filepath = pd.DataFrame(exampledata_folder_filepath)
+            exampledata_folder_filepath.columns = ['text']
+            
         tabularjson = exampledata_folder_filepath.to_json(orient='split', index=False)
         
     
