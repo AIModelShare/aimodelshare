@@ -451,16 +451,22 @@ def create_lambda_using_base_image(user_session, bucket_name, directory, lambda_
 # check if the image exists in the specified repository with specified image tag
 def check_if_image_exists(user_session, repo_name, image_tag):
     #print("Checking if image \"" + repo_name + ":" + image_tag +"\" exists.")
+    import datetime
     ecr_client = user_session.client('ecr')
     try:
         image_details = ecr_client.describe_images(
             repositoryName=repo_name,
             imageIds=[{'imageTag': image_tag}]
         )
+        
+        #adding date check of last image updates for any image tags.
+        #if user has old image then we update it using this approach
+        result=image_details['imageDetails'][0]['imagePushedAt'].date()>=datetime.date(2021, 10, 6)
+
         #print("The image " + "\"" + repo_name + ":" + image_tag + "\"" + " exists.")
         # print details of image
         #print(image_details)
-        return True
+        return result
     except:
         #print("The image " + "\"" + repo_name + ":" + image_tag + "\"" + " does not exist.")
         return False
