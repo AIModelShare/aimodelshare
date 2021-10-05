@@ -461,7 +461,7 @@ def check_if_image_exists(user_session, repo_name, image_tag):
         
         #adding date check of last image updates for any image tags.
         #if user has old image then we update it using this approach
-        result=image_details['imageDetails'][0]['imagePushedAt'].date()>=datetime.date(2021, 10, 6)
+        result=image_details['imageDetails'][0]['imagePushedAt'].date()<=datetime.date(2021, 10, 6)
 
         #print("The image " + "\"" + repo_name + ":" + image_tag + "\"" + " exists.")
         # print details of image
