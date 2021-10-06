@@ -508,7 +508,8 @@ def submit_model(
                 "modelsummary":json.dumps(inspect_pd.to_json()),
                 "Private":"FALSE",
                 "modelsubmissiondescription": modelsubmissiondescription,
-                "modelsubmissiontags":modelsubmissiontags}
+                "modelsubmissiontags":modelsubmissiontags,
+                 "eval_metrics":json.dumps(eval_metrics)}
 
     bodydatamodels.update(modelleaderboarddata_cleaned)
     d = bodydatamodels
