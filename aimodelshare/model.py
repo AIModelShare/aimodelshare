@@ -501,7 +501,14 @@ def submit_model(
         model_config = ast.literal_eval(model_config)
         inspect_pd = pd.DataFrame({'param_name': model_config.keys(),
                                     'param_value': model_config.values()})
+   
+    keys_to_extract = [ "accuracy", "f1_score", "precision", "recall", "mse", "rmse", "mae", "r2"]
 
+    eval_metrics_subset = {key: eval_metrics[key] for key in keys_to_extract}
+
+    eval_metrics_subset_nonulls = {key: value for key, value in eval_metrics_subset.items() if isinstance(value, float)}
+
+                              
     #Update model architecture data
     bodydatamodels = {
                 "apiurl": apiurl,
@@ -509,7 +516,7 @@ def submit_model(
                 "Private":"FALSE",
                 "modelsubmissiondescription": modelsubmissiondescription,
                 "modelsubmissiontags":modelsubmissiontags,
-                 "eval_metrics":json.dumps(eval_metrics)}
+                 "eval_metrics":json.dumps(eval_metrics_subset_nonulls)}
 
     bodydatamodels.update(modelleaderboarddata_cleaned)
     d = bodydatamodels
