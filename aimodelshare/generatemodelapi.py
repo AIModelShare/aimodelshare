@@ -724,7 +724,6 @@ def _create_exampledata_json(model_type, exampledata_folder_filepath):
             pass
         else:
             exampledata_folder_filepath = pd.DataFrame(exampledata_folder_filepath)
-            exampledata_folder_filepath.columns = ['text']
             
         tabularjson = exampledata_folder_filepath.to_json(orient='split', index=False)
         
