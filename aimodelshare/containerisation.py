@@ -4,9 +4,13 @@ import os
 import shutil
 import tempfile
 import time
+import datetime
 
 import importlib.resources as pkg_resources
 from string import Template
+
+date = datetime.datetime.now()
+mod_time = time.mktime(date.timetuple())
 
 def deploy_container(account_id, region, session, project_name, model_dir, requirements_file_path, apiid, memory_size='1024', timeout='90', python_version='3.7'):
 
@@ -151,6 +155,7 @@ def deploy_container(account_id, region, session, project_name, model_dir, requi
 
     with zipfile.ZipFile(''.join([template_folder, '.zip']),'w') as zip:
         for file in file_paths:
+            os.utime(file, (mod_time, mod_time))
             zip.write(file, file[template_folder_len:])
 
     s3_client = session.client('s3')
