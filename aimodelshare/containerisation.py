@@ -149,7 +149,7 @@ def deploy_container(account_id, region, session, project_name, model_dir, requi
 
     template_folder_len = len(template_folder)
 
-    with zipfile.ZipFile(''.join([template_folder, '.zip']),'w') as zip:
+    with zipfile.ZipFile(''.join([template_folder, '.zip']),'w', strict_timestamps=False) as zip:
         for file in file_paths:
             zip.write(file, file[template_folder_len:])
 
