@@ -345,7 +345,7 @@ def build_new_base_image(libraries, repository, image_tag, python_version):
     file_paths = get_all_file_paths_in_directory(temp_dir)    # getting list of strings containing paths of all files
 
     # zipping all files in the temporary folder to be uploaded to the S3 bucket
-    with zipfile.ZipFile(temp_dir + ".zip", "w") as zip:
+    with zipfile.ZipFile(temp_dir + ".zip", "w", strict_timestamps=False) as zip:
         for file in file_paths:
             zip.write(file, file.replace(temp_dir, ""))      # ignore temporary file path when copying to zip file
 
