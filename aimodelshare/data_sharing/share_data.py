@@ -271,7 +271,7 @@ def share_data_codebuild(account_id, region, dataset_dir, dataset_tag='latest', 
 
     os.remove(template_folder+'.zip')
 
-    return {"ecr_uri":registry_uri + '/' + repository + ':' + dataset_tag}
+    return {"ecr_uri": registry_uri + '/' + repository + ':' + dataset_tag}
 
 def share_dataset(data_directory="folder_file_path",classification="default", private="FALSE"):
     data_directory=str(data_directory).lower()
@@ -319,4 +319,44 @@ def share_dataset(data_directory="folder_file_path",classification="default", pr
     # modeltoapi lambda function invoked through below url to return new prediction api in response
     response=requests.post("https://jyz9nn0joe.execute-api.us-east-1.amazonaws.com/dev/modeldata",
                   json=bodydata, headers=headers_with_authentication)
-    return "Your dataset has been shared to modelshare.org."
+
+    print("Your dataset has been shared. It can be accessed with the following link: " + datauri['ecr_uri'])
+
+    return
+
+def delete_dataset(ecr_uri):
+
+    session = boto3.session.Session(aws_access_key_id=os.environ.get("AWS_ACCESS_KEY_ID"),
+                                    aws_secret_access_key = os.environ.get("AWS_SECRET_ACCESS_KEY"), 
+                                    region_name=os.environ.get("AWS_REGION"))
+
+    ecr_client = session.client('ecr-public')
+
+    repository_image = ecr_uri.split('/')[2]
+
+    repository = repository_image.split(':')[0]
+    image = repository_image.split(':')[1]
+
+    response = ecr_client.batch_delete_image(
+        repositoryName=repository,
+        imageIds=[
+            {
+                'imageTag': image
+            }
+        ]
+    )
+
+    image_details = ecr_client.describe_images(
+        repositoryName=repository
+    )
+
+    print("The dataset accessible at '" + ecr_uri + "' has been deleted successfully.")
+
+    if len(image_details['imageDetails']==0):
+        response = ecr_client.delete_repository(
+            repositoryName=repository
+        )
+
+    print("The registry '" + repository + " has been deleted successfully.")
+
+    return
