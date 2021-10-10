@@ -400,7 +400,7 @@ def inspect_model(version):
     data = obj.get()['Body'].read()
     model_dict = json.loads(data)
 
-    inspect_pd = pd.DataFrame(model_dict.get(str(version)))
+    inspect_pd = pd.DataFrame(model_dict.get(str(version))['model_dict'])
 
     return inspect_pd
     

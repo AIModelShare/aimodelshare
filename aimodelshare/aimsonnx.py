@@ -929,7 +929,7 @@ def inspect_model_dict(apiurl, version=None):
     except Exception as e:
         print(e)
 
-    inspect_pd = pd.DataFrame(model_dict.get(str(version)))
+    inspect_pd = pd.DataFrame(model_dict.get(str(version))['model_dict'])
     
     return inspect_pd
 
@@ -1026,29 +1026,28 @@ def compare_models_aws(apiurl, version_list=None,
             temp_pd = temp_pd.add_prefix('Model_'+str(i)+'_')    
             comp_pd = pd.concat([comp_pd, temp_pd], axis=1, ignore_index=True)
 
-
         layer_names = _get_layer_names()
 
-        '''
         dense_layers = [i for i in layer_names[0] if 'Dense' in i]
-        df_styled = comp_pd.style.apply(lambda x: ["background: tomato" if v in dense_layers else "" for v in x], 
+        df_styled = df_styled.style.apply(lambda x: ["background: #DFFF00" if v in dense_layers else "" for v in x], 
                                 axis = 1)
         drop_layers = [i for i in layer_names[0] if 'Dropout' in i]
-        df_styled = comp_pd.style.apply(lambda x: ["background: lightblue" if v in drop_layers else "" for v in x], 
+        df_styled = df_styled.apply(lambda x: ["background: #FFBF00" if v in drop_layers else "" for v in x], 
                                 axis = 1)
         conv_layers = [i for i in layer_names[0] if 'Conv' in i]
-        df_styled = df_styled.apply(lambda x: ["background: yellow" if v in conv_layers else "" for v in x], 
+        df_styled = df_styled.apply(lambda x: ["background: #FF7F50" if v in conv_layers else "" for v in x], 
                                 axis = 1)
         seq_layers = [i for i in layer_names[0] if 'RNN' in i or 'LSTM' in i or 'GRU' in i] + ['Bidirectional']
-        df_styled = df_styled.apply(lambda x: ["background: orange" if v in seq_layers else "" for v in x], 
+        df_styled = df_styled.apply(lambda x: ["background: #DE3163" if v in seq_layers else "" for v in x], 
                                 axis = 1)
         pool_layers = [i for i in layer_names[0] if 'Pool' in i]
-        df_styled = df_styled.apply(lambda x: ["background: lightgreen" if v in pool_layers else "" for v in x], 
+        df_styled = df_styled.apply(lambda x: ["background: #9FE2BF" if v in pool_layers else "" for v in x], 
                                 axis = 1)
         rest_layers = [i for i in layer_names[0] if i not in dense_layers+drop_layers+conv_layers+seq_layers+pool_layers]
         df_styled = df_styled.apply(lambda x: ["background: lightgrey" if v in rest_layers else "" for v in x], 
-                                axis = 1)
-        '''
+                            axis = 1)
+
+    df_styled = df_styled.style.set_properties(**{'color': 'lawngreen'})
 
     return df_styled
 

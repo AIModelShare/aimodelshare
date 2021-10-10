@@ -289,7 +289,9 @@ def upload_model_dict(modelpath, aws_client, bucket, model_id, model_version):
     except: 
       model_dict = {}
 
-    model_dict[str(model_version)] = inspect_pd.to_dict()
+    model_dict[str(model_version)] = {'ml_framework': meta_dict['ml_framework'],
+                                      'model_type': meta_dict['model_type'],
+                                      'model_dict': inspect_pd.to_dict()}
 
     aws_client['client'].put_object(Bucket=bucket, Key=key, Body=json.dumps(model_dict).encode())
 
