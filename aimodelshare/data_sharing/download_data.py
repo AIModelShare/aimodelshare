@@ -178,7 +178,7 @@ def extract_data_from_image(image_name, file_name, location):
 def download_data(repository, location="./"):
 	data_zip_name = repository.split('/')[2].split('-repository')[0]
 	docker_tar = pull_image(repository)
-	extract_data_from_image(docker_tar, data_zip_name)
+	extract_data_from_image(docker_tar, data_zip_name, location)
 	os.remove(docker_tar)
 	print('\n\nData downloaded successfully.')
 
