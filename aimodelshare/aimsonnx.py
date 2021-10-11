@@ -35,6 +35,7 @@ import requests
 import sys
 
 from pympler import asizeof
+from IPython.core.display import display, HTML
 
 
 def _extract_onnx_metadata(onnx_model, framework):
@@ -898,6 +899,7 @@ def inspect_model_lambda(apiurl, version=None):
 
 
 def inspect_model_dict(apiurl, version=None):
+
     if all(["AWS_ACCESS_KEY_ID" in os.environ, 
             "AWS_SECRET_ACCESS_KEY" in os.environ,
             "AWS_REGION" in os.environ, 
@@ -929,6 +931,8 @@ def inspect_model_dict(apiurl, version=None):
     except Exception as e:
         print(e)
 
+    ml_framework = pd.DataFrame(model_dict.get(str(version))['ml_framework'])
+    model_type = pd.DataFrame(model_dict.get(str(version))['model_type'])
     inspect_pd = pd.DataFrame(model_dict.get(str(version))['model_dict'])
     
     return inspect_pd
@@ -944,6 +948,7 @@ def inspect_model(apiurl, version=None):
 
     try:
         inspect_pd = inspect_model_lambda(apiurl, version)
+        print('test')
     except:
 
         try: 
@@ -954,8 +959,143 @@ def inspect_model(apiurl, version=None):
     return inspect_pd
 
 
-
+def compare_models_dict(apiurl, version_list=None, 
+    by_model_type=None, best_model=None, verbose=3):
     
+    if not isinstance(version_list, list):
+        raise Exception("Argument 'version' must be a list.")
+    
+    if all(["AWS_ACCESS_KEY_ID" in os.environ, 
+            "AWS_SECRET_ACCESS_KEY" in os.environ,
+            "AWS_REGION" in os.environ, 
+           "username" in os.environ, 
+           "password" in os.environ]):
+        pass
+    else:
+        return print("'Compare Models' unsuccessful. Please provide credentials with set_credentials().")
+
+    aws_client=get_aws_client(aws_key=os.environ.get('AWS_ACCESS_KEY_ID'), 
+                              aws_secret=os.environ.get('AWS_SECRET_ACCESS_KEY'), 
+                              aws_region=os.environ.get('AWS_REGION'))
+
+    # Get bucket and model_id for user
+    response, error = run_function_on_lambda(
+        apiurl, **{"delete": "FALSE", "versionupdateget": "TRUE"}
+    )
+    if error is not None:
+        raise error
+
+    _, bucket, model_id = json.loads(response.content.decode("utf-8"))
+
+    key = model_id+'/inspect_pd.json'
+    
+    try:
+      resp = aws_client['client'].get_object(Bucket=bucket, Key=key)
+      data = resp.get('Body').read()
+      model_dict = json.loads(data)
+    except Exception as e:
+        print(e)
+
+    ml_framework_list = [model_dict[str(i)]['ml_framework'] for i in version_list]
+    model_type_list = [model_dict[str(i)]['model_type'] for i in version_list]
+    model_dict_list = [model_dict[str(i)]['model_dict'] for i in version_list]
+
+    if not all(x==ml_framework_list[0] for x in ml_framework_list):
+        raise Exception("Incongruent frameworks. Please compare models from the same ML frameworks.")
+        
+
+    if ml_framework_list[0] == 'sklearn':
+
+        comp_dict_out = {}
+        
+        for i in version_list: 
+            
+            temp_pd = pd.DataFrame(model_dict[str(i)]['model_dict'])
+            temp_pd.columns = ['param_name', 'default_value', "model_version_"+str(i)]
+
+            if model_dict[str(i)]['model_type'] in comp_dict_out.keys():
+
+                comp_pd = comp_dict_out[model_dict[str(i)]['model_type']]
+                comp_pd = comp_pd.merge(temp_pd.drop('default_value', axis=1), on='param_name')
+
+                comp_dict_out[model_dict[str(i)]['model_type']] = comp_pd
+
+            else:
+                comp_dict_out[model_dict[str(i)]['model_type']] = temp_pd
+
+        return comp_dict_out
+
+            
+    if ml_framework_list[0] == 'keras':
+
+        comp_pd = pd.DataFrame()
+
+        for i in version_list: 
+
+            temp_pd = inspect_model(apiurl, version=i)
+
+            temp_pd = temp_pd.iloc[:,0:verbose]
+
+            temp_pd = temp_pd.add_prefix('Model_'+str(i)+'_')    
+            comp_pd = pd.concat([comp_pd, temp_pd], axis=1, ignore_index=True)
+
+        comp_dict_out = {"Sequential": comp_pd}
+        
+        return comp_dict_out
+
+
+def stylize_model_comparison(comp_dict_out):
+
+
+    if 'Sequential' in comp_dict_out.keys():
+
+        df_styled = comp_dict_out['Sequential']
+
+        layer_names = _get_layer_names()
+
+        dense_layers = [i for i in layer_names[0] if 'Dense' in i]
+        df_styled = df_styled.style.apply(lambda x: ["background: #DFFF00" if v in dense_layers else "" for v in x], 
+                                axis = 1)
+        drop_layers = [i for i in layer_names[0] if 'Dropout' in i]
+        df_styled = df_styled.apply(lambda x: ["background: #FFBF00" if v in drop_layers else "" for v in x], 
+                                axis = 1)
+        conv_layers = [i for i in layer_names[0] if 'Conv' in i]
+        df_styled = df_styled.apply(lambda x: ["background: #FF7F50" if v in conv_layers else "" for v in x], 
+                                axis = 1)
+        seq_layers = [i for i in layer_names[0] if 'RNN' in i or 'LSTM' in i or 'GRU' in i] + ['Bidirectional']
+        df_styled = df_styled.apply(lambda x: ["background: #DE3163" if v in seq_layers else "" for v in x], 
+                                axis = 1)
+        pool_layers = [i for i in layer_names[0] if 'Pool' in i]
+        df_styled = df_styled.apply(lambda x: ["background: #9FE2BF" if v in pool_layers else "" for v in x], 
+                                axis = 1)
+        rest_layers = [i for i in layer_names[0] if i not in dense_layers+drop_layers+conv_layers+seq_layers+pool_layers]
+        df_styled = df_styled.apply(lambda x: ["background: lightgrey" if v in rest_layers else "" for v in x], 
+                            axis = 1)
+
+        df_styled = df_styled.style.set_properties(**{'color': 'lawngreen'})
+
+        df_styled = df_styled.set_caption('Model type: ' + i).set_table_styles([{'selector': 'caption',
+            'props': [('color', 'white'), ('font-size', '18px')]}])
+
+        display(HTML(df_styled.render()))
+
+
+    else:
+
+        for i in comp_dict_out.keys():
+
+            comp_pd = comp_dict_out[i]
+
+            df_styled = comp_pd.style.apply(lambda x: ["background: tomato" if v != x.iloc[0] else "" for v in x], 
+                axis = 1, subset=comp_pd.columns[1:])
+
+            df_styled = df_styled.set_caption('Model type: ' + i).set_table_styles([{'selector': 'caption',
+                'props': [('color', 'white'), ('font-size', '18px')]}])
+
+            display(HTML(df_styled.render()))
+            print('\n\n')
+
+
 
 def compare_models_aws(apiurl, version_list=None, 
     by_model_type=None, best_model=None, verbose=3):
@@ -1074,9 +1214,11 @@ def compare_models_lambda(apiurl, version_list="None",
 
     compare_json = requests.post(apiurl_eval,headers=headers,data=json.dumps(post_dict)) 
 
-    compare_pd = pd.DataFrame(json.loads(compare_json.text))
+    compare_dict = json.loads(compare_json.text)
 
-    return compare_pd
+    comp_dict_out = {i: pd.DataFrame(compare_dict[i]) for i in compare_dict}
+
+    return comp_dict_out
 
 
 def compare_models(apiurl, version_list="None", 
@@ -1094,9 +1236,17 @@ def compare_models(apiurl, version_list="None",
     try: 
         compare_pd = compare_models_lambda(apiurl, version_list, 
             by_model_type, best_model, verbose)
+
     except: 
-        compare_pd = compare_models_aws(apiurl, version_list, 
+
+        try: 
+            compare_pd = compare_models_dict(apiurl, version_list, 
             by_model_type, best_model, verbose)
+
+        except:
+
+            compare_pd = compare_models_aws(apiurl, version_list, 
+                by_model_type, best_model, verbose)
     
     return compare_pd
 

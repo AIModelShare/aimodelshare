@@ -189,7 +189,7 @@ def handler(event, context):
         
             version_list = body["version_list"]
 
-            compare_pd = compare_models(version_list)
+            comp_dict_out = compare_models(version_list)
             
             compare_dict = {"statusCode": 200,
                 "headers": {
@@ -198,7 +198,7 @@ def handler(event, context):
                 "Allow" : "GET, OPTIONS, POST",
                 "Access-Control-Allow-Methods" : "GET, OPTIONS, POST",
                 "Access-Control-Allow-Headers" : "*"},
-                "body": json.dumps(compare_pd.to_dict())
+                "body": json.dumps(comp_dict_out)
                 }
             return compare_dict
 
@@ -400,6 +400,8 @@ def inspect_model(version):
     data = obj.get()['Body'].read()
     model_dict = json.loads(data)
 
+    ml_framework = pd.DataFrame(model_dict.get(str(version))['ml_framework'])
+    model_type = pd.DataFrame(model_dict.get(str(version))['model_type'])
     inspect_pd = pd.DataFrame(model_dict.get(str(version))['model_dict'])
 
     return inspect_pd
@@ -468,75 +470,59 @@ def _get_metadata(onnx_model):
     return onnx_meta_dict
     
     
+def compare_models(version_list, by_model_type=None, best_model=None, verbose=3):
+    
+    s3 = boto3.resource('s3')
+    obj = s3.Object("aimodelsharehp2500test944460659357", "fdgkt02oha/"+"inspect_pd.json")
+    data = obj.get()['Body'].read()
+    model_dict = json.loads(data)
+    
+    ml_framework_list = [model_dict[str(i)]['ml_framework'] for i in version_list]
+    model_type_list = [model_dict[str(i)]['model_type'] for i in version_list]
+    model_dict_list = [model_dict[str(i)]['model_dict'] for i in version_list]
 
-def compare_models(version_list=None, 
-    by_model_type=None, best_model=None, verbose=3):
-    
-    ml_framework_list = []
-    model_type_list = []
-    
-    for i in version_list:
-        
-        try: 
-            print('check if pd is already in s3')
-            1/0
-        except: 
-            onnx_model = get_onnx_mem(i)
-            meta_dict = _get_metadata(onnx_model)
-            del onnx_model
-            gc.collect()
-        
-        ml_framework_list.append(meta_dict['ml_framework'])
-        model_type_list.append(meta_dict['model_type'])
-        del meta_dict
-        gc.collect()
-    
     if not all(x==ml_framework_list[0] for x in ml_framework_list):
         raise Exception("Incongruent frameworks. Please compare models from the same ML frameworks.")
         
-    if not all(x==model_type_list[0] for x in model_type_list):
-        raise Exception("Incongruent model types. Please compare models of the same model type.")
-    
+
     if ml_framework_list[0] == 'sklearn':
-        
-        model_type = model_type_list[0]
-        model_class = model_from_string(model_type)
-        default = model_class()
-        default_config = default.get_params()
-        
-        comp_pd = pd.DataFrame({'param_name': default_config.keys(),
-                           'param_value': default_config.values()})
+
+        comp_dict_out = {}
         
         for i in version_list: 
             
-            temp_pd = inspect_model(version=i)
-            comp_pd = pd.concat([comp_pd, temp_pd.drop(columns='param_name')], axis=1)
-            del temp_pd
-            gc.collect()
-        
-        comp_pd.columns = ['param_name', 'model_default'] + ["Model_"+str(i) for i in version_list]
-        
-        df_styled = comp_pd
+            temp_pd = pd.DataFrame(model_dict[str(i)]['model_dict'])
+            temp_pd.columns = ['param_name', 'default_value', "model_version_"+str(i)]
 
-        
+            if model_dict[str(i)]['model_type'] in comp_dict_out.keys():
+
+                comp_pd = comp_dict_out[model_dict[str(i)]['model_type']]
+                comp_pd = comp_pd.merge(temp_pd.drop('default_value', axis=1), on='param_name')
+
+                comp_dict_out[model_dict[str(i)]['model_type']] = comp_pd
+
+            else:
+                comp_dict_out[model_dict[str(i)]['model_type']] = temp_pd
+
+            
     if ml_framework_list[0] == 'keras':
 
         comp_pd = pd.DataFrame()
 
         for i in version_list: 
 
-            temp_pd = inspect_model(version=i)
+            temp_pd = inspect_model(apiurl, version=i)
 
             temp_pd = temp_pd.iloc[:,0:verbose]
 
             temp_pd = temp_pd.add_prefix('Model_'+str(i)+'_')    
-            comp_pd = pd.concat([comp_pd, temp_pd], axis=1)
-            del temp_pd
-            gc.collect()
-            
-        df_styled = comp_pd
+            comp_pd = pd.concat([comp_pd, temp_pd], axis=1, ignore_index=True)
 
-    return df_styled
+        comp_dict_out = {"Sequential": comp_pd}
+        
+    comp_dict_out = {i: comp_dict_out[i].to_dict() for i in comp_dict_out}
+    
+    return comp_dict_out
 
 
 def model_from_string(model_type):

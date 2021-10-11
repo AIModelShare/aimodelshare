@@ -432,8 +432,6 @@ def submit_model(
       http_response = requests.post(fileputlistofdicts[1]['url'], data=fileputlistofdicts[1]['fields'], files=files)
       
 
-
-
     # Upload model metrics and metadata {{{
     modelleaderboarddata = _update_leaderboard_public(
         model_filepath, eval_metrics,s3_presigned_dict
@@ -444,6 +442,13 @@ def submit_model(
     model_versions = filter(lambda v: v.isnumeric(), model_versions)
     model_versions = list(map(int, model_versions))
     model_version=model_versions[0]
+
+    aws_client=get_aws_client(aws_key=os.environ.get('AWS_ACCESS_KEY_ID'),
+                              aws_secret=os.environ.get('AWS_SECRET_ACCESS_KEY'), 
+                              aws_region=os.environ.get('AWS_REGION'))
+
+    upload_model_dict(model_filepath, aws_client, bucket, model_id, model_version)
+
 
     modelpath=model_filepath
 
