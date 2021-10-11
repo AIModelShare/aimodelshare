@@ -931,8 +931,8 @@ def inspect_model_dict(apiurl, version=None):
     except Exception as e:
         print(e)
 
-    ml_framework = pd.DataFrame(model_dict.get(str(version))['ml_framework'])
-    model_type = pd.DataFrame(model_dict.get(str(version))['model_type'])
+    ml_framework = model_dict.get(str(version))['ml_framework']
+    model_type = model_dict.get(str(version))['model_type']
     inspect_pd = pd.DataFrame(model_dict.get(str(version))['model_dict'])
     
     return inspect_pd
