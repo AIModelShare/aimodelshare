@@ -440,7 +440,7 @@ def create_competition(apiurl, data_directory, y_test,  email_list=[]):
               idtoken=get_aws_token()
               decoded = jwt.decode(idtoken, options={"verify_signature": False})  # works in PyJWT < v2.0
               email=decoded['email']
-              emai_list.append(email)
+              email_list.append(email)
     else:
         return print("email_list argument empty or incorrectly formatted.  Please provide a list of emails for authorized competition participants formatted as strings.")
 
