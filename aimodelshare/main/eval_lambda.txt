@@ -503,7 +503,7 @@ def compare_models(version_list, by_model_type=None, best_model=None, verbose=3)
 
             else:
                 comp_dict_out[model_dict[str(i)]['model_type']] = temp_pd
-
+        
             
     if ml_framework_list[0] == 'keras':
 
@@ -511,18 +511,15 @@ def compare_models(version_list, by_model_type=None, best_model=None, verbose=3)
 
         for i in version_list: 
 
-            temp_pd = inspect_model(apiurl, version=i)
-
+            temp_pd = pd.DataFrame(model_dict[str(i)]['model_dict'])
             temp_pd = temp_pd.iloc[:,0:verbose]
-
+            temp_pd.iloc[:,2] = temp_pd.iloc[:,2].astype(str)
             temp_pd = temp_pd.add_prefix('Model_'+str(i)+'_')    
-            comp_pd = pd.concat([comp_pd, temp_pd], axis=1, ignore_index=True)
+            comp_pd = pd.concat([comp_pd, temp_pd], axis=1)
 
         comp_dict_out = {"Sequential": comp_pd}
         
-    comp_dict_out = {i: comp_dict_out[i].to_dict() for i in comp_dict_out}
-    
-    return comp_dict_out
+        return comp_dict_out
 
 
 def model_from_string(model_type):

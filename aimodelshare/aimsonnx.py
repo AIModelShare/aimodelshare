@@ -948,7 +948,6 @@ def inspect_model(apiurl, version=None):
 
     try:
         inspect_pd = inspect_model_lambda(apiurl, version)
-        print('test')
     except:
 
         try: 
@@ -1032,12 +1031,11 @@ def compare_models_dict(apiurl, version_list=None,
 
         for i in version_list: 
 
-            temp_pd = inspect_model(apiurl, version=i)
-
+            temp_pd = pd.DataFrame(model_dict[str(i)]['model_dict'])
             temp_pd = temp_pd.iloc[:,0:verbose]
-
+            temp_pd.iloc[:,2] = temp_pd.iloc[:,2].astype(str)
             temp_pd = temp_pd.add_prefix('Model_'+str(i)+'_')    
-            comp_pd = pd.concat([comp_pd, temp_pd], axis=1, ignore_index=True)
+            comp_pd = pd.concat([comp_pd, temp_pd], axis=1)
 
         comp_dict_out = {"Sequential": comp_pd}
         
@@ -1072,9 +1070,9 @@ def stylize_model_comparison(comp_dict_out):
         df_styled = df_styled.apply(lambda x: ["background: lightgrey" if v in rest_layers else "" for v in x], 
                             axis = 1)
 
-        df_styled = df_styled.style.set_properties(**{'color': 'lawngreen'})
+        df_styled = df_styled.set_properties(**{'color': 'black'})
 
-        df_styled = df_styled.set_caption('Model type: ' + i).set_table_styles([{'selector': 'caption',
+        df_styled = df_styled.set_caption('Model type: ' + 'Neural Network').set_table_styles([{'selector': 'caption',
             'props': [('color', 'white'), ('font-size', '18px')]}])
 
         display(HTML(df_styled.render()))

@@ -227,7 +227,12 @@ class Competition:
                       best_model = best_model, 
                       verbose = verbose)
         return data
-    
+
+    def stylize_compare(self, compare_dict):
+        from aimodelshare.aimsonnx import stylize_model_comparison
+        stylized_compare = stylize_model_comparison(compare_dict)
+        return(stylized_compare)
+
     def inspect_y_test(self):
         from aimodelshare.aimsonnx import inspect_y_test as inspect
         data = inspect(apiurl = self.playground_url)
