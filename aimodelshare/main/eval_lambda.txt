@@ -473,7 +473,7 @@ def _get_metadata(onnx_model):
 def compare_models(version_list, by_model_type=None, best_model=None, verbose=3):
     
     s3 = boto3.resource('s3')
-    obj = s3.Object("aimodelsharehp2500test944460659357", "fdgkt02oha/"+"inspect_pd.json")
+    obj = s3.Object("$bucket_name", "$unique_model_id/"+"inspect_pd.json")
     data = obj.get()['Body'].read()
     model_dict = json.loads(data)
     
