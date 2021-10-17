@@ -348,7 +348,7 @@ def model_to_api(model_filepath, model_type, private, categorical, y_train, prep
     requirements = ""
     if(any([custom_libraries=='TRUE',custom_libraries=='true'])):
         requirements = input("Enter all required Python libraries you need at prediction runtime (separated with commas):")
-        _confirm_libraries_exist(requirements)
+        #_confirm_libraries_exist(requirements)
         
     aishare_modelname = input("Model Name (for AI Model Share Website):")
     aishare_modeldescription = input("Model Description (Explain what your model does and \n why end-users would find your model useful):")

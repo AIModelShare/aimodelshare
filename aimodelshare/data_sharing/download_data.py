@@ -220,7 +220,11 @@ def import_quickstart_data(tutorial, section="modelplayground"):
                 y_train_labels = pickle.load(fp)
                 
         if tutorial == "clickbait":
-            import pandas as pd 
+            import pandas as pd
+            # suppress tf warning
+            import tensorflow as tf
+            tf.compat.v1.logging.set_verbosity(tf.compat.v1.logging.ERROR)
+            
             #instantiate models
             lstm_model = tf.keras.models.load_model('quickstart_clickbait_materials/lstm_model1.h5')
             lstm_model2 = tf.keras.models.load_model('quickstart_clickbait_materials/lstm_model2.h5')
