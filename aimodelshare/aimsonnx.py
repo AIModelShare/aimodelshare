@@ -426,7 +426,7 @@ def _keras_to_onnx(model, transfer_learning=None,
             activations.append(i.__class__.__name__.lower())
         if hasattr(i, 'activation') and i.activation.__name__ in activation_list:
             activations.append(i.activation.__name__)
-            
+
     if hasattr(model, 'loss'):
         loss = model.loss.__class__.__name__
     else:
@@ -436,7 +436,8 @@ def _keras_to_onnx(model, transfer_learning=None,
         optimizer = model.optimizer.__class__.__name__
     else:
         optimizer = None 
-            
+
+    model_summary_pd = model_summary_keras(model)
     
     # insert data into model architecture dict 
     model_architecture = {'layers_number': len(layers),
@@ -451,6 +452,8 @@ def _keras_to_onnx(model, transfer_learning=None,
                          }
 
     metadata['model_architecture'] = str(model_architecture)
+
+    metadata['model_summary'] = model_summary_pd.to_json()
 
     metadata['memory_size'] = asizeof.asizeof(model)
 
@@ -811,16 +814,10 @@ def _model_summary(meta_dict, from_onnx=False):
     "Please make sure model architecture data is included."
 
     if from_onnx == True:
-        architecture = meta_dict['metadata_onnx']["model_architecture"]
+        model_summary = pd.read_json(meta_dict['metadata_onnx']["model_summary"])
     else:
-        architecture = meta_dict["model_architecture"] 
+        model_summary = pd.read_json(meta_dict["model_summary"])
        
-        
-    model_summary = pd.DataFrame({'Layer':architecture['layers_sequence'],
-                          #'Activation':architecture['activations_sequence'],
-                          'Shape':architecture['layers_shapes'],
-                          'Params':architecture['layers_n_params']})
-        
     return model_summary
 
 
@@ -959,7 +956,7 @@ def inspect_model(apiurl, version=None):
 
 
 def compare_models_dict(apiurl, version_list=None, 
-    by_model_type=None, best_model=None, verbose=3):
+    by_model_type=None, best_model=None, verbose=5):
     
     if not isinstance(version_list, list):
         raise Exception("Argument 'version' must be a list.")

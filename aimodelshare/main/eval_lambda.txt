@@ -470,7 +470,7 @@ def _get_metadata(onnx_model):
     return onnx_meta_dict
     
     
-def compare_models(version_list, by_model_type=None, best_model=None, verbose=3):
+def compare_models(version_list, by_model_type=None, best_model=None, verbose=5):
     
     s3 = boto3.resource('s3')
     obj = s3.Object("$bucket_name", "$unique_model_id/"+"inspect_pd.json")
