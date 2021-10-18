@@ -1250,10 +1250,6 @@ def compare_models(apiurl, version_list="None",
 
 
 
-
-
-
-
 def _get_onnx_from_bucket(apiurl, aws_client, version=None):
 
     # generate name of onnx model in bucket
@@ -1369,6 +1365,7 @@ def _get_layer_names():
 
     return layer_list, activation_list
 
+
 def _get_sklearn_modules():
     
     import sklearn
@@ -1404,6 +1401,7 @@ def print_y_stats(y_stats):
   print("y_test class balance", y_stats['class_balance'])
   print("y_test label dtypes", y_stats['label_dtypes'])
 
+
 def inspect_y_test(apiurl):
 
   # Confirm that creds are loaded, print warning if not
@@ -1428,3 +1426,61 @@ def inspect_y_test(apiurl):
   # print_y_stats(y_stats_dict)
 
   return y_stats_dict
+
+
+def model_summary_keras(model):
+
+    # extract model architecture metadata 
+    layer_names = []
+    layer_types = []
+    layer_n_params = []
+    layer_shapes = []
+    layer_connect = []
+    activations = []
+
+
+    for i in model.layers: 
+
+        try:
+            layer_names.append(i.name)
+        except:
+            layer_names.append(None)
+
+        try:
+            layer_types.append(i.__class__.__name__)
+        except:
+            layer_types.append(None)
+
+        try:
+            layer_shapes.append(i.output_shape)
+        except:
+            layer_shapes.append(None)
+
+        try:
+            layer_n_params.append(i.count_params())
+        except:
+            layer_n_params.append(None)
+
+        try:
+            if isinstance(i.inbound_nodes[0].inbound_layers, list):
+              layer_connect.append([x.name for x in i.inbound_nodes[0].inbound_layers])
+            else: 
+              layer_connect.append(i.inbound_nodes[0].inbound_layers.name)
+        except:
+            layer_connect.append(None)
+
+        try: 
+            activations.append(i.activation.__name__)
+        except:
+            activations.append(None)
+
+
+    model_summary = pd.DataFrame({"layer_names": layer_names,
+    "layer_types": layer_types,
+    "layer_n_params": layer_n_params,
+    "layer_shapes": layer_shapes,
+    "layer_n_params": layer_n_params,
+    "layer_connect": layer_connect,
+    "activations": activations})
+
+    return model_summary

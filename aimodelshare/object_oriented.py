@@ -230,7 +230,7 @@ class Competition:
 
     def stylize_compare(self, compare_dict):
         from aimodelshare.aimsonnx import stylize_model_comparison
-        stylized_compare = stylize_model_comparison(compare_dict)
+        stylized_compare = stylize_model_comparison(comp_dict_out=compare_dict)
         return(stylized_compare)
 
     def inspect_y_test(self):
