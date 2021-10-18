@@ -1009,6 +1009,18 @@ def delete_deployment(apiurl):
 
     requests.post("https://bhrdesksak.execute-api.us-east-1.amazonaws.com/dev/modeldata",
                   json=bodydata, headers=headers_with_authentication)
+    
+    # delete competition posting
+    bodydata = {"apiurl": apiurl,
+                "delete":"TRUE"
+                                }
+
+    # Get the response
+    headers_with_authentication = {'Content-Type': 'application/json', 'authorizationToken': os.environ.get("AWS_TOKEN"), 'Access-Control-Allow-Headers':
+                                    'Content-Type,X-Amz-Date,authorizationToken,Access-Control-Allow-Origin,X-Api-Key,X-Amz-Security-Token,Authorization', 'Access-Control-Allow-Origin': '*'}
+    # competitiondata lambda function invoked through below url to update model submissions and contributors
+    requests.post("https://o35jwfakca.execute-api.us-east-1.amazonaws.com/dev/modeldata",
+                  json=bodydata, headers=headers_with_authentication)
 
     return "API deleted successfully."
 
