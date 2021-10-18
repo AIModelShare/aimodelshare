@@ -32,7 +32,7 @@ class ModelPlayground:
     def __str__(self):
         return f"ModelPlayground instance of model type: {self.model_type}, classification: {self.categorical},  private: {self.private}"
     
-    def deploy(self, model_filepath, preprocessor_filepath, y_train, example_data=None, custom_libraries = "FALSE"):
+    def deploy(self, model_filepath, preprocessor_filepath, y_train, example_data=None, custom_libraries = "FALSE", determinism_env_filepath=None):
         """
         Launches a live prediction REST API for deploying ML models using model parameters and user credentials, provided by the user
         Inputs : 7
@@ -77,7 +77,8 @@ class ModelPlayground:
                                       y_train = y_train, 
                                       preprocessor_filepath = preprocessor_filepath, 
                                       example_data = example_data,
-                                      custom_libraries = custom_libraries)
+                                      custom_libraries = custom_libraries,
+                                      determinism_env_filepath = determinism_env_filepath)
         #remove extra quotes
         self.playground_url = self.playground_url[1:-1]
     
@@ -150,7 +151,7 @@ class ModelPlayground:
     def instantiate_model(self, version=None, trained=False): 
         from aimodelshare.aimsonnx import instantiate_model
         model = instantiate_model(apiurl=self.playground_url, trained=trained, version=version)
-        return model
+        return model    
     
     def delete_deployment(self, playground_url=None):
         """
@@ -166,7 +167,9 @@ class ModelPlayground:
         deletion = delete_deployment(apiurl = playground_url)
         return deletion
 
-
+    def import_determinism_env(self):
+        from aimodelshare.determinism import import_determinism_env_from_model
+        import_determinism_env_from_model(apiurl=self.playground_url)
 
 
 class Competition: 

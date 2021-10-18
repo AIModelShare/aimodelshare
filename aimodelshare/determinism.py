@@ -8,7 +8,7 @@ import pkg_resources
 import numpy as np
 import tensorflow as tf
 
-from aimodelshare.aws import get_s3_iam_client, run_function_on_lambda
+from aimodelshare.aws import get_s3_iam_client, run_function_on_lambda, get_aws_client
 
 def export_determinism_env(seed, directory, mode="gpu"):
   # Change the output into json.dumps
@@ -69,41 +69,48 @@ def import_determinism_env(determinism_env_file):
   with open(determinism_env_file) as json_file:
     determinism_env = json.load(json_file)
     set_determinism_env(determinism_env)
-    
-# # User needs to call aws.set_credentials & has submitted a model
-# # before submitting the determinism env
-# # Would be convenient if we integrate it with model submission right away
-# def upload_determinism_env(determinism_env_file, api_url):
-#     s3, iam, region = get_s3_iam_client(
-#         os.environ.get("AWS_ACCESS_KEY_ID"),
-#         os.environ.get("AWS_SECRET_ACCESS_KEY"),
-#         os.environ.get("AWS_REGION"),
-#     )
 
-#     # Get bucket and model_id subfolder for user based on apiurl {{{
-#     response, error = run_function_on_lambda(
-#         api_url, **{"delete": "FALSE", "versionupdateget": "TRUE"}
-#     )
-#     if error is not None:
-#         raise error
+  print("Your determinism environment is successfully setup")
 
-#     _, bucket, model_id = json.loads(response.content.decode("utf-8"))
-#     # }}}
+def import_determinism_env_from_model(apiurl):
+    if all(["AWS_ACCESS_KEY_ID" in os.environ, 
+            "AWS_SECRET_ACCESS_KEY" in os.environ,
+            "AWS_REGION" in os.environ, 
+            "username" in os.environ, 
+            "password" in os.environ]):
+        pass
+    else:
+        return print("'Instantiate Model' unsuccessful. Please provide credentials with set_credentials().")
 
-#     # Check the determinism_env {{{
-#     with open(determinism_env_file) as json_file:
-#       determinism_env = json.load(json_file)
-#       if "global_seed_code" not in determinism_env \
-#               or "local_seed_code" not in determinism_env \
-#               or "gpu_cpu_parallelism_ops" not in determinism_env \
-#               or "session_runtime_info" not in determinism_env:
-#           raise Exception("determinism environment is not complete")
+    aws_client = get_aws_client()
+    determinism_env_filename = "/determinism.json"
 
-#     # Upload the json {{{
-#     try:
-#         s3["client"].upload_file(
-#             determinism_env_file, bucket, model_id + "/determinism.json"
-#         )
-#     except Exception as err:
-#         return err
-#     # }}}
+    # Get bucket and model_id for user
+    response, error = run_function_on_lambda(
+        apiurl, **{"delete": "FALSE", "versionupdateget": "TRUE"}
+    )
+    if error is not None:
+        raise error
+
+    _, bucket, model_id = json.loads(response.content.decode("utf-8"))
+
+    try:
+        resp_string = aws_client["client"].get_object(
+            Bucket=bucket, Key=model_id + determinism_env_filename
+        )
+
+        determinism_env_string = resp_string['Body'].read()
+
+    except Exception as err:
+        print("This model was not deployed with determinism support")
+        raise err
+
+    # generate tempfile for onnx object 
+    temp_dir = tempfile.gettempdir()
+    temp_path = os.path.join(temp_dir, 'temp_file_name')
+
+    # save onnx to temporary path
+    with open(temp_path, "wb") as f:
+        f.write(determinism_env_string)
+
+    import_determinism_env(temp_path)
