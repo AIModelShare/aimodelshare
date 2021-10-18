@@ -20,6 +20,7 @@ def import_preprocessor(filepath):
     import os
     import pickle
     import string
+    from pyspark.sql import SparkSession
 
     #create temporary folder
     temp_dir = tempfile.gettempdir()
@@ -46,10 +47,12 @@ def import_preprocessor(filepath):
         globals()[objectname]=pickle.load(open(str(i), "rb" ) )
     
     # Need spark session and context to instantiate model object
-    spark = SparkSession \
-        .builder \
-        .appName('Pyspark Model') \
-        .getOrCreate()
+    # zip_file_list is only used by pyspark
+    if len(zip_file_list):
+        spark = SparkSession \
+            .builder \
+            .appName('Pyspark Model') \
+            .getOrCreate()
     
     for i in zip_file_list:
         objectnames = str(os.path.basename(i)).replace(".zip", "").split("__")
@@ -125,9 +128,10 @@ def export_preprocessor(preprocessor_fxn,directory, globs=globals()):
 
         import inspect
         function_objects=list(inspect.getclosurevars(preprocessor_fxn).globals.keys())
+        print(function_objects)
 
         import sys
-        modulenames = ["sklearn","keras","tensorflow","cv2","resize","pytorch"]
+        modulenames = ["sklearn","keras","tensorflow","cv2","resize","pytorch","pyspark"]
         function_objects_nomodules = [i for i in function_objects if i not in list(modulenames)]
 
         def savetopickle(function_objects_listelement):
