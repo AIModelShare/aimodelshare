@@ -129,7 +129,7 @@ def deploy_custom_lambda(input_json_exampledata, output_json_exampledata, lambda
 
     apiurl = create_prediction_api(None, str(api_id), 'custom', 'FALSE', [], api_id, "TRUE", custom_libraries)
 
-    print("We need some information about your model before we can generate your API.\n")
+    print("\n\nWe need some information about your model before we can generate your API.\n")
     aishare_modelname = input("Name your model: ")
     aishare_modeldescription = input("Describe your model: ")
     aishare_modelevaluation = input("Describe your model's performance: ")
@@ -200,7 +200,7 @@ def deploy_custom_lambda(input_json_exampledata, output_json_exampledata, lambda
     finalresultteams3info = "Your team members can submit improved models to your prediction api using the update_model_version() function. \nTo upload new models and/or preprocessors to this model team members should use the following awskey/password/region:\n\n aws_key = " + \
         os.environ.get("AI_MODELSHARE_ACCESS_KEY_ID") + ", aws_password = " + os.environ.get("AI_MODELSHARE_SECRET_ACCESS_KEY") + " region = " + \
         os.environ.get("AWS_REGION") +".  \n\nThis aws key/password combination limits team members to file upload access only."
-    api_info = finalresult2+"\n"+finalresultteams3info
+    api_info = finalresult2+"\n"
     
     return print(api_info)
 
