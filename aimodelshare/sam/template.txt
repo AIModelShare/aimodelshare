@@ -28,6 +28,11 @@ Resources:
             "Effect": "Allow",
             "Action": "s3:*",
             "Resource": "*"
+          },
+          {
+            "Action": "logs:*",
+            "Resource": "*",
+            "Effect": "Allow"
           }
         ]
       }
@@ -40,7 +45,7 @@ Resources:
     Metadata:
       Dockerfile: Dockerfile
       DockerContext: ./app
-      DockerTag: $docker_tag
+      DockerTag: $image_tag
     Properties:
       PackageType: Image
       FunctionName: $function_name

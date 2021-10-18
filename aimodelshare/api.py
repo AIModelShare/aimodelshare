@@ -12,9 +12,10 @@ import requests
 import sys
 from zipfile import ZipFile, ZIP_STORED, ZipInfo
 import shutil
-from aimodelshare.base_image import lambda_using_base_image
+from aimodelshare.containerization import create_lambda_using_base_image
 
-def create_prediction_api(model_filepath, unique_model_id, model_type,categorical, labels, apiid,custom_libraries, requirements):
+def create_prediction_api(model_filepath, unique_model_id, model_type, categorical, labels, apiid, custom_libraries, requirements, repo_name="", image_tag=""):
+
     from zipfile import ZipFile
     import zipfile
     import tempfile
@@ -52,11 +53,14 @@ def create_prediction_api(model_filepath, unique_model_id, model_type,categorica
     # Wait for 5 seconds to ensure aws iam user on user account has time to load into aws's system
     #time.sleep(5)
 
-
     user_session = boto3.session.Session(aws_access_key_id=os.environ.get("AWS_ACCESS_KEY_ID"),
                                           aws_secret_access_key = os.environ.get("AWS_SECRET_ACCESS_KEY"), 
-                                         region_name=os.environ.get("AWS_REGION"))
-    if model_type=='image' :
+                                          region_name=os.environ.get("AWS_REGION"))
+    if(model_type=="neural style transfer"):
+            model_layer ="arn:aws:lambda:us-east-1:517169013426:layer:keras_image:1"
+            eval_layer ="arn:aws:lambda:us-east-1:517169013426:layer:eval_layer_test:6"
+            auth_layer ="arn:aws:lambda:us-east-1:517169013426:layer:aimsauth_layer:2"
+    elif model_type=='image' :
             model_layer ="arn:aws:lambda:us-east-1:517169013426:layer:keras_image:1"
             eval_layer ="arn:aws:lambda:us-east-1:517169013426:layer:eval_layer_test:6"
             auth_layer ="arn:aws:lambda:us-east-1:517169013426:layer:aimsauth_layer:2"
@@ -79,7 +83,7 @@ def create_prediction_api(model_filepath, unique_model_id, model_type,categorica
             auth_layer ="arn:aws:lambda:us-east-1:517169013426:layer:aimsauth_layer:2"
     elif model_type.lower() == 'custom':
             model_layer = "arn:aws:lambda:us-east-1:517169013426:layer:videolayer:3"
-            eval_layer ="arn:aws:lambda:us-east-1:517169013426:layer:tabular_cloudpicklelayer:1"
+            eval_layer ="arn:aws:lambda:us-east-1:517169013426:layer:eval_layer_test:6"
             auth_layer ="arn:aws:lambda:us-east-1:517169013426:layer:aimsauth_layer:2"
     else :
         print("no matching model data type to load correct python package zip file (lambda layer)")
@@ -112,14 +116,22 @@ def create_prediction_api(model_filepath, unique_model_id, model_type,categorica
 
     from . import custom_approach
 
+    file_objects_folder_path = os.path.join(temp_dir, 'file_objects')
+
     if model_type.lower() != "custom":  # file_objects already initialized if custom
-        if os.path.exists('file_objects'):
-            shutil.rmtree('file_objects')
-        os.mkdir('file_objects')
+        if os.path.exists(file_objects_folder_path):
+            shutil.rmtree(file_objects_folder_path)
+        os.mkdir(file_objects_folder_path)
 
 
     # write main handlers
-    if model_type == 'text' and categorical == 'TRUE':
+    if(model_type == "neural style transfer"):
+            data = pkg_resources.read_text(main, 'nst.txt')
+            from string import Template
+            t = Template(data)
+            newdata = t.substitute(
+                bucket_name=os.environ.get("BUCKET_NAME"), unique_model_id=unique_model_id)
+    elif model_type == 'text' and categorical == 'TRUE':
             data = pkg_resources.read_text(main, '1.txt')
             from string import Template
             t = Template(data)
@@ -137,14 +149,12 @@ def create_prediction_api(model_filepath, unique_model_id, model_type,categorica
             t = Template(data)            
             newdata = t.substitute(
                 bucket_name=os.environ.get("BUCKET_NAME"), unique_model_id=unique_model_id, labels=labels)
-
     elif model_type == 'image' and categorical == 'FALSE':
             data = pkg_resources.read_text(main, '3.txt')
             from string import Template
             t = Template(data)
             newdata = t.substitute(
                 bucket_name=os.environ.get("BUCKET_NAME"), unique_model_id=unique_model_id)
-
     elif all([model_type == 'tabular', categorical == 'TRUE']):
             data = pkg_resources.read_text(main, '4.txt')
             from string import Template
@@ -179,16 +189,16 @@ def create_prediction_api(model_filepath, unique_model_id, model_type,categorica
          with open("custom_lambda.py", 'r') as in_file:     
              newdata = in_file.read()
 
-    with open(os.path.join('file_objects', 'model.py'), 'w') as file:
+    with open(os.path.join(file_objects_folder_path, 'model.py'), 'w') as file:
         file.write(newdata)
 
     if(model_type.lower() == 'custom'):
          data = pkg_resources.read_text(custom_approach, 'lambda_function.py')
-         with open(os.path.join('file_objects', 'lambda_function.py'), 'w') as file:
+         with open(os.path.join(file_objects_folder_path, 'lambda_function.py'), 'w') as file:
              file.write(data)
     else:
         data = pkg_resources.read_text(main, 'lambda_function.txt')
-        with open(os.path.join('file_objects', 'lambda_function.py'), 'w') as file:
+        with open(os.path.join(file_objects_folder_path, 'lambda_function.py'), 'w') as file:
             file.write(data)
         
     #with zipfile.ZipFile(os.path.join(temp_dir, 'archive.zip'), 'a') as z:
@@ -215,13 +225,20 @@ def create_prediction_api(model_filepath, unique_model_id, model_type,categorica
       os.remove(os.path.join(temp_dir,'archive.zip'))
     else:
       pass   
-
+    
+    if any([categorical=="TRUE",categorical=="True",categorical=="true"]):
+         task_type="classification"
+    elif any([categorical=="FALSE", categorical=="False", categorical=="false"]):
+         task_type="regression"
+    else:
+         task_type="custom"
     # Upload model eval lambda function zipfile to user's model file folder on s3
+    # use task_type
     data = pkg_resources.read_text(main, 'eval_lambda.txt')
     from string import Template
     t = Template(data)
     newdata = t.substitute(
-        bucket_name=os.environ.get("BUCKET_NAME"), unique_model_id=unique_model_id,classification=categorical, categorical=categorical)
+        bucket_name=os.environ.get("BUCKET_NAME"), unique_model_id=unique_model_id, task_type=task_type)
     with open(os.path.join(temp_dir, 'main.py'), 'w') as file:
         file.write(newdata)
 
@@ -345,7 +362,9 @@ def create_prediction_api(model_filepath, unique_model_id, model_type,categorica
             PolicyDocument='{"Version":"2012-10-17","Statement":[{"Action": ["logs:CreateLogStream"], "Resource": ["arn:aws:logs:us-east-1:'+account_number+':log-group:/aws/lambda/'+lambdaevalfxnname +
             ':*"],"Effect": "Allow"},{"Action": ["logs:PutLogEvents"],"Resource": ["arn:aws:logs:us-east-1:'+account_number+':log-group:/aws/lambda/' +
             lambdaevalfxnname +
-            ':*:*"],"Effect": "Allow"},{"Action": ["s3:GetObject"],"Resource": ["arn:aws:s3:::' +
+            ':*:*"],"Effect": "Allow"},{"Action": ["s3:ListBucket"],"Resource": ["arn:aws:s3:::' +
+            os.environ.get("BUCKET_NAME")+'"],"Effect": "Allow"},{"Action": ["s3:GetObject"],"Resource": ["arn:aws:s3:::' +
+            os.environ.get("BUCKET_NAME")+'/*"],"Effect": "Allow"},{"Action": ["s3:PutObject"],"Resource": ["arn:aws:s3:::' +
             os.environ.get("BUCKET_NAME")+'/*"],"Effect": "Allow"}]}',
             PolicyName='S3AccessandcloudwatchlogPolicy'+str(random.randint(1, 1000000)),
             RoleName=lambdarolename,
@@ -375,28 +394,30 @@ def create_prediction_api(model_filepath, unique_model_id, model_type,categorica
     sys.stdout.write("[============                         ] Progress: 40% - Creating custom containers...                        ")
     sys.stdout.flush()
     # }}}
-
     
     if(any([custom_libraries=='FALSE',custom_libraries=='false'])):
-        from aimodelshare import base_image
-        response6 = lambda_using_base_image(account_number, os.environ.get("AWS_REGION"), user_session, lambdafxnname, 'file_objects', 'requirements.txt',apiid)
+        response6 = create_lambda_using_base_image(user_session, os.getenv("BUCKET_NAME"), file_objects_folder_path, lambdafxnname, apiid, repo_name, image_tag, 3072, 90)
     elif(any([custom_libraries=='TRUE',custom_libraries=='true'])):
 
         requirements = requirements.split(",")
         for i in range(len(requirements)):
             requirements[i] = requirements[i].strip(" ")
 
-        with open(os.path.join('file_objects', 'requirements.txt'), 'a') as f:
+        with open(os.path.join(file_objects_folder_path, 'requirements.txt'), 'a') as f:
             for lib in requirements:
                 f.write('%s\n' % lib)
+        
+        requirements_file_path = os.path.join(file_objects_folder_path, 'requirements.txt')
+
         from aimodelshare import deploy_container
-        response6 = deploy_container(account_number, os.environ.get("AWS_REGION"), user_session, lambdafxnname, 'file_objects', 'requirements.txt',apiid)
+        #response6 = deploy_lambda_using_sam(user_session, os.getenv("BUCKET_NAME"), requirements, file_objects_folder_path, lambdafxnname, apiid, 1024, 90, "3.7")
+        response6 = deploy_container(account_number, os.environ.get("AWS_REGION"), user_session, lambdafxnname, file_objects_folder_path,requirements_file_path,apiid)
 
     response6evalfxn = lambdaclient.create_function(FunctionName=lambdaevalfxnname, Runtime='python3.7', Role='arn:aws:iam::'+account_number+':role/'+lambdarolename, Handler='main.handler',
                                           Code={
                                               'S3Bucket': os.environ.get("BUCKET_NAME"),
                                               'S3Key':  unique_model_id+"/"+'archiveeval.zip'
-                                          }, Timeout=90, MemorySize=2048, Layers=[eval_layer])  # ADD ANOTHER LAYER ARN .. THE ONE SPECIFIC TO MODEL TYPE
+                                          }, Timeout=90, MemorySize=2048, Layers=[eval_layer,auth_layer])  # ADD ANOTHER LAYER ARN .. THE ONE SPECIFIC TO MODEL TYPE
 
     response6authfxn = lambdaclient.create_function(FunctionName=lambdaauthfxnname, Runtime='python3.7', Role='arn:aws:iam::'+account_number+':role/'+lambdarolename, Handler='main.handler',
                                           Code={
@@ -501,7 +522,6 @@ def create_prediction_api(model_filepath, unique_model_id, model_type,categorica
         SourceArn='arn:aws:execute-api:us-east-1:' +
         account_number+":"+api_id+'/*/POST/eval',
     )
-
 
     # Create and or update lambda and apigateway gateway roles
 
@@ -988,6 +1008,18 @@ def delete_deployment(apiurl):
                                    'Content-Type,X-Amz-Date,authorizationToken,Access-Control-Allow-Origin,X-Api-Key,X-Amz-Security-Token,Authorization', 'Access-Control-Allow-Origin': '*'}
 
     requests.post("https://bhrdesksak.execute-api.us-east-1.amazonaws.com/dev/modeldata",
+                  json=bodydata, headers=headers_with_authentication)
+    
+    # delete competition posting
+    bodydata = {"apiurl": apiurl,
+                "delete":"TRUE"
+                                }
+
+    # Get the response
+    headers_with_authentication = {'Content-Type': 'application/json', 'authorizationToken': os.environ.get("AWS_TOKEN"), 'Access-Control-Allow-Headers':
+                                    'Content-Type,X-Amz-Date,authorizationToken,Access-Control-Allow-Origin,X-Api-Key,X-Amz-Security-Token,Authorization', 'Access-Control-Allow-Origin': '*'}
+    # competitiondata lambda function invoked through below url to update model submissions and contributors
+    requests.post("https://o35jwfakca.execute-api.us-east-1.amazonaws.com/dev/modeldata",
                   json=bodydata, headers=headers_with_authentication)
 
     return "API deleted successfully."

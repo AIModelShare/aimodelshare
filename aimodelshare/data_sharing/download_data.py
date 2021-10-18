@@ -19,7 +19,7 @@ def get_auth_head_no_aws_auth(auth_url, registry, repository, type):
 	return auth_head
 
 def progress_bar(layer_label, nb_traits):
-	sys.stdout.write('\r' + layer_label + ': Downloading [')
+	sys.stdout.write('\r' + layer_label + 'Downloading [')
 	for i in range(0, nb_traits):
 		if i == nb_traits - 1:
 			sys.stdout.write('>')
@@ -181,3 +181,96 @@ def download_data(repository):
 	extract_data_from_image(docker_tar, data_zip_name)
 	os.remove(docker_tar)
 	print('\n\nData downloaded successfully.')
+
+
+def import_quickstart_data(tutorial, section="modelplayground"):
+    from aimodelshare.data_sharing.download_data import download_data
+    import tensorflow as tf
+    import os
+    import pickle
+    import shutil 
+    
+   
+    #Download Quick Start materials
+    if all([tutorial == "flowers", section == "modelplayground"]):
+        quickstart_repository = "public.ecr.aws/y2e2a1d6/quickstart_materials-repository:latest"     
+    if all([tutorial == "flowers", section == "competition"]):
+        quickstart_repository = "public.ecr.aws/y2e2a1d6/quickstart_flowers_competition-repository:latest"
+    
+    if all([tutorial == "titanic", section == "modelplayground"]):
+        quickstart_repository = "public.ecr.aws/y2e2a1d6/titanic_quickstart-repository:latest" 
+    download_data(quickstart_repository)
+
+    #{{{ prepare modelplayground materials
+    if section == "modelplayground": 
+        #Instantiate Model 
+        print("\nPreparing downloaded files for use...")
+        
+        if tutorial == "flowers":
+            model = tf.keras.models.load_model('quickstart_materials/flowermodel.h5')
+            
+            #unpack data
+            with open("quickstart_materials/y_train_labels.txt", "rb") as fp:  
+                y_train_labels = pickle.load(fp)
+        
+        if tutorial == "titanic":
+            from sklearn.model_selection import train_test_split
+            import pandas as pd
+            data = pd.read_csv("titanic_quickstart/titanic_data.csv")
+            y = data['survived']
+            y = y.map({0: 'died', 1: 'survived'}) 
+            X = data.drop(['survived','sibsp','parch','ticket','name','cabin','boat','body','home.dest'], axis=1)
+            #create subset as exampledata 
+            example_data = pd.DataFrame(X[0:4])
+            # create data directory for competition
+            X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2)
+            training_data = pd.merge(X_train, y_train, left_index=True, right_index=True)
+            training_data.to_csv("training_data.csv")
+
+            test_data = X_test
+            test_data.to_csv("test_data.csv")
+            
+            os.mkdir('titanic_competition_data')
+            files = ['training_data.csv', 
+                   'test_data.csv']
+            
+            for f in files:
+                shutil.move(f, 'titanic_competition_data')
+            
+            #make y_test_labels for competition
+            y_test_labels = y_test.to_list()
+        #}}}
+
+    #{{{ prepare competition materials
+    if section == "competition":
+        #Instantiate Model 
+        print("\nPreparing downloaded files for use...")
+        model_2 = tf.keras.models.load_model('quickstart_flowers_competition/flowermodel_2.h5')
+    
+        #unpack data
+        with open("quickstart_flowers_competition/y_test_labels.txt", "rb") as fp:  
+            y_test_labels = pickle.load(fp)
+            
+        #move data files to folder to upload with create_competiton
+        os.mkdir('flower_competition_data')
+            
+        folders = ['quickstart_flowers_competition/test_images', 
+                   'quickstart_flowers_competition/train_images']
+            
+        for f in folders:
+            shutil.move(f, 'flower_competition_data')
+    #}}}
+
+    success_message = ("\nSuccess! Your Quick Start materials have been downloaded. \n"
+                       "You are now ready to run the tutorial.")
+    
+    print(success_message)
+
+    if all([tutorial == "flowers", section == "modelplayground"]):
+        return model, y_train_labels
+
+    if all ([tutorial == "flowers", section == "competition"]): 
+        return model_2, y_test_labels
+    
+    if tutorial == "titanic":
+        return X_train, X_test, y_train, y_test, example_data, y_test_labels

@@ -1,4 +1,4 @@
-#Image Classification Prediction Runtime Code
+#Neural Style Transfer Prediction Runtime Code
 
 import boto3
 import cv2
@@ -12,6 +12,8 @@ import six
 from functools import partial
 import os.path
 from os import path
+from io import BytesIO
+from PIL import Image
 
 def get_model_onnx(runtimemodel_s3_filename="runtime_model.onnx"):
     s3 = boto3.resource('s3')
@@ -27,13 +29,13 @@ def get_preprocessor(preprocessor_s3_filename="runtime_preprocessor.zip"):
     import os
     s3 = boto3.resource("s3")
     bucket = s3.Bucket("$bucket_name")
-    
+
     zip_obj = s3.Object(bucket_name="$bucket_name", key="$unique_model_id/runtime_preprocessor.zip")
     buffer = BytesIO(zip_obj.get()["Body"].read())
     z = ZipFile(buffer)
     # Extract all the contents of zip file in current directory
     z.extractall("/tmp/")
-    
+
     folderpath=os.path.dirname(os.path.abspath("/tmp/preprocessor.py"))
     file_name=os.path.basename("/tmp/preprocessor.py")
 
@@ -45,7 +47,7 @@ def get_preprocessor(preprocessor_s3_filename="runtime_preprocessor.zip"):
           if file.endswith(".pkl"):
               pickle_file_list.append(os.path.join(folderpath, file))
 
-    for i in pickle_file_list: 
+    for i in pickle_file_list:
           objectname=str(os.path.basename(i)).replace(".pkl","")
           objects={objectname:""}
           globals()[objectname]=pickle.load(open(str(i), "rb" ) )
@@ -56,11 +58,12 @@ def get_preprocessor(preprocessor_s3_filename="runtime_preprocessor.zip"):
 
 def get_runtimedata(runtimedata_s3_filename="runtime_data.json"):
 
-      s3 = boto3.resource('s3')
-      obj = s3.Object("$bucket_name", "$unique_model_id"+"/"+runtimedata_s3_filename)
-      runtime_data = json.load(obj.get()['Body'])
+    s3 = boto3.resource('s3')
+    obj = s3.Object("$bucket_name", "$unique_model_id"+"/"+runtimedata_s3_filename)
+    runtime_data = json.load(obj.get()['Body'])
 
-      return runtime_data
+    return runtime_data
+
 
 
 runtime_data=get_runtimedata(runtimedata_s3_filename="runtime_data.json")
@@ -76,64 +79,64 @@ model=get_model_onnx(runtimemodel_s3_filename='runtime_model.onnx')
 preprocessor=get_preprocessor(preprocessor_s3_filename="runtime_preprocessor.zip")
 
 
+
 def predict(event,model,preprocessor):
 
-  labels=$labels
-  
 # Load base64 encoded image stored within "data" key of event dictionary
-  print(event["body"])
-  body = event["body"]
-  if isinstance(event["body"], six.string_types):
+    body = event["body"]
+
+    if isinstance(event["body"], six.string_types):
         body = json.loads(event["body"])
-        
-  bodydata=body["data"]
+
+    content= body["content"]
+    style= body["style"]
 
 # Extract image file extension (e.g.-jpg, png, etc.)
-  sample = base64.decodebytes(bytearray(bodydata, "utf-8"))
 
-  for tf in imghdr.tests:
-    image_file_type = tf(sample, None)
-    if image_file_type:
-      break;
-  image_file_type=image_file_type
- 
-  if(image_file_type==None):
-    print("This file is not an image, please submit an image base64 encoded image file.")
+    sample_content = base64.decodebytes(bytearray(content, "utf-8"))
+    sample_style = base64.decodebytes(bytearray(style, "utf-8"))
+
+    content_file_type=None
+    for tf in imghdr.tests:
+        image_file_type = tf(sample_content, None)
+        if image_file_type:
+            break
+    content_file_type=image_file_type
+    if(content_file_type==None):
+        print("This file is not an image, please submit an image base64 encoded image file.")
+
+    style_file_type=None
+    for tf in imghdr.tests:
+        image_file_type = tf(sample_style, None)
+        if image_file_type:
+            break
+    style_file_type=image_file_type
+    if(style_file_type==None):
+        print("This file is not an image, please submit an image base64 encoded image file.")
 
 # Save image to local file, read into session, and preprocess image with preprocessor function
-
-  with open("/tmp/imagetopredict."+image_file_type, "wb") as fh:
-    fh.write(base64.b64decode(bodydata))
-
-  input_data = preprocessor("/tmp/imagetopredict."+image_file_type)
-  
+    with open("/tmp/imagetopredict."+content_file_type, "wb") as fh:
+        fh.write(base64.b64decode(content))
+    content_image = preprocessor("/tmp/imagetopredict."+content_file_type)
+    with open("/tmp/imagetopredict."+style_file_type, "wb") as fh:
+        fh.write(base64.b64decode(style))
+    style_image = preprocessor("/tmp/imagetopredict."+style_file_type)
 
 # Generate prediction using preprocessed input data
-  print("The model expects input shape:", model.get_inputs()[0].shape)
-  
-  input_name = model.get_inputs()[0].name
-
-  res = model.run(None, {input_name: input_data})
- 
-  #extract predicted probability for all classes, extract predicted label
-  
-  prob = res[0]
-
-  def predict_classes(x): # adjusted from keras github code
-    if len(x.shape)==2:
-        index = x.argmax(axis=-1)
-        return list(map(lambda x: labels[x], index))
-    else:
-        return list(x)
-      
-  result=predict_classes(prob)
-
-  os.remove("/tmp/imagetopredict."+image_file_type)
-
-  return result
+    print("The model expects input shape:", model.get_inputs()[0].shape)
+    input_name = model.get_inputs()[0].name
+    res = model.run(None, {
+        "placeholder": content_image,
+        "placeholder_1": style_image
+    })
+    
+    pil_img = Image.fromarray(np.uint8(res[0].squeeze(axis=0)*255))
+    buffered = BytesIO()
+    pil_img.save(buffered, format="JPEG")
+    img_str = base64.b64encode(buffered.getvalue())
+    return img_str.decode("utf-8")
 
 def handler(event, context):
-
     result = predict(event,model,preprocessor)
     return {"statusCode": 200,
     "headers": {

@@ -16,7 +16,13 @@ class ModelPlayground:
                     True if model and its corresponding data is not public
                     False [DEFAULT] if model and its corresponding data is public 
     """
-    def __init__(self, model_type, classification, private, playground_url=None):
+    def __init__(self, model_type=None, classification=None, private=None, playground_url=None):
+        # confirm correct args are provided
+        if playground_url != None or all([model_type !=None, classification !=None, private!=None]):
+            pass
+        elif playground_url == None and any([model_type ==None, classification ==None, private==None]):
+            return print("Error. To instantiate a ModelPlayground instance, please provide either a playground_url or \n the model_type, classification, and private arguments.")
+        
         self.model_type = model_type
         self.categorical = classification 
         self.private = private
@@ -26,13 +32,12 @@ class ModelPlayground:
     def __str__(self):
         return f"ModelPlayground instance of model type: {self.model_type}, classification: {self.categorical},  private: {self.private}"
     
-    def deploy(self, model_filepath, preprocessor_filepath, y_train, custom_libraries = "FALSE", example_data=None):
+    def deploy(self, model_filepath, preprocessor_filepath, y_train, example_data=None, custom_libraries = "FALSE"):
         """
         Launches a live prediction REST API for deploying ML models using model parameters and user credentials, provided by the user
-        Inputs : 8
+        Inputs : 7
         Output : model launched to an API
                 detaled API info printed out
-      
         -----------
         Parameters 
         
@@ -48,10 +53,9 @@ class ModelPlayground:
                                 "./preprocessor.zip" 
                                 searches for an exported zip preprocessor file in the current directory
                                 file is generated using export_preprocessor function from the AI Modelshare library  
-        y_train : training labels of size of dataset
-                  value - y values for model
+        y_train : training labels for classification models.
                   [REQUIRED] for classification type models
-                  expects a one hot encoded y train data format  
+                  expects pandas dataframe of one hot encoded y train data
         custom_libraries:   string
                     "TRUE" if user wants to load custom Python libraries to their prediction runtime
                     "FALSE" if user wishes to use AI Model Share base libraries including latest versions of most common ML libs.
@@ -72,40 +76,39 @@ class ModelPlayground:
                                       categorical = self.categorical,
                                       y_train = y_train, 
                                       preprocessor_filepath = preprocessor_filepath, 
-                                      custom_libraries = custom_libraries,
-                                      example_data = example_data)
+                                      example_data = example_data,
+                                      custom_libraries = custom_libraries)
         #remove extra quotes
         self.playground_url = self.playground_url[1:-1]
     
-    def create_competition(self, data_directory, y_test, generate_credentials_file = False):
+    def create_competition(self, data_directory, y_test, email_list = []):
         """
         Creates a model competition for a deployed prediction REST API
-        Inputs : 2
-        Output : Submit credentials for model competition
+        Inputs : 4
+        Output : Create ML model competition and allow authorized users to submit models to resulting leaderboard/competition
         
         ---------
         Parameters
-        y_test :  y labels for test data 
-                [REQUIRED] for eval metrics
-                expects a one hot encoded y test data format
-                
+        y_test :  list of y values for test data used to generate metrics from predicted values from X test data submitted via the submit_model() function
+                [REQUIRED] to generate eval metrics in competition leaderboard
+                                
         data_directory : folder storing training data and test data (excluding Y test data)
-        generate_credentials_file (OPTIONAL): Default is True
-                                              Function will output .txt file with new credentials
+        email_list: [REQUIRED] list of comma separated emails for users who are allowed to submit models to competition.  Emails should be strings in a list.
+        
+
         ---------
         Returns
-        finalresultteams3info : Submit_model credentials with access to S3 bucket
-        (api_id)_credentials.txt : .txt file with submit_model credentials,
-                                    formatted for use with set_credentials() function 
+        finalmessage : Information such as how to submit models to competition
+        
         """
         from aimodelshare.generatemodelapi import create_competition as to_competition
         competition = to_competition(self.playground_url, 
                                     data_directory, 
                                     y_test, 
-                                    generate_credentials_file)
+                                    email_list)
         return competition
         
-    def submit_model(self, model_filepath, preprocessor_filepath, prediction_submission, sample_data=None):
+    def submit_model(self, model_filepath, preprocessor_filepath, prediction_submission):
         """
         Submits model/preprocessor to machine learning competition using live prediction API url generated by AI Modelshare library
         The submitted model gets evaluated and compared with all existing models and a leaderboard can be generated 
@@ -116,15 +119,14 @@ class ModelPlayground:
                     .onnx is the only accepted model file extension
                     "example_model.onnx" filename for file in directory.
                     "/User/xyz/model/example_model.onnx" absolute path to model file from local directory
-        prediction_submission:   one hot encoded y_pred
-                        value - predictions for test data
-                        [REQUIRED] for evaluation metriicts of the submitted model
         preprocessor_filepath:   string,default=None
                         value - absolute path to preprocessor file 
                         [REQUIRED] to be set by the user
                         "./preprocessor.zip" 
                         searches for an exported zip preprocessor file in the current directory
                         file is generated from preprocessor module using export_preprocessor function from the AI Modelshare library 
+        prediction_submission: [REQUIRED] list of predictions from X test data that will be used to evaluate model prediction error against y test data.
+                         Use mycompetition.inspect_y_test() to view example of list expected by competition.
         -----------------
         Returns
         response:   Model version if the model is submitted sucessfully
@@ -132,13 +134,13 @@ class ModelPlayground:
         
         """
         from aimodelshare.model import submit_model as submit
-        submission = submit(modelpath = model_filepath, 
+        submission = submit(model = model_filepath, 
                             apiurl = self.playground_url,
                             prediction_submission = prediction_submission, 
-                            preprocessor = preprocessor_filepath,
-                            sample_data = sample_data)
+                            preprocessor = preprocessor_filepath)
         return submission
         
+
     
     def update_runtime_model(self, model_version=None): 
         from aimodelshare.model import update_runtime_model as update
@@ -156,7 +158,6 @@ class ModelPlayground:
         attached competitions, prediction REST API, and interactive Model Playground web dashboard.
         ---------------
         playground_url: string of API URL the user wishes to delete
-
         WARNING: User must supply high-level credentials in order to delete an API. 
         """
         from aimodelshare.api import delete_deployment
@@ -202,11 +203,10 @@ class Competition:
         
         """
         from aimodelshare.model import submit_model as submit
-        submission = submit(modelpath = model_filepath, 
+        submission = submit(model_filepath = model_filepath, 
                               apiurl = self.playground_url,
                               prediction_submission = prediction_submission, 
-                              preprocessor = preprocessor_filepath,
-                              sample_data = sample_data)
+                              preprocessor = preprocessor_filepath)
         return submission
         
     def instantiate_model(self, version=None, trained=False): 
@@ -228,19 +228,22 @@ class Competition:
         data = inspect(apiurl = self.playground_url)
         return data 
     
-    def get_leaderboard(self, category="classification", verbose=3, columns=None):
+    def get_leaderboard(self, verbose=3, columns=None):
         from aimodelshare.leaderboard import get_leaderboard as get_lead
-        data = get_lead(category=category, 
-                 verbose=verbose,
+        data = get_lead(verbose=verbose,
                  columns=columns, 
                  apiurl = self.playground_url)
         return data
     
-    def stylize_leaderboard(self, leaderboard, category="classification"):
+    def stylize_leaderboard(self, leaderboard):
         from aimodelshare.leaderboard import stylize_leaderboard as stylize_lead
-        stylized_leaderboard = stylize_lead(leaderboard = leaderboard,
-                                            category=category)
+        stylized_leaderboard = stylize_lead(leaderboard = leaderboard)
         return stylized_leaderboard
+    
+    def update_access_list(self, email_list=[],update_type="Replace_list"): 
+        from aimodelshare.generatemodelapi import update_access_list as update_list
+        update = update_list(apiurl = self.playground_url, email_list=email_list,update_type=update_type)
+        return update
 
 
 
@@ -265,8 +268,4 @@ class Data:
         from aimodelshare.data_sharing.download_data import download_data as download
         datadownload = download(repository)
         return datadownload
-
-
-
-
 

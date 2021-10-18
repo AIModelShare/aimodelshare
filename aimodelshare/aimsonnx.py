@@ -337,9 +337,24 @@ def _keras_to_onnx(model, transfer_learning=None,
     temp_dir = os.path.join(tempfile.gettempdir(), 'test')
     temp_dir = tempfile.gettempdir()
 
+
+
+    
     tf.get_logger().setLevel('ERROR') # probably not good practice
+    output_path = os.path.join(temp_dir, 'temp.onnx')
+
     model.save(temp_dir)
 
+    # Convert the model
+    converter = tf.lite.TFLiteConverter.from_saved_model(temp_dir) # path to the SavedModel directory
+    tflite_model = converter.convert()
+
+    # Save the model.
+    with open(os.path.join(temp_dir,'tempmodel.tflite'), 'wb') as f:
+      f.write(tflite_model)
+
+    modelstringtest="python -m tf2onnx.convert --tflite "+os.path.join(temp_dir,'tempmodel.tflite')+" --output "+output_path+" --opset 13"
+    os.system(modelstringtest)
     output_path = os.path.join(temp_dir, 'temp.onnx')
     modelstringtest="python -m tf2onnx.convert --saved-model "+temp_dir+" --output "+output_path+" --opset 13"
     os.system(modelstringtest)
@@ -694,7 +709,7 @@ def _get_metadata(onnx_model):
         if onnx_meta_dict['metadata_onnx'] != None:
             onnx_meta_dict['metadata_onnx'] = ast.literal_eval(onnx_meta_dict['metadata_onnx'])
         
-        onnx_meta_dict['model_image'] = onnx_to_image(onnx_model)
+        # onnx_meta_dict['model_image'] = onnx_to_image(onnx_model)
 
     except Exception as e:
     
@@ -859,10 +874,7 @@ def inspect_model_aws(apiurl, version=None):
     return inspect_pd
 
 def inspect_model_lambda(apiurl, version=None):
-    if all(["AWS_ACCESS_KEY_ID" in os.environ, 
-            "AWS_SECRET_ACCESS_KEY" in os.environ,
-            "AWS_REGION" in os.environ, 
-           "username" in os.environ, 
+    if all(["username" in os.environ, 
            "password" in os.environ]):
         pass
     else:
@@ -885,7 +897,7 @@ def inspect_model_lambda(apiurl, version=None):
     return inspect_pd
 
 
-def inspect_model(apiurl, version=None):
+def inspect_model_dict(apiurl, version=None):
     if all(["AWS_ACCESS_KEY_ID" in os.environ, 
             "AWS_SECRET_ACCESS_KEY" in os.environ,
             "AWS_REGION" in os.environ, 
@@ -895,12 +907,53 @@ def inspect_model(apiurl, version=None):
     else:
         return print("'Inspect Model' unsuccessful. Please provide credentials with set_credentials().")
 
-    try: 
-        inspect_pd = inspect_model_lambda(apiurl, version)
-    except: 
-        inspect_pd = inspect_model_aws(apiurl, version)
+    aws_client=get_aws_client(aws_key=os.environ.get('AWS_ACCESS_KEY_ID'), 
+                              aws_secret=os.environ.get('AWS_SECRET_ACCESS_KEY'), 
+                              aws_region=os.environ.get('AWS_REGION'))
+
+    # Get bucket and model_id for user
+    response, error = run_function_on_lambda(
+        apiurl, **{"delete": "FALSE", "versionupdateget": "TRUE"}
+    )
+    if error is not None:
+        raise error
+
+    _, bucket, model_id = json.loads(response.content.decode("utf-8"))
+
+    key = model_id+'/inspect_pd.json'
+    
+    try:
+      resp = aws_client['client'].get_object(Bucket=bucket, Key=key)
+      data = resp.get('Body').read()
+      model_dict = json.loads(data)
+    except Exception as e:
+        print(e)
+
+    inspect_pd = pd.DataFrame(model_dict.get(str(version)))
     
     return inspect_pd
+
+
+
+def inspect_model(apiurl, version=None):
+    if all(["username" in os.environ, 
+           "password" in os.environ]):
+        pass
+    else:
+        return print("'Inspect Model' unsuccessful. Please provide credentials with set_credentials().")
+
+    try:
+        inspect_pd = inspect_model_dict(apiurl, version)
+    except:
+
+        try: 
+            inspect_pd = inspect_model_lambda(apiurl, version)
+        except: 
+            inspect_pd = inspect_model_aws(apiurl, version)
+    
+    return inspect_pd
+
+
     
 
 def compare_models_aws(apiurl, version_list=None, 
@@ -970,32 +1023,27 @@ def compare_models_aws(apiurl, version_list=None,
             temp_pd = temp_pd.iloc[:,0:verbose]
 
             temp_pd = temp_pd.add_prefix('Model_'+str(i)+'_')    
-            comp_pd = pd.concat([comp_pd, temp_pd], axis=1)
+            comp_pd = pd.concat([comp_pd, temp_pd], axis=1, ignore_index=True)
 
 
         layer_names = _get_layer_names()
-        
+
+        '''
         dense_layers = [i for i in layer_names[0] if 'Dense' in i]
         df_styled = comp_pd.style.apply(lambda x: ["background: tomato" if v in dense_layers else "" for v in x], 
                                 axis = 1)
-
         drop_layers = [i for i in layer_names[0] if 'Dropout' in i]
         df_styled = comp_pd.style.apply(lambda x: ["background: lightblue" if v in drop_layers else "" for v in x], 
                                 axis = 1)
-
         conv_layers = [i for i in layer_names[0] if 'Conv' in i]
         df_styled = df_styled.apply(lambda x: ["background: yellow" if v in conv_layers else "" for v in x], 
                                 axis = 1)
-
         seq_layers = [i for i in layer_names[0] if 'RNN' in i or 'LSTM' in i or 'GRU' in i] + ['Bidirectional']
         df_styled = df_styled.apply(lambda x: ["background: orange" if v in seq_layers else "" for v in x], 
                                 axis = 1)
-
         pool_layers = [i for i in layer_names[0] if 'Pool' in i]
         df_styled = df_styled.apply(lambda x: ["background: lightgreen" if v in pool_layers else "" for v in x], 
                                 axis = 1)
-
-        '''
         rest_layers = [i for i in layer_names[0] if i not in dense_layers+drop_layers+conv_layers+seq_layers+pool_layers]
         df_styled = df_styled.apply(lambda x: ["background: lightgrey" if v in rest_layers else "" for v in x], 
                                 axis = 1)
@@ -1006,10 +1054,7 @@ def compare_models_aws(apiurl, version_list=None,
 
 def compare_models_lambda(apiurl, version_list="None", 
     by_model_type=None, best_model=None, verbose=3):
-    if all(["AWS_ACCESS_KEY_ID" in os.environ, 
-            "AWS_SECRET_ACCESS_KEY" in os.environ,
-            "AWS_REGION" in os.environ, 
-           "username" in os.environ, 
+    if all(["username" in os.environ, 
            "password" in os.environ]):
         pass
     else:
@@ -1037,10 +1082,7 @@ def compare_models_lambda(apiurl, version_list="None",
 def compare_models(apiurl, version_list="None", 
     by_model_type=None, best_model=None, verbose=3):
 
-    if all(["AWS_ACCESS_KEY_ID" in os.environ, 
-            "AWS_SECRET_ACCESS_KEY" in os.environ,
-            "AWS_REGION" in os.environ, 
-           "username" in os.environ, 
+    if all(["username" in os.environ, 
            "password" in os.environ]):
         pass
     else:
@@ -1148,7 +1190,7 @@ def instantiate_model(apiurl, version=None, trained=False):
 
         if trained == True: 
             model = tf.keras.Sequential().from_config(model_config)
-            model_weights = ast.literal_eval(meta_dict['model_weights'])
+            model_weights = json.loads(meta_dict['model_weights'])
 
             def to_array(x):
                 return np.array(x, dtype="float32")
@@ -1217,10 +1259,7 @@ def print_y_stats(y_stats):
 def inspect_y_test(apiurl):
 
   # Confirm that creds are loaded, print warning if not
-  if all(["AWS_ACCESS_KEY_ID" in os.environ, 
-          "AWS_SECRET_ACCESS_KEY" in os.environ,
-          "AWS_REGION" in os.environ,
-          "username" in os.environ, 
+  if all(["username" in os.environ, 
           "password" in os.environ]):
       pass
   else:
@@ -1241,4 +1280,3 @@ def inspect_y_test(apiurl):
   # print_y_stats(y_stats_dict)
 
   return y_stats_dict
-

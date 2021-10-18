@@ -15,7 +15,7 @@ import base64
 import mimetypes
 import numpy as np
 from aimodelshare.tools import extract_varnames_fromtrainingdata, _get_extension_from_filepath
-from aimodelshare.aws import get_s3_iam_client, run_function_on_lambda
+from aimodelshare.aws import get_s3_iam_client, run_function_on_lambda, get_token, get_aws_token, get_aws_client
 from aimodelshare.bucketpolicy import _custom_upload_policy
 from aimodelshare.exceptions import AuthorizationError, AWSAccessError, AWSUploadError
 from aimodelshare.api import create_prediction_api
@@ -24,8 +24,10 @@ from aimodelshare.modeluser import create_user_getkeyandpassword
 from aimodelshare.preprocessormodules import upload_preprocessor
 from aimodelshare.model import _get_predictionmodel_key, _extract_model_metadata
 from aimodelshare.data_sharing.share_data import share_data_codebuild
+from aimodelshare.containerization import clone_base_image
 
-def take_user_info_and_generate_api(model_filepath, model_type, categorical,labels, preprocessor_filepath,custom_libraries, requirements, exampledata_json_filepath):
+
+def take_user_info_and_generate_api(model_filepath, model_type, categorical,labels, preprocessor_filepath,custom_libraries, requirements, exampledata_json_filepath, repo_name, image_tag, determinism_env_filepath):
     """
     Generates an api using model parameters and user credentials, from the user
 
@@ -143,6 +145,10 @@ def take_user_info_and_generate_api(model_filepath, model_type, categorical,labe
             json_path, os.environ.get("BUCKET_NAME"), unique_model_id + "/runtime_data.json"
         )
         os.remove(json_path)
+
+        # upload determinism env
+        if determinism_env_filepath:
+            upload_determinism_env(determinism_env_filepath, s3, os.environ.get("BUCKET_NAME"), unique_model_id)
     except Exception as err:
         raise AWSUploadError(
             "There was a problem with model/preprocessor upload. "+str(err))
@@ -162,12 +168,30 @@ def take_user_info_and_generate_api(model_filepath, model_type, categorical,labe
     # }}}
     
     apiurl = create_prediction_api(model_filepath, unique_model_id,
-                                   model_type, categorical, labels,api_id,custom_libraries, requirements)
+                                   model_type, categorical, labels,api_id,custom_libraries, requirements, repo_name, image_tag)
 
     finalresult = [apiurl["body"], apiurl["statusCode"],
                    now, unique_model_id, os.environ.get("BUCKET_NAME"), input_shape]
     return finalresult
 
+def upload_determinism_env(determinism_env_file, s3, bucket, model_id):
+    # Check the determinism_env {{{
+    with open(determinism_env_file) as json_file:
+      determinism_env = json.load(json_file)
+      if "global_seed_code" not in determinism_env \
+              or "local_seed_code" not in determinism_env \
+              or "gpu_cpu_parallelism_ops" not in determinism_env \
+              or "session_runtime_info" not in determinism_env:
+          raise Exception("determinism environment is not complete")
+
+    # Upload the json {{{
+    try:
+        s3["client"].upload_file(
+            determinism_env_file, bucket, model_id + "/determinism.json"
+        )
+    except Exception as err:
+        raise err
+    # }}}
 
 def send_model_data_to_dyndb_and_return_api(api_info, private, categorical, preprocessor_filepath,
                                             aishare_modelname, aishare_modeldescription, aishare_modelevaluation, model_type,
@@ -247,16 +271,18 @@ def send_model_data_to_dyndb_and_return_api(api_info, private, categorical, prep
     response_string = response_string[1:-1]
 
     # Build output {{{
-    final_message = ("\nYou can now use your API web dashboard.\n\n"
-                     "To explore your API's functionality, follow this link to your Model Playground.\n"
+    final_message = ("\nYou can now use your Model Playground.\n\n"
+                     "Follow this link to explore your Model Playground's functionality\n"
                      "You can make predictions with the Dashboard and access example code from the Programmatic tab.\n")
     web_dashboard_url = ("https://www.modelshare.org/detail/"+ response_string)
     
     start = api_info[2]
     end = datetime.datetime.now()
     difference = (end - start).total_seconds()
-    finalresult2 = "Your AI Model Share API was created in " + \
-        str(int(difference)) + " seconds." + " API Url: " + api_info[0]
+    finalresult2 = "Success! Your Model Playground was created in " + \
+        str(int(difference)) + " seconds. \n" + " Playground Url: " + api_info[0] 
+
+
     # }}}
 
     ### Progress Update #6/6 {{{
@@ -268,7 +294,7 @@ def send_model_data_to_dyndb_and_return_api(api_info, private, categorical, prep
     return print("\n\n" + finalresult2 + "\n" + final_message + web_dashboard_url)
 
 
-def model_to_api(model_filepath, model_type, private, categorical, y_train,preprocessor_filepath,custom_libraries="FALSE", example_data=None):
+def model_to_api(model_filepath, model_type, private, categorical, y_train, preprocessor_filepath, custom_libraries="FALSE", example_data=None, image="aimodelshare_base_image:v3", base_image_api_endpoint="https://vupwujn586.execute-api.us-east-1.amazonaws.com/dev/copybasetouseracct", update=False, determinism_env_filepath=None):
     """
       Launches a live prediction REST API for deploying ML models using model parameters and user credentials, provided by the user
       Inputs : 8
@@ -311,6 +337,11 @@ def model_to_api(model_filepath, model_type, private, categorical, y_train,prepr
                      other data types - absolute path to folder containing example data
                                         (first five files with relevent file extensions will be accepted)
                      [REQUIRED] for tabular data
+      determinism_env_filepath: string
+                                value - absolute path to environment environment json file 
+                                [OPTIONAL] to be set by the user
+                                "./determinism.json" 
+                                file is generated using export_determinism_env function from the AI Modelshare library
       -----------
       Returns
       print_api_info : prints statements with generated live prediction API details
@@ -323,6 +354,21 @@ def model_to_api(model_filepath, model_type, private, categorical, y_train,prepr
     #  2. send_model_data_to_dyndb_and_return_api : to add new record to database with user data, model and api related information
 
     # Get user inputs, pass to other functions  {{{
+    user_session = boto3.session.Session(aws_access_key_id=os.environ.get("AWS_ACCESS_KEY_ID"),
+                                         aws_secret_access_key = os.environ.get("AWS_SECRET_ACCESS_KEY"), 
+                                         region_name=os.environ.get("AWS_REGION"))
+
+    repo_name, image_tag = image.split(':')
+    if model_type=="tabular":
+        image_tag="tabular"
+    else:
+        pass
+    
+    response = clone_base_image(user_session, repo_name, image_tag, "517169013426", base_image_api_endpoint, update)
+    if(response["Status"]==0):
+        print(response["Success"])
+        return
+
     print("We need some information about your model before we can build your REST API and interactive Model Playground.")
     print("   ")
 
@@ -343,7 +389,7 @@ def model_to_api(model_filepath, model_type, private, categorical, y_train,prepr
 
     # Force user to provide example data for tabular models {{{
     if any([model_type.lower() == "tabular", model_type.lower() == "timeseries"]):
-        if example_data == None:
+        if example_data is None:
             return print("Error: Example data is required for tabular models. \n Please provide a pandas DataFrame with a sample of your X data (in the format expected by your preprocessor) and try again.")
     else:
         pass
@@ -377,7 +423,7 @@ def model_to_api(model_filepath, model_type, private, categorical, y_train,prepr
     # }}}
     
     api_info = take_user_info_and_generate_api( 
-        model_filepath, model_type, categorical, labels,preprocessor_filepath,custom_libraries, requirements, exampledata_json_filepath)
+        model_filepath, model_type, categorical, labels,preprocessor_filepath,custom_libraries, requirements, exampledata_json_filepath, repo_name, image_tag, determinism_env_filepath)
 
     ### Progress Update #5/6 {{{
     sys.stdout.write('\r')
@@ -392,11 +438,11 @@ def model_to_api(model_filepath, model_type, private, categorical, y_train,prepr
     
     return api_info[0]
 
-def create_competition(apiurl, data_directory, y_test, generate_credentials_file = True):
+def create_competition(apiurl, data_directory, y_test,  email_list=[]):
     """
     Creates a model competition for a deployed prediction REST API
-    Inputs : 2
-    Output : Submit credentials for model competition
+    Inputs : 4
+    Output : Create ML model competition and allow authorized users to submit models to resulting leaderboard/competition
     
     ---------
     Parameters
@@ -404,19 +450,26 @@ def create_competition(apiurl, data_directory, y_test, generate_credentials_file
     apiurl: string
             URL of deployed prediction API 
     
-    y_test :  y labels for test data 
-            [REQUIRED] for eval metrics
-            expects a one hot encoded y test data format
+    y_test :  list of y values for test data used to generate metrics from predicted values from X test data submitted via the submit_model() function
+                [REQUIRED] to generate eval metrics in competition leaderboard
             
     data_directory : folder storing training data and test data (excluding Y test data)
-    generate_credentials_file (OPTIONAL): Default is True
-                                          Function will output .txt file with new credentials
+    email_list: [REQUIRED] list of comma separated emails for users who are allowed to submit models to competition.  Emails should be strings in a list.
+                                          
     ---------
     Returns
-    finalresultteams3info : Submit_model credentials with access to S3 bucket
-    (api_id)_credentials.txt : .txt file with submit_model credentials,
-                                formatted for use with set_credentials() function 
+    finalmessage : Information such as how to submit models to competition
+
     """
+    if all([isinstance(email_list, list)]):
+        if all([len(email_list)>0]):
+              import jwt
+              idtoken=get_aws_token()
+              decoded = jwt.decode(idtoken, options={"verify_signature": False})  # works in PyJWT < v2.0
+              email=decoded['email']
+              email_list.append(email)
+    else:
+        return print("email_list argument empty or incorrectly formatted.  Please provide a list of emails for authorized competition participants formatted as strings.")
 
     # create temporary folder
     temp_dir = tempfile.gettempdir()
@@ -444,8 +497,8 @@ def create_competition(apiurl, data_directory, y_test, generate_credentials_file
         else: 
             pass
 
-        if all(isinstance(x, (np.int64)) for x in y_test):
-              y_test = [int(i) for i in y_test]
+        if all(isinstance(x, (np.float64)) for x in y_test):
+              y_test = [float(i) for i in y_test]
         else: 
             pass
 
@@ -453,39 +506,13 @@ def create_competition(apiurl, data_directory, y_test, generate_credentials_file
     pickle.dump(y_test,open(ytest_path,"wb"))
     s3["client"].upload_file(ytest_path, os.environ.get("BUCKET_NAME"),  model_id + "/ytest.pkl")
 
-    # Reset user policy
-    create_user_getkeyandpassword()
-    # Detach & Delete current policy  
-    policy_response = iam["client"].get_policy(
-        PolicyArn=os.environ.get("POLICY_ARN")
-    )
-    user_policy = iam["resource"].UserPolicy(
-        os.environ.get("IAM_USERNAME"), policy_response['Policy']['PolicyName'])
-    response = iam["client"].detach_user_policy(
-        UserName= os.environ.get("IAM_USERNAME"),
-        PolicyArn=os.environ.get("POLICY_ARN")
-    )
 
-    # Create & attach new policy that only allows file upload to bucket
-    policy = iam["resource"].Policy(os.environ.get("POLICY_ARN"))
-    response = policy.delete()
-    s3upload_policy = _custom_upload_policy(os.environ.get("BUCKET_NAME"), 
-                                            model_id)
-    s3uploadpolicy_name = 'temporaryaccessAImodelsharePolicy' + \
-        str(uuid.uuid1().hex)
-    s3uploadpolicy_response = iam["client"].create_policy(
-        PolicyName=s3uploadpolicy_name,
-        PolicyDocument=json.dumps(s3upload_policy)
-    )
-    user = iam["resource"].User(os.environ.get("IAM_USERNAME"))
-    response = user.attach_policy(
-        PolicyArn=s3uploadpolicy_response['Policy']['Arn']
-    )
-    
     # get api_id from apiurl, generate txt file name
     api_url_trim = apiurl.split('https://')[1]
     api_id = api_url_trim.split(".")[0]
-    txt_file_name = api_id+"_credentials.txt"
+
+    #create and upload json file with list of authorized users who can submit to this competition.
+    _create_competitionuserauth_json(apiurl, email_list)
 
     aishare_competitionname = input("Enter competition name:")
     aishare_competitiondescription = input("Enter competition description:")
@@ -520,41 +547,179 @@ def create_competition(apiurl, data_directory, y_test, generate_credentials_file
     requests.post("https://o35jwfakca.execute-api.us-east-1.amazonaws.com/dev/modeldata",
                   json=bodydata, headers=headers_with_authentication)
 
-    
-    #Format output text
-    formatted_userpass = ('[aimodelshare_creds] \n'
-                'username = "Your_Username_Here" \n'
-                'password = "Your_Password_Here"\n\n')
-
-    formatted_new_creds = ("#Credentials for Competition: " + api_id + "\n"
-                '[submit_model:"' + apiurl + '"]\n'
-                'AWS_ACCESS_KEY_ID = "' + os.environ.get("AI_MODELSHARE_ACCESS_KEY_ID") + '"\n'
-                'AWS_SECRET_ACCESS_KEY = "' + os.environ.get("AI_MODELSHARE_SECRET_ACCESS_KEY") +'"\n'
-                'AWS_REGION = "' + os.environ.get("AWS_REGION") + '"\n')
-    
+      
     final_message = ("\n Success! Model competition created. \n\n"
-                "Your team members can now make use of the following functions: \n"
-                "submit_model() to submit new models to the competition leaderboard. \n"
-                "download_data('"+datauri['ecr_uri']+"') to download your competition data.  \n\n"
-                "You may update your prediction API runtime model with the update_runtime_model() function.\n\n"
+                "You may now update your prediction API runtime model and verify evaluation metrics with the update_runtime_model() function.\n\n"
                 "To upload new models and/or preprocessors to this API, team members should use \n"
-                "the following credentials:\n\n" + formatted_new_creds + "\n"
-                "(This aws key/password combination limits team members to file upload access only.)\n\n")
+                "the following credentials:\n\napiurl='" + apiurl+"'"+"\nai.set_credentials(apiurl=apiurl)\n\n"
+                "They can then submit models to your competition by using the following code: \n\ncompetition= ai.Competition(apiurl)\n"
+                "download_data('"+datauri['ecr_uri']+"') \n"
+                 "# Use this data to preprocess data and train model. Write and save preprocessor fxn, save model to onnx file, generate predicted y values\n using X test data, then submit a model below.\n\n"
+                "competition.submit_model(model_filepath, preprocessor_filepath, prediction_submission_list)")
   
-    file_generated_message = ("These credentials have been saved as: " + txt_file_name + ".")
-
-    # Generate .txt file with new credentials 
-    if generate_credentials_file == True:
-        final_message = final_message + file_generated_message
-
-        f= open(txt_file_name,"w+")
-        f.write(formatted_userpass + formatted_new_creds)
-        f.close()
-
-
-
     return print(final_message)
 
+def _create_competitionuserauth_json(apiurl, email_list=[]): 
+      import json
+      if all(["AWS_ACCESS_KEY_ID" in os.environ, 
+            "AWS_SECRET_ACCESS_KEY" in os.environ,
+            "AWS_REGION" in os.environ,
+           "username" in os.environ, 
+           "password" in os.environ]):
+        pass
+      else:
+          return print("'Update Runtime Model' unsuccessful. Please provide credentials with set_credentials().")
+
+      # Create user session
+      aws_client=get_aws_client(aws_key=os.environ.get('AWS_ACCESS_KEY_ID'), 
+                                aws_secret=os.environ.get('AWS_SECRET_ACCESS_KEY'), 
+                                aws_region=os.environ.get('AWS_REGION'))
+      
+      user_sess = boto3.session.Session(aws_access_key_id=os.environ.get('AWS_ACCESS_KEY_ID'), 
+                                        aws_secret_access_key=os.environ.get('AWS_SECRET_ACCESS_KEY'), 
+                                        region_name=os.environ.get('AWS_REGION'))
+      
+      s3 = user_sess.resource('s3')
+
+      # Get bucket and model_id for user based on apiurl {{{
+      response, error = run_function_on_lambda(
+          apiurl, **{"delete": "FALSE", "versionupdateget": "TRUE"}
+      )
+      if error is not None:
+          raise error
+
+      _, api_bucket, model_id = json.loads(response.content.decode("utf-8"))
+      # }}}
+
+      import json  
+      import tempfile
+      tempdir = tempfile.TemporaryDirectory()
+      with open(tempdir.name+'/competitionuserdata.json', 'w', encoding='utf-8') as f:
+          json.dump({"emaillist": email_list, "public":"FALSE"}, f, ensure_ascii=False, indent=4)
+
+      aws_client['client'].upload_file(
+            tempdir.name+"/competitionuserdata.json", api_bucket, model_id + "/competitionuserdata.json"
+        )
+      
+      return
+
+def update_access_list(apiurl, email_list=[],update_type="Add"): 
+      """
+      Updates list of authenticated participants who can submit new models to a competition.
+      ---------------
+      Parameters:
+      apiurl: string
+              URL of deployed prediction API 
+      
+      email_list: [REQUIRED] list of comma separated emails for users who are allowed to submit models to competition.  Emails should be strings in a list.
+      update_type:[REQUIRED] options, string: 'Add', 'Remove', 'Replace_list','Get. Add appends user emails to original list, Remove deletes users from list, 
+                  'Replace_list' overwrites the original list with the new list provided, and Get returns the current list.    
+      -----------------
+      Returns
+      response:   "Success" upon successful request
+      """
+      import json
+      import os
+      if all(["AWS_ACCESS_KEY_ID" in os.environ, 
+            "AWS_SECRET_ACCESS_KEY" in os.environ,
+            "AWS_REGION" in os.environ,
+           "username" in os.environ, 
+           "password" in os.environ]):
+        pass
+      else:
+          return print("'Update unsuccessful. Please provide credentials with set_credentials().")
+
+      if all([isinstance(email_list, list)]):
+          if all([len(email_list)>0]):
+              pass
+      else:
+          return print("email_list argument empty or incorrectly formatted.  Please provide a list of emails for authorized competition participants formatted as strings.")
+
+      # Create user session
+      aws_client=get_aws_client(aws_key=os.environ.get('AWS_ACCESS_KEY_ID'), 
+                                aws_secret=os.environ.get('AWS_SECRET_ACCESS_KEY'), 
+                                aws_region=os.environ.get('AWS_REGION'))
+      
+      user_sess = boto3.session.Session(aws_access_key_id=os.environ.get('AWS_ACCESS_KEY_ID'), 
+                                        aws_secret_access_key=os.environ.get('AWS_SECRET_ACCESS_KEY'), 
+                                        region_name=os.environ.get('AWS_REGION'))
+      
+      s3 = user_sess.resource('s3')
+
+      # Get bucket and model_id for user based on apiurl {{{
+      response, error = run_function_on_lambda(
+          apiurl, **{"delete": "FALSE", "versionupdateget": "TRUE"}
+      )
+      if error is not None:
+          raise error
+
+      _, api_bucket, model_id = json.loads(response.content.decode("utf-8"))
+      # }}}
+
+      email_list=json.loads(json.dumps(email_list))
+      if update_type=="Replace_list":
+          import json  
+          import tempfile
+          tempdir = tempfile.TemporaryDirectory()
+          with open(tempdir.name+'/competitionuserdata.json', 'w', encoding='utf-8') as f:
+              json.dump({"emaillist": email_list, "public":"FALSE"}, f, ensure_ascii=False, indent=4)
+
+          aws_client['client'].upload_file(
+                tempdir.name+"/competitionuserdata.json", api_bucket, model_id + "/competitionuserdata.json"
+            )
+      elif update_type=="Add":
+          import json  
+          import tempfile
+          
+          aws_client['resource']
+          content_object = aws_client['resource'].Object(bucket_name=api_bucket, key=model_id + "/competitionuserdata.json")
+          file_content = content_object.get()['Body'].read().decode('utf-8')
+          json_content = json.loads(file_content)
+
+          email_list_old=json_content["emaillist"]
+          email_list_new=email_list_old+email_list
+          print(email_list_new)
+
+          tempdir = tempfile.TemporaryDirectory()
+          with open(tempdir.name+'/competitionuserdata.json', 'w', encoding='utf-8') as f:
+              json.dump({"emaillist": email_list_new, "public":"FALSE"}, f, ensure_ascii=False, indent=4)
+
+          aws_client['client'].upload_file(
+                tempdir.name+"/competitionuserdata.json", api_bucket, model_id + "/competitionuserdata.json"
+            )
+          return "Success: Your competition participant access list is now updated."
+      elif update_type=="Remove":
+          import json  
+          import tempfile
+          
+          aws_client['resource']
+          content_object = aws_client['resource'].Object(bucket_name=api_bucket, key=model_id + "/competitionuserdata.json")
+          file_content = content_object.get()['Body'].read().decode('utf-8')
+          json_content = json.loads(file_content)
+
+          email_list_old=json_content["emaillist"]
+          email_list_new=list(set(list(email_list_old)) - set(email_list))
+          print(email_list_new)
+        
+          tempdir = tempfile.TemporaryDirectory()
+          with open(tempdir.name+'/competitionuserdata.json', 'w', encoding='utf-8') as f:
+              json.dump({"emaillist": email_list_new, "public":"FALSE"}, f, ensure_ascii=False, indent=4)
+
+          aws_client['client'].upload_file(
+                tempdir.name+"/competitionuserdata.json", api_bucket, model_id + "/competitionuserdata.json"
+            )
+          return "Success: Your competition participant access list is now updated."
+      elif update_type=="Get":
+          import json  
+          import tempfile
+          
+          aws_client['resource']
+          content_object = aws_client['resource'].Object(bucket_name=api_bucket, key=model_id + "/competitionuserdata.json")
+          file_content = content_object.get()['Body'].read().decode('utf-8')
+          json_content = json.loads(file_content)
+          return json_content['emaillist']
+      else:
+          return "Error: Check inputs and resubmit."
 
 
 def _confirm_libraries_exist(requirements):
@@ -635,5 +800,5 @@ __all__ = [
     take_user_info_and_generate_api,
     send_model_data_to_dyndb_and_return_api,
     model_to_api,
-    create_competition,
+    create_competition,update_access_list
 ]
