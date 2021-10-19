@@ -35,7 +35,8 @@ import requests
 import sys
 
 from pympler import asizeof
-
+import absl.logging
+absl.logging.set_verbosity(absl.logging.ERROR)
 
 def _extract_onnx_metadata(onnx_model, framework):
     '''Extracts model metadata from ONNX file.'''
