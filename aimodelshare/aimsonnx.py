@@ -205,7 +205,30 @@ def _sklearn_to_onnx(model, initial_types, transfer_learning=None,
 
     # convert to onnx
     onx = convert_sklearn(model, initial_types=initial_types)
-            
+    
+    ## Dynamically set model ir_version to ensure sklearn opsets work properly
+    from onnx.helper import VERSION_TABLE
+    import onnx
+    import numpy as np
+
+    indexlocationlist=[]
+    for i in VERSION_TABLE:
+      indexlocationlist.append(str(i).find(str(onnx.__version__)))
+
+
+    arr = np.array(indexlocationlist)
+
+    def condition(x): return x > -1
+
+    bool_arr = condition(arr)
+
+    output = np.where(bool_arr)[0]
+
+    ir_version=VERSION_TABLE[output[0]][1]
+
+    #add to model object before saving
+    onnx_model.ir_version = ir_version
+    
     # generate metadata dict 
     metadata = {}
     
