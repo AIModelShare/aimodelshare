@@ -1472,12 +1472,11 @@ def model_summary_keras(model):
             activations.append(None)
 
 
-    model_summary = pd.DataFrame({"layer_names": layer_names,
-    "layer_types": layer_types,
-    "layer_n_params": layer_n_params,
-    "layer_shapes": layer_shapes,
-    "layer_n_params": layer_n_params,
-    "layer_connect": layer_connect,
-    "activations": activations})
+    model_summary = pd.DataFrame({"Name": layer_names,
+    "Layer": layer_types,
+    "Shape": layer_shapes,
+    "Params": layer_n_params,
+    "Connect": layer_connect,
+    "Activation": activations})
 
     return model_summary
