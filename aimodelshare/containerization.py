@@ -396,7 +396,15 @@ def create_lambda_using_base_image(user_session, bucket_name, directory, lambda_
 
     #print("Creating Lambda function \"" + lambda_name + "\".")
 
+    print('arn:aws:iam::' + account_id + ':role/' + role_name)
+
+    print(account_id + '.dkr.ecr.' + region + '.amazonaws.com/' + repository + ":" + image_tag)
+
+    print(bucket_name)
+
     print(api_id)
+
+    print(lambda_name)
 
     lambda_client = user_session.client("lambda")
     counter=1
