@@ -331,8 +331,9 @@ def model_to_api(model_filepath, model_type, private, categorical, y_train, prep
                                          aws_secret_access_key = os.environ.get("AWS_SECRET_ACCESS_KEY"), 
                                          region_name=os.environ.get("AWS_REGION"))
 
-    repo_name, image_tag = image.split(':')
-    if model_type=="tabular":
+    if(image!=""):
+        repo_name, image_tag = image.split(':')
+    elif model_type=="tabular":
         image_tag="tabular"
     else:
         pass
