@@ -182,7 +182,6 @@ def download_data(repository):
 	os.remove(docker_tar)
 	print('\n\nData downloaded successfully.')
 
-
 def import_quickstart_data(tutorial, section="modelplayground"):
     from aimodelshare.data_sharing.download_data import download_data
     import tensorflow as tf
@@ -199,23 +198,76 @@ def import_quickstart_data(tutorial, section="modelplayground"):
     
     if all([tutorial == "titanic", section == "modelplayground"]):
         quickstart_repository = "public.ecr.aws/y2e2a1d6/titanic_quickstart-repository:latest" 
+
+    if all([tutorial == "cars", section == "modelplayground"]):
+        quickstart_repository = "public.ecr.aws/y2e2a1d6/quickstart_car_sales_competition-repository:latest" 
+        
+    if all([tutorial == "clickbait", section == "modelplayground"]):
+        quickstart_repository = "public.ecr.aws/y2e2a1d6/quickstart_clickbait_materials-repository:latest" 
+
     download_data(quickstart_repository)
 
-    #{{{ prepare modelplayground materials
+    #{{{ Prepare modelplayground materials
     if section == "modelplayground": 
-        #Instantiate Model 
         print("\nPreparing downloaded files for use...")
         
         if tutorial == "flowers":
+           #instantiate model
             model = tf.keras.models.load_model('quickstart_materials/flowermodel.h5')
             
             #unpack data
             with open("quickstart_materials/y_train_labels.txt", "rb") as fp:  
                 y_train_labels = pickle.load(fp)
+                
+        if tutorial == "clickbait":
+            import pandas as pd
+            # suppress tf warning
+            import tensorflow as tf
+            tf.compat.v1.logging.set_verbosity(tf.compat.v1.logging.ERROR)
+            
+            #instantiate models
+            lstm_model = tf.keras.models.load_model('quickstart_clickbait_materials/lstm_model1.h5')
+            lstm_model2 = tf.keras.models.load_model('quickstart_clickbait_materials/lstm_model2.h5')
+           
+            # bring in data 
+            clickbait = pd.read_csv('quickstart_clickbait_materials/clickbait_data',  sep="\n", header = None)
+            clickbait['label'] = "clickbait"
+            clickbait.columns = ['headline', 'label']
         
+            not_clickbait = pd.read_csv('quickstart_clickbait_materials/non_clickbait_data',  sep="\n", header = None)
+            not_clickbait['label'] = "not clickbait"
+            not_clickbait.columns = ['headline', 'label']
+
+            # train/test/split
+            from sklearn.model_selection import train_test_split
+            X = clickbait.append(not_clickbait)
+            y = X['label']
+            X = X.drop(['label'], axis=1)
+            X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=942)
+            X_test.reset_index(drop=True, inplace=True)
+            X_test = X_test.squeeze()
+            X_train.reset_index(drop=True, inplace=True)
+            X_train = X_train.squeeze()
+
+            # exampledata
+            example_data = X_train[0:5]
+            
+            # Create data directory for competition 
+            X_train.to_csv("X_train.csv")
+            X_test.to_csv("X_test.csv")
+            y_train.to_csv("y_train.csv")
+            
+            os.mkdir('clickbait_competition_data')
+            
+            files = ['X_train.csv', 'X_test.csv', 'y_train.csv']
+                        
+            for f in files:
+                shutil.move(f, 'clickbait_competition_data')
+
         if tutorial == "titanic":
             from sklearn.model_selection import train_test_split
             import pandas as pd
+            #read in data
             data = pd.read_csv("titanic_quickstart/titanic_data.csv")
             y = data['survived']
             y = y.map({0: 'died', 1: 'survived'}) 
@@ -239,7 +291,58 @@ def import_quickstart_data(tutorial, section="modelplayground"):
             
             #make y_test_labels for competition
             y_test_labels = y_test.to_list()
-        #}}}
+
+        if tutorial == "cars":
+            from sklearn.model_selection import train_test_split
+
+            # read in data
+            import pandas as pd
+            data = pd.read_csv("quickstart_car_sales_competition/used_car_dataset.csv")
+            y = data['selling_price']
+            X = data.drop(['selling_price', 'torque', 'name'], axis=1)
+
+            #Data Prep:
+                # convert rupees to $ (for smaller MSEs)
+            y = y.mul(.014)
+                # A: Split units from mileage and convert units 
+            Correct_Mileage= []
+            for i in X.mileage:
+                if str(i).endswith('km/kg'):
+                    i = i[:-6]
+                    i = float(i)*1.40
+                    Correct_Mileage.append(float(i))
+                elif str(i).endswith('kmpl'):
+                    i = i[:-5]
+                    Correct_Mileage.append(float(i))
+                else: 
+                    Correct_Mileage.append(None)
+            X['mileage']=Correct_Mileage
+
+                  #B: Split units from engine, & max_pwer
+            X['engine'] = X['engine'].str.replace(' CC', '')
+            X['engine'] = pd.to_numeric(X['engine'])
+
+            X['max_power'] = X['max_power'].str.replace(' bhp', '')
+            X['max_power'] = pd.to_numeric(X['max_power'])
+
+            #create subset as exampledata 
+            example_data = pd.DataFrame(X[0:4])
+
+            #create data directory for competition
+            X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2)
+            training_data = X_train
+            training_data = pd.merge(X_train, y_train, left_index=True, right_index=True)
+            training_data.to_csv("training_data.csv")
+
+            test_data = X_test
+            test_data.to_csv("test_data.csv")
+
+            os.mkdir('used_car_competition_data')
+            files = ['training_data.csv', 
+                        'test_data.csv']
+            for f in files:
+                shutil.move(f, 'used_car_competition_data')
+    #}}}
 
     #{{{ prepare competition materials
     if section == "competition":
@@ -274,3 +377,9 @@ def import_quickstart_data(tutorial, section="modelplayground"):
     
     if tutorial == "titanic":
         return X_train, X_test, y_train, y_test, example_data, y_test_labels
+
+    if tutorial == "cars":
+        return X_train, X_test, y_train, y_test, example_data
+    
+    if tutorial == "clickbait":
+        return X_train, X_test, y_train, y_test, example_data, lstm_model, lstm_model2
