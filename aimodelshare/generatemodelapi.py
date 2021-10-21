@@ -349,7 +349,7 @@ def model_to_api(model_filepath, model_type, private, categorical, y_train, prep
     requirements = ""
     if(any([custom_libraries=='TRUE',custom_libraries=='true'])):
         requirements = input("Enter all required Python libraries you need at prediction runtime (separated with commas):")
-        _confirm_libraries_exist(requirements)
+        #_confirm_libraries_exist(requirements)
         
     aishare_modelname = input("Model Name (for AI Model Share Website):")
     aishare_modeldescription = input("Model Description (Explain what your model does and \n why end-users would find your model useful):")
@@ -724,6 +724,13 @@ def _create_exampledata_json(model_type, exampledata_folder_filepath):
     audio_extensions = ['.m4a', '.flac', '.mp3', '.mp4', '.wav', '.wma', '.aac']
      
     if any([model_type.lower() == "tabular", model_type.lower() == "timeseries", model_type.lower() == "text"]):
+        #confirm data type is data frame, try to convert if not [necessary for front end]
+        import pandas as pd
+        if isinstance(exampledata_folder_filepath, pd.DataFrame):
+            pass
+        else:
+            exampledata_folder_filepath = pd.DataFrame(exampledata_folder_filepath)
+            
         tabularjson = exampledata_folder_filepath.to_json(orient='split', index=False)
         
     
