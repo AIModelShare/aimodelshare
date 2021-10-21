@@ -354,6 +354,10 @@ def build_new_base_image(libraries, repository, image_tag, python_version):
     if(os.path.isdir(temp_dir)):
         shutil.rmtree(temp_dir)
 
+    print("Your new base image URI is:", repository+":"+image_tag)
+
+    return
+
 # create lambda function using a base image from a specific repository having a specific tag
 def create_lambda_using_base_image(user_session, bucket_name, directory, lambda_name, api_id, repository, image_tag, memory_size, timeout):
 
