@@ -176,7 +176,7 @@ def attach_policy_to_role(user_session, role_name, policy_name):
     #print("Attached IAM policy \"" + policy_name +"\" to IAM role \"" + role_name + "\" successfully.")
 
 # build image using CodeBuild from files in zip file
-def build_image(user_session, bucket_name, zip_file, image_name):
+def build_image(user_session, bucket_name, zip_file, image_name, image):
 
     # upload zip file to S3 bucket
     upload_file_to_s3(user_session, zip_file, bucket_name, image_name+'.zip')
@@ -256,6 +256,7 @@ def build_image(user_session, bucket_name, zip_file, image_name):
             )
             print("Image successfully built.")
             print("CodeBuild finished with status " + build_status)
+            print("\nNew Base Image URI: " + image)
             break
         elif build_status == 'FAILED' or build_status == 'FAULT' or build_status == 'STOPPED' or build_status == 'TIMED_OUT':
             response = codebuild_client.delete_project(     # delete CodeBuild project after process completes
@@ -349,12 +350,10 @@ def build_new_base_image(libraries, repository, image_tag, python_version):
         for file in file_paths:
             zip.write(file, file.replace(temp_dir, ""))      # ignore temporary file path when copying to zip file
 
-    build_image(user_session, bucket_name, temp_dir + ".zip", unique_name + "_base_image")
+    build_image(user_session, bucket_name, temp_dir + ".zip", unique_name + "_base_image", repository+":"+image_tag)
 
     if(os.path.isdir(temp_dir)):
         shutil.rmtree(temp_dir)
-
-    print("Your new base image URI is:", repository+":"+image_tag)
 
     return
 
