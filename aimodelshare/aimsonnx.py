@@ -956,7 +956,7 @@ def inspect_model(apiurl, version=None):
 
 
 def compare_models_dict(apiurl, version_list=None, 
-    by_model_type=None, best_model=None, verbose=5):
+    by_model_type=None, best_model=None, verbose=1):
     
     if not isinstance(version_list, list):
         raise Exception("Argument 'version' must be a list.")
@@ -1029,8 +1029,18 @@ def compare_models_dict(apiurl, version_list=None,
         for i in version_list: 
 
             temp_pd = pd.DataFrame(model_dict[str(i)]['model_dict'])
-            temp_pd = temp_pd.iloc[:,0:verbose]
+
             temp_pd.iloc[:,2] = temp_pd.iloc[:,2].astype(str)
+
+            if verbose == 0: 
+                temp_pd = temp_pd.iloc[['Layer']]
+            elif verbose == 1: 
+                temp_pd = temp_pd.iloc[['Layer', 'Shape', 'Params']]
+            elif verbose == 2: 
+                temp_pd = temp_pd.iloc[['Name', 'Layer', 'Shape', 'Params', 'Connect']]
+            elif verbose == 3: 
+                temp_pd = temp_pd.iloc[['Name', 'Layer', 'Shape', 'Params', 'Connect', 'Activation']]
+
             temp_pd = temp_pd.add_prefix('Model_'+str(i)+'_')    
             comp_pd = pd.concat([comp_pd, temp_pd], axis=1)
 
@@ -1039,33 +1049,159 @@ def compare_models_dict(apiurl, version_list=None,
         return comp_dict_out
 
 
+def color_pal_assign(val):
+  import pandas as pd
+  
+  # create Pandas Series with default index values
+  # default index ranges is from 0 to len(list) - 1
+  layer_name_df =  pd.DataFrame(['AbstractRNNCell',
+  'Activation',
+  'ActivityRegularization',
+  'Add',
+  'AdditiveAttention',
+  'AlphaDropout',
+  'Attention',
+  'Average',
+  'AveragePooling1D',
+  'AveragePooling2D',
+  'AveragePooling3D',
+  'AvgPool1D',
+  'AvgPool2D',
+  'AvgPool3D',
+  'BatchNormalization',
+  'Bidirectional',
+  'CategoryEncoding',
+  'CenterCrop',
+  'Concatenate',
+  'Conv1D',
+  'Conv1DTranspose',
+  'Conv2D',
+  'Conv2DTranspose',
+  'Conv3D',
+  'Conv3DTranspose',
+  'ConvLSTM1D',
+  'ConvLSTM2D',
+  'ConvLSTM3D',
+  'Convolution1D',
+  'Convolution1DTranspose',
+  'Convolution2D',
+  'Convolution2DTranspose',
+  'Convolution3D',
+  'Convolution3DTranspose',
+  'Cropping1D',
+  'Cropping2D',
+  'Cropping3D',
+  'Dense',
+  'DenseFeatures',
+  'DepthwiseConv2D',
+  'Discretization',
+  'Dot',
+  'Dropout',
+  'Embedding',
+  'Flatten',
+  'GRU',
+  'GRUCell',
+  'GaussianDropout',
+  'GaussianNoise',
+  'GlobalAveragePooling1D',
+  'GlobalAveragePooling2D',
+  'GlobalAveragePooling3D',
+  'GlobalAvgPool1D',
+  'GlobalAvgPool2D',
+  'GlobalAvgPool3D',
+  'GlobalMaxPool1D',
+  'GlobalMaxPool2D',
+  'GlobalMaxPool3D',
+  'GlobalMaxPooling1D',
+  'GlobalMaxPooling2D',
+  'GlobalMaxPooling3D',
+  'Hashing',
+  'Input',
+  'InputLayer',
+  'InputSpec',
+  'IntegerLookup',
+  'LSTM',
+  'LSTMCell',
+  'Lambda',
+  'Layer',
+  'LayerNormalization',
+  'LocallyConnected1D',
+  'LocallyConnected2D',
+  'Masking',
+  'MaxPool1D',
+  'MaxPool2D',
+  'MaxPool3D',
+  'MaxPooling1D',
+  'MaxPooling2D',
+  'MaxPooling3D',
+  'Maximum',
+  'Minimum',
+  'MultiHeadAttention',
+  'Multiply',
+  'Normalization',
+  'Permute',
+  'RNN',
+  'RandomContrast',
+  'RandomCrop',
+  'RandomFlip',
+  'RandomHeight',
+  'RandomRotation',
+  'RandomTranslation',
+  'RandomWidth',
+  'RandomZoom',
+  'RepeatVector',
+  'Rescaling',
+  'Reshape',
+  'Resizing',
+  'SeparableConv1D',
+  'SeparableConv2D',
+  'SeparableConvolution1D',
+  'SeparableConvolution2D',
+  'SimpleRNN',
+  'SimpleRNNCell',
+  'SpatialDropout1D',
+  'SpatialDropout2D',
+  'SpatialDropout3D',
+  'StackedRNNCells',
+  'StringLookup',
+  'Subtract',
+  'TextVectorization',
+  'TimeDistributed',
+  'UpSampling1D',
+  'UpSampling2D',
+  'UpSampling3D',
+  'Wrapper',
+  'ZeroPadding1D',
+  'ZeroPadding2D',
+  'ZeroPadding3D'])
+
+  layernamelist=list(layer_name_df[0])
+  import seaborn as sns
+  paldata=sns.color_palette("Pastel2", len(layernamelist)).as_hex()
+
+  if val in layernamelist: 
+      valindex=layernamelist.index(val)
+      if any([val=="Concatenate",val=="Conv2D"]):
+        valindex=valindex+4
+      else:
+        pass
+      palvalue=paldata[valindex]
+  else:
+     pass
+  color = palvalue if val in layernamelist else 'white'
+  return 'background: %s' % color
+
 def stylize_model_comparison(comp_dict_out):
 
 
     if 'Sequential' in comp_dict_out.keys():
 
-        df_styled = comp_dict_out['Sequential']
+        df_styled = comp_dict_out['Sequential'].style.applymap(color_pal_assign)
 
-        layer_names = _get_layer_names()
+        df_styled = df_styled.set_properties(**{'color': 'black'})
 
-        dense_layers = [i for i in layer_names[0] if 'Dense' in i]
-        df_styled = df_styled.style.apply(lambda x: ["background: #DFFF00" if v in dense_layers else "" for v in x], 
-                                axis = 1)
-        drop_layers = [i for i in layer_names[0] if 'Dropout' in i]
-        df_styled = df_styled.apply(lambda x: ["background: #FFBF00" if v in drop_layers else "" for v in x], 
-                                axis = 1)
-        conv_layers = [i for i in layer_names[0] if 'Conv' in i]
-        df_styled = df_styled.apply(lambda x: ["background: #FF7F50" if v in conv_layers else "" for v in x], 
-                                axis = 1)
-        seq_layers = [i for i in layer_names[0] if 'RNN' in i or 'LSTM' in i or 'GRU' in i] + ['Bidirectional']
-        df_styled = df_styled.apply(lambda x: ["background: #DE3163" if v in seq_layers else "" for v in x], 
-                                axis = 1)
-        pool_layers = [i for i in layer_names[0] if 'Pool' in i]
-        df_styled = df_styled.apply(lambda x: ["background: #9FE2BF" if v in pool_layers else "" for v in x], 
-                                axis = 1)
-        rest_layers = [i for i in layer_names[0] if i not in dense_layers+drop_layers+conv_layers+seq_layers+pool_layers]
-        df_styled = df_styled.apply(lambda x: ["background: lightgrey" if v in rest_layers else "" for v in x], 
-                            axis = 1)
+        df_styled = df_styled.set_caption('Model type: ' + 'Neural Network').set_table_styles([{'selector': 'caption',
+            'props': [('color', 'white'), ('font-size', '18px')]}])
 
         df_styled = df_styled.set_properties(**{'color': 'black'})
 
@@ -1089,7 +1225,6 @@ def stylize_model_comparison(comp_dict_out):
 
             display(HTML(df_styled.render()))
             print('\n\n')
-
 
 
 def compare_models_aws(apiurl, version_list=None, 
@@ -1188,7 +1323,7 @@ def compare_models_aws(apiurl, version_list=None,
 
 
 def compare_models_lambda(apiurl, version_list="None", 
-    by_model_type=None, best_model=None, verbose=3):
+    by_model_type=None, best_model=None, verbose=1):
     if all(["username" in os.environ, 
            "password" in os.environ]):
         pass
@@ -1201,7 +1336,8 @@ def compare_models_lambda(apiurl, version_list="None",
                "inspect_model": "False",
                "version": "None", 
                "compare_models": "True",
-               "version_list": version_list}
+               "version_list": version_list,
+               "verbose": verbose}
     
     headers = { 'Content-Type':'application/json', 'authorizationToken': os.environ.get("AWS_TOKEN"),} 
 

@@ -188,8 +188,9 @@ def handler(event, context):
         if body.get("compare_models","ALL") == "True": 
         
             version_list = body["version_list"]
+	    verbose = body["verbose"]
 
-            comp_dict_out = compare_models(version_list)
+            comp_dict_out = compare_models(version_list, verbose=verbose)
             
             compare_dict = {"statusCode": 200,
                 "headers": {
@@ -470,7 +471,7 @@ def _get_metadata(onnx_model):
     return onnx_meta_dict
     
     
-def compare_models(version_list, by_model_type=None, best_model=None, verbose=5):
+def compare_models(version_list, by_model_type=None, best_model=None, verbose=1):
     
     s3 = boto3.resource('s3')
     obj = s3.Object("$bucket_name", "$unique_model_id/"+"inspect_pd.json")
@@ -512,12 +513,22 @@ def compare_models(version_list, by_model_type=None, best_model=None, verbose=5)
         for i in version_list: 
 
             temp_pd = pd.DataFrame(model_dict[str(i)]['model_dict'])
-            temp_pd = temp_pd.iloc[:,0:verbose]
+
             temp_pd.iloc[:,2] = temp_pd.iloc[:,2].astype(str)
+
+            if verbose == 0: 
+                temp_pd = temp_pd.iloc[['Layer']]
+            elif verbose == 1: 
+                temp_pd = temp_pd.iloc[['Layer', 'Shape', 'Params']]
+            elif verbose == 2: 
+                temp_pd = temp_pd.iloc[['Name', 'Layer', 'Shape', 'Params', 'Connect']]
+            elif verbose == 3: 
+                temp_pd = temp_pd.iloc[['Name', 'Layer', 'Shape', 'Params', 'Connect', 'Activation']]
+
             temp_pd = temp_pd.add_prefix('Model_'+str(i)+'_')    
             comp_pd = pd.concat([comp_pd, temp_pd], axis=1)
 
-        comp_dict_out = {"Sequential": comp_pd}
+        comp_dict_out = {"Sequential": comp_pd.to_json()}
         
         return comp_dict_out
 
