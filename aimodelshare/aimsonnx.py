@@ -1058,13 +1058,13 @@ def compare_models_dict(apiurl, version_list=None,
             temp_pd.iloc[:,2] = temp_pd.iloc[:,2].astype(str)
 
             if verbose == 0: 
-                temp_pd = temp_pd.iloc[['Layer']]
+                temp_pd = temp_pd[['Layer']]
             elif verbose == 1: 
-                temp_pd = temp_pd.iloc[['Layer', 'Shape', 'Params']]
+                temp_pd = temp_pd[['Layer', 'Shape', 'Params']]
             elif verbose == 2: 
-                temp_pd = temp_pd.iloc[['Name', 'Layer', 'Shape', 'Params', 'Connect']]
+                temp_pd = temp_pd[['Name', 'Layer', 'Shape', 'Params', 'Connect']]
             elif verbose == 3: 
-                temp_pd = temp_pd.iloc[['Name', 'Layer', 'Shape', 'Params', 'Connect', 'Activation']]
+                temp_pd = temp_pd[['Name', 'Layer', 'Shape', 'Params', 'Connect', 'Activation']]
 
             temp_pd = temp_pd.add_prefix('Model_'+str(i)+'_')    
             comp_pd = pd.concat([comp_pd, temp_pd], axis=1)
@@ -1372,7 +1372,7 @@ def compare_models_lambda(apiurl, version_list="None",
 
     compare_dict = json.loads(compare_json.text)
 
-    comp_dict_out = {i: pd.DataFrame(compare_dict[i]) for i in compare_dict}
+    comp_dict_out = {i: pd.DataFrame(json.loads(compare_dict[i])) for i in compare_dict}
 
     return comp_dict_out
 
