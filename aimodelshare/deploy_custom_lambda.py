@@ -133,7 +133,7 @@ def deploy_custom_lambda(input_json_exampledata, output_json_exampledata, lambda
     aishare_modelname = input("Name your deployment: ")
     aishare_modeldescription = input("Describe your deployment: ")
     aishare_modelevaluation = input("Describe your deployment's performance (OPTIONAL): ")
-    aishare_tags = input("Enter comma-separated search categories for your model (OPTIONAL): ")
+    aishare_tags = input("Enter comma-separated search categories for your deployment (OPTIONAL): ")
     aishare_apicalls = 0
     print('')
     # unpack user credentials
