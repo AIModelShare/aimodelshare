@@ -35,8 +35,9 @@ import requests
 import sys
 
 from pympler import asizeof
-from IPython.core.display import display, HTML
+from IPython.core.display import display, HTML, SVG
 import absl.logging
+import networkx as nx
 
 absl.logging.set_verbosity(absl.logging.ERROR)
 
@@ -1641,3 +1642,104 @@ def model_summary_keras(model):
     "Activation": activations})
 
     return model_summary
+
+
+def model_graph_keras(model):
+
+    # extract model architecture metadata 
+    layer_names = []
+    layer_types = []
+    layer_n_params = []
+    layer_shapes = []
+    layer_connect = []
+    activations = []
+
+    graph_nodes = []
+    graph_edges = []
+
+
+    for i in model.layers: 
+
+        try:
+            layer_name = i.name
+        except:
+            layer_name = None
+        finally:
+            layer_names.append(layer_name)
+
+
+        try:
+            layer_type = i.__class__.__name__
+        except:
+            layer_type = None
+        finally:
+            layer_types.append(layer_type)
+
+        try:
+            layer_shape = i.output_shape
+        except:
+            layer_shape = None
+        finally:
+            layer_shapes.append(layer_shape)
+
+
+        try:
+            layer_params = i.count_params()
+        except:
+            layer_params = None
+        finally:
+            layer_n_params.append(layer_params)
+
+
+        try:
+            if isinstance(i.inbound_nodes[0].inbound_layers, list):
+              layer_input = [x.name for x in i.inbound_nodes[0].inbound_layers]
+            else: 
+              layer_input = i.inbound_nodes[0].inbound_layers.name
+        except:
+            layer_connect = None
+        finally:
+            layer_connect.append(layer_input)
+
+
+        try: 
+            activation = i.activation.__name__
+        except:
+            activation = None
+        finally:
+            activations.append(activation)
+
+        layer_color = color_pal_assign(layer_type)
+        layer_color =  layer_color.split(' ')[-1]
+
+
+        graph_nodes.append((layer_name, {"label": layer_type + '\n' + str(layer_shape),
+                                         "URL": "https://keras.io/search.html?query="+layer_type.lower(),
+                                         "color": layer_color,
+                                         "style": "bold",
+                                    "Name": layer_name,
+                                    "Layer": layer_type,
+                                    "Shape": layer_shape,
+                                    "Params": layer_params,
+                                    "Activation": activation}))
+        
+        if isinstance(layer_input, list):
+            for i in layer_input:
+                graph_edges.append((i, layer_name))
+        else:
+            graph_edges.append((layer_input, layer_name))
+
+    G = nx.DiGraph()
+    G.add_nodes_from(graph_nodes)
+    G.add_edges_from(graph_edges)
+
+    G_pydot = nx.drawing.nx_pydot.to_pydot(G)
+
+    return G_pydot
+
+
+def plot_keras(model):
+
+    G =  model_graph_keras(model)
+
+    display(SVG(G.create_svg()))
