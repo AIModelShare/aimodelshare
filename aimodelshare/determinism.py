@@ -83,7 +83,7 @@ def import_determinism_env_from_model(apiurl):
         return print("'Instantiate Model' unsuccessful. Please provide credentials with set_credentials().")
 
     aws_client = get_aws_client()
-    determinism_env_filename = "/determinism.json"
+    determinism_env_filename = "/runtime_determinism.json"
 
     # Get bucket and model_id for user
     response, error = run_function_on_lambda(

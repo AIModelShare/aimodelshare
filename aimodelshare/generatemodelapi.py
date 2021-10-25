@@ -187,7 +187,7 @@ def upload_determinism_env(determinism_env_file, s3, bucket, model_id):
     # Upload the json {{{
     try:
         s3["client"].upload_file(
-            determinism_env_file, bucket, model_id + "/determinism.json"
+            determinism_env_file, bucket, model_id + "/runtime_determinism.json"
         )
     except Exception as err:
         raise err

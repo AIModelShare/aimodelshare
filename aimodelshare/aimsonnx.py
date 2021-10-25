@@ -23,6 +23,7 @@ import onnxruntime as rt
 
 # aims modules
 from aimodelshare.aws import run_function_on_lambda, get_aws_client
+from aimodelshare.determinism import set_determinism_env
 
 # os etc
 import os
@@ -1167,6 +1168,53 @@ def _get_onnx_from_bucket(apiurl, aws_client, version=None):
 
     return onx
 
+
+def instantiate_model_determinism(apiurl, version=None):
+    # Confirm that creds are loaded, print warning if not
+    if all(["username" in os.environ, 
+          "password" in os.environ]):
+      pass
+    else:
+      return print("'Submit Model' unsuccessful. Please provide credentials with set_credentials().")
+
+    post_dict = {
+        "y_pred": [],
+        "return_eval": "False",
+        "return_y": "False",
+        "inspect_model": "False",
+        "version": "None", 
+        "compare_models": "False",
+        "version_list": "None",
+        "get_leaderboard": "False",
+        "instantiate_model_determinism": "True",
+        "model_version": version
+    }
+
+    headers = { 'Content-Type':'application/json', 'authorizationToken': os.environ.get("AWS_TOKEN"),} 
+
+    apiurl_eval=apiurl[:-1]+"eval"
+
+    resp = requests.post(apiurl_eval,headers=headers,data=json.dumps(post_dict)) 
+
+    resp_dict = json.loads(resp.text)
+
+    set_determinism_env(resp_dict['determinism_env'])
+    print("Your determinism environment is successfully setup")
+
+    print("Instantiate the model from metadata..")
+    model_config = ast.literal_eval(resp_dict['model_metadata']['model_config'])
+    ml_framework = resp_dict['model_metadata']['ml_framework']
+
+    if ml_framework == 'sklearn':
+        model_type = resp_dict['model_metadata']['model_type']
+        model_class = model_from_string(model_type)
+        model = model_class(**model_config)
+
+    if ml_framework == 'keras':
+        model = tf.keras.Sequential().from_config(model_config)
+
+    print("Your model is successfully instantiated.")
+    return model
 
 def instantiate_model(apiurl, version=None, trained=False):
     if all(["AWS_ACCESS_KEY_ID" in os.environ, 
