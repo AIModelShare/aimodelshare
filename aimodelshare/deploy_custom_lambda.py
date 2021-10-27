@@ -169,6 +169,22 @@ def deploy_custom_lambda(input_json_exampledata, output_json_exampledata, lambda
     requests.post("https://bhrdesksak.execute-api.us-east-1.amazonaws.com/dev/modeldata",
                   json=bodydata, headers=headers_with_authentication)
 
+    # Get the response
+    headers_with_authentication = {'Content-Type': 'application/json', 'authorizationToken': os.environ.get("JWT_AUTHORIZATION_TOKEN"), 'Access-Control-Allow-Headers':
+                                   'Content-Type,X-Amz-Date,authorizationToken,Access-Control-Allow-Origin,X-Api-Key,X-Amz-Security-Token,Authorization', 'Access-Control-Allow-Origin': '*'}
+    # modeltoapi lambda function invoked through below url to return new prediction api in response
+    response = requests.post("https://bhrdesksak.execute-api.us-east-1.amazonaws.com/dev/modeldata",
+                              json=bodydata, headers=headers_with_authentication)
+    response_string = response.text
+    response_string = response_string[1:-1]
+
+    # Build output {{{
+    final_message = ("Follow this link to explore your Model Playground's functionality\n"
+                     "You can make predictions with the cURL functionality and access example code from the Programmatic tab.\n")
+    web_dashboard_url = ("https://www.modelshare.org/detail/"+ response_string)
+
+
+
     end = datetime.datetime.now()    # end timer
     difference = (end - start).total_seconds()
     finalresult2 = "Your AI Model Share API was created in " + \

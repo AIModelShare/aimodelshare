@@ -722,6 +722,13 @@ def create_prediction_api(model_filepath, unique_model_id, model_type, categoric
 
     result = 'https://'+api_id + '.execute-api.'+os.environ.get("AWS_REGION")+'.amazonaws.com/prod/m'
 
+    if model_type=='custom':
+        ### Progress Update #6/6 {{{
+        sys.stdout.write('\r')
+        sys.stdout.write("[=====================================] Progress: 100% - API deployment completed!                          ")
+        sys.stdout.flush()
+        # }}}
+
     return {"statusCode": 200,
             "headers": {
                 "Access-Control-Allow-Origin": "*",
