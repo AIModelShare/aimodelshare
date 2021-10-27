@@ -130,10 +130,10 @@ def deploy_custom_lambda(input_json_exampledata, output_json_exampledata, lambda
     apiurl = create_prediction_api(None, str(api_id), 'custom', 'FALSE', [], api_id, "TRUE", custom_libraries)
 
     print("\n\nWe need some information about your model before we can generate your API.\n")
-    aishare_modelname = input("Name your model: ")
-    aishare_modeldescription = input("Describe your model: ")
-    aishare_modelevaluation = input("Describe your model's performance: ")
-    aishare_tags = input("Enter comma-separated search categories for your model: ")
+    aishare_modelname = input("Name your deployment: ")
+    aishare_modeldescription = input("Describe your deployment: ")
+    aishare_modelevaluation = input("Describe your deployment's performance (OPTIONAL): ")
+    aishare_tags = input("Enter comma-separated search categories for your deployment (OPTIONAL): ")
     aishare_apicalls = 0
     print('')
     # unpack user credentials
