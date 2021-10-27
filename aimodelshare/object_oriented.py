@@ -215,6 +215,11 @@ class Competition:
         model = instantiate_model(apiurl=self.playground_url, trained=trained, version=version)
         return model
 
+    def inspect_model(self, version=None):
+        from aimodelshare.aimsonnx import inspect_model
+        inspect_pd = inspect_model(apiurl=self.playground_url, version=version)
+        return inspect_pd
+
     def compare_models(self, version_list="None", by_model_type=None, best_model=None, verbose=3):
         from aimodelshare.aimsonnx import compare_models as compare
         data = compare(apiurl = self.playground_url, 
@@ -223,7 +228,12 @@ class Competition:
                       best_model = best_model, 
                       verbose = verbose)
         return data
-    
+
+    def stylize_compare(self, compare_dict):
+        from aimodelshare.aimsonnx import stylize_model_comparison
+        stylized_compare = stylize_model_comparison(comp_dict_out=compare_dict)
+        return(stylized_compare)
+
     def inspect_y_test(self):
         from aimodelshare.aimsonnx import inspect_y_test as inspect
         data = inspect(apiurl = self.playground_url)

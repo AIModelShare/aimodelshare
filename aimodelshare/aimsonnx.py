@@ -35,7 +35,10 @@ import requests
 import sys
 
 from pympler import asizeof
+from IPython.core.display import display, HTML, SVG
 import absl.logging
+import networkx as nx
+
 absl.logging.set_verbosity(absl.logging.ERROR)
 
 def _extract_onnx_metadata(onnx_model, framework):
@@ -449,7 +452,7 @@ def _keras_to_onnx(model, transfer_learning=None,
             activations.append(i.__class__.__name__.lower())
         if hasattr(i, 'activation') and i.activation.__name__ in activation_list:
             activations.append(i.activation.__name__)
-            
+
     if hasattr(model, 'loss'):
         loss = model.loss.__class__.__name__
     else:
@@ -459,7 +462,8 @@ def _keras_to_onnx(model, transfer_learning=None,
         optimizer = model.optimizer.__class__.__name__
     else:
         optimizer = None 
-            
+
+    model_summary_pd = model_summary_keras(model)
     
     # insert data into model architecture dict 
     model_architecture = {'layers_number': len(layers),
@@ -474,6 +478,8 @@ def _keras_to_onnx(model, transfer_learning=None,
                          }
 
     metadata['model_architecture'] = str(model_architecture)
+
+    metadata['model_summary'] = model_summary_pd.to_json()
 
     metadata['memory_size'] = asizeof.asizeof(model)
 
@@ -834,16 +840,10 @@ def _model_summary(meta_dict, from_onnx=False):
     "Please make sure model architecture data is included."
 
     if from_onnx == True:
-        architecture = meta_dict['metadata_onnx']["model_architecture"]
+        model_summary = pd.read_json(meta_dict['metadata_onnx']["model_summary"])
     else:
-        architecture = meta_dict["model_architecture"] 
+        model_summary = pd.read_json(meta_dict["model_summary"])
        
-        
-    model_summary = pd.DataFrame({'Layer':architecture['layers_sequence'],
-                          #'Activation':architecture['activations_sequence'],
-                          'Shape':architecture['layers_shapes'],
-                          'Params':architecture['layers_n_params']})
-        
     return model_summary
 
 
@@ -922,6 +922,7 @@ def inspect_model_lambda(apiurl, version=None):
 
 
 def inspect_model_dict(apiurl, version=None):
+
     if all(["AWS_ACCESS_KEY_ID" in os.environ, 
             "AWS_SECRET_ACCESS_KEY" in os.environ,
             "AWS_REGION" in os.environ, 
@@ -953,7 +954,9 @@ def inspect_model_dict(apiurl, version=None):
     except Exception as e:
         print(e)
 
-    inspect_pd = pd.DataFrame(model_dict.get(str(version)))
+    ml_framework = model_dict.get(str(version))['ml_framework']
+    model_type = model_dict.get(str(version))['model_type']
+    inspect_pd = pd.DataFrame(model_dict.get(str(version))['model_dict'])
     
     return inspect_pd
 
@@ -967,18 +970,288 @@ def inspect_model(apiurl, version=None):
         return print("'Inspect Model' unsuccessful. Please provide credentials with set_credentials().")
 
     try:
-        inspect_pd = inspect_model_dict(apiurl, version)
+        inspect_pd = inspect_model_lambda(apiurl, version)
     except:
 
         try: 
-            inspect_pd = inspect_model_lambda(apiurl, version)
+            inspect_pd = inspect_model_dict(apiurl, version)
         except: 
             inspect_pd = inspect_model_aws(apiurl, version)
     
     return inspect_pd
 
 
+def compare_models_dict(apiurl, version_list=None, 
+    by_model_type=None, best_model=None, verbose=1):
     
+    if not isinstance(version_list, list):
+        raise Exception("Argument 'version' must be a list.")
+    
+    if all(["AWS_ACCESS_KEY_ID" in os.environ, 
+            "AWS_SECRET_ACCESS_KEY" in os.environ,
+            "AWS_REGION" in os.environ, 
+           "username" in os.environ, 
+           "password" in os.environ]):
+        pass
+    else:
+        return print("'Compare Models' unsuccessful. Please provide credentials with set_credentials().")
+
+    aws_client=get_aws_client(aws_key=os.environ.get('AWS_ACCESS_KEY_ID'), 
+                              aws_secret=os.environ.get('AWS_SECRET_ACCESS_KEY'), 
+                              aws_region=os.environ.get('AWS_REGION'))
+
+    # Get bucket and model_id for user
+    response, error = run_function_on_lambda(
+        apiurl, **{"delete": "FALSE", "versionupdateget": "TRUE"}
+    )
+    if error is not None:
+        raise error
+
+    _, bucket, model_id = json.loads(response.content.decode("utf-8"))
+
+    key = model_id+'/inspect_pd.json'
+    
+    try:
+      resp = aws_client['client'].get_object(Bucket=bucket, Key=key)
+      data = resp.get('Body').read()
+      model_dict = json.loads(data)
+    except Exception as e:
+        print(e)
+
+    ml_framework_list = [model_dict[str(i)]['ml_framework'] for i in version_list]
+    model_type_list = [model_dict[str(i)]['model_type'] for i in version_list]
+    model_dict_list = [model_dict[str(i)]['model_dict'] for i in version_list]
+
+    if not all(x==ml_framework_list[0] for x in ml_framework_list):
+        raise Exception("Incongruent frameworks. Please compare models from the same ML frameworks.")
+        
+
+    if ml_framework_list[0] == 'sklearn':
+
+        comp_dict_out = {}
+        
+        for i in version_list: 
+            
+            temp_pd = pd.DataFrame(model_dict[str(i)]['model_dict'])
+            temp_pd.columns = ['param_name', 'default_value', "model_version_"+str(i)]
+
+            if model_dict[str(i)]['model_type'] in comp_dict_out.keys():
+
+                comp_pd = comp_dict_out[model_dict[str(i)]['model_type']]
+                comp_pd = comp_pd.merge(temp_pd.drop('default_value', axis=1), on='param_name')
+
+                comp_dict_out[model_dict[str(i)]['model_type']] = comp_pd
+
+            else:
+                comp_dict_out[model_dict[str(i)]['model_type']] = temp_pd
+
+        return comp_dict_out
+
+            
+    if ml_framework_list[0] == 'keras':
+
+        comp_pd = pd.DataFrame()
+
+        for i in version_list: 
+
+            temp_pd = pd.DataFrame(model_dict[str(i)]['model_dict'])
+
+            temp_pd.iloc[:,2] = temp_pd.iloc[:,2].astype(str)
+
+            if verbose == 0: 
+                temp_pd = temp_pd[['Layer']]
+            elif verbose == 1: 
+                temp_pd = temp_pd[['Layer', 'Shape', 'Params']]
+            elif verbose == 2: 
+                temp_pd = temp_pd[['Name', 'Layer', 'Shape', 'Params', 'Connect']]
+            elif verbose == 3: 
+                temp_pd = temp_pd[['Name', 'Layer', 'Shape', 'Params', 'Connect', 'Activation']]
+
+            temp_pd = temp_pd.add_prefix('Model_'+str(i)+'_')    
+            comp_pd = pd.concat([comp_pd, temp_pd], axis=1)
+
+        comp_dict_out = {"Sequential": comp_pd}
+        
+        return comp_dict_out
+
+
+def color_pal_assign(val):
+  import pandas as pd
+  
+  # create Pandas Series with default index values
+  # default index ranges is from 0 to len(list) - 1
+  layer_name_df =  pd.DataFrame(['AbstractRNNCell',
+  'Activation',
+  'ActivityRegularization',
+  'Add',
+  'AdditiveAttention',
+  'AlphaDropout',
+  'Attention',
+  'Average',
+  'AveragePooling1D',
+  'AveragePooling2D',
+  'AveragePooling3D',
+  'AvgPool1D',
+  'AvgPool2D',
+  'AvgPool3D',
+  'BatchNormalization',
+  'Bidirectional',
+  'CategoryEncoding',
+  'CenterCrop',
+  'Concatenate',
+  'Conv1D',
+  'Conv1DTranspose',
+  'Conv2D',
+  'Conv2DTranspose',
+  'Conv3D',
+  'Conv3DTranspose',
+  'ConvLSTM1D',
+  'ConvLSTM2D',
+  'ConvLSTM3D',
+  'Convolution1D',
+  'Convolution1DTranspose',
+  'Convolution2D',
+  'Convolution2DTranspose',
+  'Convolution3D',
+  'Convolution3DTranspose',
+  'Cropping1D',
+  'Cropping2D',
+  'Cropping3D',
+  'Dense',
+  'DenseFeatures',
+  'DepthwiseConv2D',
+  'Discretization',
+  'Dot',
+  'Dropout',
+  'Embedding',
+  'Flatten',
+  'GRU',
+  'GRUCell',
+  'GaussianDropout',
+  'GaussianNoise',
+  'GlobalAveragePooling1D',
+  'GlobalAveragePooling2D',
+  'GlobalAveragePooling3D',
+  'GlobalAvgPool1D',
+  'GlobalAvgPool2D',
+  'GlobalAvgPool3D',
+  'GlobalMaxPool1D',
+  'GlobalMaxPool2D',
+  'GlobalMaxPool3D',
+  'GlobalMaxPooling1D',
+  'GlobalMaxPooling2D',
+  'GlobalMaxPooling3D',
+  'Hashing',
+  'Input',
+  'InputLayer',
+  'InputSpec',
+  'IntegerLookup',
+  'LSTM',
+  'LSTMCell',
+  'Lambda',
+  'Layer',
+  'LayerNormalization',
+  'LocallyConnected1D',
+  'LocallyConnected2D',
+  'Masking',
+  'MaxPool1D',
+  'MaxPool2D',
+  'MaxPool3D',
+  'MaxPooling1D',
+  'MaxPooling2D',
+  'MaxPooling3D',
+  'Maximum',
+  'Minimum',
+  'MultiHeadAttention',
+  'Multiply',
+  'Normalization',
+  'Permute',
+  'RNN',
+  'RandomContrast',
+  'RandomCrop',
+  'RandomFlip',
+  'RandomHeight',
+  'RandomRotation',
+  'RandomTranslation',
+  'RandomWidth',
+  'RandomZoom',
+  'RepeatVector',
+  'Rescaling',
+  'Reshape',
+  'Resizing',
+  'SeparableConv1D',
+  'SeparableConv2D',
+  'SeparableConvolution1D',
+  'SeparableConvolution2D',
+  'SimpleRNN',
+  'SimpleRNNCell',
+  'SpatialDropout1D',
+  'SpatialDropout2D',
+  'SpatialDropout3D',
+  'StackedRNNCells',
+  'StringLookup',
+  'Subtract',
+  'TextVectorization',
+  'TimeDistributed',
+  'UpSampling1D',
+  'UpSampling2D',
+  'UpSampling3D',
+  'Wrapper',
+  'ZeroPadding1D',
+  'ZeroPadding2D',
+  'ZeroPadding3D'])
+
+  layernamelist=list(layer_name_df[0])
+  import seaborn as sns
+  paldata=sns.color_palette("Pastel2", len(layernamelist)).as_hex()
+
+  if val in layernamelist: 
+      valindex=layernamelist.index(val)
+      if any([val=="Concatenate",val=="Conv2D"]):
+        valindex=valindex+4
+      else:
+        pass
+      palvalue=paldata[valindex]
+  else:
+     pass
+  color = palvalue if val in layernamelist else 'white'
+  return 'background: %s' % color
+
+def stylize_model_comparison(comp_dict_out):
+
+
+    if 'Sequential' in comp_dict_out.keys():
+
+        df_styled = comp_dict_out['Sequential'].style.applymap(color_pal_assign)
+
+        df_styled = df_styled.set_properties(**{'color': 'black'})
+
+        df_styled = df_styled.set_caption('Model type: ' + 'Neural Network').set_table_styles([{'selector': 'caption',
+            'props': [('color', 'white'), ('font-size', '18px')]}])
+
+        df_styled = df_styled.set_properties(**{'color': 'black'})
+
+        df_styled = df_styled.set_caption('Model type: ' + 'Neural Network').set_table_styles([{'selector': 'caption',
+            'props': [('color', 'white'), ('font-size', '18px')]}])
+
+        display(HTML(df_styled.render()))
+
+
+    else:
+
+        for i in comp_dict_out.keys():
+
+            comp_pd = comp_dict_out[i]
+
+            df_styled = comp_pd.style.apply(lambda x: ["background: tomato" if v != x.iloc[0] else "" for v in x], 
+                axis = 1, subset=comp_pd.columns[1:])
+
+            df_styled = df_styled.set_caption('Model type: ' + i).set_table_styles([{'selector': 'caption',
+                'props': [('color', 'white'), ('font-size', '18px')]}])
+
+            display(HTML(df_styled.render()))
+            print('\n\n')
+
 
 def compare_models_aws(apiurl, version_list=None, 
     by_model_type=None, best_model=None, verbose=3):
@@ -1049,35 +1322,34 @@ def compare_models_aws(apiurl, version_list=None,
             temp_pd = temp_pd.add_prefix('Model_'+str(i)+'_')    
             comp_pd = pd.concat([comp_pd, temp_pd], axis=1, ignore_index=True)
 
-
         layer_names = _get_layer_names()
 
-        '''
         dense_layers = [i for i in layer_names[0] if 'Dense' in i]
-        df_styled = comp_pd.style.apply(lambda x: ["background: tomato" if v in dense_layers else "" for v in x], 
+        df_styled = df_styled.style.apply(lambda x: ["background: #DFFF00" if v in dense_layers else "" for v in x], 
                                 axis = 1)
         drop_layers = [i for i in layer_names[0] if 'Dropout' in i]
-        df_styled = comp_pd.style.apply(lambda x: ["background: lightblue" if v in drop_layers else "" for v in x], 
+        df_styled = df_styled.apply(lambda x: ["background: #FFBF00" if v in drop_layers else "" for v in x], 
                                 axis = 1)
         conv_layers = [i for i in layer_names[0] if 'Conv' in i]
-        df_styled = df_styled.apply(lambda x: ["background: yellow" if v in conv_layers else "" for v in x], 
+        df_styled = df_styled.apply(lambda x: ["background: #FF7F50" if v in conv_layers else "" for v in x], 
                                 axis = 1)
         seq_layers = [i for i in layer_names[0] if 'RNN' in i or 'LSTM' in i or 'GRU' in i] + ['Bidirectional']
-        df_styled = df_styled.apply(lambda x: ["background: orange" if v in seq_layers else "" for v in x], 
+        df_styled = df_styled.apply(lambda x: ["background: #DE3163" if v in seq_layers else "" for v in x], 
                                 axis = 1)
         pool_layers = [i for i in layer_names[0] if 'Pool' in i]
-        df_styled = df_styled.apply(lambda x: ["background: lightgreen" if v in pool_layers else "" for v in x], 
+        df_styled = df_styled.apply(lambda x: ["background: #9FE2BF" if v in pool_layers else "" for v in x], 
                                 axis = 1)
         rest_layers = [i for i in layer_names[0] if i not in dense_layers+drop_layers+conv_layers+seq_layers+pool_layers]
         df_styled = df_styled.apply(lambda x: ["background: lightgrey" if v in rest_layers else "" for v in x], 
-                                axis = 1)
-        '''
+                            axis = 1)
+
+    df_styled = df_styled.style.set_properties(**{'color': 'lawngreen'})
 
     return df_styled
 
 
 def compare_models_lambda(apiurl, version_list="None", 
-    by_model_type=None, best_model=None, verbose=3):
+    by_model_type=None, best_model=None, verbose=1):
     if all(["username" in os.environ, 
            "password" in os.environ]):
         pass
@@ -1090,7 +1362,8 @@ def compare_models_lambda(apiurl, version_list="None",
                "inspect_model": "False",
                "version": "None", 
                "compare_models": "True",
-               "version_list": version_list}
+               "version_list": version_list,
+               "verbose": verbose}
     
     headers = { 'Content-Type':'application/json', 'authorizationToken': os.environ.get("AWS_TOKEN"),} 
 
@@ -1098,9 +1371,11 @@ def compare_models_lambda(apiurl, version_list="None",
 
     compare_json = requests.post(apiurl_eval,headers=headers,data=json.dumps(post_dict)) 
 
-    compare_pd = pd.DataFrame(json.loads(compare_json.text))
+    compare_dict = json.loads(compare_json.text)
 
-    return compare_pd
+    comp_dict_out = {i: pd.DataFrame(json.loads(compare_dict[i])) for i in compare_dict}
+
+    return comp_dict_out
 
 
 def compare_models(apiurl, version_list="None", 
@@ -1118,15 +1393,19 @@ def compare_models(apiurl, version_list="None",
     try: 
         compare_pd = compare_models_lambda(apiurl, version_list, 
             by_model_type, best_model, verbose)
+
     except: 
-        compare_pd = compare_models_aws(apiurl, version_list, 
+
+        try: 
+            compare_pd = compare_models_dict(apiurl, version_list, 
             by_model_type, best_model, verbose)
+
+        except:
+
+            compare_pd = compare_models_aws(apiurl, version_list, 
+                by_model_type, best_model, verbose)
     
     return compare_pd
-
-
-
-
 
 
 
@@ -1245,6 +1524,7 @@ def _get_layer_names():
 
     return layer_list, activation_list
 
+
 def _get_sklearn_modules():
     
     import sklearn
@@ -1280,6 +1560,7 @@ def print_y_stats(y_stats):
   print("y_test class balance", y_stats['class_balance'])
   print("y_test label dtypes", y_stats['label_dtypes'])
 
+
 def inspect_y_test(apiurl):
 
   # Confirm that creds are loaded, print warning if not
@@ -1304,3 +1585,161 @@ def inspect_y_test(apiurl):
   # print_y_stats(y_stats_dict)
 
   return y_stats_dict
+
+
+def model_summary_keras(model):
+
+    # extract model architecture metadata 
+    layer_names = []
+    layer_types = []
+    layer_n_params = []
+    layer_shapes = []
+    layer_connect = []
+    activations = []
+
+
+    for i in model.layers: 
+
+        try:
+            layer_names.append(i.name)
+        except:
+            layer_names.append(None)
+
+        try:
+            layer_types.append(i.__class__.__name__)
+        except:
+            layer_types.append(None)
+
+        try:
+            layer_shapes.append(i.output_shape)
+        except:
+            layer_shapes.append(None)
+
+        try:
+            layer_n_params.append(i.count_params())
+        except:
+            layer_n_params.append(None)
+
+        try:
+            if isinstance(i.inbound_nodes[0].inbound_layers, list):
+              layer_connect.append([x.name for x in i.inbound_nodes[0].inbound_layers])
+            else: 
+              layer_connect.append(i.inbound_nodes[0].inbound_layers.name)
+        except:
+            layer_connect.append(None)
+
+        try: 
+            activations.append(i.activation.__name__)
+        except:
+            activations.append(None)
+
+
+    model_summary = pd.DataFrame({"Name": layer_names,
+    "Layer": layer_types,
+    "Shape": layer_shapes,
+    "Params": layer_n_params,
+    "Connect": layer_connect,
+    "Activation": activations})
+
+    return model_summary
+
+
+def model_graph_keras(model):
+
+    # extract model architecture metadata 
+    layer_names = []
+    layer_types = []
+    layer_n_params = []
+    layer_shapes = []
+    layer_connect = []
+    activations = []
+
+    graph_nodes = []
+    graph_edges = []
+
+
+    for i in model.layers: 
+
+        try:
+            layer_name = i.name
+        except:
+            layer_name = None
+        finally:
+            layer_names.append(layer_name)
+
+
+        try:
+            layer_type = i.__class__.__name__
+        except:
+            layer_type = None
+        finally:
+            layer_types.append(layer_type)
+
+        try:
+            layer_shape = i.output_shape
+        except:
+            layer_shape = None
+        finally:
+            layer_shapes.append(layer_shape)
+
+
+        try:
+            layer_params = i.count_params()
+        except:
+            layer_params = None
+        finally:
+            layer_n_params.append(layer_params)
+
+
+        try:
+            if isinstance(i.inbound_nodes[0].inbound_layers, list):
+              layer_input = [x.name for x in i.inbound_nodes[0].inbound_layers]
+            else: 
+              layer_input = i.inbound_nodes[0].inbound_layers.name
+        except:
+            layer_connect = None
+        finally:
+            layer_connect.append(layer_input)
+
+
+        try: 
+            activation = i.activation.__name__
+        except:
+            activation = None
+        finally:
+            activations.append(activation)
+
+        layer_color = color_pal_assign(layer_type)
+        layer_color =  layer_color.split(' ')[-1]
+
+
+        graph_nodes.append((layer_name, {"label": layer_type + '\n' + str(layer_shape),
+                                         "URL": "https://keras.io/search.html?query="+layer_type.lower(),
+                                         "color": layer_color,
+                                         "style": "bold",
+                                    "Name": layer_name,
+                                    "Layer": layer_type,
+                                    "Shape": layer_shape,
+                                    "Params": layer_params,
+                                    "Activation": activation}))
+        
+        if isinstance(layer_input, list):
+            for i in layer_input:
+                graph_edges.append((i, layer_name))
+        else:
+            graph_edges.append((layer_input, layer_name))
+
+    G = nx.DiGraph()
+    G.add_nodes_from(graph_nodes)
+    G.add_edges_from(graph_edges)
+
+    G_pydot = nx.drawing.nx_pydot.to_pydot(G)
+
+    return G_pydot
+
+
+def plot_keras(model):
+
+    G =  model_graph_keras(model)
+
+    display(SVG(G.create_svg()))
