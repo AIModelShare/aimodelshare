@@ -217,7 +217,6 @@ def deploy_custom_lambda(input_json_exampledata, output_json_exampledata, lambda
                      "You can make predictions with the cURL functionality and access example code from the Programmatic tab.\n")
     web_dashboard_url = ("https://www.modelshare.org/detail/"+ response_string)
 
-    start = api_info[2]
     end = datetime.datetime.now()
     difference = (end - start).total_seconds()
     finalresult2 = "Success! Your Model Playground was created in " + \
