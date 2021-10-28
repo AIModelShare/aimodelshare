@@ -220,7 +220,7 @@ def deploy_custom_lambda(input_json_exampledata, output_json_exampledata, lambda
     end = datetime.datetime.now()
     difference = (end - start).total_seconds()
     finalresult2 = "Success! Your Model Playground was created in " + \
-        str(int(difference)) + " seconds. \n" + " Playground Url: " + api_info[0] 
+        str(int(difference)) + " seconds."
 
     print("\n\n" + finalresult2 + "\n" + final_message + web_dashboard_url)
     
