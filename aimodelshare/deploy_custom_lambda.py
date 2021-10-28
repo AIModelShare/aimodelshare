@@ -211,7 +211,6 @@ def deploy_custom_lambda(input_json_exampledata, output_json_exampledata, lambda
         os.environ.get("AWS_REGION") +".  \n\nThis aws key/password combination limits team members to file upload access only."
     api_info = finalresult2+"\n"
 
-
     # Build output {{{
     final_message = ("Follow this link to explore your Model Playground's functionality\n"
                      "You can make predictions with the cURL functionality and access example code from the Programmatic tab.\n")
@@ -222,9 +221,11 @@ def deploy_custom_lambda(input_json_exampledata, output_json_exampledata, lambda
     finalresult2 = "Success! Your Model Playground was created in " + \
         str(int(difference)) + " seconds."
 
-    print("\n\n" + finalresult2 + "\n" + final_message + web_dashboard_url)
+    print(api_info)
+
+    print("\n\n" + final_message + web_dashboard_url)
     
-    return print(api_info)
+    return
 
 __all__ = [
     deploy_custom_lambda
