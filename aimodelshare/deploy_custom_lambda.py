@@ -178,13 +178,6 @@ def deploy_custom_lambda(input_json_exampledata, output_json_exampledata, lambda
     response_string = response.text
     response_string = response_string[1:-1]
 
-    # Build output {{{
-    final_message = ("Follow this link to explore your Model Playground's functionality\n"
-                     "You can make predictions with the cURL functionality and access example code from the Programmatic tab.\n")
-    web_dashboard_url = ("https://www.modelshare.org/detail/"+ response_string)
-
-
-
     end = datetime.datetime.now()    # end timer
     difference = (end - start).total_seconds()
     finalresult2 = "Your AI Model Share API was created in " + \
@@ -217,6 +210,20 @@ def deploy_custom_lambda(input_json_exampledata, output_json_exampledata, lambda
         os.environ.get("AI_MODELSHARE_ACCESS_KEY_ID") + ", aws_password = " + os.environ.get("AI_MODELSHARE_SECRET_ACCESS_KEY") + " region = " + \
         os.environ.get("AWS_REGION") +".  \n\nThis aws key/password combination limits team members to file upload access only."
     api_info = finalresult2+"\n"
+
+
+    # Build output {{{
+    final_message = ("Follow this link to explore your Model Playground's functionality\n"
+                     "You can make predictions with the cURL functionality and access example code from the Programmatic tab.\n")
+    web_dashboard_url = ("https://www.modelshare.org/detail/"+ response_string)
+
+    start = api_info[2]
+    end = datetime.datetime.now()
+    difference = (end - start).total_seconds()
+    finalresult2 = "Success! Your Model Playground was created in " + \
+        str(int(difference)) + " seconds. \n" + " Playground Url: " + api_info[0] 
+
+    print("\n\n" + finalresult2 + "\n" + final_message + web_dashboard_url)
     
     return print(api_info)
 
