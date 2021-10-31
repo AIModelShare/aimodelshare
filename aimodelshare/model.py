@@ -298,6 +298,38 @@ def upload_model_dict(modelpath, aws_client, bucket, model_id, model_version):
     return 1
 
 
+def upload_model_graph(modelpath, aws_client, bucket, model_id, model_version):
+
+    # get model summary from onnx
+    onnx_model = onnx.load(modelpath)
+    meta_dict = _get_metadata(onnx_model)
+
+    if meta_dict['ml_framework'] == 'keras':
+
+        model_graph = meta_dict['model_graph']
+        
+    elif meta_dict['ml_framework'] in ['sklearn', 'xgboost']:
+
+        model_graph = ''
+
+    key = model_id+'/model_graph.json'
+    
+    try:
+      resp = aws_client['client'].get_object(Bucket=bucket, Key=key)
+      data = resp.get('Body').read()
+      model_dict = json.loads(data)
+    except: 
+      model_dict = {}
+
+    graph_dict[str(model_version)] = {'ml_framework': meta_dict['ml_framework'],
+                                      'model_type': meta_dict['model_type'],
+                                      'model_graph': model_graph}
+
+    aws_client['client'].put_object(Bucket=bucket, Key=key, Body=json.dumps(graph_dict).encode())
+
+    return 1
+
+
 def submit_model(
     model_filepath=None,
     apiurl=None,
@@ -448,6 +480,7 @@ def submit_model(
                               aws_region=os.environ.get('AWS_REGION'))
 
     upload_model_dict(model_filepath, aws_client, bucket, model_id, model_version)
+    upload_model_graph(model_filepath, aws_client, bucket, model_id, model_version)
 
 
     modelpath=model_filepath

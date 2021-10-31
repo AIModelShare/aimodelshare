@@ -485,6 +485,9 @@ def _keras_to_onnx(model, transfer_learning=None,
 
     metadata['epochs'] = epochs
 
+    # model graph 
+    metadata_onnx['model_graph'] = json.dumps(model_graph_keras(model))
+
     # placeholder, needs evaluation engine
     metadata['eval_metrics'] = None
 
