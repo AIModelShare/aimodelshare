@@ -317,9 +317,9 @@ def upload_model_graph(modelpath, aws_client, bucket, model_id, model_version):
     try:
       resp = aws_client['client'].get_object(Bucket=bucket, Key=key)
       data = resp.get('Body').read()
-      model_dict = json.loads(data)
+      graph_dict = json.loads(data)
     except: 
-      model_dict = {}
+      graph_dict = {}
 
     graph_dict[str(model_version)] = {'ml_framework': meta_dict['ml_framework'],
                                       'model_type': meta_dict['model_type'],
@@ -544,6 +544,7 @@ def submit_model(
     if meta_dict['ml_framework'] == 'keras':
 
         inspect_pd = _model_summary(meta_dict)
+        model_graph = meta_dict['model_graph']
         
     elif meta_dict['ml_framework'] in ['sklearn', 'xgboost']:
 
@@ -557,6 +558,9 @@ def submit_model(
         inspect_pd = pd.DataFrame({'param_name': model_config.keys(),
                                    'default_value': default_config.values(),
                                    'param_value': model_config.values()})
+
+        model_graph = ''
+
    
     keys_to_extract = [ "accuracy", "f1_score", "precision", "recall", "mse", "rmse", "mae", "r2"]
 
@@ -569,6 +573,7 @@ def submit_model(
     bodydatamodels = {
                 "apiurl": apiurl,
                 "modelsummary":json.dumps(inspect_pd.to_json()),
+                "model_graph": model_graph,
                 "Private":"FALSE",
                 "modelsubmissiondescription": modelsubmissiondescription,
                 "modelsubmissiontags":modelsubmissiontags,
