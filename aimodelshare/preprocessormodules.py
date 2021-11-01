@@ -88,7 +88,7 @@ def export_preprocessor(preprocessor_fxn,directory, globs=globals()):
       function_objects=list(inspect.getclosurevars(preprocessor_fxn).globals.keys())
 
       import sys
-      modulenames = ["sklearn","keras","tensorflow","cv2","resize","pytorch"]
+      modulenames = ["sklearn","keras","tensorflow","cv2","resize","pytorch", "librosa"]
       function_objects_nomodules = [i for i in function_objects if i not in list(modulenames)]
 
       def savetopickle(function_objects_listelement):
