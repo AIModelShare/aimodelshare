@@ -631,12 +631,18 @@ def update_access_list(apiurl, email_list=[],update_type="Add"):
       # }}}
 
       email_list=json.loads(json.dumps(email_list))
+    
+       
       if update_type=="Replace_list":
           import json  
           import tempfile
           tempdir = tempfile.TemporaryDirectory()
+          content_object = aws_client['resource'].Object(bucket_name=api_bucket, key=model_id + "/competitionuserdata.json")
+          file_content = content_object.get()['Body'].read().decode('utf-8')
+          json_content = json.loads(file_content)
+          json_content['emaillist']=email_list
           with open(tempdir.name+'/competitionuserdata.json', 'w', encoding='utf-8') as f:
-              json.dump({"emaillist": email_list, "public":"FALSE"}, f, ensure_ascii=False, indent=4)
+              json.dump(json_content, f, ensure_ascii=False, indent=4)
 
           aws_client['client'].upload_file(
                 tempdir.name+"/competitionuserdata.json", api_bucket, model_id + "/competitionuserdata.json"
@@ -645,7 +651,6 @@ def update_access_list(apiurl, email_list=[],update_type="Add"):
           import json  
           import tempfile
           
-          aws_client['resource']
           content_object = aws_client['resource'].Object(bucket_name=api_bucket, key=model_id + "/competitionuserdata.json")
           file_content = content_object.get()['Body'].read().decode('utf-8')
           json_content = json.loads(file_content)
@@ -656,7 +661,7 @@ def update_access_list(apiurl, email_list=[],update_type="Add"):
 
           tempdir = tempfile.TemporaryDirectory()
           with open(tempdir.name+'/competitionuserdata.json', 'w', encoding='utf-8') as f:
-              json.dump({"emaillist": email_list_new, "public":"FALSE"}, f, ensure_ascii=False, indent=4)
+              json.dump({"emaillist": email_list_new, "public":json_content["public"]}, f, ensure_ascii=False, indent=4)
 
           aws_client['client'].upload_file(
                 tempdir.name+"/competitionuserdata.json", api_bucket, model_id + "/competitionuserdata.json"
@@ -677,7 +682,7 @@ def update_access_list(apiurl, email_list=[],update_type="Add"):
         
           tempdir = tempfile.TemporaryDirectory()
           with open(tempdir.name+'/competitionuserdata.json', 'w', encoding='utf-8') as f:
-              json.dump({"emaillist": email_list_new, "public":"FALSE"}, f, ensure_ascii=False, indent=4)
+              json.dump({"emaillist": email_list_new, "public":json_content["public"]}, f, ensure_ascii=False, indent=4)
 
           aws_client['client'].upload_file(
                 tempdir.name+"/competitionuserdata.json", api_bucket, model_id + "/competitionuserdata.json"
