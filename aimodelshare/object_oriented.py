@@ -81,7 +81,7 @@ class ModelPlayground:
         #remove extra quotes
         self.playground_url = self.playground_url[1:-1]
     
-    def create_competition(self, data_directory, y_test, email_list = []):
+    def create_competition(self, data_directory, y_test, email_list = [], public=False):
         """
         Creates a model competition for a deployed prediction REST API
         Inputs : 4
@@ -93,9 +93,11 @@ class ModelPlayground:
                 [REQUIRED] to generate eval metrics in competition leaderboard
                                 
         data_directory : folder storing training data and test data (excluding Y test data)
-        email_list: [REQUIRED] list of comma separated emails for users who are allowed to submit models to competition.  Emails should be strings in a list.
+        email_list: [OPTIONAL] list of comma separated emails for users who are allowed to submit models to competition.  Emails should be strings in a list.
+        public: [REQUIRED] True/false. Defaults to False.  If True, competition is public and ANY AIMODELSHARE USER CAN SUBMIT MODELS.  USE WITH CAUTION b/c one model and 
+                           one preprocessor file will be be saved to your AWS S3 folder for each model submission.
         
-
+        
         ---------
         Returns
         finalmessage : Information such as how to submit models to competition
@@ -105,7 +107,7 @@ class ModelPlayground:
         competition = to_competition(self.playground_url, 
                                     data_directory, 
                                     y_test, 
-                                    email_list)
+                                    email_list, public)
         return competition
         
     def submit_model(self, model_filepath, preprocessor_filepath, prediction_submission):
