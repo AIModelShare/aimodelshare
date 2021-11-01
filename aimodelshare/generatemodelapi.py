@@ -349,7 +349,7 @@ def model_to_api(model_filepath, model_type, private, categorical, y_train, prep
     requirements = ""
     if(any([custom_libraries=='TRUE',custom_libraries=='true'])):
         requirements = input("Enter all required Python libraries you need at prediction runtime (separated with commas):")
-        _confirm_libraries_exist(requirements)
+        #_confirm_libraries_exist(requirements)
         
     aishare_modelname = input("Model Name (for AI Model Share Website):")
     aishare_modeldescription = input("Model Description (Explain what your model does and \n why end-users would find your model useful):")
@@ -437,7 +437,11 @@ def create_competition(apiurl, data_directory, y_test,  email_list=[]):
     """
     if all([isinstance(email_list, list)]):
         if all([len(email_list)>0]):
-            pass
+              import jwt
+              idtoken=get_aws_token()
+              decoded = jwt.decode(idtoken, options={"verify_signature": False})  # works in PyJWT < v2.0
+              email=decoded['email']
+              email_list.append(email)
     else:
         return print("email_list argument empty or incorrectly formatted.  Please provide a list of emails for authorized competition participants formatted as strings.")
 
@@ -645,10 +649,11 @@ def update_access_list(apiurl, email_list=[],update_type="Add"):
           content_object = aws_client['resource'].Object(bucket_name=api_bucket, key=model_id + "/competitionuserdata.json")
           file_content = content_object.get()['Body'].read().decode('utf-8')
           json_content = json.loads(file_content)
-          print(json_content['emaillist'])
+
           email_list_old=json_content["emaillist"]
           email_list_new=email_list_old+email_list
-          
+          print(email_list_new)
+
           tempdir = tempfile.TemporaryDirectory()
           with open(tempdir.name+'/competitionuserdata.json', 'w', encoding='utf-8') as f:
               json.dump({"emaillist": email_list_new, "public":"FALSE"}, f, ensure_ascii=False, indent=4)
@@ -665,11 +670,11 @@ def update_access_list(apiurl, email_list=[],update_type="Add"):
           content_object = aws_client['resource'].Object(bucket_name=api_bucket, key=model_id + "/competitionuserdata.json")
           file_content = content_object.get()['Body'].read().decode('utf-8')
           json_content = json.loads(file_content)
-          print(json_content['emaillist'])
 
           email_list_old=json_content["emaillist"]
           email_list_new=list(set(list(email_list_old)) - set(email_list))
-          
+          print(email_list_new)
+        
           tempdir = tempfile.TemporaryDirectory()
           with open(tempdir.name+'/competitionuserdata.json', 'w', encoding='utf-8') as f:
               json.dump({"emaillist": email_list_new, "public":"FALSE"}, f, ensure_ascii=False, indent=4)
@@ -719,6 +724,13 @@ def _create_exampledata_json(model_type, exampledata_folder_filepath):
     audio_extensions = ['.m4a', '.flac', '.mp3', '.mp4', '.wav', '.wma', '.aac']
      
     if any([model_type.lower() == "tabular", model_type.lower() == "timeseries", model_type.lower() == "text"]):
+        #confirm data type is data frame, try to convert if not [necessary for front end]
+        import pandas as pd
+        if isinstance(exampledata_folder_filepath, pd.DataFrame):
+            pass
+        else:
+            exampledata_folder_filepath = pd.DataFrame(exampledata_folder_filepath)
+            
         tabularjson = exampledata_folder_filepath.to_json(orient='split', index=False)
         
     

@@ -14,7 +14,7 @@ from datetime import datetime
 
 from aimodelshare.aws import run_function_on_lambda, get_token, get_aws_token, get_aws_client
 
-from aimodelshare.aimsonnx import _get_leaderboard_data, inspect_model, _get_metadata, _model_summary
+from aimodelshare.aimsonnx import _get_leaderboard_data, inspect_model, _get_metadata, _model_summary, model_from_string
 
 
 def _get_file_list(client, bucket, model_id):
@@ -264,12 +264,19 @@ def upload_model_dict(modelpath, aws_client, bucket, model_id, model_version):
     meta_dict = _get_metadata(onnx_model)
 
     if meta_dict['ml_framework'] == 'keras':
+
         inspect_pd = _model_summary(meta_dict)
         
     elif meta_dict['ml_framework'] in ['sklearn', 'xgboost', 'pyspark']:
         model_config = meta_dict["model_config"]
         model_config = ast.literal_eval(model_config)
+
+        model_class = model_from_string(meta_dict['model_type'])
+        default = model_class()
+        default_config = default.get_params()
+
         inspect_pd = pd.DataFrame({'param_name': model_config.keys(),
+                                   'default_value': default_config.values(),
                                    'param_value': model_config.values()})
 
     key = model_id+'/inspect_pd.json'
@@ -281,7 +288,9 @@ def upload_model_dict(modelpath, aws_client, bucket, model_id, model_version):
     except: 
       model_dict = {}
 
-    model_dict[str(model_version)] = inspect_pd.to_dict()
+    model_dict[str(model_version)] = {'ml_framework': meta_dict['ml_framework'],
+                                      'model_type': meta_dict['model_type'],
+                                      'model_dict': inspect_pd.to_dict()}
 
     aws_client['client'].put_object(Bucket=bucket, Key=key, Body=json.dumps(model_dict).encode())
 
@@ -422,8 +431,6 @@ def submit_model(
       http_response = requests.post(fileputlistofdicts[1]['url'], data=fileputlistofdicts[1]['fields'], files=files)
       
 
-
-
     # Upload model metrics and metadata {{{
     modelleaderboarddata = _update_leaderboard_public(
         model_filepath, eval_metrics,s3_presigned_dict
@@ -434,6 +441,13 @@ def submit_model(
     model_versions = filter(lambda v: v.isnumeric(), model_versions)
     model_versions = list(map(int, model_versions))
     model_version=model_versions[0]
+
+    aws_client=get_aws_client(aws_key=os.environ.get('AWS_ACCESS_KEY_ID'),
+                              aws_secret=os.environ.get('AWS_SECRET_ACCESS_KEY'), 
+                              aws_region=os.environ.get('AWS_REGION'))
+
+    upload_model_dict(model_filepath, aws_client, bucket, model_id, model_version)
+
 
     modelpath=model_filepath
 
@@ -494,13 +508,20 @@ def submit_model(
     meta_dict = _get_metadata(onnx_model)
 
     if meta_dict['ml_framework'] == 'keras':
+
         inspect_pd = _model_summary(meta_dict)
         
     elif meta_dict['ml_framework'] in ['sklearn', 'xgboost', 'pyspark']:
         model_config = meta_dict["model_config"]
         model_config = ast.literal_eval(model_config)
+
+        model_class = model_from_string(meta_dict['model_type'])
+        default = model_class()
+        default_config = default.get_params()
+
         inspect_pd = pd.DataFrame({'param_name': model_config.keys(),
-                                    'param_value': model_config.values()})
+                                   'default_value': default_config.values(),
+                                   'param_value': model_config.values()})
    
     keys_to_extract = [ "accuracy", "f1_score", "precision", "recall", "mse", "rmse", "mae", "r2"]
 
