@@ -1127,8 +1127,19 @@ def compare_models(apiurl, version_list="None",
 
 
 
+def _get_onnx_from_string(onnx_string):
+    # generate tempfile for onnx object 
+    temp_dir = tempfile.gettempdir()
+    temp_path = os.path.join(temp_dir, 'temp_file_name')
 
+    # save onnx to temporary path
+    with open(temp_path, "wb") as f:
+        f.write(onnx_string)
 
+    # load onnx file from temporary path
+    onx = onnx.load(temp_path)
+
+    return onx
 
 
 def _get_onnx_from_bucket(apiurl, aws_client, version=None):
@@ -1155,21 +1166,12 @@ def _get_onnx_from_bucket(apiurl, aws_client, version=None):
     except Exception as err:
         raise err
 
-    # generate tempfile for onnx object 
-    temp_dir = tempfile.gettempdir()
-    temp_path = os.path.join(temp_dir, 'temp_file_name')
-
-    # save onnx to temporary path
-    with open(temp_path, "wb") as f:
-        f.write(onnx_string)
-
-    # load onnx file from temporary path
-    onx = onnx.load(temp_path)
+    onx = _get_onnx_from_string(onnx_string)
 
     return onx
 
 
-def instantiate_model_determinism(apiurl, version=None):
+def instantiate_model(apiurl, version=None, trained=False, determinism=False):
     # Confirm that creds are loaded, print warning if not
     if all(["username" in os.environ, 
           "password" in os.environ]):
@@ -1186,7 +1188,9 @@ def instantiate_model_determinism(apiurl, version=None):
         "compare_models": "False",
         "version_list": "None",
         "get_leaderboard": "False",
-        "instantiate_model_determinism": "True",
+        "instantiate_model": "True",
+        "determinism": determinism,
+        "trained": trained,
         "model_version": version
     }
 
@@ -1198,52 +1202,27 @@ def instantiate_model_determinism(apiurl, version=None):
 
     resp_dict = json.loads(resp.text)
 
-    set_determinism_env(resp_dict['determinism_env'])
-    print("Your determinism environment is successfully setup")
+    if determinism:
+        if resp_dict['determinism_env'] != None:
+            set_determinism_env(resp_dict['determinism_env'])
+            print("Your determinism environment is successfully setup")
+        else:
+            print("Determinism environment is not found")
 
     print("Instantiate the model from metadata..")
-    model_config = ast.literal_eval(resp_dict['model_metadata']['model_config'])
-    ml_framework = resp_dict['model_metadata']['ml_framework']
-
-    if ml_framework == 'sklearn':
-        model_type = resp_dict['model_metadata']['model_type']
-        model_class = model_from_string(model_type)
-        model = model_class(**model_config)
-
-    if ml_framework == 'keras':
-        model = tf.keras.Sequential().from_config(model_config)
-
-    print("Your model is successfully instantiated.")
-    return model
-
-def instantiate_model(apiurl, version=None, trained=False):
-    if all(["AWS_ACCESS_KEY_ID" in os.environ, 
-            "AWS_SECRET_ACCESS_KEY" in os.environ,
-            "AWS_REGION" in os.environ, 
-            "username" in os.environ, 
-            "password" in os.environ]):
-        pass
-    else:
-        return print("'Instantiate Model' unsuccessful. Please provide credentials with set_credentials().")
-
-    aws_client = get_aws_client()   
-    onnx_model = _get_onnx_from_bucket(apiurl, aws_client, version=version)
-    meta_dict = _get_metadata(onnx_model)
-
-    # get model config 
+    
+    meta_dict = resp_dict['model_metadata']
     model_config = ast.literal_eval(meta_dict['model_config'])
     ml_framework = meta_dict['ml_framework']
-    
-    if ml_framework == 'sklearn':
 
-        if trained == False:
+    if ml_framework == 'sklearn':
+        if trained == False or determinism == True:
             model_type = meta_dict['model_type']
             model_class = model_from_string(model_type)
             model = model_class(**model_config)
 
-        if trained == True:
-            
-            model_pkl = meta_dict['model_weights']
+        elif trained == True:
+            model_pkl = meta_dict['model_weights'].encode("ISO-8859-1")
 
             temp_dir = tempfile.gettempdir()
             temp_path = os.path.join(temp_dir, 'temp_file_name')
@@ -1254,13 +1233,11 @@ def instantiate_model(apiurl, version=None, trained=False):
             with open(temp_path, 'rb') as f:
                 model = pickle.load(f)
 
-
     if ml_framework == 'keras':
-
-        if trained == False:
+        if trained == False or determinism == True:
             model = tf.keras.Sequential().from_config(model_config)
 
-        if trained == True: 
+        elif trained == True:
             model = tf.keras.Sequential().from_config(model_config)
             model_weights = json.loads(meta_dict['model_weights'])
 
@@ -1271,7 +1248,65 @@ def instantiate_model(apiurl, version=None, trained=False):
 
             model.set_weights(model_weights)
 
+    print("Your model is successfully instantiated.")
     return model
+
+# def instantiate_model(apiurl, version=None, trained=False):
+#     if all(["AWS_ACCESS_KEY_ID" in os.environ, 
+#             "AWS_SECRET_ACCESS_KEY" in os.environ,
+#             "AWS_REGION" in os.environ, 
+#             "username" in os.environ, 
+#             "password" in os.environ]):
+#         pass
+#     else:
+#         return print("'Instantiate Model' unsuccessful. Please provide credentials with set_credentials().")
+
+#     aws_client = get_aws_client()   
+#     onnx_model = _get_onnx_from_bucket(apiurl, aws_client, version=version)
+#     meta_dict = _get_metadata(onnx_model)
+
+#     # get model config 
+#     model_config = ast.literal_eval(meta_dict['model_config'])
+#     ml_framework = meta_dict['ml_framework']
+    
+#     if ml_framework == 'sklearn':
+
+#         if trained == False:
+#             model_type = meta_dict['model_type']
+#             model_class = model_from_string(model_type)
+#             model = model_class(**model_config)
+
+#         if trained == True:
+            
+#             model_pkl = meta_dict['model_weights']
+
+#             temp_dir = tempfile.gettempdir()
+#             temp_path = os.path.join(temp_dir, 'temp_file_name')
+
+#             with open(temp_path, "wb") as f:
+#                 f.write(model_pkl)
+
+#             with open(temp_path, 'rb') as f:
+#                 model = pickle.load(f)
+
+
+#     if ml_framework == 'keras':
+
+#         if trained == False:
+#             model = tf.keras.Sequential().from_config(model_config)
+
+#         if trained == True: 
+#             model = tf.keras.Sequential().from_config(model_config)
+#             model_weights = json.loads(meta_dict['model_weights'])
+
+#             def to_array(x):
+#                 return np.array(x, dtype="float32")
+
+#             model_weights = list(map(to_array, model_weights))
+
+#             model.set_weights(model_weights)
+
+#     return model
 
 
 def _get_layer_names():

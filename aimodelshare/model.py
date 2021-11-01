@@ -435,9 +435,10 @@ def submit_model(
       filedownload_dict=ast.literal_eval(s3_presigned_dict ['put'][i])
       fileputlistofdicts.append(filedownload_dict)
 
-    with open(determinism_env_filepath, 'rb') as f:
-      files = {'file': (determinism_env_filepath, f)}
-      http_response = requests.post(fileputlistofdicts[0]['url'], data=fileputlistofdicts[0]['fields'], files=files)
+    if determinism_env_filepath:
+        with open(determinism_env_filepath, 'rb') as f:
+          files = {'file': (determinism_env_filepath, f)}
+          http_response = requests.post(fileputlistofdicts[0]['url'], data=fileputlistofdicts[0]['fields'], files=files)
       
 
 

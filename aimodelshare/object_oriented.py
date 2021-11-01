@@ -148,14 +148,9 @@ class ModelPlayground:
         update = update(apiurl = self.playground_url, model_version = model_version)
         return update
         
-    def instantiate_model(self, version=None, trained=False): 
+    def instantiate_model(self, version=None, trained=False, determinism=False): 
         from aimodelshare.aimsonnx import instantiate_model
-        model = instantiate_model(apiurl=self.playground_url, trained=trained, version=version)
-        return model
-
-    def instantiate_model_determinism(self, version=None):
-        from aimodelshare.aimsonnx import instantiate_model_determinism
-        model = instantiate_model_determinism(apiurl=self.playground_url, version=version)
+        model = instantiate_model(apiurl=self.playground_url, trained=trained, version=version, determinism=determinism)
         return model
     
     def delete_deployment(self, playground_url=None):
@@ -218,14 +213,9 @@ class Competition:
                               determinism_env_filepath = determinism_env_filepath)
         return submission
         
-    def instantiate_model(self, version=None, trained=False): 
+    def instantiate_model(self, version=None, trained=False, determinism=False): 
         from aimodelshare.aimsonnx import instantiate_model
-        model = instantiate_model(apiurl=self.playground_url, trained=trained, version=version)
-        return model
-
-    def instantiate_model_determinism(self, version=None):
-        from aimodelshare.aimsonnx import instantiate_model_determinism
-        model = instantiate_model_determinism(apiurl=self.playground_url, version=version)
+        model = instantiate_model(apiurl=self.playground_url, trained=trained, version=version, determinism=determinism)
         return model
 
     def compare_models(self, version_list="None", by_model_type=None, best_model=None, verbose=3):
