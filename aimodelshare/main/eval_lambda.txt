@@ -119,7 +119,8 @@ def handler(event, context):
                 finalfiles.append("onnx_model_v"+str(prevmodelversion+1)+".onnx")
                 finalfiles.append("preprocessor_v"+str(prevmodelversion+1)+".zip")  
         
-            
+            finalfiles.append("inspect_pd.json")
+   
                 
                 
             
@@ -527,7 +528,9 @@ def compare_models(version_list, by_model_type=None, best_model=None, verbose=1)
 
             else:
                 comp_dict_out[model_dict[str(i)]['model_type']] = temp_pd
-        
+        model_type_list_unique=set(model_type_list)
+        for i in model_type_list_unique:
+          comp_dict_out[i]=comp_dict_out[i].to_json()        
             
     if ml_framework_list[0] == 'keras':
 
