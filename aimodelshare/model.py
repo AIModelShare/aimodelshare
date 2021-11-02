@@ -257,8 +257,11 @@ def _update_leaderboard_public(
         return err
  
 
-def upload_model_dict(modelpath, aws_client, bucket, model_id, model_version):
-
+def upload_model_dict(modelpath, s3_presigned_dict, bucket, model_id, model_version):
+    import wget
+    import json
+    import tempfile
+    temp=tempfile.mkdtemp()
     # get model summary from onnx
     onnx_model = onnx.load(modelpath)
     meta_dict = _get_metadata(onnx_model)
@@ -279,13 +282,13 @@ def upload_model_dict(modelpath, aws_client, bucket, model_id, model_version):
         inspect_pd = pd.DataFrame({'param_name': model_config.keys(),
                                    'default_value': default_config.values(),
                                    'param_value': model_config.values()})
-
-    key = model_id+'/inspect_pd.json'
-    
+   
     try:
-      resp = aws_client['client'].get_object(Bucket=bucket, Key=key)
-      data = resp.get('Body').read()
-      model_dict = json.loads(data)
+        #Get inspect json
+        inspectdatafilename = wget.download(s3_presigned_dict['get']['inspect_pd.json'], out=temp+"/"+'inspect_pd.json')
+        
+        with open(temp+"/"+'inspect_pd.json') as f:
+            model_dict  = json.load(f)
     except: 
       model_dict = {}
 
@@ -293,8 +296,24 @@ def upload_model_dict(modelpath, aws_client, bucket, model_id, model_version):
                                       'model_type': meta_dict['model_type'],
                                       'model_dict': inspect_pd.to_dict()}
 
-    aws_client['client'].put_object(Bucket=bucket, Key=key, Body=json.dumps(model_dict).encode())
+    with open(temp+"/"+'inspect_pd.json', 'w') as outfile:
+        json.dump(model_dict, outfile)
 
+    try:
+
+      putfilekeys=list(s3_presigned_dict['put'].keys())
+      modelputfiles = [s for s in putfilekeys if str("json") in s]
+
+      fileputlistofdicts=[]
+      for i in modelputfiles:
+        filedownload_dict=ast.literal_eval(s3_presigned_dict ['put'][i])
+        fileputlistofdicts.append(filedownload_dict)
+
+      with open(temp+"/"+'inspect_pd.json', 'rb') as f:
+        files = {'file': (temp+"/"+'inspect_pd.json', f)}
+        http_response = requests.post(fileputlistofdicts[0]['url'], data=fileputlistofdicts[0]['fields'], files=files)
+    except:
+      pass
     return 1
 
 
@@ -443,12 +462,7 @@ def submit_model(
     model_versions = list(map(int, model_versions))
     model_version=model_versions[0]
 
-    aws_client=get_aws_client(aws_key=os.environ.get('AWS_ACCESS_KEY_ID'),
-                              aws_secret=os.environ.get('AWS_SECRET_ACCESS_KEY'), 
-                              aws_region=os.environ.get('AWS_REGION'))
-
-    upload_model_dict(model_filepath, aws_client, bucket, model_id, model_version)
-
+    upload_model_dict(model_filepath, s3_presigned_dict, bucket, model_id, model_version)
 
     modelpath=model_filepath
 
