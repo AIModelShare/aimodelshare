@@ -14,6 +14,5 @@ __all__ = [
     import_preprocessor,
     export_preprocessor,
     download_data,
-    share_data_codebuild,
     share_dataset,
 ]
