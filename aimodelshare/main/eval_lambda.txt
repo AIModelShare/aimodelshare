@@ -556,7 +556,7 @@ def compare_models(version_list, by_model_type=None, best_model=None, verbose=1)
 
         comp_dict_out = {"Sequential": comp_pd.to_json()}
         
-        return comp_dict_out
+    return comp_dict_out
 
 
 def model_from_string(model_type):
