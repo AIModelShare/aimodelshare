@@ -1232,7 +1232,7 @@ def stylize_model_comparison(comp_dict_out):
         df_styled = df_styled.set_properties(**{'color': 'black'})
 
         df_styled = df_styled.set_caption('Model type: ' + 'Neural Network').set_table_styles([{'selector': 'caption',
-            'props': [('color', 'white'), ('font-size', '18px')]}])
+            'props': [('color', 'black'), ('font-size', '18px')]}])
 
         display(HTML(df_styled.render()))
 
