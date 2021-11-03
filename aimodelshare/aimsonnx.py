@@ -1247,7 +1247,7 @@ def stylize_model_comparison(comp_dict_out):
                 axis = 1, subset=comp_pd.columns[1:])
 
             df_styled = df_styled.set_caption('Model type: ' + i).set_table_styles([{'selector': 'caption',
-                'props': [('color', 'white'), ('font-size', '18px')]}])
+                'props': [('color', 'black'), ('font-size', '18px')]}])
 
             display(HTML(df_styled.render()))
             print('\n\n')
