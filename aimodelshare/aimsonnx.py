@@ -207,6 +207,10 @@ def _sklearn_to_onnx(model, initial_types, transfer_learning=None,
     if isinstance(model, sklearn.pipeline.Pipeline):
         model = model.steps[-1][1]
 
+    # fix ensemble voting models
+    if all([hasattr(model, 'flatten_transform'),hasattr(model, 'voting')]):
+      model.flatten_transform=False
+    
     # convert to onnx
     onx = convert_sklearn(model, initial_types=initial_types)
     
