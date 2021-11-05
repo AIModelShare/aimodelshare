@@ -261,6 +261,7 @@ def upload_model_dict(modelpath, s3_presigned_dict, bucket, model_id, model_vers
     import wget
     import json
     import tempfile
+    import ast
     temp=tempfile.mkdtemp()
     # get model summary from onnx
     onnx_model = onnx.load(modelpath)
@@ -271,14 +272,14 @@ def upload_model_dict(modelpath, s3_presigned_dict, bucket, model_id, model_vers
         inspect_pd = _model_summary(meta_dict)
 
     elif meta_dict['ml_framework'] in ['sklearn', 'xgboost']:
-
+        import ast
+        import astunparse
         model_config = meta_dict["model_config"]
         tree = ast.parse(model_config)
 
         stringconfig=model_config
 
-        import ast
-        import astunparse
+
 
         problemnodes=[]
         for node in ast.walk(tree):
