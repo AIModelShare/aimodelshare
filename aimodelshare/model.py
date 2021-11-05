@@ -379,6 +379,7 @@ def submit_model(
     import os
     from aimodelshare.aws import get_aws_token
     from aimodelshare.modeluser import get_jwt_token, create_user_getkeyandpassword
+    import ast
 
     # Confirm that creds are loaded, print warning if not
     if all(["username" in os.environ, 
