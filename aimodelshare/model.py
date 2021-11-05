@@ -551,7 +551,7 @@ def submit_model(
         inspect_pd = _model_summary(meta_dict)
         
     elif meta_dict['ml_framework'] in ['sklearn', 'xgboost']:
-
+        import ast
         model_config = meta_dict["model_config"]
         model_config = ast.literal_eval(model_config)
 
