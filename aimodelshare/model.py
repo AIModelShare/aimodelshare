@@ -553,16 +553,39 @@ def submit_model(
         
     elif meta_dict['ml_framework'] in ['sklearn', 'xgboost']:
         import ast
+        import astunparse
         model_config = meta_dict["model_config"]
-        model_config = ast.literal_eval(model_config)
+        tree = ast.parse(model_config)
 
-        model_class = model_from_string(meta_dict['model_type'])
-        default = model_class()
-        default_config = default.get_params()
+        stringconfig=model_config
+
+
+
+        problemnodes=[]
+        for node in ast.walk(tree):
+            if isinstance(node, ast.Call):
+                problemnodes.append(astunparse.unparse(node).replace("\n",""))
+
+        problemnodesunique=set(problemnodes)
+        for i in problemnodesunique:
+            stringconfig=stringconfig.replace(i,"'"+i+"'")
+
+
+        model_config=ast.literal_eval(stringconfig)
+
+        try:
+            model_class = model_from_string(meta_dict['model_type'])
+            default = model_class()
+            default_config = default.get_params().values()
+        except:
+            default_config = list(model_config.values())
+            for i in range(0, len(default_config)):
+              default_config[i]="Not available"
+
 
         inspect_pd = pd.DataFrame({'param_name': model_config.keys(),
-                                   'default_value': default_config.values(),
-                                   'param_value': model_config.values()})
+                                    'default_value': default_config,
+                                    'param_value': model_config.values()})
    
     keys_to_extract = [ "accuracy", "f1_score", "precision", "recall", "mse", "rmse", "mae", "r2"]
 
