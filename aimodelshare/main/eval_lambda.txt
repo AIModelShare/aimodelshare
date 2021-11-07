@@ -52,10 +52,13 @@ def handler(event, context):
     email=decoded['email']
     print(email)
     authorized_competitionusers=get_authorizedcompetitionuserdata(example_data_filename = "competitionuserdata.json")
-    authorized_emails=authorized_competitionusers.get("emails","Public")
+    authorized_emails=authorized_competitionusers.get("emails","no data")
+    public=authorized_competitionusers.get("public","FALSE")
+    
     #TODO: check email agains s3 list and resolve public to true or false from same file
     #Or check if emails on list and if so, check against them, if not assume public project.
-    if any([email in authorized_competitionusers['emaillist']]):
+    if any([email in authorized_competitionusers['emaillist'],public=="TRUE"]):
+    
         if body.get("return_eval","ALL")  == "True":
             
             ytestdata=get_ytestdata(ytest_s3_filename="ytest.pkl")
@@ -118,7 +121,8 @@ def handler(event, context):
                 finalfiles.append("preprocessor_v"+str(prevmodelversion+1)+".zip")
                 finalfiles.append("determinism_v"+str(prevmodelversion+1)+".json")
         
-            
+            finalfiles.append("inspect_pd.json")
+   
                 
                 
             
@@ -241,7 +245,28 @@ def handler(event, context):
             elif trained:
                 if type(metadata_dict['model_weights']) != str: # keras case == str
                     metadata_dict['model_weights'] = metadata_dict['model_weights'].decode('ISO-8859-1')
+            
+            # lambda response payload limit 6 MB, use 5 MB as we allocate 
+            # some for determinism env and just to make it safe.
+            if sys.getsizeof(metadata_dict) / (1024**2) >= 5.0: # 5 MB
+                # Get the presigned url.
+                
+                s3_client=boto3.client("s3")
+                
+                bucket = "$bucket_name"
+                model_id = "$unique_model_id"
+                onnx_model_name = "onnx_model_v{}.onnx".format(version)
+    
+                method_parameters = {
+                    "Bucket": bucket, 
+                    "Key": model_id + "/" + onnx_model_name,
+                }
 
+                expires_in = 900 # 15 mins
+
+                presigned_url = generate_presigned_url(s3_client, "get_object", method_parameters, expires_in)
+                metadata_dict['model_weights'] = str(presigned_url)
+                
             data = {
                 "model_metadata": metadata_dict,
                 "determinism_env": determinism_env_json
@@ -559,7 +584,9 @@ def compare_models(version_list, by_model_type=None, best_model=None, verbose=1)
 
             else:
                 comp_dict_out[model_dict[str(i)]['model_type']] = temp_pd
-        
+        model_type_list_unique=set(model_type_list)
+        for i in model_type_list_unique:
+          comp_dict_out[i]=comp_dict_out[i].to_json()        
             
     if ml_framework_list[0] == 'keras':
 
@@ -585,7 +612,7 @@ def compare_models(version_list, by_model_type=None, best_model=None, verbose=1)
 
         comp_dict_out = {"Sequential": comp_pd.to_json()}
         
-        return comp_dict_out
+    return comp_dict_out
 
 
 def model_from_string(model_type):

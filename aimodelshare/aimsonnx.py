@@ -34,6 +34,9 @@ import re
 import pickle
 import requests
 import sys
+import tempfile
+import wget            
+
 
 from pympler import asizeof
 from IPython.core.display import display, HTML, SVG
@@ -208,6 +211,10 @@ def _sklearn_to_onnx(model, initial_types, transfer_learning=None,
     if isinstance(model, sklearn.pipeline.Pipeline):
         model = model.steps[-1][1]
 
+    # fix ensemble voting models
+    if all([hasattr(model, 'flatten_transform'),hasattr(model, 'voting')]):
+      model.flatten_transform=False
+    
     # convert to onnx
     onx = convert_sklearn(model, initial_types=initial_types)
     
@@ -1233,7 +1240,7 @@ def stylize_model_comparison(comp_dict_out):
         df_styled = df_styled.set_properties(**{'color': 'black'})
 
         df_styled = df_styled.set_caption('Model type: ' + 'Neural Network').set_table_styles([{'selector': 'caption',
-            'props': [('color', 'white'), ('font-size', '18px')]}])
+            'props': [('color', 'black'), ('font-size', '18px')]}])
 
         display(HTML(df_styled.render()))
 
@@ -1248,7 +1255,7 @@ def stylize_model_comparison(comp_dict_out):
                 axis = 1, subset=comp_pd.columns[1:])
 
             df_styled = df_styled.set_caption('Model type: ' + i).set_table_styles([{'selector': 'caption',
-                'props': [('color', 'white'), ('font-size', '18px')]}])
+                'props': [('color', 'black'), ('font-size', '18px')]}])
 
             display(HTML(df_styled.render()))
             print('\n\n')
@@ -1500,7 +1507,17 @@ def instantiate_model(apiurl, version=None, trained=False, determinism=False):
             model = model_class(**model_config)
 
         elif trained == True:
-            model_pkl = meta_dict['model_weights'].encode("ISO-8859-1")
+            model_pkl = None
+            if "https://" in meta_dict['model_weights']: # presigned
+                temp = tempfile.mkdtemp()
+                temp_path = temp + "/" + "onnx_model_v{}.onnx".format(version)
+            
+                # Get leaderboard
+                status = wget.download(meta_dict['model_weights'], out=temp_path)
+                onnx_model = onnx.load(temp_path)
+                model_pkl = _get_metadata(onnx_model)['model_weights']
+            else:
+                model_pkl = meta_dict['model_weights'].encode("ISO-8859-1")
 
             temp_dir = tempfile.gettempdir()
             temp_path = os.path.join(temp_dir, 'temp_file_name')
@@ -1516,9 +1533,20 @@ def instantiate_model(apiurl, version=None, trained=False, determinism=False):
             model = tf.keras.Sequential().from_config(model_config)
 
         elif trained == True:
+            model_weights = None
+            if "https://" in meta_dict['model_weights']: # presigned
+                temp = tempfile.mkdtemp()
+                temp_path = temp + "/" + "onnx_model_v{}.onnx".format(version)
+            
+                # Get leaderboard
+                status = wget.download(meta_dict['model_weights'], out=temp_path)
+                onnx_model = onnx.load(temp_path)
+                model_weights = _get_metadata(onnx_model)['model_weights']
+            else:
+                model_weights = json.loads(meta_dict['model_weights'])
+            
             model = tf.keras.Sequential().from_config(model_config)
-            model_weights = json.loads(meta_dict['model_weights'])
-
+            
             def to_array(x):
                 return np.array(x, dtype="float32")
 
