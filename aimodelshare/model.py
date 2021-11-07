@@ -257,8 +257,12 @@ def _update_leaderboard_public(
         return err
  
 
-def upload_model_dict(modelpath, aws_client, bucket, model_id, model_version):
-
+def upload_model_dict(modelpath, s3_presigned_dict, bucket, model_id, model_version):
+    import wget
+    import json
+    import tempfile
+    import ast
+    temp=tempfile.mkdtemp()
     # get model summary from onnx
     onnx_model = onnx.load(modelpath)
     meta_dict = _get_metadata(onnx_model)
@@ -266,26 +270,49 @@ def upload_model_dict(modelpath, aws_client, bucket, model_id, model_version):
     if meta_dict['ml_framework'] == 'keras':
 
         inspect_pd = _model_summary(meta_dict)
-        
+
     elif meta_dict['ml_framework'] in ['sklearn', 'xgboost']:
-
+        import ast
+        import astunparse
         model_config = meta_dict["model_config"]
-        model_config = ast.literal_eval(model_config)
+        tree = ast.parse(model_config)
 
-        model_class = model_from_string(meta_dict['model_type'])
-        default = model_class()
-        default_config = default.get_params()
+        stringconfig=model_config
+
+
+
+        problemnodes=[]
+        for node in ast.walk(tree):
+            if isinstance(node, ast.Call):
+                problemnodes.append(astunparse.unparse(node).replace("\n",""))
+
+        problemnodesunique=set(problemnodes)
+        for i in problemnodesunique:
+            stringconfig=stringconfig.replace(i,"'"+i+"'")
+
+
+        model_config=ast.literal_eval(stringconfig)
+
+        try:
+            model_class = model_from_string(meta_dict['model_type'])
+            default = model_class()
+            default_config = default.get_params().values()
+        except:
+            default_config = list(model_config.values())
+            for i in range(0, len(default_config)):
+              default_config[i]="Not available"
+
 
         inspect_pd = pd.DataFrame({'param_name': model_config.keys(),
-                                   'default_value': default_config.values(),
-                                   'param_value': model_config.values()})
-
-    key = model_id+'/inspect_pd.json'
-    
+                                    'default_value': default_config,
+                                    'param_value': model_config.values()})
+   
     try:
-      resp = aws_client['client'].get_object(Bucket=bucket, Key=key)
-      data = resp.get('Body').read()
-      model_dict = json.loads(data)
+        #Get inspect json
+        inspectdatafilename = wget.download(s3_presigned_dict['get']['inspect_pd.json'], out=temp+"/"+'inspect_pd.json')
+        
+        with open(temp+"/"+'inspect_pd.json') as f:
+            model_dict  = json.load(f)
     except: 
       model_dict = {}
 
@@ -293,8 +320,24 @@ def upload_model_dict(modelpath, aws_client, bucket, model_id, model_version):
                                       'model_type': meta_dict['model_type'],
                                       'model_dict': inspect_pd.to_dict()}
 
-    aws_client['client'].put_object(Bucket=bucket, Key=key, Body=json.dumps(model_dict).encode())
+    with open(temp+"/"+'inspect_pd.json', 'w') as outfile:
+        json.dump(model_dict, outfile)
 
+    try:
+
+      putfilekeys=list(s3_presigned_dict['put'].keys())
+      modelputfiles = [s for s in putfilekeys if str("json") in s]
+
+      fileputlistofdicts=[]
+      for i in modelputfiles:
+        filedownload_dict=ast.literal_eval(s3_presigned_dict ['put'][i])
+        fileputlistofdicts.append(filedownload_dict)
+
+      with open(temp+"/"+'inspect_pd.json', 'rb') as f:
+        files = {'file': (temp+"/"+'inspect_pd.json', f)}
+        http_response = requests.post(fileputlistofdicts[0]['url'], data=fileputlistofdicts[0]['fields'], files=files)
+    except:
+      pass
     return 1
 
 
@@ -337,6 +380,7 @@ def submit_model(
     import os
     from aimodelshare.aws import get_aws_token
     from aimodelshare.modeluser import get_jwt_token, create_user_getkeyandpassword
+    import ast
 
     # Confirm that creds are loaded, print warning if not
     if all(["username" in os.environ, 
@@ -443,12 +487,7 @@ def submit_model(
     model_versions = list(map(int, model_versions))
     model_version=model_versions[0]
 
-    aws_client=get_aws_client(aws_key=os.environ.get('AWS_ACCESS_KEY_ID'),
-                              aws_secret=os.environ.get('AWS_SECRET_ACCESS_KEY'), 
-                              aws_region=os.environ.get('AWS_REGION'))
-
-    upload_model_dict(model_filepath, aws_client, bucket, model_id, model_version)
-
+    upload_model_dict(model_filepath, s3_presigned_dict, bucket, model_id, model_version)
 
     modelpath=model_filepath
 
@@ -513,17 +552,40 @@ def submit_model(
         inspect_pd = _model_summary(meta_dict)
         
     elif meta_dict['ml_framework'] in ['sklearn', 'xgboost']:
-
+        import ast
+        import astunparse
         model_config = meta_dict["model_config"]
-        model_config = ast.literal_eval(model_config)
+        tree = ast.parse(model_config)
 
-        model_class = model_from_string(meta_dict['model_type'])
-        default = model_class()
-        default_config = default.get_params()
+        stringconfig=model_config
+
+
+
+        problemnodes=[]
+        for node in ast.walk(tree):
+            if isinstance(node, ast.Call):
+                problemnodes.append(astunparse.unparse(node).replace("\n",""))
+
+        problemnodesunique=set(problemnodes)
+        for i in problemnodesunique:
+            stringconfig=stringconfig.replace(i,"'"+i+"'")
+
+
+        model_config=ast.literal_eval(stringconfig)
+
+        try:
+            model_class = model_from_string(meta_dict['model_type'])
+            default = model_class()
+            default_config = default.get_params().values()
+        except:
+            default_config = list(model_config.values())
+            for i in range(0, len(default_config)):
+              default_config[i]="Not available"
+
 
         inspect_pd = pd.DataFrame({'param_name': model_config.keys(),
-                                   'default_value': default_config.values(),
-                                   'param_value': model_config.values()})
+                                    'default_value': default_config,
+                                    'param_value': model_config.values()})
    
     keys_to_extract = [ "accuracy", "f1_score", "precision", "recall", "mse", "rmse", "mae", "r2"]
 

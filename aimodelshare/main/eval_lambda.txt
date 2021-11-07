@@ -52,10 +52,12 @@ def handler(event, context):
     email=decoded['email']
     print(email)
     authorized_competitionusers=get_authorizedcompetitionuserdata(example_data_filename = "competitionuserdata.json")
-    authorized_emails=authorized_competitionusers.get("emails","Public")
+    authorized_emails=authorized_competitionusers.get("emails","no data")
+    public=authorized_competitionusers.get("public","FALSE")
+    
     #TODO: check email agains s3 list and resolve public to true or false from same file
     #Or check if emails on list and if so, check against them, if not assume public project.
-    if any([email in authorized_competitionusers['emaillist']]):
+    if any([email in authorized_competitionusers['emaillist'],public=="TRUE"]):
     
         if body.get("return_eval","ALL")  == "True":
             
@@ -117,7 +119,8 @@ def handler(event, context):
                 finalfiles.append("onnx_model_v"+str(prevmodelversion+1)+".onnx")
                 finalfiles.append("preprocessor_v"+str(prevmodelversion+1)+".zip")  
         
-            
+            finalfiles.append("inspect_pd.json")
+   
                 
                 
             
@@ -525,7 +528,9 @@ def compare_models(version_list, by_model_type=None, best_model=None, verbose=1)
 
             else:
                 comp_dict_out[model_dict[str(i)]['model_type']] = temp_pd
-        
+        model_type_list_unique=set(model_type_list)
+        for i in model_type_list_unique:
+          comp_dict_out[i]=comp_dict_out[i].to_json()        
             
     if ml_framework_list[0] == 'keras':
 
@@ -551,7 +556,7 @@ def compare_models(version_list, by_model_type=None, best_model=None, verbose=1)
 
         comp_dict_out = {"Sequential": comp_pd.to_json()}
         
-        return comp_dict_out
+    return comp_dict_out
 
 
 def model_from_string(model_type):
