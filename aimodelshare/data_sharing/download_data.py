@@ -194,25 +194,36 @@ def import_quickstart_data(tutorial, section="modelplayground"):
    
     #Download Quick Start materials
     if all([tutorial == "flowers", section == "modelplayground"]):
-        quickstart_repository = "public.ecr.aws/y2e2a1d6/quickstart_materials-repository:latest"     
+        quickstart_repository = "public.ecr.aws/y2e2a1d6/quickstart_materials-repository:latest"   
+        existing_folder = 'flower_competition_data'
     if all([tutorial == "flowers", section == "competition"]):
         quickstart_repository = "public.ecr.aws/y2e2a1d6/quickstart_flowers_competition-repository:latest"
-    
+        existing_folder = 'flower_competition_data'
+        
     if all([tutorial == "titanic", section == "modelplayground"]):
         quickstart_repository = "public.ecr.aws/y2e2a1d6/titanic_quickstart-repository:latest" 
-
+        existing_folder = 'titanic_competition_data'
+        
     if all([tutorial == "cars", section == "modelplayground"]):
         quickstart_repository = "public.ecr.aws/y2e2a1d6/quickstart_car_sales_competition-repository:latest" 
+        existing_folder = 'used_car_competition_data'
         
     if all([tutorial == "clickbait", section == "modelplayground"]):
         quickstart_repository = "public.ecr.aws/y2e2a1d6/quickstart_clickbait_materials-repository:latest" 
+        existing_folder = 'clickbait_competition_data'
         
     if all([tutorial == "sports", section == "modelplayground"]):
         quickstart_repository = "public.ecr.aws/y2e2a1d6/sports_quick_start_materials-repository:latest" 
+        existing_folder = 'sports_clips_competition_data'
     if all([tutorial == "sports", section == "competition"]):
         quickstart_repository = "public.ecr.aws/y2e2a1d6/quickstart_sports_competition-repository:latest"
+        existing_folder = 'sports_clips_competition_data'
 
     download_data(quickstart_repository)
+    
+    #Delete pre-existing tutorial folders
+    if os.path.exists(existing_folder):
+        shutil.rmtree(existing_folder)
 
     #{{{ Prepare modelplayground materials
     if section == "modelplayground": 
@@ -414,7 +425,5 @@ def import_quickstart_data(tutorial, section="modelplayground"):
         return X_train, X_test, y_train, y_test, example_data
     
     if tutorial == "clickbait":
-        return X_train, X_test, y_train, y_test, example_data, lstm_model, lstm_model2
-
-	
+        return X_train, X_test, y_train, y_test, example_data, lstm_model, lstm_model2	
 
