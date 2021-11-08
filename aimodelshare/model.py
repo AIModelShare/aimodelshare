@@ -326,7 +326,7 @@ def upload_model_dict(modelpath, s3_presigned_dict, bucket, model_id, model_vers
     try:
 
       putfilekeys=list(s3_presigned_dict['put'].keys())
-      modelputfiles = [s for s in putfilekeys if str("json") in s]
+      modelputfiles = [s for s in putfilekeys if str("inspect_pd.json") in s]
 
       fileputlistofdicts=[]
       for i in modelputfiles:
@@ -482,7 +482,7 @@ def submit_model(
     
 
     putfilekeys=list(s3_presigned_dict['put'].keys())
-    modelputfiles = [s for s in putfilekeys if str("json") in s]
+    modelputfiles = [s for s in putfilekeys if str("determinism") in s]
 
     fileputlistofdicts=[]
     for i in modelputfiles:

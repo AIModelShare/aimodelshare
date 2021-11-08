@@ -11,6 +11,7 @@ import logging
 from botocore.exceptions import ClientError
 import requests
 import jwt
+import sys
 
 logger = logging.getLogger(__name__)
 
@@ -248,7 +249,9 @@ def handler(event, context):
             
             # lambda response payload limit 6 MB, use 5 MB as we allocate 
             # some for determinism env and just to make it safe.
-            if sys.getsizeof(metadata_dict) / (1024**2) >= 5.0: # 5 MB
+            file_size = sys.getsizeof(metadata_dict['model_weights']) / (1024**2)
+            print("File size: {}".format(file_size))
+            if file_size >= 5.0: # 5 MB
                 # Get the presigned url.
                 
                 s3_client=boto3.client("s3")
@@ -266,6 +269,7 @@ def handler(event, context):
 
                 presigned_url = generate_presigned_url(s3_client, "get_object", method_parameters, expires_in)
                 metadata_dict['model_weights'] = str(presigned_url)
+                print("Presigned url: {}".format(str(presigned_url)))
                 
             data = {
                 "model_metadata": metadata_dict,

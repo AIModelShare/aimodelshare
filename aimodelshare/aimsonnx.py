@@ -1541,7 +1541,7 @@ def instantiate_model(apiurl, version=None, trained=False, determinism=False):
                 # Get leaderboard
                 status = wget.download(meta_dict['model_weights'], out=temp_path)
                 onnx_model = onnx.load(temp_path)
-                model_weights = _get_metadata(onnx_model)['model_weights']
+                model_weights = json.loads(_get_metadata(onnx_model)['model_weights'])
             else:
                 model_weights = json.loads(meta_dict['model_weights'])
             
