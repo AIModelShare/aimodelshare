@@ -559,42 +559,31 @@ def _pytorch_to_onnx(model, model_input, transfer_learning=None,
     # get model state from pytorch model object
     metadata['model_state'] = str(model.state_dict())
 
-    # extract model architecture metadata
-    activation_names = ['ReLU', 'Softmax']   #placeholder
-    layer_names = []
 
-    layers = []
-    layers_shapes = []
-    n_params = []
+    name_list, layer_list, param_list, weight_list, activation_list = torch_metadata(model)
 
 
-    for i, j  in model.__dict__['_modules'].items():
-
-        if j._get_name() not in activation_names:
-
-            layers.append(j._get_name())
-            layers_shapes.append(j.out_features)
-            weights = np.prod(j._parameters['weight'].shape)
-            bias = np.prod(j._parameters['bias'].shape)
-            n_params.append(weights+bias)
+    model_summary_pd = pd.DataFrame({"Name": name_list,
+    "Layer": layer_list,
+    "Shape": weight_list,
+    "Params": param_list,
+    "Connect": None,
+    "Activation": None})
 
 
-    activations = []
-    for i, j in model.__dict__['_modules'].items():
-        if str(j).split('(')[0] in activation_names:
-            activations.append(str(j).split('(')[0])
-
-
-    model_architecture = {'layers_number': len(layers),
-                  'layers_sequence': layers,
-                  'layers_summary': {i:layers.count(i) for i in set(layers)},
-                  'layers_n_params': n_params,
-                  'layers_shapes': layers_shapes,
-                  'activations_sequence': activations,
-                  'activations_summary': {i:activations.count(i) for i in set(activations)}
+    model_architecture = {'layers_number': len(layer_list),
+                  'layers_sequence': layer_list,
+                  'layers_summary': {i:layer_list.count(i) for i in set(layer_list)},
+                  'layers_n_params': param_list,
+                  'layers_shapes': weight_list,
+                  'activations_sequence': activation_list,
+                  'activations_summary': {i:activation_list.count(i) for i in set(activation_list)}
                  }
 
     metadata['model_architecture'] = str(model_architecture)
+
+    metadata['model_summary'] = model_summary_pd.to_json()
+
 
     metadata['memory_size'] = asizeof.asizeof(model)    
     metadata['epochs'] = epochs
@@ -1747,3 +1736,51 @@ def plot_keras(model):
     G =  model_graph_keras(model)
 
     display(SVG(G.create_svg()))
+
+
+
+def torch_unpack(model):
+    
+    layers = []
+    keys = []
+    
+    for key, module in model._modules.items():
+                
+        if type(module) in [torch.nn.modules.container.Container, torch.nn.modules.container.Sequential]:
+            
+            layers_out, keys_out = torch_unpack(module)
+            
+            layers = layers + layers_out
+            keys = keys + keys_out
+            
+            
+        else:
+            
+            layers.append(module)
+            keys.append(key)
+            
+    return layers, keys
+    
+
+
+def torch_metadata(model):
+
+    layer_list = []
+    param_list = []
+    weight_list = []
+    activation_list = []
+    
+    layers, name_list = torch_unpack(model)
+
+    for module in layers:
+
+        layer_list.append(module._get_name())
+
+        params = sum([np.prod(p.size()) for p in module.parameters()])
+        param_list.append(params)
+
+        weights = tuple([tuple(p.size()) for p in module.parameters()])
+        weight_list.append(weights)
+
+
+    return name_list, layer_list, param_list, weight_list, activation_list
