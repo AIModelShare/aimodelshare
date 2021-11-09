@@ -14,16 +14,18 @@ def import_preprocessor(filepath):
     Import preprocessor function to session from zip file 
     Inputs: 1 
     Output: preprocessor function
-    ----------
+    
     Parameters:
+    -----------
     `filepath`: string
                 value - absolute path to preprocessor file 
                 [REQUIRED] to be set by the user
                 "./preprocessor.zip" 
                 file is generated using export_preprocessor function from the AI Modelshare library 
                 preprocessor function should always be named 'preprocessor' to work properly in aimodelshare process
-    -------
+    
     Returns:
+    --------
     imports preprocessor function to session
     """
     #preprocessor fxn should always be named "preprocessor" to work properly in aimodelshare process.
@@ -75,14 +77,16 @@ def export_preprocessor(preprocessor_fxn,directory, globs=globals()):
     Exports preprocessor and related objects into zip file for model deployment
     Inputs: 2 
     Output: zipfile named 'preprocessor.zip'
-    ----------
+    
     Parameters:
+    -----------
     `preprocessor_fxn`: name of preprocessor function
                       Preprocessor function should always be named "preprocessor" to work properly in aimodelshare process.
     `directory`: folderpath to preprocessor function
                  use "" to reference current working directory
-    -------
+    
     Returns:
+    --------
     file named 'preprocessor.zip' in the correct format for model deployment
     """
     #preprocessor fxn should always be named "preprocessor" to work properly in aimodelshare process.
