@@ -235,7 +235,7 @@ class Competition:
             "/User/xyz/model/example_model.onnx" absolute path to model file from local directory
         `prediction_submission`:   one hot encoded y_pred
             value - predictions for test data
-            [REQUIRED] for evaluation metriicts of the submitted model
+            [REQUIRED] for evaluation metrics of the submitted model
         `preprocessor_filepath`:   ``string``, default=None
             value - absolute path to preprocessor file 
             [REQUIRED] to be set by the user
