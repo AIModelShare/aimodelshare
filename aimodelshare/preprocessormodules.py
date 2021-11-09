@@ -17,12 +17,12 @@ def import_preprocessor(filepath):
     
     Parameters:
     -----------
-    `filepath`: string
-                value - absolute path to preprocessor file 
-                [REQUIRED] to be set by the user
-                "./preprocessor.zip" 
-                file is generated using export_preprocessor function from the AI Modelshare library 
-                preprocessor function should always be named 'preprocessor' to work properly in aimodelshare process
+    `filepath`: ``string``
+        value - absolute path to preprocessor file 
+        [REQUIRED] to be set by the user
+        "./preprocessor.zip" 
+        file is generated using export_preprocessor function from the AI Modelshare library 
+        preprocessor function should always be named 'preprocessor' to work properly in aimodelshare process
     
     Returns:
     --------
@@ -81,9 +81,9 @@ def export_preprocessor(preprocessor_fxn,directory, globs=globals()):
     Parameters:
     -----------
     `preprocessor_fxn`: name of preprocessor function
-                      Preprocessor function should always be named "preprocessor" to work properly in aimodelshare process.
-    `directory`: folderpath to preprocessor function
-                 use "" to reference current working directory
+        Preprocessor function should always be named "preprocessor" to work properly in aimodelshare process.
+    `directory`: ``string`` folderpath to preprocessor function
+        use "" to reference current working directory
     
     Returns:
     --------

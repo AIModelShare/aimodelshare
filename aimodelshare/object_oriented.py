@@ -7,15 +7,15 @@ class ModelPlayground:
     """
     Parameters:
     ----------
-    `model_type` :  ''string''
-                  values - [ 'Text' , 'Image' , 'Tabular' , 'Timeseries' ] 
-                  type of model data     
-    `classification`:    ''bool, default=True''
-                        True [DEFAULT] if model is of Classification type with categorical target variables
-                        False if model is of Regression type with continuous target variables
-    `private` :   ''bool, default = False''
-                    True if model and its corresponding data is not public
-                    False [DEFAULT] if model and its corresponding data is public 
+    `model_type` : ``string``
+          values - [ 'Text' , 'Image' , 'Tabular' , 'Timeseries' ] 
+          type of model data     
+    `classification`:    ``bool, default=True``
+        True [DEFAULT] if model is of Classification type with categorical target variables
+        False if model is of Regression type with continuous target variables
+    `private` :   ``bool, default = False``
+        True if model and its corresponding data is not public
+        False [DEFAULT] if model and its corresponding data is public 
     """
     def __init__(self, model_type=None, classification=None, private=None, playground_url=None):
         # confirm correct args are provided
@@ -42,29 +42,29 @@ class ModelPlayground:
 
         Parameters: 
         ----------
-        `model_filepath` :  ''string'' ends with '.onnx'
-                          value - Absolute path to model file 
-                          [REQUIRED] to be set by the user
-                          .onnx is the only accepted model file extension
-                          "example_model.onnx" filename for file in directory.
-                          "/User/xyz/model/example_model.onnx" absolute path to model file from local directory
-        `preprocessor_filepath`:  ''string''
-                                value - absolute path to preprocessor file 
-                                [REQUIRED] to be set by the user
-                                "./preprocessor.zip" 
-                                searches for an exported zip preprocessor file in the current directory
-                                file is generated using export_preprocessor function from the AI Modelshare library  
+        `model_filepath` :  ``string`` ends with '.onnx'
+              value - Absolute path to model file 
+              [REQUIRED] to be set by the user
+              .onnx is the only accepted model file extension
+              "example_model.onnx" filename for file in directory.
+              "/User/xyz/model/example_model.onnx" absolute path to model file from local directory
+        `preprocessor_filepath`:  ``string``
+            value - absolute path to preprocessor file 
+            [REQUIRED] to be set by the user
+            "./preprocessor.zip" 
+            searches for an exported zip preprocessor file in the current directory
+            file is generated using export_preprocessor function from the AI Modelshare library  
         `y_train` : training labels for classification models.
-                  [REQUIRED] for classification type models
-                  expects pandas dataframe of one hot encoded y train data
-        `custom_libraries`:   ''string''
-                    "TRUE" if user wants to load custom Python libraries to their prediction runtime
-                    "FALSE" if user wishes to use AI Model Share base libraries including latest versions of most common ML libs.
+              [REQUIRED] for classification type models
+              expects pandas dataframe of one hot encoded y train data
+        `custom_libraries`:   ``string``
+            "TRUE" if user wants to load custom Python libraries to their prediction runtime
+            "FALSE" if user wishes to use AI Model Share base libraries including latest versions of most common ML libs.
         `example_data`:  pandas DataFrame (for tabular & text data) OR filepath as string (image, audio, video data)
-                      tabular data - pandas DataFrame in same structure expected by preprocessor function
-                      other data types - absolute path to folder containing example data
-                                        (first five files with relevent file extensions will be accepted)
-                      [REQUIRED] for tabular data
+              tabular data - pandas DataFrame in same structure expected by preprocessor function
+              other data types - absolute path to folder containing example data
+                                (first five files with relevent file extensions will be accepted)
+              [REQUIRED] for tabular data
         
         Returns:
         --------
@@ -91,13 +91,13 @@ class ModelPlayground:
         
         Parameters:
         -----------
-        `y_test` :  list of y values for test data used to generate metrics from predicted values from X test data submitted via the submit_model() function
-                [REQUIRED] to generate eval metrics in competition leaderboard
+        `y_test` :  ``list`` of y values for test data used to generate metrics from predicted values from X test data submitted via the submit_model() function
+            [REQUIRED] to generate eval metrics in competition leaderboard
                                 
         `data_directory` : folder storing training data and test data (excluding Y test data)
         `email_list`: [OPTIONAL] list of comma separated emails for users who are allowed to submit models to competition.  Emails should be strings in a list.
         `public`: [REQUIRED] True/false. Defaults to False.  If True, competition is public and ANY AIMODELSHARE USER CAN SUBMIT MODELS.  USE WITH CAUTION b/c one model and 
-                           one preprocessor file will be be saved to your AWS S3 folder for each model submission.
+            one preprocessor file will be be saved to your AWS S3 folder for each model submission.
         
         
         Returns:
@@ -119,19 +119,19 @@ class ModelPlayground:
         
         Parameters:
         -----------
-        `model_filepath`:  ''string'' ends with '.onnx'
-                    value - Absolute path to model file [REQUIRED] to be set by the user
-                    .onnx is the only accepted model file extension
-                    "example_model.onnx" filename for file in directory.
-                    "/User/xyz/model/example_model.onnx" absolute path to model file from local directory
-        `preprocessor_filepath`:   ''string'', default=None
-                        value - absolute path to preprocessor file 
-                        [REQUIRED] to be set by the user
-                        "./preprocessor.zip" 
-                        searches for an exported zip preprocessor file in the current directory
-                        file is generated from preprocessor module using export_preprocessor function from the AI Modelshare library 
+        `model_filepath`:  ``string`` ends with '.onnx'
+            value - Absolute path to model file [REQUIRED] to be set by the user
+            .onnx is the only accepted model file extension
+            "example_model.onnx" filename for file in directory.
+            "/User/xyz/model/example_model.onnx" absolute path to model file from local directory
+        `preprocessor_filepath`:   ``string``, default=None
+            value - absolute path to preprocessor file 
+            [REQUIRED] to be set by the user
+            "./preprocessor.zip" 
+            searches for an exported zip preprocessor file in the current directory
+            file is generated from preprocessor module using export_preprocessor function from the AI Modelshare library 
         `prediction_submission`: [REQUIRED] list of predictions from X test data that will be used to evaluate model prediction error against y test data.
-                         Use mycompetition.inspect_y_test() to view example of list expected by competition.
+            Use mycompetition.inspect_y_test() to view example of list expected by competition.
         
         Returns:
         -------
@@ -154,8 +154,8 @@ class ModelPlayground:
 
         Parameters:
         -----------
-        `model_version`: ''int''
-                         model version number from competition leaderboard
+        `model_version`: ``int``
+            model version number from competition leaderboard
 
         Returns:
         --------
@@ -172,10 +172,10 @@ class ModelPlayground:
 
         Parameters:
         -----------
-        `version`: ''int''
-                  Model version number from competition leaderboard
-        `trained`: ''bool, default=False''
-                if True, a trained model is instantiated, if False, the untrained model is instantiated
+        `version`: ``int``
+            Model version number from competition leaderboard
+        `trained`: ``bool, default=False``
+            if True, a trained model is instantiated, if False, the untrained model is instantiated
 
         Returns:
         --------
@@ -189,9 +189,15 @@ class ModelPlayground:
         """
         Delete all components of a Model Playground, including: AWS s3 bucket & contents,
         attached competitions, prediction REST API, and interactive Model Playground web dashboard.
-        ---------------
-        `playground_url`: ''string'' of API URL the user wishes to delete
-        WARNING: User must supply high-level credentials in order to delete an API. 
+
+        Parameters:
+        -----------
+        `playground_url`: ``string`` of API URL the user wishes to delete
+        WARNING: User must supply high-level credentials in order to delete an API.
+
+        Returns:
+        --------
+        Success message when deployment is deleted.
         """
         from aimodelshare.api import delete_deployment
         if playground_url == None:
@@ -206,7 +212,7 @@ class Competition:
     """
     Parameters:
     ----------
-    `playground_url`: playground_url attribute of ModelPlayground class or ''string''
+    `playground_url`: playground_url attribute of ModelPlayground class or ``string``
         of existing ModelPlayground URL
     """
     def __init__(self, playground_url):
@@ -222,20 +228,20 @@ class Competition:
         
         Parameters:
         -----------
-        `model_filepath`:  ''string'' ends with '.onnx'
-                    value - Absolute path to model file [REQUIRED] to be set by the user
-                    .onnx is the only accepted model file extension
-                    "example_model.onnx" filename for file in directory.
-                    "/User/xyz/model/example_model.onnx" absolute path to model file from local directory
+        `model_filepath`:  ``string`` ends with '.onnx'
+            value - Absolute path to model file [REQUIRED] to be set by the user
+            .onnx is the only accepted model file extension
+            "example_model.onnx" filename for file in directory.
+            "/User/xyz/model/example_model.onnx" absolute path to model file from local directory
         `prediction_submission`:   one hot encoded y_pred
-                        value - predictions for test data
-                        [REQUIRED] for evaluation metriicts of the submitted model
-        `preprocessor_filepath`:   ''string'', default=None
-                        value - absolute path to preprocessor file 
-                        [REQUIRED] to be set by the user
-                        "./preprocessor.zip" 
-                        searches for an exported zip preprocessor file in the current directory
-                        file is generated from preprocessor module using export_preprocessor function from the AI Modelshare library 
+            value - predictions for test data
+            [REQUIRED] for evaluation metriicts of the submitted model
+        `preprocessor_filepath`:   ``string``, default=None
+            value - absolute path to preprocessor file 
+            [REQUIRED] to be set by the user
+            "./preprocessor.zip" 
+            searches for an exported zip preprocessor file in the current directory
+            file is generated from preprocessor module using export_preprocessor function from the AI Modelshare library 
  
         Returns:
         --------
@@ -254,10 +260,10 @@ class Competition:
 
         Parameters:
         -----------
-        `version`: ''int''
-                  Model version number from competition leaderboard
-        `trained`: bool, default=False
-                    if True, a trained model is instantiated, if False, the untrained model is instantiated
+        `version`: ``int``
+            Model version number from competition leaderboard
+        `trained`: ``bool, default=False``
+            if True, a trained model is instantiated, if False, the untrained model is instantiated
        
         Returns:
         --------
@@ -274,7 +280,7 @@ class Competition:
         Parameters:
         ----------
         `version` : ``int``
-                    Model version number from competition leaderboard
+            Model version number from competition leaderboard
       
         Returns:
         --------
@@ -291,10 +297,10 @@ class Competition:
         
         Parameters:
         -----------
-        `version_list` = ''list of int''
-                         list of model version numbers to compare (previously submitted to competition leaderboard) 
-        `verbose` = ''int''
-                    controls the verbosity: the higher, the more detail 
+        `version_list` = ``list of int``
+            list of model version numbers to compare (previously submitted to competition leaderboard) 
+        `verbose` = ``int``
+            controls the verbosity: the higher, the more detail 
         
         Returns:
         --------
@@ -347,11 +353,11 @@ class Competition:
         
         Parameters:
         -----------
-        `verbose` : optional, ''int''
-                    controls the verbosity: the higher, the more detail 
-        `columns` : optional, ''list of strings''
-                    list of specific column names to include in the leaderboard, all else will be excluded
-                    performance metrics will always be displayed
+        `verbose` : optional, ``int``
+            controls the verbosity: the higher, the more detail 
+        `columns` : optional, ``list of strings``
+            list of specific column names to include in the leaderboard, all else will be excluded
+            performance metrics will always be displayed
         
         Returns:
         --------
@@ -389,7 +395,7 @@ class Competition:
                 URL of deployed prediction API 
           
         `email_list`: [REQUIRED] list of comma separated emails for users who are allowed to submit models to competition.  Emails should be strings in a list.
-        `update_type`:[REQUIRED] options, ''string'': 'Add', 'Remove', 'Replace_list','Get. Add appends user emails to original list, Remove deletes users from list, 
+        `update_type`:[REQUIRED] options, ``string``: 'Add', 'Remove', 'Replace_list','Get. Add appends user emails to original list, Remove deletes users from list, 
                   'Replace_list' overwrites the original list with the new list provided, and Get returns the current list.    
 
         Returns:
