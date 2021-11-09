@@ -26,47 +26,47 @@ def import_preprocessor(filepath):
     Returns:
     imports preprocessor function to session
     """
-      #preprocessor fxn should always be named "preprocessor" to work properly in aimodelshare process.
-      import tempfile
-      from zipfile import ZipFile
-      import inspect
-      import os
-      import pickle
-      import string
+    #preprocessor fxn should always be named "preprocessor" to work properly in aimodelshare process.
+    import tempfile
+    from zipfile import ZipFile
+    import inspect
+    import os
+    import pickle
+    import string
 
-      #create temporary folder
-      temp_dir=tempfile.gettempdir()
+    #create temporary folder
+    temp_dir=tempfile.gettempdir()
 
-      # Create a ZipFile Object and load sample.zip in it
-      with ZipFile(filepath, 'r') as zipObj:
-          # Extract all the contents of zip file in current directory
-          zipObj.extractall(temp_dir)
-      
-      folderpath=os.path.dirname(os.path.abspath(filepath))
-      file_name=os.path.basename(filepath)
-      import os
-      pickle_file_list=[]
-      for file in os.listdir(temp_dir):
-          if file.endswith(".pkl"):
-              pickle_file_list.append(os.path.join(temp_dir, file))
+    # Create a ZipFile Object and load sample.zip in it
+    with ZipFile(filepath, 'r') as zipObj:
+      # Extract all the contents of zip file in current directory
+      zipObj.extractall(temp_dir)
+
+    folderpath=os.path.dirname(os.path.abspath(filepath))
+    file_name=os.path.basename(filepath)
+    import os
+    pickle_file_list=[]
+    for file in os.listdir(temp_dir):
+      if file.endswith(".pkl"):
+          pickle_file_list.append(os.path.join(temp_dir, file))
+    for i in pickle_file_list: 
+      objectname=str(os.path.basename(i)).replace(".pkl","")
+      objects={objectname:""}
+      globals()[objectname]=pickle.load(open(str(i), "rb" ) )
+    # First import preprocessor function to session from preprocessor.py
+    exec(open(os.path.join(temp_dir,'preprocessor.py')).read(),globals())
+    try:
+      # clean up temp directory files for future runs
+      os.remove(os.path.join(temp_dir,"preprocessor.py"))
+    except:
+      pass
+    try:
       for i in pickle_file_list: 
-          objectname=str(os.path.basename(i)).replace(".pkl","")
-          objects={objectname:""}
-          globals()[objectname]=pickle.load(open(str(i), "rb" ) )
-      # First import preprocessor function to session from preprocessor.py
-      exec(open(os.path.join(temp_dir,'preprocessor.py')).read(),globals())
-      try:
-          # clean up temp directory files for future runs
-          os.remove(os.path.join(temp_dir,"preprocessor.py"))
-      except:
-          pass
-      try:
-          for i in pickle_file_list: 
-              objectname=str(i)+".pkl"
-              os.remove(os.path.join(temp_dir,objectname))
-      except:
-          pass
-      return preprocessor
+          objectname=str(i)+".pkl"
+          os.remove(os.path.join(temp_dir,objectname))
+    except:
+      pass
+    return preprocessor
 
 import os
 
