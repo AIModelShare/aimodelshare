@@ -264,48 +264,45 @@ def upload_model_dict(modelpath, s3_presigned_dict, bucket, model_id, model_vers
     import ast
     temp=tempfile.mkdtemp()
     # get model summary from onnx
-    onnx_model = onnx.load(modelpath)
-    meta_dict = _get_metadata(onnx_model)
+    import ast
+    import astunparse
+    model_config = meta_dict["model_config"]
+    tree = ast.parse(model_config)
 
-    if meta_dict['ml_framework'] == 'keras':
-
-        inspect_pd = _model_summary(meta_dict)
-
-    elif meta_dict['ml_framework'] in ['sklearn', 'xgboost']:
-        import ast
-        import astunparse
-        model_config = meta_dict["model_config"]
-        tree = ast.parse(model_config)
-
-        stringconfig=model_config
+    stringconfig=model_config
 
 
 
-        problemnodes=[]
-        for node in ast.walk(tree):
-            if isinstance(node, ast.Call):
-                problemnodes.append(astunparse.unparse(node).replace("\n",""))
+    problemnodes=[]
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Call):
+            problemnodes.append(astunparse.unparse(node).replace("\n",""))
 
-        problemnodesunique=set(problemnodes)
-        for i in problemnodesunique:
-            stringconfig=stringconfig.replace(i,"'"+i+"'")
+    problemnodesunique=set(problemnodes)
+    for i in problemnodesunique:
+        stringconfig=stringconfig.replace(i,"'"+i+"'")
 
 
+    
+
+    try:
         model_config=ast.literal_eval(stringconfig)
+        model_class = model_from_string(meta_dict['model_type'])
+        default = model_class()
+        default_config = default.get_params().values()
+        model_configkeys=model_config.keys()
+        model_configvalues=model_config.values()
+    except:
+        model_class = str(model_from_string(meta_dict['model_type']))
+        if model_class.find("Voting")>0:
+              default_config = ["No data available"]
+              model_configkeys=["No data available"]
+              model_configvalues=["No data available"]
 
-        try:
-            model_class = model_from_string(meta_dict['model_type'])
-            default = model_class()
-            default_config = default.get_params().values()
-        except:
-            default_config = list(model_config.values())
-            for i in range(0, len(default_config)):
-              default_config[i]="Not available"
 
-
-        inspect_pd = pd.DataFrame({'param_name': model_config.keys(),
-                                    'default_value': default_config,
-                                    'param_value': model_config.values()})
+    inspect_pd = pd.DataFrame({'param_name': model_configkeys,
+                                'default_value': default_config,
+                                'param_value': model_configvalues})
    
     try:
         #Get inspect json
@@ -571,21 +568,26 @@ def submit_model(
             stringconfig=stringconfig.replace(i,"'"+i+"'")
 
 
-        model_config=ast.literal_eval(stringconfig)
+        
 
         try:
+            model_config=ast.literal_eval(stringconfig)
             model_class = model_from_string(meta_dict['model_type'])
             default = model_class()
             default_config = default.get_params().values()
+            model_configkeys=model_config.keys()
+            model_configvalues=model_config.values()
         except:
-            default_config = list(model_config.values())
-            for i in range(0, len(default_config)):
-              default_config[i]="Not available"
+            model_class = str(model_from_string(meta_dict['model_type']))
+            if model_class.find("Voting")>0:
+                  default_config = ["No data available"]
+                  model_configkeys=["No data available"]
+                  model_configvalues=["No data available"]
 
 
-        inspect_pd = pd.DataFrame({'param_name': model_config.keys(),
+        inspect_pd = pd.DataFrame({'param_name': model_configkeys,
                                     'default_value': default_config,
-                                    'param_value': model_config.values()})
+                                    'param_value': model_configvalues})
    
     keys_to_extract = [ "accuracy", "f1_score", "precision", "recall", "mse", "rmse", "mae", "r2"]
 
