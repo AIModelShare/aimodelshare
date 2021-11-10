@@ -266,6 +266,9 @@ def upload_model_dict(modelpath, s3_presigned_dict, bucket, model_id, model_vers
     # get model summary from onnx
     import ast
     import astunparse
+    onnx_model = onnx.load(modelpath)
+    meta_dict = _get_metadata(onnx_model)
+
     model_config = meta_dict["model_config"]
     tree = ast.parse(model_config)
 
