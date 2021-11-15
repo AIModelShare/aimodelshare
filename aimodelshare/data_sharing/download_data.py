@@ -182,30 +182,48 @@ def download_data(repository):
 	os.remove(docker_tar)
 	print('\n\nData downloaded successfully.')
 
+
 def import_quickstart_data(tutorial, section="modelplayground"):
     from aimodelshare.data_sharing.download_data import download_data
     import tensorflow as tf
     import os
     import pickle
     import shutil 
+    import pandas as pd
     
    
     #Download Quick Start materials
     if all([tutorial == "flowers", section == "modelplayground"]):
-        quickstart_repository = "public.ecr.aws/y2e2a1d6/quickstart_materials-repository:latest"     
+        quickstart_repository = "public.ecr.aws/y2e2a1d6/quickstart_materials-repository:latest"   
+        existing_folder = 'flower_competition_data'
     if all([tutorial == "flowers", section == "competition"]):
         quickstart_repository = "public.ecr.aws/y2e2a1d6/quickstart_flowers_competition-repository:latest"
-    
+        existing_folder = 'flower_competition_data'
+        
     if all([tutorial == "titanic", section == "modelplayground"]):
         quickstart_repository = "public.ecr.aws/y2e2a1d6/titanic_quickstart-repository:latest" 
-
+        existing_folder = 'titanic_competition_data'
+        
     if all([tutorial == "cars", section == "modelplayground"]):
         quickstart_repository = "public.ecr.aws/y2e2a1d6/quickstart_car_sales_competition-repository:latest" 
+        existing_folder = 'used_car_competition_data'
         
     if all([tutorial == "clickbait", section == "modelplayground"]):
         quickstart_repository = "public.ecr.aws/y2e2a1d6/quickstart_clickbait_materials-repository:latest" 
+        existing_folder = 'clickbait_competition_data'
+        
+    if all([tutorial == "sports", section == "modelplayground"]):
+        quickstart_repository = "public.ecr.aws/y2e2a1d6/sports_quick_start_materials-repository:latest" 
+        existing_folder = 'sports_clips_competition_data'
+    if all([tutorial == "sports", section == "competition"]):
+        quickstart_repository = "public.ecr.aws/y2e2a1d6/quickstart_sports_competition-repository:latest"
+        existing_folder = 'sports_clips_competition_data'
 
     download_data(quickstart_repository)
+    
+    #Delete pre-existing tutorial folders
+    if os.path.exists(existing_folder):
+        shutil.rmtree(existing_folder)
 
     #{{{ Prepare modelplayground materials
     if section == "modelplayground": 
@@ -218,6 +236,13 @@ def import_quickstart_data(tutorial, section="modelplayground"):
             #unpack data
             with open("quickstart_materials/y_train_labels.txt", "rb") as fp:  
                 y_train_labels = pickle.load(fp)
+        
+        if tutorial == "sports":
+           #instantiate model
+            model = tf.keras.models.load_model('sports_quick_start_materials/video_1.h5')
+            
+            #unpack data
+            y_train_labels = pd.read_csv("sports_quick_start_materials/y_train.csv")
                 
         if tutorial == "clickbait":
             import pandas as pd
@@ -346,22 +371,34 @@ def import_quickstart_data(tutorial, section="modelplayground"):
 
     #{{{ prepare competition materials
     if section == "competition":
-        #Instantiate Model 
         print("\nPreparing downloaded files for use...")
-        model_2 = tf.keras.models.load_model('quickstart_flowers_competition/flowermodel_2.h5')
-    
-        #unpack data
-        with open("quickstart_flowers_competition/y_test_labels.txt", "rb") as fp:  
-            y_test_labels = pickle.load(fp)
-            
-        #move data files to folder to upload with create_competiton
-        os.mkdir('flower_competition_data')
-            
-        folders = ['quickstart_flowers_competition/test_images', 
-                   'quickstart_flowers_competition/train_images']
-            
-        for f in folders:
-            shutil.move(f, 'flower_competition_data')
+
+        if tutorial == "flowers":
+            #Instantiate Model 
+            model_2 = tf.keras.models.load_model('quickstart_flowers_competition/flowermodel_2.h5')
+        
+            #unpack data
+            with open("quickstart_flowers_competition/y_test_labels.txt", "rb") as fp:  
+                y_test_labels = pickle.load(fp)
+                
+            #move data files to folder to upload with create_competiton
+            os.mkdir('flower_competition_data')
+                
+            folders = ['quickstart_flowers_competition/test_images', 
+                      'quickstart_flowers_competition/train_images']
+                
+            for f in folders:
+                shutil.move(f, 'flower_competition_data')
+        
+        if tutorial == "sports":
+            model_2 = tf.keras.models.load_model('quickstart_sports_competition/video_2.h5')
+            y_test = pd.read_csv("quickstart_sports_competition/y_test.csv")
+            y_test_labels = y_test.idxmax(axis=1)
+            os.mkdir('sports_clips_competition_data')
+            folders = ['quickstart_sports_competition/clips_test.zip', 
+                      'quickstart_sports_competition/clips_train.zip']
+            for f in folders:
+                shutil.move(f, 'sports_clips_competition_data')
     #}}}
 
     success_message = ("\nSuccess! Your Quick Start materials have been downloaded. \n"
@@ -375,6 +412,12 @@ def import_quickstart_data(tutorial, section="modelplayground"):
     if all ([tutorial == "flowers", section == "competition"]): 
         return model_2, y_test_labels
     
+    if all([tutorial == "sports", section == "modelplayground"]):
+        return model, y_train_labels
+    
+    if all ([tutorial == "sports", section == "competition"]): 
+        return model_2, y_test, y_test_labels
+    
     if tutorial == "titanic":
         return X_train, X_test, y_train, y_test, example_data, y_test_labels
 
@@ -382,4 +425,5 @@ def import_quickstart_data(tutorial, section="modelplayground"):
         return X_train, X_test, y_train, y_test, example_data
     
     if tutorial == "clickbait":
-        return X_train, X_test, y_train, y_test, example_data, lstm_model, lstm_model2
+        return X_train, X_test, y_train, y_test, example_data, lstm_model, lstm_model2	
+
