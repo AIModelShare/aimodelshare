@@ -23,7 +23,7 @@ import onnxruntime as rt
 
 # aims modules
 from aimodelshare.aws import run_function_on_lambda, get_aws_client
-from aimodelshare.determinism import set_determinism_env
+from aimodelshare.reproducibility import set_reproducibility_env
 
 # os etc
 import os
@@ -1456,7 +1456,7 @@ def _get_onnx_from_bucket(apiurl, aws_client, version=None):
     return onx
 
 
-def instantiate_model(apiurl, version=None, trained=False, determinism=False):
+def instantiate_model(apiurl, version=None, trained=False, reproduce=False):
     # Confirm that creds are loaded, print warning if not
     if all(["username" in os.environ, 
           "password" in os.environ]):
@@ -1474,7 +1474,7 @@ def instantiate_model(apiurl, version=None, trained=False, determinism=False):
         "version_list": "None",
         "get_leaderboard": "False",
         "instantiate_model": "True",
-        "determinism": determinism,
+        "reproduce": reproduce,
         "trained": trained,
         "model_version": version
     }
@@ -1487,12 +1487,12 @@ def instantiate_model(apiurl, version=None, trained=False, determinism=False):
 
     resp_dict = json.loads(resp.text)
 
-    if determinism:
-        if resp_dict['determinism_env'] != None:
-            set_determinism_env(resp_dict['determinism_env'])
-            print("Your determinism environment is successfully setup")
+    if reproduce:
+        if resp_dict['reproducibility_env'] != None:
+            set_reproducibility_env(resp_dict['reproducibility_env'])
+            print("Your reproducibility environment is successfully setup")
         else:
-            print("Determinism environment is not found")
+            print("Reproducibility environment is not found")
 
     print("Instantiate the model from metadata..")
     
@@ -1501,7 +1501,7 @@ def instantiate_model(apiurl, version=None, trained=False, determinism=False):
     ml_framework = meta_dict['ml_framework']
 
     if ml_framework == 'sklearn':
-        if trained == False or determinism == True:
+        if trained == False or reproduce == True:
             model_type = meta_dict['model_type']
             model_class = model_from_string(model_type)
             model = model_class(**model_config)
@@ -1529,7 +1529,7 @@ def instantiate_model(apiurl, version=None, trained=False, determinism=False):
                 model = pickle.load(f)
 
     if ml_framework == 'keras':
-        if trained == False or determinism == True:
+        if trained == False or reproduce == True:
             model = tf.keras.Sequential().from_config(model_config)
 
         elif trained == True:

@@ -114,13 +114,13 @@ def handler(event, context):
                 finalfiles.append("onnx_model_v1.onnx")
                 finalfiles.append("predictionmodel_1.onnx")
                 finalfiles.append("preprocessor_v1.zip")
-                finalfiles.append("determinism_v1.json")
+                finalfiles.append("reproducibility_v1.json")
             else:
                 finalfiles.append("model_eval_data_mastertable.csv")
                 finalfiles.append("onnx_model_mostrecent.onnx")
                 finalfiles.append("onnx_model_v"+str(prevmodelversion+1)+".onnx")
                 finalfiles.append("preprocessor_v"+str(prevmodelversion+1)+".zip")
-                finalfiles.append("determinism_v"+str(prevmodelversion+1)+".json")
+                finalfiles.append("reproducibility_v"+str(prevmodelversion+1)+".json")
         
             finalfiles.append("inspect_pd.json")
    
@@ -231,15 +231,15 @@ def handler(event, context):
         
         if body.get("instantiate_model","ALL") == "True":  
             version = body["model_version"]
-            determinism = body["determinism"]
+            reproduce = body["reproduce"]
             trained = body["trained"]
 
-            determinism_env_json = None
+            reproducibility_env_json = None
             onnx_string = get_onnx_string(version)
             onnx_model = onnx.load_from_string(onnx_string)
             metadata_dict = _get_metadata(onnx_model)
-            if determinism or not trained:
-                determinism_env_json = get_determinism_env(version=version)
+            if reproduce or not trained:
+                reproducibility_env_json = get_reproducibility_env(version=version)
             
                 # Remove the burden
                 metadata_dict['model_weights'] = None
@@ -248,8 +248,8 @@ def handler(event, context):
                     metadata_dict['model_weights'] = metadata_dict['model_weights'].decode('ISO-8859-1')
             
             # lambda response payload limit 6 MB, use 5 MB as we allocate 
-            # some for determinism env and just to make it safe.
-            file_size = sys.getsizeof(metadata_dict['model_weights']) / (1024**2)
+            # some for reproducibility env and just to make it safe.
+            file_size = sys.getsizeof(json.dumps(metadata_dict)) / (1024**2)
             print("File size: {}".format(file_size))
             if file_size >= 5.0: # 5 MB
                 # Get the presigned url.
@@ -273,7 +273,7 @@ def handler(event, context):
                 
             data = {
                 "model_metadata": metadata_dict,
-                "determinism_env": determinism_env_json
+                "reproducibility_env": reproducibility_env_json
             }
             model_dict = {"statusCode": 200,
                 "headers": {
@@ -969,23 +969,23 @@ def get_authorizedcompetitionuserdata(example_data_filename = "competitionuserda
     competitionuserdatajson = json.load(open("/tmp/competitionuserdata.json","rb") ) 
     return competitionuserdatajson
 
-def get_determinism_env(version=None):
+def get_reproducibility_env(version=None):
     s3 = boto3.resource("s3")
     bucket = s3.Bucket("$bucket_name")
 
     try:
         if version == None:
-            with open("/tmp/determinism.json", "wb") as temp_path:
-                bucket.download_fileobj("$unique_model_id/runtime_determinism.json",  temp_path)
+            with open("/tmp/reproducibility.json", "wb") as temp_path:
+                bucket.download_fileobj("$unique_model_id/runtime_reproducibility.json",  temp_path)
         else:
-            with open("/tmp/determinism.json", "wb") as temp_path:
-                bucket.download_fileobj("$unique_model_id/determinism_v{}.json".format(version),  temp_path)
+            with open("/tmp/reproducibility.json", "wb") as temp_path:
+                bucket.download_fileobj("$unique_model_id/reproducibility_v{}.json".format(version),  temp_path)
         
-        determinism_env_json = json.load(open("/tmp/determinism.json","rb"))
+        reproducibility_env_json = json.load(open("/tmp/reproducibility.json","rb"))
     except botocore.exceptions.ClientError as e:
         if e.response['Error']['Code'] == "404":
             print("The object does not exist.")
             return None
         else:
             raise
-    return determinism_env_json
+    return reproducibility_env_json
