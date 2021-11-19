@@ -263,7 +263,7 @@ def upload_model_dict(modelpath, aws_client, bucket, model_id, model_version):
     onnx_model = onnx.load(modelpath)
     meta_dict = _get_metadata(onnx_model)
 
-    if meta_dict['ml_framework'] == 'keras':
+    if meta_dict['ml_framework'] in ['keras', 'pytorch']:
 
         inspect_pd = _model_summary(meta_dict)
         
@@ -307,6 +307,10 @@ def upload_model_graph(modelpath, aws_client, bucket, model_id, model_version):
     if meta_dict['ml_framework'] == 'keras':
 
         model_graph = meta_dict['model_graph']
+
+    if meta_dict['ml_framework'] == 'pytorch':
+
+        model_graph = ''
         
     elif meta_dict['ml_framework'] in ['sklearn', 'xgboost']:
 
@@ -545,6 +549,11 @@ def submit_model(
 
         inspect_pd = _model_summary(meta_dict)
         model_graph = meta_dict['model_graph']
+
+    if meta_dict['ml_framework'] == 'pytorch':
+
+        inspect_pd = _model_summary(meta_dict)
+        model_graph = ""
         
     elif meta_dict['ml_framework'] in ['sklearn', 'xgboost']:
 
