@@ -400,6 +400,9 @@ def submit_model(
     else:
         return print("'Submit Model' unsuccessful. Please provide username and password using set_credentials() function.")
 
+
+    ##---Step 2: Get bucket and model_id for playground and check prediction submission structure
+
     apiurl=apiurl.replace('"','')
 
     # Get bucket and model_id for user {{{
@@ -425,13 +428,16 @@ def submit_model(
         else: 
             pass
 
+    ##---Step 3: Attempt to get eval metrics and file access dict for model leaderboard submission
+    #includes checks if returned values a success and errors otherwise
+
     try:
 
         post_dict = {"y_pred": prediction_submission,
                 "return_eval": "True",
                 "return_y": "False"}
 
-        headers = { 'Content-Type':'application/json', 'authorizationToken': os.environ.get("AWS_TOKEN"), } 
+        headers = { 'Content-Type':'application/json', 'authorizationToken': json.dumps({"token":os.environ.get("AWS_TOKEN"),"eval":"TRUE"}), } 
         apiurl_eval=apiurl[:-1]+"eval"
         prediction = requests.post(apiurl_eval,headers=headers,data=json.dumps(post_dict)) 
 
@@ -443,22 +449,25 @@ def submit_model(
         pass        
     else:
         if all([isinstance(eval_metrics, list)]):
-            return print(eval_metrics[0])
+            print(eval_metrics[0])
         else:
             return print('Unauthorized user: You do not have access to submit models to, or request data from, this competition.')
-    
+
 
     if all(value == None for value in eval_metrics.values()):
         return print("Failed to calculate evaluation metrics. Please check the format of the submitted predictions.")
 
     s3_presigned_dict = {key:val for key, val in eval_metrics.items() if key != 'eval'}
+    idempotentmodel_version=s3_presigned_dict['idempotentmodel_version']
+    s3_presigned_dict.pop('idempotentmodel_version')
     eval_metrics = {key:val for key, val in eval_metrics.items() if key != 'get'}
     eval_metrics = {key:val for key, val in eval_metrics.items() if key != 'put'}
     if eval_metrics.get("eval","empty")=="empty":
       pass
     else:
       eval_metrics=eval_metrics['eval']
-    
+
+
     #upload preprocessor (1s for small upload vs 21 for 306 mbs)
     putfilekeys=list(s3_presigned_dict['put'].keys())
     modelputfiles = [s for s in putfilekeys if str("zip") in s]
@@ -485,7 +494,7 @@ def submit_model(
     with open(model_filepath, 'rb') as f:
       files = {'file': (model_filepath, f)}
       http_response = requests.post(fileputlistofdicts[1]['url'], data=fileputlistofdicts[1]['fields'], files=files)
-    
+
 
     putfilekeys=list(s3_presigned_dict['put'].keys())
     modelputfiles = [s for s in putfilekeys if str("reproducibility") in s]
@@ -499,7 +508,7 @@ def submit_model(
         with open(reproducibility_env_filepath, 'rb') as f:
           files = {'file': (reproducibility_env_filepath, f)}
           http_response = requests.post(fileputlistofdicts[0]['url'], data=fileputlistofdicts[0]['fields'], files=files)
-      
+
 
     # Upload model metrics and metadata {{{
     modelleaderboarddata = _update_leaderboard_public(
@@ -616,7 +625,7 @@ def submit_model(
         inspect_pd = pd.DataFrame({'param_name': model_configkeys,
                                     'default_value': default_config,
                                     'param_value': model_configvalues})
-   
+
     keys_to_extract = [ "accuracy", "f1_score", "precision", "recall", "mse", "rmse", "mae", "r2"]
 
     eval_metrics_subset = {key: eval_metrics[key] for key in keys_to_extract}
@@ -631,7 +640,7 @@ def submit_model(
                 "Private":"FALSE",
                 "modelsubmissiondescription": modelsubmissiondescription,
                 "modelsubmissiontags":modelsubmissiontags,
-                 "eval_metrics":json.dumps(eval_metrics_subset_nonulls)}
+                  "eval_metrics":json.dumps(eval_metrics_subset_nonulls)}
 
     bodydatamodels.update(modelleaderboarddata_cleaned)
     d = bodydatamodels
