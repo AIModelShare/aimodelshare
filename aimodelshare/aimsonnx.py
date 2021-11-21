@@ -1787,16 +1787,26 @@ def torch_metadata(model):
     
     layers, name_list = torch_unpack(model)
 
+    layer_names, activation_names = _get_layer_names_pytorch()
+
     for module in layers:
 
-        layer_list.append(module._get_name())
+        module_name = module._get_name()
 
-        params = sum([np.prod(p.size()) for p in module.parameters()])
-        param_list.append(params)
 
-        weights = tuple([tuple(p.size()) for p in module.parameters()])
-        weight_list.append(weights)
+        if module_name in layer_names:
 
+                layer_list.append(module_name)
+
+                params = sum([np.prod(p.size()) for p in module.parameters()])
+                param_list.append(params)
+
+                weights = tuple([tuple(p.size()) for p in module.parameters()])
+                weight_list.append(weights)
+
+        if module_name in activation_names: 
+
+                activation_list.append(module_name)
 
     return name_list, layer_list, param_list, weight_list, activation_list
 
