@@ -359,9 +359,7 @@ def _keras_to_onnx(model, transfer_learning=None,
         model = model.steps[-1][1]
 
     sklearn_wrappers = (tf.keras.wrappers.scikit_learn.KerasClassifier,
-                    tf.keras.wrappers.scikit_learn.KerasRegressor,
-                        scikeras.wrappers.KerasClassifier,
-                        scikeras.wrappers.KerasRegressor)
+                    tf.keras.wrappers.scikit_learn.KerasRegressor)
 
     if isinstance(model, sklearn_wrappers):
         model = model.model
