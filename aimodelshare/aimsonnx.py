@@ -357,7 +357,9 @@ def _keras_to_onnx(model, transfer_learning=None,
         model = model.steps[-1][1]
 
     sklearn_wrappers = (tf.keras.wrappers.scikit_learn.KerasClassifier,
-                    tf.keras.wrappers.scikit_learn.KerasRegressor)
+                    tf.keras.wrappers.scikit_learn.KerasRegressor,
+                        scikeras.wrappers.KerasClassifier,
+                        scikeras.wrappers.KerasRegressor)
 
     if isinstance(model, sklearn_wrappers):
         model = model.model
@@ -374,7 +376,10 @@ def _keras_to_onnx(model, transfer_learning=None,
     tf.get_logger().setLevel('ERROR') # probably not good practice
     output_path = os.path.join(temp_dir, 'temp.onnx')
 
-    model.save(temp_dir)
+    try: 
+        model.save(temp_dir)
+    except AttributeError:
+        model.model_.save(temp_dir)
 
     # Convert the model
     converter = tf.lite.TFLiteConverter.from_saved_model(temp_dir) # path to the SavedModel directory
