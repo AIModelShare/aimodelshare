@@ -674,9 +674,51 @@ def model_from_string(model_type):
     model_class = getattr(importlib.import_module(module), model_type)
     return model_class
 
-
 def get_leaderboard(task_type="$task_type", verbose=3, columns=None):
+    bucket="$bucket_name"
+    model_id="$unique_model_id"
     
+    s3_client=boto3.client("s3")
+    model_files, err = _get_file_list(s3_client, bucket, model_id)
+    print(model_files)
+    
+    newleaderboarddata=[]
+    for i in model_files:
+        if i.find("mastertable_v")>0:
+            newleaderboarddata.append(i)
+
+    s3 = boto3.resource("s3")
+    bucketres = s3.Bucket("$bucket_name")
+    with open("/tmp/"+"model_eval_data_mastertable.csv", "wb") as lbfo:
+      bucketres.download_fileobj("$unique_model_id/"+"model_eval_data_mastertable.csv", lbfo)              
+      
+      
+      
+    leaderboard = pd.read_csv("/tmp/"+"model_eval_data_mastertable.csv", sep="\t")
+    currentversions=leaderboard['version']
+    allversions = [sub.split('_v')[1].split('.')[0] for sub in newleaderboarddata]
+    print(allversions)
+    missingincurrent_leaderboard=list(set(allversions)-set(currentversions)) 
+    print(missingincurrent_leaderboard)
+    
+    #TODO: check if items in leaderboard, if so, then do following
+    if len(missingincurrent_leaderboard)>0:
+        for i in missingincurrent_leaderboard:
+            with open("/tmp/"+"model_eval_data_mastertable_v"+i+".csv", "wb") as lbfo:
+              bucketres.download_fileobj("$unique_model_id/"+"model_eval_data_mastertable_v"+i+".csv", lbfo)
+            newleaderboard = pd.read_csv("/tmp/"+"model_eval_data_mastertable_v"+i+".csv", sep="\t")
+            newleaderboard.drop(newleaderboard.filter(regex="Unname"),axis=1, inplace=True)
+            
+            leaderboard=leaderboard.append(newleaderboard).drop_duplicates()
+            
+        leaderboard.drop(leaderboard.filter(regex="Unname"),axis=1, inplace=True)
+    #save new leaderboard here
+        leaderboard.to_csv("/tmp/"+"model_eval_data_mastertable.csv",sep="\t",index=False)
+        s3_client.upload_file("/tmp/"+"model_eval_data_mastertable.csv", bucket, model_id + "/model_eval_data_mastertable.csv")
+    
+    
+    else:
+        pass
     s3 = boto3.resource("s3")
     bucket = s3.Bucket("$bucket_name")
     with open("/tmp/"+"model_eval_data_mastertable.csv", "wb") as lbfo:
@@ -726,12 +768,11 @@ def get_leaderboard(task_type="$task_type", verbose=3, columns=None):
     ranks = np.mean(ranks, axis=0)
     order = np.argsort(ranks)
 
-    leaderboard = leaderboard.loc[order].reset_index().drop("index", axis=1)
+    leaderboard = leaderboard.loc[order].reset_index().drop("index", axis=1).drop_duplicates(subset=['version', 'username'], keep='last')
+    leaderboard.drop(leaderboard.filter(regex="Unname"),axis=1, inplace=True)
     # }}}
 
     return leaderboard
-
-
 
 ####################################################################
 ############################ S3 connect ############################
