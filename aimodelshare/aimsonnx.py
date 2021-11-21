@@ -8,6 +8,7 @@ from sklearn.model_selection import GridSearchCV, RandomizedSearchCV
 import torch
 import xgboost
 import tensorflow as tf
+from scikeras.wrappers import KerasClassifier, KerasRegressor
 
 # onnx modules
 import onnx
