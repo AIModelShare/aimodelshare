@@ -100,11 +100,14 @@ def predict(event,model,preprocessor):
     res = sess.run(None,  {input_name: input_data})
     prob = res[0]
     print(prob)
-    prediction_index=predict_classes(prob)
-    def index_to_label(labels,index_n):
-        return labels[index_n]
-    labels=$labels
-    result=list(map(lambda x: labels[x], prediction_index))
+    try:
+        prediction_index=predict_classes(prob)
+        def index_to_label(labels,index_n):
+            return labels[index_n]
+        labels=$labels
+        result=list(map(lambda x: labels[x], prediction_index))
+    except:
+        result=prob.tolist() 
     return result
 
 def handler(event, context):
