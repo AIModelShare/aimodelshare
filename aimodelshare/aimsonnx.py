@@ -9,6 +9,7 @@ import torch
 import xgboost
 import tensorflow as tf
 
+
 # onnx modules
 import onnx
 import skl2onnx
@@ -562,13 +563,13 @@ def _pytorch_to_onnx(model, model_input, transfer_learning=None,
 
     name_list, layer_list, param_list, weight_list, activation_list = torch_metadata(model)
 
-
     model_summary_pd = pd.DataFrame({"Name": name_list,
     "Layer": layer_list,
     "Shape": weight_list,
     "Params": param_list,
     "Connect": None,
     "Activation": None})
+
 
 
     model_architecture = {'layers_number': len(layer_list),
@@ -940,7 +941,7 @@ def inspect_model_dict(apiurl, version=None):
 
     _, bucket, model_id = json.loads(response.content.decode("utf-8"))
 
-    key = model_id+'/inspect_pd.json'
+    key = model_id+'/inspect_pd_'+str(model_version)+'.json'
     
     try:
       resp = aws_client['client'].get_object(Bucket=bucket, Key=key)
@@ -1004,18 +1005,29 @@ def compare_models_dict(apiurl, version_list=None,
 
     _, bucket, model_id = json.loads(response.content.decode("utf-8"))
 
-    key = model_id+'/inspect_pd.json'
-    
-    try:
-      resp = aws_client['client'].get_object(Bucket=bucket, Key=key)
-      data = resp.get('Body').read()
-      model_dict = json.loads(data)
-    except Exception as e:
-        print(e)
 
-    ml_framework_list = [model_dict[str(i)]['ml_framework'] for i in version_list]
-    model_type_list = [model_dict[str(i)]['model_type'] for i in version_list]
-    model_dict_list = [model_dict[str(i)]['model_dict'] for i in version_list]
+    ml_framework_list = []
+    model_type_list = []
+    model_dict_list = []
+    model_dict = {}
+
+    for i in version_list: 
+
+        key = model_id+'/inspect_pd_'+str(i)+'.json'
+        
+        try:
+          resp = aws_client['client'].get_object(Bucket=bucket, Key=key)
+          data = resp.get('Body').read()
+          model_dict_temp = json.loads(data)
+        except Exception as e:
+            print(e)
+
+        ml_framework_list.append(model_dict_temp[str(i)]['ml_framework'])
+        model_type_list.append(model_dict_temp[str(i)]['model_type'])
+        model_dict_list.append(model_dict_temp[str(i)]['model_dict'])
+
+        model_dict[str(i)] = model_dict_temp[str(i)]
+
 
     if not all(x==ml_framework_list[0] for x in ml_framework_list):
         raise Exception("Incongruent frameworks. Please compare models from the same ML frameworks.")
@@ -1527,7 +1539,7 @@ def _get_layer_names_pytorch():
                     'SiLU', 'Mish', 'Softplus', 'Softshrink', 'Softsign', 'Tanh', 'Tanhshrink', 'Threshold',
                     'GLU', 'Softmin', 'Softmax', 'Softmax2d', 'LogSoftmax', 'AdaptiveLogSoftmaxWithLoss']
 
-    layer_list = [i for i in dir(nn) if callable(getattr(nn, i))]
+    layer_list = [i for i in dir(torch.nn) if callable(getattr(torch.nn, i))]
     layer_list = [i for i in layer_list if not i in activation_list and not 'Loss' in i]
 
     return layer_list, activation_list
@@ -1780,6 +1792,7 @@ def torch_unpack(model):
 
 def torch_metadata(model):
 
+    name_list_out = []
     layer_list = []
     param_list = []
     weight_list = []
@@ -1789,12 +1802,14 @@ def torch_metadata(model):
 
     layer_names, activation_names = _get_layer_names_pytorch()
 
-    for module in layers:
+    for module, name in zip(layers, name_list):
 
         module_name = module._get_name()
 
 
         if module_name in layer_names:
+
+                name_list_out.append(name)
 
                 layer_list.append(module_name)
 
@@ -1808,7 +1823,7 @@ def torch_metadata(model):
 
                 activation_list.append(module_name)
 
-    return name_list, layer_list, param_list, weight_list, activation_list
+    return name_list_out, layer_list, param_list, weight_list, activation_list
 
 
 def layer_mapping(direction, activation):

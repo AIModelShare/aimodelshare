@@ -280,7 +280,7 @@ def upload_model_dict(modelpath, aws_client, bucket, model_id, model_version):
                                    'default_value': default_config.values(),
                                    'param_value': model_config.values()})
 
-    key = model_id+'/inspect_pd.json'
+    key = model_id+'/inspect_pd_'+str(model_version)+'.json'
     
     try:
       resp = aws_client['client'].get_object(Bucket=bucket, Key=key)
@@ -316,7 +316,7 @@ def upload_model_graph(modelpath, aws_client, bucket, model_id, model_version):
 
         model_graph = ''
 
-    key = model_id+'/model_graph.json'
+    key = model_id+'/model_graph_'+str(model_version)+'.json'
     
     try:
       resp = aws_client['client'].get_object(Bucket=bucket, Key=key)

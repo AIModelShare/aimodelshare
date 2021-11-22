@@ -418,7 +418,7 @@ def evaluate_model(body, ytestdata):
 def inspect_model(version):
     
     s3 = boto3.resource('s3')
-    obj = s3.Object("$bucket_name", "$unique_model_id/"+"inspect_pd.json")
+    obj = s3.Object("$bucket_name", "$unique_model_id/"+"inspect_pd_"+str(version)+".json")
     data = obj.get()['Body'].read()
     model_dict = json.loads(data)
 
@@ -493,15 +493,27 @@ def _get_metadata(onnx_model):
     
     
 def compare_models(version_list, by_model_type=None, best_model=None, verbose=1):
-    
-    s3 = boto3.resource('s3')
-    obj = s3.Object("$bucket_name", "$unique_model_id/"+"inspect_pd.json")
-    data = obj.get()['Body'].read()
-    model_dict = json.loads(data)
-    
-    ml_framework_list = [model_dict[str(i)]['ml_framework'] for i in version_list]
-    model_type_list = [model_dict[str(i)]['model_type'] for i in version_list]
-    model_dict_list = [model_dict[str(i)]['model_dict'] for i in version_list]
+
+    ml_framework_list = []
+    model_type_list = []
+    model_dict_list = []
+    model_dict = {}
+
+    for i in version_list: 
+
+        key = model_id+'/inspect_pd_'+str(i)+'.json'
+        
+        s3 = boto3.resource('s3')
+    	obj = s3.Object("$bucket_name", "$unique_model_id/"+"inspect_pd_"+str(version)+".json")
+    	data = obj.get()['Body'].read()
+    	model_dict_temp = json.loads(data)
+
+        ml_framework_list.append(model_dict_temp[str(i)]['ml_framework'])
+        model_type_list.append(model_dict_temp[str(i)]['model_type'])
+        model_dict_list.append(model_dict_temp[str(i)]['model_dict'])
+
+        model_dict[str(i)] = model_dict_temp[str(i)]
+
 
     if not all(x==ml_framework_list[0] for x in ml_framework_list):
         raise Exception("Incongruent frameworks. Please compare models from the same ML frameworks.")
