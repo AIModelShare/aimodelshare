@@ -25,6 +25,7 @@ from aimodelshare.preprocessormodules import upload_preprocessor
 from aimodelshare.model import _get_predictionmodel_key, _extract_model_metadata
 from aimodelshare.data_sharing.share_data import share_data_codebuild
 from aimodelshare.containerization import clone_base_image
+from aimodelshare.aimsonnx import _get_metadata
 
 
 def take_user_info_and_generate_api(model_filepath, model_type, categorical,labels, preprocessor_filepath,custom_libraries, requirements, exampledata_json_filepath, repo_name, image_tag, reproducibility_env_filepath):
@@ -146,6 +147,9 @@ def take_user_info_and_generate_api(model_filepath, model_type, categorical,labe
         )
         os.remove(json_path)
 
+        # upload model metadata
+        upload_model_metadata(model, s3, os.environ.get("BUCKET_NAME"), unique_model_id)
+
         # upload reproducibility env
         if reproducibility_env_filepath:
             upload_reproducibility_env(reproducibility_env_filepath, s3, os.environ.get("BUCKET_NAME"), unique_model_id)
@@ -192,6 +196,27 @@ def upload_reproducibility_env(reproducibility_env_file, s3, bucket, model_id):
     except Exception as err:
         raise err
     # }}}
+
+def upload_model_metadata(model, s3, bucket, model_id):
+    meta_dict = _get_metadata(model)
+    model_metadata = {
+        "model_config": meta_dict["model_config"],
+        "ml_framework": meta_dict["ml_framework"],
+        "model_type": meta_dict["model_type"]
+    }
+
+    temp = tempfile.mkdtemp()
+    model_metadata_path = temp + "/" + 'model_metadata.json'
+    with open(model_metadata_path, 'w') as outfile:
+        json.dump(model_metadata, outfile)
+
+    # Upload the json {{{
+    try:
+        s3["client"].upload_file(
+            model_metadata_path, bucket, model_id + "/runtime_metadata.json"
+        )
+    except Exception as err:
+        raise err
 
 def send_model_data_to_dyndb_and_return_api(api_info, private, categorical, preprocessor_filepath,
                                             aishare_modelname, aishare_modeldescription, aishare_modelevaluation, model_type,

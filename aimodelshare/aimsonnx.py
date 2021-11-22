@@ -382,6 +382,10 @@ def _keras_to_onnx(model, transfer_learning=None,
 
     # Convert the model
     converter = tf.lite.TFLiteConverter.from_saved_model(temp_dir) # path to the SavedModel directory
+    converter.target_spec.supported_ops = [
+        tf.lite.OpsSet.TFLITE_BUILTINS, # enable TensorFlow Lite ops.
+        tf.lite.OpsSet.SELECT_TF_OPS # enable TensorFlow ops.
+      ]
     tflite_model = converter.convert()
 
     # Save the model.
@@ -1496,29 +1500,27 @@ def instantiate_model(apiurl, version=None, trained=False, reproduce=False):
 
     print("Instantiate the model from metadata..")
     
-    meta_dict = resp_dict['model_metadata']
-    model_config = ast.literal_eval(meta_dict['model_config'])
-    ml_framework = meta_dict['ml_framework']
+    model_metadata = resp_dict['model_metadata']
+    model_weight_url = resp_dict['model_weight_url']
+    model_config = ast.literal_eval(model_metadata['model_config'])
+    ml_framework = model_metadata['ml_framework']
 
     if ml_framework == 'sklearn':
         if trained == False or reproduce == True:
-            model_type = meta_dict['model_type']
+            model_type = model_metadata['model_type']
             model_class = model_from_string(model_type)
             model = model_class(**model_config)
 
         elif trained == True:
             model_pkl = None
-            if "https://" in meta_dict['model_weights']: # presigned
-                temp = tempfile.mkdtemp()
-                temp_path = temp + "/" + "onnx_model_v{}.onnx".format(version)
+            temp = tempfile.mkdtemp()
+            temp_path = temp + "/" + "onnx_model_v{}.onnx".format(version)
             
-                # Get leaderboard
-                status = wget.download(meta_dict['model_weights'], out=temp_path)
-                onnx_model = onnx.load(temp_path)
-                model_pkl = _get_metadata(onnx_model)['model_weights']
-            else:
-                model_pkl = meta_dict['model_weights'].encode("ISO-8859-1")
-
+            # Get leaderboard
+            status = wget.download(model_weight_url, out=temp_path)
+            onnx_model = onnx.load(temp_path)
+            model_pkl = _get_metadata(onnx_model)['model_weights']
+        
             temp_dir = tempfile.gettempdir()
             temp_path = os.path.join(temp_dir, 'temp_file_name')
 
@@ -1534,16 +1536,13 @@ def instantiate_model(apiurl, version=None, trained=False, reproduce=False):
 
         elif trained == True:
             model_weights = None
-            if "https://" in meta_dict['model_weights']: # presigned
-                temp = tempfile.mkdtemp()
-                temp_path = temp + "/" + "onnx_model_v{}.onnx".format(version)
-            
-                # Get leaderboard
-                status = wget.download(meta_dict['model_weights'], out=temp_path)
-                onnx_model = onnx.load(temp_path)
-                model_weights = json.loads(_get_metadata(onnx_model)['model_weights'])
-            else:
-                model_weights = json.loads(meta_dict['model_weights'])
+            temp = tempfile.mkdtemp()
+            temp_path = temp + "/" + "onnx_model_v{}.onnx".format(version)
+        
+            # Get leaderboard
+            status = wget.download(model_weight_url, out=temp_path)
+            onnx_model = onnx.load(temp_path)
+            model_weights = json.loads(_get_metadata(onnx_model)['model_weights'])
             
             model = tf.keras.Sequential().from_config(model_config)
             

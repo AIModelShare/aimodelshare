@@ -269,43 +269,49 @@ def upload_model_dict(modelpath, s3_presigned_dict, bucket, model_id, model_vers
     onnx_model = onnx.load(modelpath)
     meta_dict = _get_metadata(onnx_model)
 
-    model_config = meta_dict["model_config"]
-    tree = ast.parse(model_config)
+    if meta_dict['ml_framework'] == 'keras':
 
-    stringconfig=model_config
+        inspect_pd = _model_summary(meta_dict)
+        
+    elif meta_dict['ml_framework'] in ['sklearn', 'xgboost']:
 
+        model_config = meta_dict["model_config"]
+        tree = ast.parse(model_config)
 
-
-    problemnodes=[]
-    for node in ast.walk(tree):
-        if isinstance(node, ast.Call):
-            problemnodes.append(astunparse.unparse(node).replace("\n",""))
-
-    problemnodesunique=set(problemnodes)
-    for i in problemnodesunique:
-        stringconfig=stringconfig.replace(i,"'"+i+"'")
+        stringconfig=model_config
 
 
-    
 
-    try:
-        model_config=ast.literal_eval(stringconfig)
-        model_class = model_from_string(meta_dict['model_type'])
-        default = model_class()
-        default_config = default.get_params().values()
-        model_configkeys=model_config.keys()
-        model_configvalues=model_config.values()
-    except:
-        model_class = str(model_from_string(meta_dict['model_type']))
-        if model_class.find("Voting")>0:
-              default_config = ["No data available"]
-              model_configkeys=["No data available"]
-              model_configvalues=["No data available"]
+        problemnodes=[]
+        for node in ast.walk(tree):
+            if isinstance(node, ast.Call):
+                problemnodes.append(astunparse.unparse(node).replace("\n",""))
+
+        problemnodesunique=set(problemnodes)
+        for i in problemnodesunique:
+            stringconfig=stringconfig.replace(i,"'"+i+"'")
 
 
-    inspect_pd = pd.DataFrame({'param_name': model_configkeys,
-                                'default_value': default_config,
-                                'param_value': model_configvalues})
+        
+
+        try:
+            model_config=ast.literal_eval(stringconfig)
+            model_class = model_from_string(meta_dict['model_type'])
+            default = model_class()
+            default_config = default.get_params().values()
+            model_configkeys=model_config.keys()
+            model_configvalues=model_config.values()
+        except:
+            model_class = str(model_from_string(meta_dict['model_type']))
+            if model_class.find("Voting")>0:
+                  default_config = ["No data available"]
+                  model_configkeys=["No data available"]
+                  model_configvalues=["No data available"]
+
+
+        inspect_pd = pd.DataFrame({'param_name': model_configkeys,
+                                    'default_value': default_config,
+                                    'param_value': model_configvalues})
    
     try:
         #Get inspect json
@@ -394,6 +400,9 @@ def submit_model(
     else:
         return print("'Submit Model' unsuccessful. Please provide username and password using set_credentials() function.")
 
+
+    ##---Step 2: Get bucket and model_id for playground and check prediction submission structure
+
     apiurl=apiurl.replace('"','')
 
     # Get bucket and model_id for user {{{
@@ -419,13 +428,16 @@ def submit_model(
         else: 
             pass
 
+    ##---Step 3: Attempt to get eval metrics and file access dict for model leaderboard submission
+    #includes checks if returned values a success and errors otherwise
+
     try:
 
         post_dict = {"y_pred": prediction_submission,
                 "return_eval": "True",
                 "return_y": "False"}
 
-        headers = { 'Content-Type':'application/json', 'authorizationToken': os.environ.get("AWS_TOKEN"), } 
+        headers = { 'Content-Type':'application/json', 'authorizationToken': json.dumps({"token":os.environ.get("AWS_TOKEN"),"eval":"TRUE"}), } 
         apiurl_eval=apiurl[:-1]+"eval"
         prediction = requests.post(apiurl_eval,headers=headers,data=json.dumps(post_dict)) 
 
@@ -437,22 +449,25 @@ def submit_model(
         pass        
     else:
         if all([isinstance(eval_metrics, list)]):
-            return print(eval_metrics[0])
+            print(eval_metrics[0])
         else:
             return print('Unauthorized user: You do not have access to submit models to, or request data from, this competition.')
-    
+
 
     if all(value == None for value in eval_metrics.values()):
         return print("Failed to calculate evaluation metrics. Please check the format of the submitted predictions.")
 
     s3_presigned_dict = {key:val for key, val in eval_metrics.items() if key != 'eval'}
+    idempotentmodel_version=s3_presigned_dict['idempotentmodel_version']
+    s3_presigned_dict.pop('idempotentmodel_version')
     eval_metrics = {key:val for key, val in eval_metrics.items() if key != 'get'}
     eval_metrics = {key:val for key, val in eval_metrics.items() if key != 'put'}
     if eval_metrics.get("eval","empty")=="empty":
       pass
     else:
       eval_metrics=eval_metrics['eval']
-    
+
+
     #upload preprocessor (1s for small upload vs 21 for 306 mbs)
     putfilekeys=list(s3_presigned_dict['put'].keys())
     modelputfiles = [s for s in putfilekeys if str("zip") in s]
@@ -462,11 +477,12 @@ def submit_model(
       filedownload_dict=ast.literal_eval(s3_presigned_dict ['put'][i])
       fileputlistofdicts.append(filedownload_dict)
 
-
     with open(preprocessor, 'rb') as f:
       files = {'file': (preprocessor, f)}
       http_response = requests.post(fileputlistofdicts[0]['url'], data=fileputlistofdicts[0]['fields'], files=files)
 
+
+    # ONNX model upload
     putfilekeys=list(s3_presigned_dict['put'].keys())
     modelputfiles = [s for s in putfilekeys if str("onnx") in s]
 
@@ -475,12 +491,12 @@ def submit_model(
       filedownload_dict=ast.literal_eval(s3_presigned_dict ['put'][i])
       fileputlistofdicts.append(filedownload_dict)
 
-
     with open(model_filepath, 'rb') as f:
       files = {'file': (model_filepath, f)}
       http_response = requests.post(fileputlistofdicts[1]['url'], data=fileputlistofdicts[1]['fields'], files=files)
-    
 
+
+    # Reproducibility environment upload
     putfilekeys=list(s3_presigned_dict['put'].keys())
     modelputfiles = [s for s in putfilekeys if str("reproducibility") in s]
 
@@ -493,7 +509,34 @@ def submit_model(
         with open(reproducibility_env_filepath, 'rb') as f:
           files = {'file': (reproducibility_env_filepath, f)}
           http_response = requests.post(fileputlistofdicts[0]['url'], data=fileputlistofdicts[0]['fields'], files=files)
-      
+
+
+    # Model metadata upload
+    putfilekeys=list(s3_presigned_dict['put'].keys())
+    modelputfiles = [s for s in putfilekeys if str("model_metadata") in s]
+
+    fileputlistofdicts=[]
+    for i in modelputfiles:
+      filedownload_dict=ast.literal_eval(s3_presigned_dict ['put'][i])
+      fileputlistofdicts.append(filedownload_dict)
+
+    onnx_model = onnx.load(model_filepath)
+    meta_dict = _get_metadata(onnx_model)
+    model_metadata = {
+        "model_config": meta_dict["model_config"],
+        "ml_framework": meta_dict["ml_framework"],
+        "model_type": meta_dict["model_type"]
+    }
+
+    temp = tempfile.mkdtemp()
+    model_metadata_path = temp + "/" + 'model_metadata.json'
+    with open(model_metadata_path, 'w') as outfile:
+        json.dump(model_metadata, outfile)
+
+    with open(model_metadata_path, 'rb') as f:
+        files = {'file': (model_metadata_path, f)}
+        http_response = requests.post(fileputlistofdicts[0]['url'], data=fileputlistofdicts[0]['fields'], files=files)
+
 
     # Upload model metrics and metadata {{{
     modelleaderboarddata = _update_leaderboard_public(
@@ -610,7 +653,7 @@ def submit_model(
         inspect_pd = pd.DataFrame({'param_name': model_configkeys,
                                     'default_value': default_config,
                                     'param_value': model_configvalues})
-   
+
     keys_to_extract = [ "accuracy", "f1_score", "precision", "recall", "mse", "rmse", "mae", "r2"]
 
     eval_metrics_subset = {key: eval_metrics[key] for key in keys_to_extract}
@@ -625,7 +668,7 @@ def submit_model(
                 "Private":"FALSE",
                 "modelsubmissiondescription": modelsubmissiondescription,
                 "modelsubmissiontags":modelsubmissiontags,
-                 "eval_metrics":json.dumps(eval_metrics_subset_nonulls)}
+                  "eval_metrics":json.dumps(eval_metrics_subset_nonulls)}
 
     bodydatamodels.update(modelleaderboarddata_cleaned)
     d = bodydatamodels
