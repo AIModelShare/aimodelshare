@@ -57,7 +57,6 @@ def get_leaderboard_aws(apiurl, verbose=3, columns=None):
         else:
             task_type = 'regression'
 
-
         if task_type == 'classification':
             leaderboard_eval_metrics = leaderboard[clf]
         else:
