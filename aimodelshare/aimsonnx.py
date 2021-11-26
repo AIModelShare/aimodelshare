@@ -9,6 +9,7 @@ import torch
 import xgboost
 import tensorflow as tf
 
+
 # onnx modules
 import onnx
 import skl2onnx
@@ -493,6 +494,10 @@ def _keras_to_onnx(model, transfer_learning=None,
 
     metadata['epochs'] = epochs
 
+    # model graph 
+    G = model_graph_keras(model)
+    metadata['model_graph'] = G.create_dot().decode('utf-8')
+
     # placeholder, needs evaluation engine
     metadata['eval_metrics'] = None
 
@@ -563,42 +568,31 @@ def _pytorch_to_onnx(model, model_input, transfer_learning=None,
     # get model state from pytorch model object
     metadata['model_state'] = str(model.state_dict())
 
-    # extract model architecture metadata
-    activation_names = ['ReLU', 'Softmax']   #placeholder
-    layer_names = []
 
-    layers = []
-    layers_shapes = []
-    n_params = []
+    name_list, layer_list, param_list, weight_list, activation_list = torch_metadata(model)
 
-
-    for i, j  in model.__dict__['_modules'].items():
-
-        if j._get_name() not in activation_names:
-
-            layers.append(j._get_name())
-            layers_shapes.append(j.out_features)
-            weights = np.prod(j._parameters['weight'].shape)
-            bias = np.prod(j._parameters['bias'].shape)
-            n_params.append(weights+bias)
+    model_summary_pd = pd.DataFrame({"Name": name_list,
+    "Layer": layer_list,
+    "Shape": weight_list,
+    "Params": param_list,
+    "Connect": None,
+    "Activation": None})
 
 
-    activations = []
-    for i, j in model.__dict__['_modules'].items():
-        if str(j).split('(')[0] in activation_names:
-            activations.append(str(j).split('(')[0])
 
-
-    model_architecture = {'layers_number': len(layers),
-                  'layers_sequence': layers,
-                  'layers_summary': {i:layers.count(i) for i in set(layers)},
-                  'layers_n_params': n_params,
-                  'layers_shapes': layers_shapes,
-                  'activations_sequence': activations,
-                  'activations_summary': {i:activations.count(i) for i in set(activations)}
+    model_architecture = {'layers_number': len(layer_list),
+                  'layers_sequence': layer_list,
+                  'layers_summary': {i:layer_list.count(i) for i in set(layer_list)},
+                  'layers_n_params': param_list,
+                  'layers_shapes': weight_list,
+                  'activations_sequence': activation_list,
+                  'activations_summary': {i:activation_list.count(i) for i in set(activation_list)}
                  }
 
     metadata['model_architecture'] = str(model_architecture)
+
+    metadata['model_summary'] = model_summary_pd.to_json()
+
 
     metadata['memory_size'] = asizeof.asizeof(model)    
     metadata['epochs'] = epochs
@@ -659,7 +653,7 @@ def model_to_onnx(model, framework, model_input=None, initial_types=None,
     'Please choose "sklearn", "keras", "pytorch", or "xgboost".'
     
     # assert model input type THIS IS A PLACEHOLDER
-    if model_input != None:
+    if model_input is not None:
         assert isinstance(model_input, (list, pd.core.series.Series, np.ndarray, torch.Tensor)), \
         'Please format model input as XYZ.'
     
@@ -769,7 +763,11 @@ def _get_leaderboard_data(onnx_model, eval_metrics=None):
     metadata_raw = _get_metadata(onnx_model)
 
     # get list of current layer types 
-    layer_list, activation_list = _get_layer_names()
+    layer_list_keras, activation_list_keras = _get_layer_names()
+    layer_list_pytorch, activation_list_pytorch = _get_layer_names_pytorch()
+
+    layer_list = layer_list_keras + layer_list_pytorch
+    activation_list =  list(set(activation_list_keras + activation_list_pytorch))
 
     # get general model info
     metadata['ml_framework'] = metadata_raw['ml_framework']
@@ -779,7 +777,7 @@ def _get_leaderboard_data(onnx_model, eval_metrics=None):
 
 
     # get neural network metrics
-    if metadata_raw['ml_framework'] == 'keras' or metadata_raw['model_type'] in ['MLPClassifier', 'MLPRegressor']:
+    if metadata_raw['ml_framework'] in ['keras', 'pytorch'] or metadata_raw['model_type'] in ['MLPClassifier', 'MLPRegressor']:
         metadata['depth'] = metadata_raw['model_architecture']['layers_number']
         metadata['num_params'] = sum(metadata_raw['model_architecture']['layers_n_params'])
 
@@ -804,8 +802,6 @@ def _get_leaderboard_data(onnx_model, eval_metrics=None):
         metadata['model_config'] = metadata_raw['model_config']
         metadata['epochs'] = metadata_raw['epochs']
         metadata['memory_size'] = metadata_raw['memory_size']
-
-
 
     # get sklearn model metrics
     elif metadata_raw['ml_framework'] == 'sklearn' or metadata_raw['ml_framework'] == 'xgboost':
@@ -953,7 +949,7 @@ def inspect_model_dict(apiurl, version=None):
 
     _, bucket, model_id = json.loads(response.content.decode("utf-8"))
 
-    key = model_id+'/inspect_pd.json'
+    key = model_id+'/inspect_pd_'+str(model_version)+'.json'
     
     try:
       resp = aws_client['client'].get_object(Bucket=bucket, Key=key)
@@ -1017,18 +1013,29 @@ def compare_models_dict(apiurl, version_list=None,
 
     _, bucket, model_id = json.loads(response.content.decode("utf-8"))
 
-    key = model_id+'/inspect_pd.json'
-    
-    try:
-      resp = aws_client['client'].get_object(Bucket=bucket, Key=key)
-      data = resp.get('Body').read()
-      model_dict = json.loads(data)
-    except Exception as e:
-        print(e)
 
-    ml_framework_list = [model_dict[str(i)]['ml_framework'] for i in version_list]
-    model_type_list = [model_dict[str(i)]['model_type'] for i in version_list]
-    model_dict_list = [model_dict[str(i)]['model_dict'] for i in version_list]
+    ml_framework_list = []
+    model_type_list = []
+    model_dict_list = []
+    model_dict = {}
+
+    for i in version_list: 
+
+        key = model_id+'/inspect_pd_'+str(i)+'.json'
+        
+        try:
+          resp = aws_client['client'].get_object(Bucket=bucket, Key=key)
+          data = resp.get('Body').read()
+          model_dict_temp = json.loads(data)
+        except Exception as e:
+            print(e)
+
+        ml_framework_list.append(model_dict_temp[str(i)]['ml_framework'])
+        model_type_list.append(model_dict_temp[str(i)]['model_type'])
+        model_dict_list.append(model_dict_temp[str(i)]['model_dict'])
+
+        model_dict[str(i)] = model_dict_temp[str(i)]
+
 
     if not all(x==ml_framework_list[0] for x in ml_framework_list):
         raise Exception("Incongruent frameworks. Please compare models from the same ML frameworks.")
@@ -1521,7 +1528,7 @@ def _get_layer_names():
     activation_list.remove('deserialize')
     activation_list.remove('get')
     activation_list.remove('linear')
-    activation_list = activation_list+['ReLU', 'Softmax', 'LeakyReLU', 'PReLU', 'ELU', 'ThresholdedReLU']
+    activation_list = activation_list+['Activation', 'ReLU', 'Softmax', 'LeakyReLU', 'PReLU', 'ELU', 'ThresholdedReLU']
 
 
     layer_list = [i for i in dir(tf.keras.layers)]
@@ -1529,6 +1536,19 @@ def _get_layer_names():
     layer_list = [i for i in layer_list if not i.startswith("_")]
     layer_list = [i for i in layer_list if re.match('^[A-Z]', i)]
     layer_list = [i for i in layer_list if i.lower() not in [i.lower() for i in activation_list]]
+
+    return layer_list, activation_list
+
+
+def _get_layer_names_pytorch():
+
+    activation_list = ['ELU', 'Hardshrink', 'Hardsigmoid', 'Hardtanh', 'Hardswish', 'LeakyReLU', 'LogSigmoid', 
+                    'MultiheadAttention', 'PReLU', 'ReLU', 'ReLU6', 'RReLU', 'SELU', 'CELU', 'GELU', 'Sigmoid',
+                    'SiLU', 'Mish', 'Softplus', 'Softshrink', 'Softsign', 'Tanh', 'Tanhshrink', 'Threshold',
+                    'GLU', 'Softmin', 'Softmax', 'Softmax2d', 'LogSoftmax', 'AdaptiveLogSoftmaxWithLoss']
+
+    layer_list = [i for i in dir(torch.nn) if callable(getattr(torch.nn, i))]
+    layer_list = [i for i in layer_list if not i in activation_list and not 'Loss' in i]
 
     return layer_list, activation_list
 
@@ -1751,3 +1771,325 @@ def plot_keras(model):
     G =  model_graph_keras(model)
 
     display(SVG(G.create_svg()))
+
+
+
+def torch_unpack(model):
+    
+    layers = []
+    keys = []
+    
+    for key, module in model._modules.items():
+                
+        if type(module) in [torch.nn.modules.container.Container, torch.nn.modules.container.Sequential]:
+            
+            layers_out, keys_out = torch_unpack(module)
+            
+            layers = layers + layers_out
+            keys = keys + keys_out
+            
+            
+        else:
+            
+            layers.append(module)
+            keys.append(key)
+            
+    return layers, keys
+    
+
+
+def torch_metadata(model):
+
+    name_list_out = []
+    layer_list = []
+    param_list = []
+    weight_list = []
+    activation_list = []
+    
+    layers, name_list = torch_unpack(model)
+
+    layer_names, activation_names = _get_layer_names_pytorch()
+
+    for module, name in zip(layers, name_list):
+
+        module_name = module._get_name()
+
+
+        if module_name in layer_names:
+
+                name_list_out.append(name)
+
+                layer_list.append(module_name)
+
+                params = sum([np.prod(p.size()) for p in module.parameters()])
+                param_list.append(params)
+
+                weights = tuple([tuple(p.size()) for p in module.parameters()])
+                weight_list.append(weights)
+
+        if module_name in activation_names: 
+
+                activation_list.append(module_name)
+
+    return name_list_out, layer_list, param_list, weight_list, activation_list
+
+
+def layer_mapping(direction, activation):
+
+    torch_keras = {'AdaptiveAvgPool1d': 'AvgPool1D',
+    'AdaptiveAvgPool2d': 'AvgPool2D',
+    'AdaptiveAvgPool3d': 'AvgPool3D',
+    'AdaptiveMaxPool1d': 'MaxPool1D',
+    'AdaptiveMaxPool2d': 'MaxPool2D',
+    'AdaptiveMaxPool3d': 'MaxPool3D',
+    'AlphaDropout': None,
+    'AvgPool1d': 'AvgPool1D',
+    'AvgPool2d': 'AvgPool2D',
+    'AvgPool3d': 'AvgPool3D',
+    'BatchNorm1d': 'BatchNormalization',
+    'BatchNorm2d': 'BatchNormalization',
+    'BatchNorm3d': 'BatchNormalization',
+    'Bilinear': None,
+    'ConstantPad1d': None,
+    'ConstantPad2d': None,
+    'ConstantPad3d': None,
+    'Container': None,
+    'Conv1d': 'Conv1D',
+    'Conv2d': 'Conv2D',
+    'Conv3d': 'Conv3D',
+    'ConvTranspose1d': 'Conv1DTranspose',
+    'ConvTranspose2d': 'Conv2DTranspose',
+    'ConvTranspose3d': 'Conv3DTranspose',
+    'CosineSimilarity': None,
+    'CrossMapLRN2d': None,
+    'DataParallel': None,
+    'Dropout': 'Dropout',
+    'Dropout2d': 'Dropout',
+    'Dropout3d': 'Dropout',
+    'Embedding': 'Embedding',
+    'EmbeddingBag': 'Embedding',
+    'FeatureAlphaDropout': None,
+    'Flatten': 'Flatten',
+    'Fold': None,
+    'FractionalMaxPool2d': None,
+    'FractionalMaxPool3d': None,
+    'GRU': 'GRU',
+    'GRUCell': 'GRUCell',
+    'GroupNorm': None,
+    'Identity': None,
+    'InstanceNorm1d': None,
+    'InstanceNorm2d': None,
+    'InstanceNorm3d': None,
+    'LPPool1d': None,
+    'LPPool2d': None,
+    'LSTM': 'LSTM',
+    'LSTMCell': 'LSTMCell',
+    'LayerNorm': None,
+    'Linear': 'Dense',
+    'LocalResponseNorm': None,
+    'MaxPool1d': 'MaxPool1D',
+    'MaxPool2d': 'MaxPool2D',
+    'MaxPool3d': 'MaxPool3D',
+    'MaxUnpool1d': None,
+    'MaxUnpool2d': None,
+    'MaxUnpool3d': None,
+    'Module': None,
+    'ModuleDict': None,
+    'ModuleList': None,
+    'PairwiseDistance': None,
+    'Parameter': None,
+    'ParameterDict': None,
+    'ParameterList': None,
+    'PixelShuffle': None,
+    'RNN': 'RNN',
+    'RNNBase': None,
+    'RNNCell': None,
+    'RNNCellBase': None,
+    'ReflectionPad1d': None,
+    'ReflectionPad2d': None,
+    'ReplicationPad1d': None,
+    'ReplicationPad2d': None,
+    'ReplicationPad3d': None,
+    'Sequential': None,
+    'SyncBatchNorm': None,
+    'Transformer': None,
+    'TransformerDecoder': None,
+    'TransformerDecoderLayer': None,
+    'TransformerEncoder': None,
+    'TransformerEncoderLayer': None,
+    'Unfold': None,
+    'Upsample': 'UpSampling1D',
+    'UpsamplingBilinear2d': 'UpSampling2D',
+    'UpsamplingNearest2d': 'UpSampling2D',
+    'ZeroPad2d': 'ZeroPadding2D'}
+
+    keras_torch = {'AbstractRNNCell': None,
+    'Activation': None,
+    'ActivityRegularization': None,
+    'Add': None,
+    'AdditiveAttention': None,
+    'AlphaDropout': None,
+    'Attention': None,
+    'Average': None,
+    'AveragePooling1D': 'AvgPool1d',
+    'AveragePooling2D': 'AvgPool2d',
+    'AveragePooling3D': 'AvgPool3d',
+    'AvgPool1D': 'AvgPool1d',
+    'AvgPool2D': 'AvgPool2d',
+    'AvgPool3D': 'AvgPool3d',
+    'BatchNormalization': None,
+    'Bidirectional': None,
+    'Concatenate': None,
+    'Conv1D': 'Conv1d',
+    'Conv1DTranspose': 'ConvTranspose1d',
+    'Conv2D': 'Conv2d',
+    'Conv2DTranspose':  'ConvTranspose2d',
+    'Conv3D': 'Conv3d',
+    'Conv3DTranspose':  'ConvTranspose3d',
+    'ConvLSTM2D': None,
+    'Convolution1D': None,
+    'Convolution1DTranspose': None,
+    'Convolution2D': None,
+    'Convolution2DTranspose': None,
+    'Convolution3D': None,
+    'Convolution3DTranspose': None,
+    'Cropping1D': None,
+    'Cropping2D': None,
+    'Cropping3D': None,
+    'Dense': 'Linear',
+    'DenseFeatures': None,
+    'DepthwiseConv2D': None,
+    'Dot': None,
+    'Dropout': 'Dropout',
+    'Embedding': 'Embedding',
+    'Flatten': 'Flatten',
+    'GRU': 'GRU',
+    'GRUCell': 'GRUCell',
+    'GaussianDropout': None,
+    'GaussianNoise': None,
+    'GlobalAveragePooling1D': None,
+    'GlobalAveragePooling2D': None,
+    'GlobalAveragePooling3D': None,
+    'GlobalAvgPool1D': None,
+    'GlobalAvgPool2D': None,
+    'GlobalAvgPool3D': None,
+    'GlobalMaxPool1D': None,
+    'GlobalMaxPool2D': None,
+    'GlobalMaxPool3D': None,
+    'GlobalMaxPooling1D': None,
+    'GlobalMaxPooling2D': None,
+    'GlobalMaxPooling3D': None,
+    'Input': None,
+    'InputLayer': None,
+    'InputSpec': None,
+    'LSTM': 'LSTM',
+    'LSTMCell': 'LSTMCell',
+    'Lambda': None,
+    'Layer': None,
+    'LayerNormalization': None,
+    'LocallyConnected1D': None,
+    'LocallyConnected2D': None,
+    'Masking': None,
+    'MaxPool1D': 'MaxPool1d',
+    'MaxPool2D': 'MaxPool2d',
+    'MaxPool3D': 'MaxPool3d',
+    'MaxPooling1D': 'MaxPool1d',
+    'MaxPooling2D': 'MaxPool2d',
+    'MaxPooling3D': 'MaxPool3d',
+    'Maximum': None,
+    'Minimum': None,
+    'MultiHeadAttention': None,
+    'Multiply': None,
+    'Permute': None,
+    'RNN': 'RNN',
+    'RepeatVector': None,
+    'Reshape': None,
+    'SeparableConv1D': None,
+    'SeparableConv2D': None,
+    'SeparableConvolution1D': None,
+    'SeparableConvolution2D': None,
+    'SimpleRNN': None,
+    'SimpleRNNCell': None,
+    'SpatialDropout1D': None,
+    'SpatialDropout2D': None,
+    'SpatialDropout3D': None,
+    'StackedRNNCells': None,
+    'Subtract': None,
+    'TimeDistributed': None,
+    'UpSampling1D': 'Upsample',
+    'UpSampling2D': None,
+    'UpSampling3D': None,
+    'Wrapper': None,
+    'ZeroPadding1D': None,
+    'ZeroPadding2D': 'ZeroPad2d',
+    'ZeroPadding3D': None}
+
+    torch_keras_act = {
+    'AdaptiveLogSoftmaxWithLoss': None,
+    'CELU': None,
+    'ELU': 'elu',
+    'GELU': 'gelu',
+    'GLU': None,
+    'Hardshrink': None,
+    'Hardsigmoid': 'hard_sigmoid',
+    'Hardswish': None,
+    'Hardtanh': None,
+    'LeakyReLU': 'LeakyReLU',
+    'LogSigmoid': None,
+    'LogSoftmax': None,
+    'Mish': None,
+    'MultiheadAttention': None,
+    'PReLU': 'PReLU',
+    'RReLU': None,
+    'ReLU': 'relu',
+    'ReLU6': 'relu',
+    'SELU': 'selu',
+    'SiLU': 'swish',
+    'Sigmoid': 'sigmoid',
+    'Softmax': 'softmax',
+    'Softmax2d': None,
+    'Softmin': None,
+    'Softplus': 'softplus',
+    'Softshrink': None,
+    'Softsign': 'softsign',
+    'Tanh': 'tanh',
+    'Tanhshrink': None,
+    'Threshold': None}
+
+    keras_torch_act = {
+    'ELU': 'ELU',
+    'LeakyReLU': 'LeakyReLU',
+    'PReLU': 'PReLU',
+    'ReLU': 'ReLU',
+    'Softmax': 'Softmax',
+    'ThresholdedReLU': None,
+    'elu': 'ELU',
+    'exponential': None,
+    'gelu': 'GELU',
+    'hard_sigmoid': 'Hardsigmoid',
+    'relu': 'ReLU',
+    'selu': 'SELU',
+    'serialize': None,
+    'sigmoid': 'Sigmoid',
+    'softmax': 'Softmax',
+    'softplus': 'Softplus',
+    'softsign': 'Softsign',
+    'swish': 'SiLU',
+    'tanh': 'Tanh'}
+
+
+    if direction == 'torch_to_keras' and activation:
+
+        return torch_keras_act
+
+    elif direction == 'kreas_to_torch' and not activation:
+
+        return keras_torch_act
+
+    elif direction == 'torch_to_keras':
+
+        return torch_keras
+
+    elif direction == 'keras_to_torch': 
+
+        return keras_torch
