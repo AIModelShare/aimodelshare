@@ -52,13 +52,16 @@ def handler(event, context):
     email=decoded['email']
     print(email)
     authorized_competitionusers=get_authorizedcompetitionuserdata(example_data_filename = "competitionuserdata.json")
-    authorized_emails=authorized_competitionusers.get("emails","Public")
+    authorized_emails=authorized_competitionusers.get("emails","no data")
+    public=authorized_competitionusers.get("public","FALSE")
+    
     #TODO: check email agains s3 list and resolve public to true or false from same file
     #Or check if emails on list and if so, check against them, if not assume public project.
-    if any([email in authorized_competitionusers['emaillist']]):
+    if any([email in authorized_competitionusers['emaillist'],public=="TRUE"]):
     
         if body.get("return_eval","ALL")  == "True":
-            
+            idempotentmodel_version=json.loads(event['requestContext']['authorizer']['uniquemodversion'])
+
             ytestdata=get_ytestdata(ytest_s3_filename="ytest.pkl")
       
             eval_result = evaluate_model(body, ytestdata)
@@ -68,43 +71,10 @@ def handler(event, context):
             s3_client=boto3.client("s3")
             model_files, err = _get_file_list(s3_client, bucket, model_id)
             print(model_files)
-            try:
-                model_files_nomostrecent = list(filter(lambda f: "mostrecent" not in f, model_files))
-            except:
-                model_files_nomostrecent = list(model_files)
-            # }}}
-        
-            # Get new model version {{
-            model_versions = [os.path.splitext(f)[0].split("_")[-1][1:] for f in model_files_nomostrecent]
-        
-            model_versions = filter(lambda v: v.isnumeric(), model_versions)
-            model_versions = list(map(int, model_versions))
 
-            if model_versions:
-                model_version = max(model_versions) + 1
-                prevmodelversion=model_version-1
 
-            else:
-                model_version = 1
-                prevmodelversion=0
-            # }}}
-            print(prevmodelversion)
-            #dictionary should be??? filename:presigned url?
-            
-            #TODO: Create list of filenames to iterate through and return presigned urls in dictionary.
-            #Once this is done you can return dictionary of filenames/presigned urls to submit model fxn by adding this to eval function code
-            previousversionfiles = [s for s in model_files if str(prevmodelversion) in s]
-            removefilesfromabove=  [s for s in previousversionfiles if str("modfunction") in s]
-            if len(removefilesfromabove)!=0:
-                previousversionfiles.remove(removefilesfromabove[0])
-            print(previousversionfiles)
-            numbersinfiles=[]
-            for i in previousversionfiles:
-                numbersinfiles.append(i.replace(str(prevmodelversion),str(model_version)))
-                
-        
             finalfiles=[]
-        
+            
             if "model_eval_data_mastertable.csv" not in model_files:
                 finalfiles.append("model_eval_data_mastertable.csv")
                 finalfiles.append("onnx_model_mostrecent.onnx")
@@ -112,34 +82,45 @@ def handler(event, context):
                 finalfiles.append("predictionmodel_1.onnx")
                 finalfiles.append("preprocessor_v1.zip")
             else:
-                finalfiles.append("model_eval_data_mastertable.csv")
+                finalfiles.append("model_eval_data_mastertable_v"+str(idempotentmodel_version)+".csv")
                 finalfiles.append("onnx_model_mostrecent.onnx")
-                finalfiles.append("onnx_model_v"+str(prevmodelversion+1)+".onnx")
-                finalfiles.append("preprocessor_v"+str(prevmodelversion+1)+".zip")  
+                finalfiles.append("onnx_model_v"+str(idempotentmodel_version)+".onnx")
+                finalfiles.append("preprocessor_v"+str(idempotentmodel_version)+".zip")  
         
-            
-                
-                
-            
+            finalfiles.append("inspect_pd.json")
+
             print("finalfiles:"+str(finalfiles))
-            print(numbersinfiles)
-            
+
             #TODO: Change method params with string template params in eval_lambda / also need to change bucket and prefix for file lists
             expires_in = 6000
             
             getdict={}
             putdict={}
             
-        
+            print("idempotentmodel_version: "+str(idempotentmodel_version))
+            finalfilesget=finalfiles
+            finalfilespost=finalfiles
+           
+            for i in finalfilespost:
+                putresult= create_presigned_post(bucket, model_id+"/"+i, expiration=expires_in)
+                putdict.update({str(i):str(putresult)})
             
-            for i in finalfiles:
+            print(finalfilespost)            
+            for i in finalfilesget:
+                if i.find("mastertable")>0:
+                  indexvalue=finalfilesget.index(i)
+                  finalfilesget[indexvalue]="model_eval_data_mastertable.csv"
+                  
+            print(finalfilesget)
+
+            for i in finalfilesget:
                 method_parameters = {'Bucket': bucket, 'Key': model_id+"/"+i} #repeat for all necessary keys and return dict with nec. end user artifacts.
                 getresult= generate_presigned_url(s3_client, 'get_object', method_parameters, expires_in)
                 getdict.update({str(i):str(getresult)})
-                
-                putresult= create_presigned_post(bucket, model_id+"/"+i, expiration=expires_in)
-                putdict.update({str(i):str(putresult)})
-            print(bucket,key)
+            
+            print(finalfilesget)
+            
+
             eval_dict = {"statusCode": 200,
             "headers": {
             "Access-Control-Allow-Origin" : "*",
@@ -147,7 +128,7 @@ def handler(event, context):
             "Allow" : "GET, OPTIONS, POST",
             "Access-Control-Allow-Methods" : "GET, OPTIONS, POST",
             "Access-Control-Allow-Headers" : "*"},
-            "body": json.dumps({"eval":eval_result,"get":getdict,"put": putdict})
+            "body": json.dumps({"eval":eval_result,"get":getdict,"put": putdict,"idempotentmodel_version":idempotentmodel_version})
             }
             return eval_dict
             
@@ -525,7 +506,9 @@ def compare_models(version_list, by_model_type=None, best_model=None, verbose=1)
 
             else:
                 comp_dict_out[model_dict[str(i)]['model_type']] = temp_pd
-        
+        model_type_list_unique=set(model_type_list)
+        for i in model_type_list_unique:
+          comp_dict_out[i]=comp_dict_out[i].to_json()        
             
     if ml_framework_list[0] == 'keras':
 
@@ -551,7 +534,7 @@ def compare_models(version_list, by_model_type=None, best_model=None, verbose=1)
 
         comp_dict_out = {"Sequential": comp_pd.to_json()}
         
-        return comp_dict_out
+    return comp_dict_out
 
 
 def model_from_string(model_type):
@@ -669,9 +652,51 @@ def model_from_string(model_type):
     model_class = getattr(importlib.import_module(module), model_type)
     return model_class
 
-
 def get_leaderboard(task_type="$task_type", verbose=3, columns=None):
+    bucket="$bucket_name"
+    model_id="$unique_model_id"
     
+    s3_client=boto3.client("s3")
+    model_files, err = _get_file_list(s3_client, bucket, model_id)
+    print(model_files)
+    
+    newleaderboarddata=[]
+    for i in model_files:
+        if i.find("mastertable_v")>0:
+            newleaderboarddata.append(i)
+
+    s3 = boto3.resource("s3")
+    bucketres = s3.Bucket("$bucket_name")
+    with open("/tmp/"+"model_eval_data_mastertable.csv", "wb") as lbfo:
+      bucketres.download_fileobj("$unique_model_id/"+"model_eval_data_mastertable.csv", lbfo)              
+      
+      
+      
+    leaderboard = pd.read_csv("/tmp/"+"model_eval_data_mastertable.csv", sep="\t")
+    currentversions=leaderboard['version']
+    allversions = [sub.split('_v')[1].split('.')[0] for sub in newleaderboarddata]
+    print(allversions)
+    missingincurrent_leaderboard=list(set(allversions)-set(currentversions)) 
+    print(missingincurrent_leaderboard)
+    
+    #TODO: check if items in leaderboard, if so, then do following
+    if len(missingincurrent_leaderboard)>0:
+        for i in missingincurrent_leaderboard:
+            with open("/tmp/"+"model_eval_data_mastertable_v"+i+".csv", "wb") as lbfo:
+              bucketres.download_fileobj("$unique_model_id/"+"model_eval_data_mastertable_v"+i+".csv", lbfo)
+            newleaderboard = pd.read_csv("/tmp/"+"model_eval_data_mastertable_v"+i+".csv", sep="\t")
+            newleaderboard.drop(newleaderboard.filter(regex="Unname"),axis=1, inplace=True)
+            
+            leaderboard=leaderboard.append(newleaderboard).drop_duplicates()
+            
+        leaderboard.drop(leaderboard.filter(regex="Unname"),axis=1, inplace=True)
+    #save new leaderboard here
+        leaderboard.to_csv("/tmp/"+"model_eval_data_mastertable.csv",sep="\t",index=False)
+        s3_client.upload_file("/tmp/"+"model_eval_data_mastertable.csv", bucket, model_id + "/model_eval_data_mastertable.csv")
+    
+    
+    else:
+        pass
     s3 = boto3.resource("s3")
     bucket = s3.Bucket("$bucket_name")
     with open("/tmp/"+"model_eval_data_mastertable.csv", "wb") as lbfo:
@@ -721,12 +746,11 @@ def get_leaderboard(task_type="$task_type", verbose=3, columns=None):
     ranks = np.mean(ranks, axis=0)
     order = np.argsort(ranks)
 
-    leaderboard = leaderboard.loc[order].reset_index().drop("index", axis=1)
+    leaderboard = leaderboard.loc[order].reset_index().drop("index", axis=1).drop_duplicates(subset=['version', 'username'], keep='last')
+    leaderboard.drop(leaderboard.filter(regex="Unname"),axis=1, inplace=True)
     # }}}
 
     return leaderboard
-
-
 
 ####################################################################
 ############################ S3 connect ############################

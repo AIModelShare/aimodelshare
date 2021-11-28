@@ -13,6 +13,25 @@ from aimodelshare.aimsonnx import get_pyspark_model_files_paths, pyspark_model_f
 
 # how to import a preprocessor from a zipfile into a tempfile then into the current session
 def import_preprocessor(filepath):
+    """
+    Import preprocessor function to session from zip file 
+    Inputs: 1 
+    Output: preprocessor function
+    
+    Parameters:
+    -----------
+    `filepath`: ``string``
+        value - absolute path to preprocessor file 
+        [REQUIRED] to be set by the user
+        "./preprocessor.zip" 
+        file is generated using export_preprocessor function from the AI Modelshare library 
+        preprocessor function should always be named 'preprocessor' to work properly in aimodelshare process
+    
+    Returns:
+    --------
+    imports preprocessor function to session
+    """
+
     #preprocessor fxn should always be named "preprocessor" to work properly in aimodelshare process.
     import tempfile
     from zipfile import ZipFile
@@ -91,11 +110,26 @@ def import_preprocessor(filepath):
             os.remove(file)
     except:
         pass
+
     return preprocessor
 
-import os
-
 def export_preprocessor(preprocessor_fxn,directory, globs=globals()):
+    """
+    Exports preprocessor and related objects into zip file for model deployment
+    Inputs: 2 
+    Output: zipfile named 'preprocessor.zip'
+    
+    Parameters:
+    -----------
+    `preprocessor_fxn`: name of preprocessor function
+        Preprocessor function should always be named "preprocessor" to work properly in aimodelshare process.
+    `directory`: ``string`` folderpath to preprocessor function
+        use "" to reference current working directory
+    
+    Returns:
+    --------
+    file named 'preprocessor.zip' in the correct format for model deployment
+    """
     #preprocessor fxn should always be named "preprocessor" to work properly in aimodelshare process.
     try:
         import tempfile
@@ -131,7 +165,7 @@ def export_preprocessor(preprocessor_fxn,directory, globs=globals()):
         print(function_objects)
 
         import sys
-        modulenames = ["sklearn","keras","tensorflow","cv2","resize","pytorch","pyspark"]
+        modulenames = ["sklearn","keras","tensorflow","cv2","resize","pytorch","librosa","pyspark"]
         function_objects_nomodules = [i for i in function_objects if i not in list(modulenames)]
 
         def savetopickle(function_objects_listelement):

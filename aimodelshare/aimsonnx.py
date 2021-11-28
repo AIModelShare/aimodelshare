@@ -214,6 +214,10 @@ def _sklearn_to_onnx(model, initial_types, transfer_learning=None,
     if isinstance(model, sklearn.pipeline.Pipeline):
         model = model.steps[-1][1]
 
+    # fix ensemble voting models
+    if all([hasattr(model, 'flatten_transform'),hasattr(model, 'voting')]):
+      model.flatten_transform=False
+    
     # convert to onnx
     onx = convert_sklearn(model, initial_types=initial_types)
     
@@ -532,6 +536,10 @@ def _keras_to_onnx(model, transfer_learning=None,
 
     # Convert the model
     converter = tf.lite.TFLiteConverter.from_saved_model(temp_dir) # path to the SavedModel directory
+    converter.target_spec.supported_ops = [
+        tf.lite.OpsSet.TFLITE_BUILTINS, # enable TensorFlow Lite ops.
+        tf.lite.OpsSet.SELECT_TF_OPS # enable TensorFlow ops.
+      ]
     tflite_model = converter.convert()
 
     # Save the model.
@@ -1396,7 +1404,7 @@ def stylize_model_comparison(comp_dict_out):
         df_styled = df_styled.set_properties(**{'color': 'black'})
 
         df_styled = df_styled.set_caption('Model type: ' + 'Neural Network').set_table_styles([{'selector': 'caption',
-            'props': [('color', 'white'), ('font-size', '18px')]}])
+            'props': [('color', 'black'), ('font-size', '18px')]}])
 
         display(HTML(df_styled.render()))
 
@@ -1411,7 +1419,7 @@ def stylize_model_comparison(comp_dict_out):
                 axis = 1, subset=comp_pd.columns[1:])
 
             df_styled = df_styled.set_caption('Model type: ' + i).set_table_styles([{'selector': 'caption',
-                'props': [('color', 'white'), ('font-size', '18px')]}])
+                'props': [('color', 'black'), ('font-size', '18px')]}])
 
             display(HTML(df_styled.render()))
             print('\n\n')
