@@ -481,8 +481,6 @@ def compare_models(version_list, by_model_type=None, best_model=None, verbose=1)
     model_dict = {}
 
     for i in version_list: 
-
-        #key = model_id+'/inspect_pd_'+str(i)+'.json' # what happened here
         
         s3 = boto3.resource('s3')
         obj = s3.Object("$bucket_name", "$unique_model_id/"+"inspect_pd_"+str(i)+".json")
