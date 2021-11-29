@@ -87,7 +87,7 @@ def handler(event, context):
                 finalfiles.append("onnx_model_v"+str(idempotentmodel_version)+".onnx")
                 finalfiles.append("preprocessor_v"+str(idempotentmodel_version)+".zip")  
         
-            finalfiles.append("inspect_pd.json")
+            finalfiles.append("inspect_pd_"+str(idempotentmodel_version)+".json")
 
             print("finalfiles:"+str(finalfiles))
 
@@ -482,12 +482,12 @@ def compare_models(version_list, by_model_type=None, best_model=None, verbose=1)
 
     for i in version_list: 
 
-        key = model_id+'/inspect_pd_'+str(i)+'.json'
+        #key = model_id+'/inspect_pd_'+str(i)+'.json' # what happened here
         
         s3 = boto3.resource('s3')
-    	obj = s3.Object("$bucket_name", "$unique_model_id/"+"inspect_pd_"+str(version)+".json")
-    	data = obj.get()['Body'].read()
-    	model_dict_temp = json.loads(data)
+        obj = s3.Object("$bucket_name", "$unique_model_id/"+"inspect_pd_"+str(i)+".json")
+        data = obj.get()['Body'].read()
+        model_dict_temp = json.loads(data)
 
         ml_framework_list.append(model_dict_temp[str(i)]['ml_framework'])
         model_type_list.append(model_dict_temp[str(i)]['model_type'])

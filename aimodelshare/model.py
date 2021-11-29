@@ -185,7 +185,7 @@ def _update_leaderboard(
     # }}}
 
 def _update_leaderboard_public(
-    modelpath, eval_metrics,s3_presigned_dict):
+    modelpath, eval_metrics, s3_presigned_dict):
     # Loading the model and its metadata {{{
     if not os.path.exists(modelpath):
         raise FileNotFoundError(f"The model file at {modelpath} does not exist")
@@ -289,9 +289,6 @@ def upload_model_dict(modelpath, s3_presigned_dict, bucket, model_id, model_vers
         for i in problemnodesunique:
             stringconfig=stringconfig.replace(i,"'"+i+"'")
 
-
-        
-
         try:
             model_config=ast.literal_eval(stringconfig)
             model_class = model_from_string(meta_dict['model_type'])
@@ -318,7 +315,7 @@ def upload_model_dict(modelpath, s3_presigned_dict, bucket, model_id, model_vers
         with open(temp+"/"+'inspect_pd_'+str(model_version)+'.json') as f:
             model_dict  = json.load(f)
     except: 
-      model_dict = {}
+        model_dict = {}
 
     model_dict[str(model_version)] = {'ml_framework': meta_dict['ml_framework'],
                                       'model_type': meta_dict['model_type'],
@@ -358,7 +355,7 @@ def upload_model_graph(modelpath, aws_client, bucket, model_id, model_version):
     if meta_dict['ml_framework'] == 'pytorch':
 
         model_graph = ''
-        
+
     elif meta_dict['ml_framework'] in ['sklearn', 'xgboost']:
 
         model_graph = ''
@@ -492,6 +489,7 @@ def submit_model(
         return print("Failed to calculate evaluation metrics. Please check the format of the submitted predictions.")
 
     s3_presigned_dict = {key:val for key, val in eval_metrics.items() if key != 'eval'}
+    print(s3_presigned_dict)
     idempotentmodel_version=s3_presigned_dict['idempotentmodel_version']
     s3_presigned_dict.pop('idempotentmodel_version')
     eval_metrics = {key:val for key, val in eval_metrics.items() if key != 'get'}
