@@ -404,7 +404,7 @@ def create_lambda_using_base_image(user_session, bucket_name, directory, lambda_
     while(counter<=3):
         try:
             #print("Attempt " + str(counter) + " to create Lambda function.")
-            response = lambda_client.create_function(
+            response_lambda = lambda_client.create_function(
                 FunctionName=lambda_name,
                 Role = 'arn:aws:iam::' + account_id + ':role/' + role_name,
                 Code = {
@@ -451,6 +451,8 @@ def create_lambda_using_base_image(user_session, bucket_name, directory, lambda_
     os.remove(temp_dir + ".zip")    # delete the zip file created in tmp directory
     if(os.path.isdir(temp_dir)):    # delete the temporary folder created in tmp directory
         shutil.rmtree(temp_dir)
+
+    return response_lambda
 
 # check if the image exists in the specified repository with specified image tag
 def check_if_image_exists(user_session, repo_name, image_tag):
