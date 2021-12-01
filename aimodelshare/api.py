@@ -413,19 +413,19 @@ def create_prediction_api(model_filepath, unique_model_id, model_type, categoric
         #response6 = deploy_lambda_using_sam(user_session, os.getenv("BUCKET_NAME"), requirements, file_objects_folder_path, lambdafxnname, apiid, 1024, 90, "3.7")
         response6 = deploy_container(account_number, os.environ.get("AWS_REGION"), user_session, lambdafxnname, file_objects_folder_path,requirements_file_path,apiid)
 
-    if model_type=="audio":
-        lambda_client = user_session.client("lambda")
-        lambda_client.update_function_configuration(
-            FunctionName=response6['FunctionName'],
-            Environment={
-                'Variables': {
-                    'bucket': os.getenv("BUCKET_NAME"),     # bucket where zip file is located
-                    'api_id': apiid,     # api_id in the bucket in which zip file is stored
-                    'function_name': response6['FunctionName'],
-                    'NUMBA_CACHE_DIR': '/tmp'
-                }
-            }
-        )
+    # if model_type=="audio":
+    #     lambda_client = user_session.client("lambda")
+    #     lambda_client.update_function_configuration(
+    #         FunctionName=response6['FunctionName'],
+    #         Environment={
+    #             'Variables': {
+    #                 'bucket': os.getenv("BUCKET_NAME"),     # bucket where zip file is located
+    #                 'api_id': apiid,     # api_id in the bucket in which zip file is stored
+    #                 'function_name': response6['FunctionName'],
+    #                 'NUMBA_CACHE_DIR': '/tmp'
+    #             }
+    #         }
+    #     )
 
     response6evalfxn = lambdaclient.create_function(FunctionName=lambdaevalfxnname, Runtime='python3.7', Role='arn:aws:iam::'+account_number+':role/'+lambdarolename, Handler='main.handler',
                                           Code={
