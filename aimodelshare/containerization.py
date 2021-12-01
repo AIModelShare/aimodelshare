@@ -417,7 +417,7 @@ def create_lambda_using_base_image(user_session, bucket_name, directory, lambda_
                     'Variables': {
                         'bucket': bucket_name,     # bucket where zip file is located
                         'api_id': api_id,     # api_id in the bucket in which zip file is stored
-                        'function_name': lambda_name,        # Lambda function name
+                        'function_name': lambda_name        # Lambda function name
                     }
                 }
             )
