@@ -1,7 +1,7 @@
 from .object_oriented import ModelPlayground, Competition, Data
 from .preprocessormodules import export_preprocessor,upload_preprocessor,import_preprocessor
 from .data_sharing.download_data import download_data, import_quickstart_data
-
+from .containerisation import deploy_container
 #import .sam as sam
 
 __all__ = [
@@ -13,5 +13,6 @@ __all__ = [
     upload_preprocessor,
     import_preprocessor,
     export_preprocessor,
-    download_data
+    download_data,
+    deploy_container
 ]
