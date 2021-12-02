@@ -10,12 +10,15 @@ import json
 import onnxruntime as rt
 import warnings
 import six
+from onnx import IR_VERSION
+
 
 def get_model_onnx(runtimemodel_s3_filename="runtime_model.onnx"):
     s3 = boto3.resource('s3')
     obj = s3.Object("$bucket_name", "$unique_model_id" +
                     "/runtime_model.onnx")
     model = rt.InferenceSession(obj.get()['Body'].read())
+    model.ir_version=IR_VERSION
     return model
 
 
