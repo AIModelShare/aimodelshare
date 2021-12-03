@@ -335,6 +335,8 @@ def model_to_api(model_filepath, model_type, private, categorical, y_train, prep
         repo_name, image_tag = image.split(':')
     elif model_type=="tabular":
         image_tag="tabular"
+    elif model_type=="text":
+        image_tag="text"
     else:
         pass
     
