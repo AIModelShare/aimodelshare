@@ -129,8 +129,25 @@ def deploy_container(account_id, region, session, project_name, model_dir, requi
     newdata = template.substitute(
         python_version=python_version,
         directory=model_dir,
-        requirements_file_path=requirements_file_path)
+        requirements_file_path=requirements_file_path,
+        PATH="$PATH",
+        SPARK_HOME="$SPARK_HOME",
+        PYTHONPATH="$PYTHONPATH",
+        JAVA_HOME="$JAVA_HOME"
+    )
+
     with open(os.path.join('/'.join([template_folder, 'app']), 'Dockerfile'), 'w') as file:
+        file.write(newdata)
+
+    data = pkg_resources.read_text(sam, 'spark-class.txt')
+    
+    template = Template(data)
+    newdata = template.substitute(
+        python_version=python_version,
+        var="$@"
+    )
+    
+    with open(os.path.join('/'.join([template_folder, 'app']), 'spark-class'), 'w') as file:
         file.write(newdata)
         
     response = shutil.copytree(model_dir, '/'.join([template_folder, 'app', model_dir]))
