@@ -488,7 +488,7 @@ def compare_models(version_list, by_model_type=None, best_model=None, verbose=1)
         raise Exception("Incongruent frameworks. Please compare models from the same ML frameworks.")
         
 
-    if ml_framework_list[0] == 'sklearn':
+    if ml_framework_list[0] == 'sklearn' or ml_framework_list[0] == 'pyspark':
 
         comp_dict_out = {}
         
