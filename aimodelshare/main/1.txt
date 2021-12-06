@@ -11,6 +11,7 @@ import onnxruntime as rt
 import warnings
 import six
 
+
 def get_model_onnx(runtimemodel_s3_filename="runtime_model.onnx"):
     s3 = boto3.resource('s3')
     obj = s3.Object("$bucket_name", "$unique_model_id" +
