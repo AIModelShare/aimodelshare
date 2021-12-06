@@ -678,7 +678,7 @@ def get_leaderboard(task_type="$task_type", verbose=3, columns=None):
     print(list(currentversions))
     allversions = [sub.split('_v')[1].split('.')[0] for sub in newleaderboarddata]
     print("Named versions in csv files:")
-    allversions=[int(i) for i in allversions]
+    allversions=[str(i) for i in allversions]
     missingincurrent_leaderboard=list(set(allversions)-set(currentversions)) 
     print(missingincurrent_leaderboard)
     
