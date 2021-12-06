@@ -42,7 +42,7 @@ def import_preprocessor(filepath):
     from pyspark.sql import SparkSession
 
     #create temporary folder
-    temp_dir = tempfile.gettempdir()
+    temp_dir = tempfile.mkdtemp()
 
     # Create a ZipFile Object and load sample.zip in it
     with ZipFile(filepath, 'r') as zipObj:
@@ -142,7 +142,7 @@ def export_preprocessor(preprocessor_fxn,directory, globs=globals()):
         folderpath=directory
 
         #create temporary folder
-        temp_dir=tempfile.gettempdir()
+        temp_dir=tempfile.mkdtemp()
         try:
             os.remove(os.path.join(folderpath, "preprocessor.zip"))
         except:
@@ -162,10 +162,31 @@ def export_preprocessor(preprocessor_fxn,directory, globs=globals()):
 
         import inspect
         function_objects=list(inspect.getclosurevars(preprocessor_fxn).globals.keys())
-        print(function_objects)
-
+        
         import sys
+        import imp
         modulenames = ["sklearn","keras","tensorflow","cv2","resize","pytorch","librosa","pyspark"]
+
+        paths = (os.path.abspath(p) for p in sys.path)
+        stdlib = {
+            p for p in paths
+            if p.startswith((sys.prefix)) 
+                and 'site-packages' not in p
+        }
+
+        for module_name in function_objects:
+            try:
+                if module_name in sys.builtin_module_names:
+                    modulenames.append(module_name)
+                    continue
+
+                module_path = imp.find_module(module_name)[1]
+                if os.path.dirname(module_path) in stdlib:
+                    modulenames.append(module_name)
+            except Exception as e:
+                # print(e)
+                continue
+
         function_objects_nomodules = [i for i in function_objects if i not in list(modulenames)]
 
         def savetopickle(function_objects_listelement):
@@ -210,17 +231,17 @@ def export_preprocessor(preprocessor_fxn,directory, globs=globals()):
                 savedpreprocessorobjectslist.append(savetopickle(function_objects_nomodule))
                 export_methods.append("pickle")
             except Exception as e:
-                print(e)
+                # print(e)
                 try:
                     os.remove(os.path.join(temp_dir, function_objects_nomodule+".pkl"))
                 except:
                     pass
-                print("Try .zip export approach")
+                # print("Try .zip export approach")
                 try:
                     savedpreprocessorobjectslist.append(save_to_zip(function_objects_nomodule))
                     export_methods.append("zip")
                 except Exception as e:
-                    print(e)
+                    # print(e)
         
         # take savedpreprocessorobjectslist pkl & zip files saved to tempdir to zipfile
         import pickle
