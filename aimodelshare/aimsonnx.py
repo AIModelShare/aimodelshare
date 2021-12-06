@@ -582,16 +582,15 @@ def _pytorch_to_onnx(model, model_input, transfer_learning=None,
     "Connect": None,
     "Activation": None})
 
-
-
     model_architecture = {'layers_number': len(layer_list),
                   'layers_sequence': layer_list,
                   'layers_summary': {i:layer_list.count(i) for i in set(layer_list)},
                   'layers_n_params': param_list,
                   'layers_shapes': weight_list,
                   'activations_sequence': activation_list,
-                  'activations_summary': {i:activation_list.count(i) for i in set(activation_list)}
-                 }
+                  'activations_summary': {i:activation_list.count(i) for i in set(activation_list)},
+                  'loss': None,
+                  'optimizer': None}
 
     metadata['model_architecture'] = str(model_architecture)
 
@@ -929,7 +928,7 @@ def inspect_model_lambda(apiurl, version=None):
     return inspect_pd
 
 
-def inspect_model_dict(apiurl, version=None):
+def inspect_model_dict(apiurl, version=None, naming_convention = None):
 
     if all(["AWS_ACCESS_KEY_ID" in os.environ, 
             "AWS_SECRET_ACCESS_KEY" in os.environ,
@@ -953,7 +952,7 @@ def inspect_model_dict(apiurl, version=None):
 
     _, bucket, model_id = json.loads(response.content.decode("utf-8"))
 
-    key = model_id+'/inspect_pd_'+str(model_version)+'.json'
+    key = model_id+'/inspect_pd_'+str(version)+'.json'
     
     try:
       resp = aws_client['client'].get_object(Bucket=bucket, Key=key)
@@ -965,6 +964,12 @@ def inspect_model_dict(apiurl, version=None):
     ml_framework = model_dict.get(str(version))['ml_framework']
     model_type = model_dict.get(str(version))['model_type']
     inspect_pd = pd.DataFrame(model_dict.get(str(version))['model_dict'])
+
+    if naming_convention == 'keras' and ml_framework=='pytorch': 
+        inspect_pd['Layer'] = rename_layers(inspect_pd['Layer'], direction="torch_to_keras", activation=False)
+
+    elif naming_convention == 'pytorch' and ml_framework=='keras': 
+        inspect_pd['Layer'] = rename_layers(inspect_pd['Layer'], direction="keras_to_torch", activation=False)
     
     return inspect_pd
 
@@ -990,7 +995,7 @@ def inspect_model(apiurl, version=None):
 
 
 def compare_models_dict(apiurl, version_list=None, 
-    by_model_type=None, best_model=None, verbose=1):
+    by_model_type=None, best_model=None, verbose=1, naming_convention=None):
     
     if not isinstance(version_list, list):
         raise Exception("Argument 'version' must be a list.")
@@ -1041,16 +1046,14 @@ def compare_models_dict(apiurl, version_list=None,
         model_dict[str(i)] = model_dict_temp[str(i)]
 
 
-    if not all(x==ml_framework_list[0] for x in ml_framework_list):
-        raise Exception("Incongruent frameworks. Please compare models from the same ML frameworks.")
-        
+    comp_dict_out = {}
+    comp_pd_nn = pd.DataFrame()
 
-    if ml_framework_list[0] == 'sklearn':
+    
+    for i, j in zip(version_list, ml_framework_list): 
 
-        comp_dict_out = {}
+        if j == "sklearn":
         
-        for i in version_list: 
-            
             temp_pd = pd.DataFrame(model_dict[str(i)]['model_dict'])
             temp_pd.columns = ['param_name', 'default_value', "model_version_"+str(i)]
 
@@ -1064,37 +1067,38 @@ def compare_models_dict(apiurl, version_list=None,
             else:
                 comp_dict_out[model_dict[str(i)]['model_type']] = temp_pd
 
-        return comp_dict_out
 
-            
-    if ml_framework_list[0] == 'keras':
+        elif j == "keras" or j == 'pytorch':
 
-        comp_pd = pd.DataFrame()
+            temp_pd_nn = pd.DataFrame(model_dict[str(i)]['model_dict'])
 
-        for i in version_list: 
-
-            temp_pd = pd.DataFrame(model_dict[str(i)]['model_dict'])
-
-            temp_pd.iloc[:,2] = temp_pd.iloc[:,2].astype(str)
+            temp_pd_nn.iloc[:,2] = temp_pd_nn.iloc[:,2].astype(str)
 
             if verbose == 0: 
-                temp_pd = temp_pd[['Layer']]
+                temp_pd_nn = temp_pd_nn[['Layer']]
             elif verbose == 1: 
-                temp_pd = temp_pd[['Layer', 'Shape', 'Params']]
+                temp_pd_nn = temp_pd_nn[['Layer', 'Shape', 'Params']]
             elif verbose == 2: 
-                temp_pd = temp_pd[['Name', 'Layer', 'Shape', 'Params', 'Connect']]
+                temp_pd_nn = temp_pd_nn[['Name', 'Layer', 'Shape', 'Params', 'Connect']]
             elif verbose == 3: 
-                temp_pd = temp_pd[['Name', 'Layer', 'Shape', 'Params', 'Connect', 'Activation']]
+                temp_pd_nn = temp_pd_nn[['Name', 'Layer', 'Shape', 'Params', 'Connect', 'Activation']]
 
-            temp_pd = temp_pd.add_prefix('Model_'+str(i)+'_')    
-            comp_pd = pd.concat([comp_pd, temp_pd], axis=1)
+            if naming_convention == 'pytorch': 
+                temp_pd_nn['Layer'] = rename_layers(temp_pd_nn['Layer'], direction="keras_to_torch", activation=False)
 
-        comp_dict_out = {"Sequential": comp_pd}
+            if naming_convention == 'keras': 
+                temp_pd_nn['Layer'] = rename_layers(temp_pd_nn['Layer'], direction="torch_to_keras", activation=False)
+
+            temp_pd_nn = temp_pd_nn.add_prefix('Model_'+str(i)+'_')    
+
+            comp_pd_nn = pd.concat([comp_pd_nn, temp_pd_nn], axis=1)
+
+            comp_dict_out["nn"] = comp_pd_nn
         
-        return comp_dict_out
+    return comp_dict_out
 
 
-def color_pal_assign(val):
+def color_pal_assign(val, naming_convention=None):
   import pandas as pd
   
   # create Pandas Series with default index values
@@ -1221,12 +1225,18 @@ def color_pal_assign(val):
   'ZeroPadding3D'])
 
   layernamelist=list(layer_name_df[0])
+
+  if naming_convention == "pytorch":
+
+    layernamelist = rename_layers(layernamelist, direction="keras_to_torch", activation=False)
+
+
   import seaborn as sns
   paldata=sns.color_palette("Pastel2", len(layernamelist)).as_hex()
 
   if val in layernamelist: 
       valindex=layernamelist.index(val)
-      if any([val=="Concatenate",val=="Conv2D"]):
+      if any([val=="Concatenate",val=="Conv2D", val=="Conv2d"]):
         valindex=valindex+4
       else:
         pass
@@ -1236,12 +1246,11 @@ def color_pal_assign(val):
   color = palvalue if val in layernamelist else 'white'
   return 'background: %s' % color
 
-def stylize_model_comparison(comp_dict_out):
+def stylize_model_comparison(comp_dict_out, naming_convention=None):
 
+    if 'nn' in comp_dict_out.keys():
 
-    if 'Sequential' in comp_dict_out.keys():
-
-        df_styled = comp_dict_out['Sequential'].style.applymap(color_pal_assign)
+        df_styled = comp_dict_out['nn'].style.applymap(color_pal_assign, naming_convention=naming_convention)
 
         df_styled = df_styled.set_properties(**{'color': 'black'})
 
@@ -1255,8 +1264,7 @@ def stylize_model_comparison(comp_dict_out):
 
         display(HTML(df_styled.render()))
 
-
-    else:
+    elif 'sklearn' in comp_dict_out.keys():
 
         for i in comp_dict_out.keys():
 
@@ -1659,7 +1667,7 @@ def _get_sklearn_modules():
     import sklearn
 
     sklearn_modules = ['ensemble', 'gaussian_process', 'isotonic',
-                       'linear_model', 'mixture', 'multiclass', 'naive_bayes', 
+                       'linear_model', 'mixture', 'multiclass', 'naive_bayes',
                        'neighbors', 'neural_network', 'svm', 'tree']
 
     models_modules_dict = {}
@@ -1703,7 +1711,7 @@ def inspect_y_test(apiurl):
                "return_eval": "False",
                "return_y": "True"}
     
-  headers = { 'Content-Type':'application/json', 'authorizationToken': os.environ.get("AWS_TOKEN"),} 
+  headers = { 'Content-Type':'application/json', 'authorizationToken': os.environ.get("AWS_TOKEN"),}
 
   apiurl_eval=apiurl[:-1]+"eval"
 
@@ -1714,6 +1722,7 @@ def inspect_y_test(apiurl):
   # print_y_stats(y_stats_dict)
 
   return y_stats_dict
+
 
 
 def model_summary_keras(model):
@@ -1771,6 +1780,7 @@ def model_summary_keras(model):
     "Activation": activations})
 
     return model_summary
+
 
 
 def model_graph_keras(model):
@@ -1935,7 +1945,7 @@ def torch_metadata(model):
     return name_list_out, layer_list, param_list, weight_list, activation_list
 
 
-def layer_mapping(direction, activation):
+def layer_mapping(direction='torch_to_keras', activation=False):
 
     torch_keras = {'AdaptiveAvgPool1d': 'AvgPool1D',
     'AdaptiveAvgPool2d': 'AvgPool2D',
@@ -1972,8 +1982,8 @@ def layer_mapping(direction, activation):
     'FeatureAlphaDropout': None,
     'Flatten': 'Flatten',
     'Fold': None,
-    'FractionalMaxPool2d': None,
-    'FractionalMaxPool3d': None,
+    'FractionalMaxPool2d': "MaxPool2D",
+    'FractionalMaxPool3d': "MaxPool3D",
     'GRU': 'GRU',
     'GRUCell': 'GRUCell',
     'GroupNorm': None,
@@ -2194,3 +2204,21 @@ def layer_mapping(direction, activation):
     elif direction == 'keras_to_torch': 
 
         return keras_torch
+
+
+def rename_layers(in_layers, direction="torch_to_keras", activation=False):
+
+  mapping_dict = layer_mapping(direction=direction, activation=activation)
+
+  out_layers = []
+
+  for i in in_layers:
+
+    layer_name_temp = mapping_dict.get(i, None)
+
+    if layer_name_temp == None:
+      out_layers.append(i)
+    else:
+      out_layers.append(layer_name_temp)
+
+  return out_layers
