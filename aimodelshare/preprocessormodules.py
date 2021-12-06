@@ -242,6 +242,7 @@ def export_preprocessor(preprocessor_fxn,directory, globs=globals()):
                     export_methods.append("zip")
                 except Exception as e:
                     # print(e)
+                    pass
         
         # take savedpreprocessorobjectslist pkl & zip files saved to tempdir to zipfile
         import pickle
