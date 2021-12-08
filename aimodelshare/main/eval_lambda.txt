@@ -90,8 +90,11 @@ def handler(event, context):
                 if i.find("mastertable_v")>0:
                     newleaderboarddata.append(i)
         
-            leaderboard = get_leaderboard("$task_type")  #task_type variable used here
-            currentversions=leaderboard['version']
+            try:
+                leaderboard = get_leaderboard("$task_type")  #task_type variable used here
+                currentversions=leaderboard['version']
+            except:
+                currentversions=[]
             print("current versions:")
             print(list(currentversions))
             allversions = [sub.split('_v')[1].split('.')[0] for sub in newleaderboarddata]
@@ -724,9 +727,9 @@ def get_leaderboard(task_type="$task_type", verbose=3, columns=None):
     #TODO: check if items in leaderboard, if so, then do following
     if len(missingincurrent_leaderboard)>0:
         for i in missingincurrent_leaderboard:
-            with open("/tmp/"+"model_eval_data_mastertable_v"+i+".csv", "wb") as lbfo:
-              bucketres.download_fileobj("$unique_model_id/"+"model_eval_data_mastertable_v"+i+".csv", lbfo)
-            newleaderboard = pd.read_csv("/tmp/"+"model_eval_data_mastertable_v"+i+".csv", sep="\t")
+            with open("/tmp/"+"model_eval_data_mastertable_v"+str(i)+".csv", "wb") as lbfo:
+              bucketres.download_fileobj("$unique_model_id/"+"model_eval_data_mastertable_v"+str(i)+".csv", lbfo)
+            newleaderboard = pd.read_csv("/tmp/"+"model_eval_data_mastertable_v"+str(i)+".csv", sep="\t")
             newleaderboard.drop(newleaderboard.filter(regex="Unname"),axis=1, inplace=True)
             
             leaderboard=leaderboard.append(newleaderboard).drop_duplicates()
