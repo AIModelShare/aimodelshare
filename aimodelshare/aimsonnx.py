@@ -23,6 +23,7 @@ import onnxruntime as rt
 
 # aims modules
 from aimodelshare.aws import run_function_on_lambda, get_aws_client
+from aimodelshare.reproducibility import set_reproducibility_env
 
 # os etc
 import os
@@ -33,6 +34,9 @@ import re
 import pickle
 import requests
 import sys
+import tempfile
+import wget            
+
 
 from pympler import asizeof
 from IPython.core.display import display, HTML, SVG
@@ -1407,7 +1411,6 @@ def compare_models(apiurl, version_list="None",
         try: 
             compare_pd = compare_models_dict(apiurl, version_list, 
             by_model_type, best_model, verbose)
-
         except:
 
             compare_pd = compare_models_aws(apiurl, version_list, 
@@ -1415,7 +1418,18 @@ def compare_models(apiurl, version_list="None",
     
     return compare_pd
 
+def _get_onnx_from_string(onnx_string):
+    # generate tempfile for onnx object 
+    temp_dir = tempfile.gettempdir()
+    temp_path = os.path.join(temp_dir, 'temp_file_name')
 
+    # save onnx to temporary path
+    with open(temp_path, "wb") as f:
+        f.write(onnx_string)
+
+    # load onnx file from temporary path
+    onx = onnx.load(temp_path)
+    return onx
 
 def _get_onnx_from_bucket(apiurl, aws_client, version=None):
 
@@ -1441,49 +1455,72 @@ def _get_onnx_from_bucket(apiurl, aws_client, version=None):
     except Exception as err:
         raise err
 
-    # generate tempfile for onnx object 
-    temp_dir = tempfile.gettempdir()
-    temp_path = os.path.join(temp_dir, 'temp_file_name')
-
-    # save onnx to temporary path
-    with open(temp_path, "wb") as f:
-        f.write(onnx_string)
-
-    # load onnx file from temporary path
-    onx = onnx.load(temp_path)
+    onx = _get_onnx_from_string(onnx_string)
 
     return onx
 
 
-def instantiate_model(apiurl, version=None, trained=False):
-    if all(["AWS_ACCESS_KEY_ID" in os.environ, 
-            "AWS_SECRET_ACCESS_KEY" in os.environ,
-            "AWS_REGION" in os.environ, 
-            "username" in os.environ, 
-            "password" in os.environ]):
-        pass
+def instantiate_model(apiurl, version=None, trained=False, reproduce=False):
+    # Confirm that creds are loaded, print warning if not
+    if all(["username" in os.environ, 
+          "password" in os.environ]):
+      pass
     else:
-        return print("'Instantiate Model' unsuccessful. Please provide credentials with set_credentials().")
+      return print("'Submit Model' unsuccessful. Please provide credentials with set_credentials().")
 
-    aws_client = get_aws_client()   
-    onnx_model = _get_onnx_from_bucket(apiurl, aws_client, version=version)
-    meta_dict = _get_metadata(onnx_model)
+    post_dict = {
+        "y_pred": [],
+        "return_eval": "False",
+        "return_y": "False",
+        "inspect_model": "False",
+        "version": "None", 
+        "compare_models": "False",
+        "version_list": "None",
+        "get_leaderboard": "False",
+        "instantiate_model": "True",
+        "reproduce": reproduce,
+        "trained": trained,
+        "model_version": version
+    }
 
-    # get model config 
-    model_config = ast.literal_eval(meta_dict['model_config'])
-    ml_framework = meta_dict['ml_framework']
+    headers = { 'Content-Type':'application/json', 'authorizationToken': os.environ.get("AWS_TOKEN"),} 
+
+    apiurl_eval=apiurl[:-1]+"eval"
+
+    resp = requests.post(apiurl_eval,headers=headers,data=json.dumps(post_dict)) 
+
+    resp_dict = json.loads(resp.text)
+
+    if reproduce:
+        if resp_dict['reproducibility_env'] != None:
+            set_reproducibility_env(resp_dict['reproducibility_env'])
+            print("Your reproducibility environment is successfully setup")
+        else:
+            print("Reproducibility environment is not found")
+
+    print("Instantiate the model from metadata..")
     
-    if ml_framework == 'sklearn':
+    model_metadata = resp_dict['model_metadata']
+    model_weight_url = resp_dict['model_weight_url']
+    model_config = ast.literal_eval(model_metadata['model_config'])
+    ml_framework = model_metadata['ml_framework']
 
-        if trained == False:
-            model_type = meta_dict['model_type']
+    if ml_framework == 'sklearn':
+        if trained == False or reproduce == True:
+            model_type = model_metadata['model_type']
             model_class = model_from_string(model_type)
             model = model_class(**model_config)
 
-        if trained == True:
+        elif trained == True:
+            model_pkl = None
+            temp = tempfile.mkdtemp()
+            temp_path = temp + "/" + "onnx_model_v{}.onnx".format(version)
             
-            model_pkl = meta_dict['model_weights']
-
+            # Get leaderboard
+            status = wget.download(model_weight_url, out=temp_path)
+            onnx_model = onnx.load(temp_path)
+            model_pkl = _get_metadata(onnx_model)['model_weights']
+        
             temp_dir = tempfile.gettempdir()
             temp_path = os.path.join(temp_dir, 'temp_file_name')
 
@@ -1493,16 +1530,22 @@ def instantiate_model(apiurl, version=None, trained=False):
             with open(temp_path, 'rb') as f:
                 model = pickle.load(f)
 
-
     if ml_framework == 'keras':
-
-        if trained == False:
+        if trained == False or reproduce == True:
             model = tf.keras.Sequential().from_config(model_config)
 
-        if trained == True: 
+        elif trained == True:
+            model_weights = None
+            temp = tempfile.mkdtemp()
+            temp_path = temp + "/" + "onnx_model_v{}.onnx".format(version)
+        
+            # Get leaderboard
+            status = wget.download(model_weight_url, out=temp_path)
+            onnx_model = onnx.load(temp_path)
+            model_weights = json.loads(_get_metadata(onnx_model)['model_weights'])
+            
             model = tf.keras.Sequential().from_config(model_config)
-            model_weights = json.loads(meta_dict['model_weights'])
-
+            
             def to_array(x):
                 return np.array(x, dtype="float32")
 
@@ -1510,7 +1553,65 @@ def instantiate_model(apiurl, version=None, trained=False):
 
             model.set_weights(model_weights)
 
+    print("Your model is successfully instantiated.")
     return model
+
+# def instantiate_model(apiurl, version=None, trained=False):
+#     if all(["AWS_ACCESS_KEY_ID" in os.environ, 
+#             "AWS_SECRET_ACCESS_KEY" in os.environ,
+#             "AWS_REGION" in os.environ, 
+#             "username" in os.environ, 
+#             "password" in os.environ]):
+#         pass
+#     else:
+#         return print("'Instantiate Model' unsuccessful. Please provide credentials with set_credentials().")
+
+#     aws_client = get_aws_client()   
+#     onnx_model = _get_onnx_from_bucket(apiurl, aws_client, version=version)
+#     meta_dict = _get_metadata(onnx_model)
+
+#     # get model config 
+#     model_config = ast.literal_eval(meta_dict['model_config'])
+#     ml_framework = meta_dict['ml_framework']
+    
+#     if ml_framework == 'sklearn':
+
+#         if trained == False:
+#             model_type = meta_dict['model_type']
+#             model_class = model_from_string(model_type)
+#             model = model_class(**model_config)
+
+#         if trained == True:
+            
+#             model_pkl = meta_dict['model_weights']
+
+#             temp_dir = tempfile.gettempdir()
+#             temp_path = os.path.join(temp_dir, 'temp_file_name')
+
+#             with open(temp_path, "wb") as f:
+#                 f.write(model_pkl)
+
+#             with open(temp_path, 'rb') as f:
+#                 model = pickle.load(f)
+
+
+#     if ml_framework == 'keras':
+
+#         if trained == False:
+#             model = tf.keras.Sequential().from_config(model_config)
+
+#         if trained == True: 
+#             model = tf.keras.Sequential().from_config(model_config)
+#             model_weights = json.loads(meta_dict['model_weights'])
+
+#             def to_array(x):
+#                 return np.array(x, dtype="float32")
+
+#             model_weights = list(map(to_array, model_weights))
+
+#             model.set_weights(model_weights)
+
+#     return model
 
 
 def _get_layer_names():

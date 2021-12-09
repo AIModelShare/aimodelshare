@@ -25,9 +25,10 @@ from aimodelshare.preprocessormodules import upload_preprocessor
 from aimodelshare.model import _get_predictionmodel_key, _extract_model_metadata
 from aimodelshare.data_sharing.share_data import share_data_codebuild
 from aimodelshare.containerization import clone_base_image
+from aimodelshare.aimsonnx import _get_metadata
 
 
-def take_user_info_and_generate_api(model_filepath, model_type, categorical,labels, preprocessor_filepath,custom_libraries, requirements, exampledata_json_filepath, repo_name, image_tag):
+def take_user_info_and_generate_api(model_filepath, model_type, categorical,labels, preprocessor_filepath,custom_libraries, requirements, exampledata_json_filepath, repo_name, image_tag, reproducibility_env_filepath):
     """
     Generates an api using model parameters and user credentials, from the user
 
@@ -145,6 +146,13 @@ def take_user_info_and_generate_api(model_filepath, model_type, categorical,labe
             json_path, os.environ.get("BUCKET_NAME"), unique_model_id + "/runtime_data.json"
         )
         os.remove(json_path)
+
+        # upload model metadata
+        upload_model_metadata(model, s3, os.environ.get("BUCKET_NAME"), unique_model_id)
+
+        # upload reproducibility env
+        if reproducibility_env_filepath:
+            upload_reproducibility_env(reproducibility_env_filepath, s3, os.environ.get("BUCKET_NAME"), unique_model_id)
     except Exception as err:
         raise AWSUploadError(
             "There was a problem with model/preprocessor upload. "+str(err))
@@ -170,6 +178,45 @@ def take_user_info_and_generate_api(model_filepath, model_type, categorical,labe
                    now, unique_model_id, os.environ.get("BUCKET_NAME"), input_shape]
     return finalresult
 
+def upload_reproducibility_env(reproducibility_env_file, s3, bucket, model_id):
+    # Check the reproducibility_env {{{
+    with open(reproducibility_env_file) as json_file:
+      reproducibility_env = json.load(json_file)
+      if "global_seed_code" not in reproducibility_env \
+              or "local_seed_code" not in reproducibility_env \
+              or "gpu_cpu_parallelism_ops" not in reproducibility_env \
+              or "session_runtime_info" not in reproducibility_env:
+          raise Exception("reproducibility environment is not complete")
+
+    # Upload the json {{{
+    try:
+        s3["client"].upload_file(
+            reproducibility_env_file, bucket, model_id + "/runtime_reproducibility.json"
+        )
+    except Exception as err:
+        raise err
+    # }}}
+
+def upload_model_metadata(model, s3, bucket, model_id):
+    meta_dict = _get_metadata(model)
+    model_metadata = {
+        "model_config": meta_dict["model_config"],
+        "ml_framework": meta_dict["ml_framework"],
+        "model_type": meta_dict["model_type"]
+    }
+
+    temp = tempfile.mkdtemp()
+    model_metadata_path = temp + "/" + 'model_metadata.json'
+    with open(model_metadata_path, 'w') as outfile:
+        json.dump(model_metadata, outfile)
+
+    # Upload the json {{{
+    try:
+        s3["client"].upload_file(
+            model_metadata_path, bucket, model_id + "/runtime_metadata.json"
+        )
+    except Exception as err:
+        raise err
 
 def send_model_data_to_dyndb_and_return_api(api_info, private, categorical, preprocessor_filepath,
                                             aishare_modelname, aishare_modeldescription, aishare_modelevaluation, model_type,
@@ -272,7 +319,7 @@ def send_model_data_to_dyndb_and_return_api(api_info, private, categorical, prep
     return print("\n\n" + finalresult2 + "\n" + final_message + web_dashboard_url)
 
 
-def model_to_api(model_filepath, model_type, private, categorical, y_train, preprocessor_filepath, custom_libraries="FALSE", example_data=None, image="aimodelshare_base_image:v3", base_image_api_endpoint="https://vupwujn586.execute-api.us-east-1.amazonaws.com/dev/copybasetouseracct", update=False):
+def model_to_api(model_filepath, model_type, private, categorical, y_train, preprocessor_filepath, custom_libraries="FALSE", example_data=None, image="aimodelshare_base_image:v3", base_image_api_endpoint="https://vupwujn586.execute-api.us-east-1.amazonaws.com/dev/copybasetouseracct", update=False, reproducibility_env_filepath=None):
     """
       Launches a live prediction REST API for deploying ML models using model parameters and user credentials, provided by the user
       Inputs : 8
@@ -315,6 +362,11 @@ def model_to_api(model_filepath, model_type, private, categorical, y_train, prep
                      other data types - absolute path to folder containing example data
                                         (first five files with relevent file extensions will be accepted)
                      [REQUIRED] for tabular data
+      reproducibility_env_filepath: string
+                                value - absolute path to environment environment json file 
+                                [OPTIONAL] to be set by the user
+                                "./reproducibility.json" 
+                                file is generated using export_reproducibility_env function from the AI Modelshare library
       -----------
       Returns
       print_api_info : prints statements with generated live prediction API details
@@ -398,7 +450,7 @@ def model_to_api(model_filepath, model_type, private, categorical, y_train, prep
     # }}}
     
     api_info = take_user_info_and_generate_api( 
-        model_filepath, model_type, categorical, labels,preprocessor_filepath,custom_libraries, requirements, exampledata_json_filepath, repo_name, image_tag)
+        model_filepath, model_type, categorical, labels,preprocessor_filepath,custom_libraries, requirements, exampledata_json_filepath, repo_name, image_tag, reproducibility_env_filepath)
 
     ### Progress Update #5/6 {{{
     sys.stdout.write('\r')
