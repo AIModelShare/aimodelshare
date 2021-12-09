@@ -73,6 +73,48 @@ def handler(event, context):
             model_files, err = _get_file_list(s3_client, bucket, model_id)
             print(model_files)
 
+            mversions=[]
+            musers=[]
+            mtimestamp=[]
+            print(idempotentmodel_version)
+            for i in idempotentmodel_version:
+                idemresult=i.split("||||")
+                mversions.append(idemresult[0])
+                musers.append(idemresult[1])
+                mtimestamp.append(idemresult[1])
+            print(mversions)    
+            mversions=[int(i) for i in mversions]
+
+            
+            newleaderboarddata=[]
+            for i in model_files:
+                if i.find("mastertable_v")>0:
+                    newleaderboarddata.append(i)
+        
+            try:
+                leaderboard = get_leaderboard("$task_type")  #task_type variable used here
+                currentversions=leaderboard['version']
+            except:
+                currentversions=[]
+            print("current versions:")
+            print(list(currentversions))
+            allversions = [sub.split('_v')[1].split('.')[0] for sub in newleaderboarddata]
+            print("Named versions in csv files:")
+            allversions=[int(i) for i in allversions]
+            missingincurrent_leaderboard=list(set(allversions)-set(currentversions)) 
+
+            missingingmodelversions=list(set(mversions)-set(currentversions)) 
+
+            print("missing model versions for idemp check")
+            print(missingingmodelversions)
+
+            if len(missingingmodelversions)>1:
+                idempotentmodel_version=min(missingingmodelversions)
+            elif len(missingingmodelversions)==1:
+                idempotentmodel_version=missingingmodelversions[0]
+            else:
+                idempotentmodel_version=0
+            
 
             finalfiles=[]
             
@@ -726,17 +768,20 @@ def get_leaderboard(task_type="$task_type", verbose=3, columns=None):
       
     leaderboard = pd.read_csv("/tmp/"+"model_eval_data_mastertable.csv", sep="\t")
     currentversions=leaderboard['version']
+    print("current versions:")
+    print(list(currentversions))
     allversions = [sub.split('_v')[1].split('.')[0] for sub in newleaderboarddata]
-    print(allversions)
+    print("Named versions in csv files:")
+    allversions=[int(i) for i in allversions]
     missingincurrent_leaderboard=list(set(allversions)-set(currentversions)) 
     print(missingincurrent_leaderboard)
     
     #TODO: check if items in leaderboard, if so, then do following
     if len(missingincurrent_leaderboard)>0:
         for i in missingincurrent_leaderboard:
-            with open("/tmp/"+"model_eval_data_mastertable_v"+i+".csv", "wb") as lbfo:
-              bucketres.download_fileobj("$unique_model_id/"+"model_eval_data_mastertable_v"+i+".csv", lbfo)
-            newleaderboard = pd.read_csv("/tmp/"+"model_eval_data_mastertable_v"+i+".csv", sep="\t")
+            with open("/tmp/"+"model_eval_data_mastertable_v"+str(i)+".csv", "wb") as lbfo:
+              bucketres.download_fileobj("$unique_model_id/"+"model_eval_data_mastertable_v"+str(i)+".csv", lbfo)
+            newleaderboard = pd.read_csv("/tmp/"+"model_eval_data_mastertable_v"+str(i)+".csv", sep="\t")
             newleaderboard.drop(newleaderboard.filter(regex="Unname"),axis=1, inplace=True)
             
             leaderboard=leaderboard.append(newleaderboard).drop_duplicates()
