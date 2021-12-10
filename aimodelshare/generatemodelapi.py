@@ -578,7 +578,7 @@ def create_competition(apiurl, data_directory, y_test,  email_list=[], public=Fa
     final_message = ("\n Success! Model competition created. \n\n"
                 "You may now update your prediction API runtime model and verify evaluation metrics with the update_runtime_model() function.\n\n"
                 "To upload new models and/or preprocessors to this API, team members should use \n"
-                "the following credentials:\n\napiurl='" + apiurl+"'"+"\nai.set_credentials(apiurl=apiurl)\n\n"
+                "the following credentials:\n\napiurl='" + apiurl+"'"+"\nfrom aimodelshare.aws import set_credentials\nset_credentials(apiurl=apiurl)\n\n"
                 "They can then submit models to your competition by using the following code: \n\ncompetition= ai.Competition(apiurl)\n"
                 "download_data('"+datauri['ecr_uri']+"') \n"
                  "# Use this data to preprocess data and train model. Write and save preprocessor fxn, save model to onnx file, generate predicted y values\n using X test data, then submit a model below.\n\n"
