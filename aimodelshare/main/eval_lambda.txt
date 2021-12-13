@@ -217,9 +217,10 @@ def handler(event, context):
         
             version_list = body["version_list"]
             verbose = body.get("verbose", 1)
+            naming_convention = body.get("naming_convention", None)
 
 
-            comp_dict_out = compare_models(version_list, verbose=verbose)
+            comp_dict_out = compare_models(version_list, verbose=verbose, naming_convention=naming_convention)
             
             compare_dict = {"statusCode": 200,
                 "headers": {
@@ -333,8 +334,9 @@ def handler(event, context):
         
             version_list = body["version_list"]
             verbose = body.get("verbose", 1)
+            naming_convention = body.get("naming_convention", None)
 
-            comp_dict_out = compare_models(version_list, verbose=verbose)
+            comp_dict_out = compare_models(version_list, verbose=verbose, naming_convention=naming_convention)
             
             compare_dict = {"statusCode": 200,
                 "headers": {
@@ -567,7 +569,7 @@ def _get_metadata(onnx_model):
     return onnx_meta_dict
     
     
-def compare_models(version_list, by_model_type=None, best_model=None, verbose=1):
+def compare_models(version_list, by_model_type=None, best_model=None, verbose=1, naming_convention=None):
 
     ml_framework_list = []
     model_type_list = []
@@ -588,16 +590,14 @@ def compare_models(version_list, by_model_type=None, best_model=None, verbose=1)
         model_dict[str(i)] = model_dict_temp[str(i)]
 
 
-    if not all(x==ml_framework_list[0] for x in ml_framework_list):
-        raise Exception("Incongruent frameworks. Please compare models from the same ML frameworks.")
-        
+    comp_dict_out = {}
+    comp_pd_nn = pd.DataFrame()
 
-    if ml_framework_list[0] == 'sklearn':
 
-        comp_dict_out = {}
+    for i, j in zip(version_list, ml_framework_list): 
+
+        if j == "sklearn":
         
-        for i in version_list: 
-            
             temp_pd = pd.DataFrame(model_dict[str(i)]['model_dict'])
             temp_pd.columns = ['param_name', 'default_value', "model_version_"+str(i)]
 
@@ -610,33 +610,34 @@ def compare_models(version_list, by_model_type=None, best_model=None, verbose=1)
 
             else:
                 comp_dict_out[model_dict[str(i)]['model_type']] = temp_pd
-        model_type_list_unique=set(model_type_list)
-        for i in model_type_list_unique:
-          comp_dict_out[i]=comp_dict_out[i].to_json()        
-            
-    if ml_framework_list[0] == 'keras':
 
-        comp_pd = pd.DataFrame()
 
-        for i in version_list:
+        elif j == "keras" or j == 'pytorch':
 
-            temp_pd = pd.DataFrame(model_dict[str(i)]['model_dict'])
+            temp_pd_nn = pd.DataFrame(model_dict[str(i)]['model_dict'])
 
-            temp_pd.iloc[:,2] = temp_pd.iloc[:,2].astype(str)
+            temp_pd_nn.iloc[:,2] = temp_pd_nn.iloc[:,2].astype(str)
 
             if verbose == 0: 
-                temp_pd = temp_pd[['Layer']]
+                temp_pd_nn = temp_pd_nn[['Layer']]
             elif verbose == 1: 
-                temp_pd = temp_pd[['Layer', 'Shape', 'Params']]
+                temp_pd_nn = temp_pd_nn[['Layer', 'Shape', 'Params']]
             elif verbose == 2: 
-                temp_pd = temp_pd[['Name', 'Layer', 'Shape', 'Params', 'Connect']]
+                temp_pd_nn = temp_pd_nn[['Name', 'Layer', 'Shape', 'Params', 'Connect']]
             elif verbose == 3: 
-                temp_pd = temp_pd[['Name', 'Layer', 'Shape', 'Params', 'Connect', 'Activation']]
+                temp_pd_nn = temp_pd_nn[['Name', 'Layer', 'Shape', 'Params', 'Connect', 'Activation']]
 
-            temp_pd = temp_pd.add_prefix('Model_'+str(i)+'_')    
-            comp_pd = pd.concat([comp_pd, temp_pd], axis=1)
+            if naming_convention == 'pytorch': 
+                temp_pd_nn['Layer'] = rename_layers(temp_pd_nn['Layer'], direction="keras_to_torch", activation=False)
 
-        comp_dict_out = {"Sequential": comp_pd.to_json()}
+            if naming_convention == 'keras': 
+                temp_pd_nn['Layer'] = rename_layers(temp_pd_nn['Layer'], direction="torch_to_keras", activation=False)
+
+            temp_pd_nn = temp_pd_nn.add_prefix('Model_'+str(i)+'_')    
+
+            comp_pd_nn = pd.concat([comp_pd_nn, temp_pd_nn], axis=1)
+
+            comp_dict_out["nn"] = comp_pd_nn
         
     return comp_dict_out
 
@@ -858,6 +859,289 @@ def get_leaderboard(task_type="$task_type", verbose=3, columns=None):
     # }}}
 
     return leaderboard
+
+
+
+def layer_mapping(direction='torch_to_keras', activation=False):
+
+    torch_keras = {'AdaptiveAvgPool1d': 'AvgPool1D',
+    'AdaptiveAvgPool2d': 'AvgPool2D',
+    'AdaptiveAvgPool3d': 'AvgPool3D',
+    'AdaptiveMaxPool1d': 'MaxPool1D',
+    'AdaptiveMaxPool2d': 'MaxPool2D',
+    'AdaptiveMaxPool3d': 'MaxPool3D',
+    'AlphaDropout': None,
+    'AvgPool1d': 'AvgPool1D',
+    'AvgPool2d': 'AvgPool2D',
+    'AvgPool3d': 'AvgPool3D',
+    'BatchNorm1d': 'BatchNormalization',
+    'BatchNorm2d': 'BatchNormalization',
+    'BatchNorm3d': 'BatchNormalization',
+    'Bilinear': None,
+    'ConstantPad1d': None,
+    'ConstantPad2d': None,
+    'ConstantPad3d': None,
+    'Container': None,
+    'Conv1d': 'Conv1D',
+    'Conv2d': 'Conv2D',
+    'Conv3d': 'Conv3D',
+    'ConvTranspose1d': 'Conv1DTranspose',
+    'ConvTranspose2d': 'Conv2DTranspose',
+    'ConvTranspose3d': 'Conv3DTranspose',
+    'CosineSimilarity': None,
+    'CrossMapLRN2d': None,
+    'DataParallel': None,
+    'Dropout': 'Dropout',
+    'Dropout2d': 'Dropout',
+    'Dropout3d': 'Dropout',
+    'Embedding': 'Embedding',
+    'EmbeddingBag': 'Embedding',
+    'FeatureAlphaDropout': None,
+    'Flatten': 'Flatten',
+    'Fold': None,
+    'FractionalMaxPool2d': "MaxPool2D",
+    'FractionalMaxPool3d': "MaxPool3D",
+    'GRU': 'GRU',
+    'GRUCell': 'GRUCell',
+    'GroupNorm': None,
+    'Identity': None,
+    'InstanceNorm1d': None,
+    'InstanceNorm2d': None,
+    'InstanceNorm3d': None,
+    'LPPool1d': None,
+    'LPPool2d': None,
+    'LSTM': 'LSTM',
+    'LSTMCell': 'LSTMCell',
+    'LayerNorm': None,
+    'Linear': 'Dense',
+    'LocalResponseNorm': None,
+    'MaxPool1d': 'MaxPool1D',
+    'MaxPool2d': 'MaxPool2D',
+    'MaxPool3d': 'MaxPool3D',
+    'MaxUnpool1d': None,
+    'MaxUnpool2d': None,
+    'MaxUnpool3d': None,
+    'Module': None,
+    'ModuleDict': None,
+    'ModuleList': None,
+    'PairwiseDistance': None,
+    'Parameter': None,
+    'ParameterDict': None,
+    'ParameterList': None,
+    'PixelShuffle': None,
+    'RNN': 'RNN',
+    'RNNBase': None,
+    'RNNCell': None,
+    'RNNCellBase': None,
+    'ReflectionPad1d': None,
+    'ReflectionPad2d': None,
+    'ReplicationPad1d': None,
+    'ReplicationPad2d': None,
+    'ReplicationPad3d': None,
+    'Sequential': None,
+    'SyncBatchNorm': None,
+    'Transformer': None,
+    'TransformerDecoder': None,
+    'TransformerDecoderLayer': None,
+    'TransformerEncoder': None,
+    'TransformerEncoderLayer': None,
+    'Unfold': None,
+    'Upsample': 'UpSampling1D',
+    'UpsamplingBilinear2d': 'UpSampling2D',
+    'UpsamplingNearest2d': 'UpSampling2D',
+    'ZeroPad2d': 'ZeroPadding2D'}
+
+    keras_torch = {'AbstractRNNCell': None,
+    'Activation': None,
+    'ActivityRegularization': None,
+    'Add': None,
+    'AdditiveAttention': None,
+    'AlphaDropout': None,
+    'Attention': None,
+    'Average': None,
+    'AveragePooling1D': 'AvgPool1d',
+    'AveragePooling2D': 'AvgPool2d',
+    'AveragePooling3D': 'AvgPool3d',
+    'AvgPool1D': 'AvgPool1d',
+    'AvgPool2D': 'AvgPool2d',
+    'AvgPool3D': 'AvgPool3d',
+    'BatchNormalization': None,
+    'Bidirectional': None,
+    'Concatenate': None,
+    'Conv1D': 'Conv1d',
+    'Conv1DTranspose': 'ConvTranspose1d',
+    'Conv2D': 'Conv2d',
+    'Conv2DTranspose':  'ConvTranspose2d',
+    'Conv3D': 'Conv3d',
+    'Conv3DTranspose':  'ConvTranspose3d',
+    'ConvLSTM2D': None,
+    'Convolution1D': None,
+    'Convolution1DTranspose': None,
+    'Convolution2D': None,
+    'Convolution2DTranspose': None,
+    'Convolution3D': None,
+    'Convolution3DTranspose': None,
+    'Cropping1D': None,
+    'Cropping2D': None,
+    'Cropping3D': None,
+    'Dense': 'Linear',
+    'DenseFeatures': None,
+    'DepthwiseConv2D': None,
+    'Dot': None,
+    'Dropout': 'Dropout',
+    'Embedding': 'Embedding',
+    'Flatten': 'Flatten',
+    'GRU': 'GRU',
+    'GRUCell': 'GRUCell',
+    'GaussianDropout': None,
+    'GaussianNoise': None,
+    'GlobalAveragePooling1D': None,
+    'GlobalAveragePooling2D': None,
+    'GlobalAveragePooling3D': None,
+    'GlobalAvgPool1D': None,
+    'GlobalAvgPool2D': None,
+    'GlobalAvgPool3D': None,
+    'GlobalMaxPool1D': None,
+    'GlobalMaxPool2D': None,
+    'GlobalMaxPool3D': None,
+    'GlobalMaxPooling1D': None,
+    'GlobalMaxPooling2D': None,
+    'GlobalMaxPooling3D': None,
+    'Input': None,
+    'InputLayer': None,
+    'InputSpec': None,
+    'LSTM': 'LSTM',
+    'LSTMCell': 'LSTMCell',
+    'Lambda': None,
+    'Layer': None,
+    'LayerNormalization': None,
+    'LocallyConnected1D': None,
+    'LocallyConnected2D': None,
+    'Masking': None,
+    'MaxPool1D': 'MaxPool1d',
+    'MaxPool2D': 'MaxPool2d',
+    'MaxPool3D': 'MaxPool3d',
+    'MaxPooling1D': 'MaxPool1d',
+    'MaxPooling2D': 'MaxPool2d',
+    'MaxPooling3D': 'MaxPool3d',
+    'Maximum': None,
+    'Minimum': None,
+    'MultiHeadAttention': None,
+    'Multiply': None,
+    'Permute': None,
+    'RNN': 'RNN',
+    'RepeatVector': None,
+    'Reshape': None,
+    'SeparableConv1D': None,
+    'SeparableConv2D': None,
+    'SeparableConvolution1D': None,
+    'SeparableConvolution2D': None,
+    'SimpleRNN': None,
+    'SimpleRNNCell': None,
+    'SpatialDropout1D': None,
+    'SpatialDropout2D': None,
+    'SpatialDropout3D': None,
+    'StackedRNNCells': None,
+    'Subtract': None,
+    'TimeDistributed': None,
+    'UpSampling1D': 'Upsample',
+    'UpSampling2D': None,
+    'UpSampling3D': None,
+    'Wrapper': None,
+    'ZeroPadding1D': None,
+    'ZeroPadding2D': 'ZeroPad2d',
+    'ZeroPadding3D': None}
+
+    torch_keras_act = {
+    'AdaptiveLogSoftmaxWithLoss': None,
+    'CELU': None,
+    'ELU': 'elu',
+    'GELU': 'gelu',
+    'GLU': None,
+    'Hardshrink': None,
+    'Hardsigmoid': 'hard_sigmoid',
+    'Hardswish': None,
+    'Hardtanh': None,
+    'LeakyReLU': 'LeakyReLU',
+    'LogSigmoid': None,
+    'LogSoftmax': None,
+    'Mish': None,
+    'MultiheadAttention': None,
+    'PReLU': 'PReLU',
+    'RReLU': None,
+    'ReLU': 'relu',
+    'ReLU6': 'relu',
+    'SELU': 'selu',
+    'SiLU': 'swish',
+    'Sigmoid': 'sigmoid',
+    'Softmax': 'softmax',
+    'Softmax2d': None,
+    'Softmin': None,
+    'Softplus': 'softplus',
+    'Softshrink': None,
+    'Softsign': 'softsign',
+    'Tanh': 'tanh',
+    'Tanhshrink': None,
+    'Threshold': None}
+
+    keras_torch_act = {
+    'ELU': 'ELU',
+    'LeakyReLU': 'LeakyReLU',
+    'PReLU': 'PReLU',
+    'ReLU': 'ReLU',
+    'Softmax': 'Softmax',
+    'ThresholdedReLU': None,
+    'elu': 'ELU',
+    'exponential': None,
+    'gelu': 'GELU',
+    'hard_sigmoid': 'Hardsigmoid',
+    'relu': 'ReLU',
+    'selu': 'SELU',
+    'serialize': None,
+    'sigmoid': 'Sigmoid',
+    'softmax': 'Softmax',
+    'softplus': 'Softplus',
+    'softsign': 'Softsign',
+    'swish': 'SiLU',
+    'tanh': 'Tanh'}
+
+
+    if direction == 'torch_to_keras' and activation:
+
+        return torch_keras_act
+
+    elif direction == 'kreas_to_torch' and not activation:
+
+        return keras_torch_act
+
+    elif direction == 'torch_to_keras':
+
+        return torch_keras
+
+    elif direction == 'keras_to_torch': 
+
+        return keras_torch
+
+
+def rename_layers(in_layers, direction="torch_to_keras", activation=False):
+
+  mapping_dict = layer_mapping(direction=direction, activation=activation)
+
+  out_layers = []
+
+  for i in in_layers:
+
+    layer_name_temp = mapping_dict.get(i, None)
+
+    if layer_name_temp == None:
+      out_layers.append(i)
+    else:
+      out_layers.append(layer_name_temp)
+
+  return out_layers
+
+
+
 
 ####################################################################
 ############################ S3 connect ############################

@@ -904,7 +904,7 @@ def inspect_model_aws(apiurl, version=None):
     
     return inspect_pd
 
-def inspect_model_lambda(apiurl, version=None):
+def inspect_model_lambda(apiurl, version=None, naming_convention = None):
     if all(["username" in os.environ, 
            "password" in os.environ]):
         pass
@@ -975,7 +975,7 @@ def inspect_model_dict(apiurl, version=None, naming_convention = None):
 
 
 
-def inspect_model(apiurl, version=None):
+def inspect_model(apiurl, version=None, naming_convention=None):
     if all(["username" in os.environ, 
            "password" in os.environ]):
         pass
@@ -990,6 +990,12 @@ def inspect_model(apiurl, version=None):
             inspect_pd = inspect_model_dict(apiurl, version)
         except: 
             inspect_pd = inspect_model_aws(apiurl, version)
+
+    if naming_convention == 'keras' and ml_framework=='pytorch': 
+        inspect_pd['Layer'] = rename_layers(inspect_pd['Layer'], direction="torch_to_keras", activation=False)
+
+    elif naming_convention == 'pytorch' and ml_framework=='keras': 
+        inspect_pd['Layer'] = rename_layers(inspect_pd['Layer'], direction="keras_to_torch", activation=False)
     
     return inspect_pd
 
@@ -1390,7 +1396,8 @@ def compare_models_lambda(apiurl, version_list="None",
                "version": "None", 
                "compare_models": "True",
                "version_list": version_list,
-               "verbose": verbose}
+               "verbose": verbose, 
+               "naming_convention": naming_convention}
     
     headers = { 'Content-Type':'application/json', 'authorizationToken': os.environ.get("AWS_TOKEN"),} 
 
@@ -1406,30 +1413,30 @@ def compare_models_lambda(apiurl, version_list="None",
 
 
 def compare_models(apiurl, version_list="None", 
-    by_model_type=None, best_model=None, verbose=3):
+    by_model_type=None, best_model=None, verbose=3, naming_convention=None):
 
     if all(["username" in os.environ, 
            "password" in os.environ]):
         pass
     else:
-        return print("'Inspect Model' unsuccessful. Please provide credentials with set_credentials().")
+        return print("'Compare Model' unsuccessful. Please provide credentials with set_credentials().")
 
     if len(version_list) != len(set(version_list)):
         return print("Model comparison failed. Version list contains duplicates.")
     
     try: 
         compare_pd = compare_models_lambda(apiurl, version_list, 
-            by_model_type, best_model, verbose)
+            by_model_type, best_model, verbose, naming_convention)
 
     except: 
 
         try: 
             compare_pd = compare_models_dict(apiurl, version_list, 
-            by_model_type, best_model, verbose)
+            by_model_type, best_model, verbose, naming_convention)
         except:
 
             compare_pd = compare_models_aws(apiurl, version_list, 
-                by_model_type, best_model, verbose)
+                by_model_type, best_model, verbose, naming_convention)
     
     return compare_pd
 
@@ -2224,4 +2231,4 @@ def rename_layers(in_layers, direction="torch_to_keras", activation=False):
   return out_layers
 
 
-  
+
