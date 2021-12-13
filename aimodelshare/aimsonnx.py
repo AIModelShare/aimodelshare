@@ -991,10 +991,10 @@ def inspect_model(apiurl, version=None, naming_convention=None):
         except: 
             inspect_pd = inspect_model_aws(apiurl, version)
 
-    if naming_convention == 'keras' and ml_framework=='pytorch': 
+    if naming_convention == 'keras': 
         inspect_pd['Layer'] = rename_layers(inspect_pd['Layer'], direction="torch_to_keras", activation=False)
 
-    elif naming_convention == 'pytorch' and ml_framework=='keras': 
+    elif naming_convention == 'pytorch': 
         inspect_pd['Layer'] = rename_layers(inspect_pd['Layer'], direction="keras_to_torch", activation=False)
     
     return inspect_pd
@@ -1382,7 +1382,7 @@ def compare_models_aws(apiurl, version_list=None,
 
 
 def compare_models_lambda(apiurl, version_list="None", 
-    by_model_type=None, best_model=None, verbose=1):
+    by_model_type=None, best_model=None, verbose=1, naming_convention=None):
     if all(["username" in os.environ, 
            "password" in os.environ]):
         pass
@@ -1413,7 +1413,7 @@ def compare_models_lambda(apiurl, version_list="None",
 
 
 def compare_models(apiurl, version_list="None", 
-    by_model_type=None, best_model=None, verbose=3, naming_convention=None):
+    by_model_type=None, best_model=None, verbose=1, naming_convention=None):
 
     if all(["username" in os.environ, 
            "password" in os.environ]):

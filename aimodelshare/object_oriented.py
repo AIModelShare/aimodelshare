@@ -294,7 +294,7 @@ class Competition:
         inspect_pd = inspect_model(apiurl=self.playground_url, version=version, naming_convention=naming_convention)
         return inspect_pd
 
-    def compare_models(self, version_list="None", by_model_type=None, best_model=None, verbose=3, naming_convention=None):
+    def compare_models(self, version_list="None", by_model_type=None, best_model=None, verbose=1, naming_convention=None):
         """
         Compare the structure of two or more models submitted to a competition leaderboard.
         Use in conjuction with stylize_compare to visualize data. 

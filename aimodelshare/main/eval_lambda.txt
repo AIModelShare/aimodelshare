@@ -603,13 +603,13 @@ def compare_models(version_list, by_model_type=None, best_model=None, verbose=1,
 
             if model_dict[str(i)]['model_type'] in comp_dict_out.keys():
 
-                comp_pd = comp_dict_out[model_dict[str(i)]['model_type']]
+                comp_pd = pd.read_json(comp_dict_out[model_dict[str(i)]['model_type']])
                 comp_pd = comp_pd.merge(temp_pd.drop('default_value', axis=1), on='param_name')
 
-                comp_dict_out[model_dict[str(i)]['model_type']] = comp_pd
+                comp_dict_out[model_dict[str(i)]['model_type']] = comp_pd.to_json()
 
             else:
-                comp_dict_out[model_dict[str(i)]['model_type']] = temp_pd
+                comp_dict_out[model_dict[str(i)]['model_type']] = temp_pd.to_json()
 
 
         elif j == "keras" or j == 'pytorch':
@@ -637,7 +637,8 @@ def compare_models(version_list, by_model_type=None, best_model=None, verbose=1,
 
             comp_pd_nn = pd.concat([comp_pd_nn, temp_pd_nn], axis=1)
 
-            comp_dict_out["nn"] = comp_pd_nn
+            comp_dict_out = {"nn": comp_pd_nn.to_json()}
+
         
     return comp_dict_out
 
