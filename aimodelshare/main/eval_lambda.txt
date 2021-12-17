@@ -637,7 +637,7 @@ def compare_models(version_list, by_model_type=None, best_model=None, verbose=1,
 
             comp_pd_nn = pd.concat([comp_pd_nn, temp_pd_nn], axis=1)
 
-            comp_dict_out = {"nn": comp_pd_nn.to_json()}
+            comp_dict_out["nn"] = comp_pd_nn.to_json()}
 
         
     return comp_dict_out

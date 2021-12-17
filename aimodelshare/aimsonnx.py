@@ -769,7 +769,7 @@ def _get_leaderboard_data(onnx_model, eval_metrics=None):
     layer_list_keras, activation_list_keras = _get_layer_names()
     layer_list_pytorch, activation_list_pytorch = _get_layer_names_pytorch()
 
-    layer_list = layer_list_keras + layer_list_pytorch
+    layer_list = list(set(layer_list_keras + layer_list_pytorch))
     activation_list =  list(set(activation_list_keras + activation_list_pytorch))
 
     # get general model info
@@ -1254,25 +1254,25 @@ def color_pal_assign(val, naming_convention=None):
 
 def stylize_model_comparison(comp_dict_out, naming_convention=None):
 
-    if 'nn' in comp_dict_out.keys():
+    for i in comp_dict_out.keys():
 
-        df_styled = comp_dict_out['nn'].style.applymap(color_pal_assign, naming_convention=naming_convention)
+        if i == 'nn':
 
-        df_styled = df_styled.set_properties(**{'color': 'black'})
+            df_styled = comp_dict_out['nn'].style.applymap(color_pal_assign, naming_convention=naming_convention)
 
-        df_styled = df_styled.set_caption('Model type: ' + 'Neural Network').set_table_styles([{'selector': 'caption',
-            'props': [('color', 'white'), ('font-size', '18px')]}])
+            df_styled = df_styled.set_properties(**{'color': 'black'})
 
-        df_styled = df_styled.set_properties(**{'color': 'black'})
+            df_styled = df_styled.set_caption('Model type: ' + 'Neural Network').set_table_styles([{'selector': 'caption',
+                'props': [('color', 'white'), ('font-size', '18px')]}])
 
-        df_styled = df_styled.set_caption('Model type: ' + 'Neural Network').set_table_styles([{'selector': 'caption',
-            'props': [('color', 'black'), ('font-size', '18px')]}])
+            df_styled = df_styled.set_properties(**{'color': 'black'})
 
-        display(HTML(df_styled.render()))
+            df_styled = df_styled.set_caption('Model type: ' + 'Neural Network').set_table_styles([{'selector': 'caption',
+                'props': [('color', 'black'), ('font-size', '18px')]}])
 
-    elif 'sklearn' in comp_dict_out.keys():
+            display(HTML(df_styled.render()))
 
-        for i in comp_dict_out.keys():
+        else:
 
             comp_pd = comp_dict_out[i]
 

@@ -191,7 +191,6 @@ def _update_leaderboard_public(
         raise FileNotFoundError(f"The model file at {modelpath} does not exist")
 
     model_versions = [os.path.splitext(f)[0].split("_")[-1][1:] for f in s3_presigned_dict['put'].keys()]
-    print(model_versions)
     
     model_versions = filter(lambda v: v.isnumeric(), model_versions)
     model_versions = list(map(int, model_versions))
