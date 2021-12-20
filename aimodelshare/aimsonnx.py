@@ -1612,13 +1612,10 @@ def _get_onnx_from_string(onnx_string):
     with open(temp_path, "wb") as f:
         f.write(onnx_string)
 
-<<<<<<< HEAD
-=======
     # load onnx file from temporary path
     onx = onnx.load(temp_path)
     return onx
 
->>>>>>> f2c4e12098799a16602c26511fae86062da96381
 def _get_onnx_from_bucket(apiurl, aws_client, version=None):
 
     # generate name of onnx model in bucket
@@ -1719,11 +1716,17 @@ def instantiate_model(apiurl, version=None, trained=False, reproduce=False):
                 model = pickle.load(f)
 
     if ml_framework == 'pyspark':
-
         # pyspark model object is always trained. The unfitted / untrained one 
         # is the estimator and cannot be treated as model. 
         # Model is transformer and created by estimator
-        model_pkl = meta_dict['model_weights']
+        model_pkl = None
+        temp = tempfile.mkdtemp()
+        temp_path = temp + "/" + "onnx_model_v{}.onnx".format(version)
+        
+        # Get leaderboard
+        status = wget.download(model_weight_url, out=temp_path)
+        onnx_model = onnx.load(temp_path)
+        model_pkl = _get_metadata(onnx_model)['model_weights']
 
         temp_dir = tempfile.gettempdir()
         temp_path_zip = os.path.join(temp_dir, 'temp_pyspark_model.zip')
@@ -1739,7 +1742,7 @@ def instantiate_model(apiurl, version=None, trained=False, reproduce=False):
         with ZipFile(temp_path_zip, 'r') as zip_file:
             zip_file.extractall(temp_path)
         
-        model_type = meta_dict['model_type']
+        model_type = model_metadata['model_type']
         model_class = pyspark_model_from_string(model_type)
         # model_config is for the Estimator not the Transformer / Model
         model = model_class()
@@ -1784,63 +1787,6 @@ def instantiate_model(apiurl, version=None, trained=False, reproduce=False):
 
     print("Your model is successfully instantiated.")
     return model
-
-# def instantiate_model(apiurl, version=None, trained=False):
-#     if all(["AWS_ACCESS_KEY_ID" in os.environ, 
-#             "AWS_SECRET_ACCESS_KEY" in os.environ,
-#             "AWS_REGION" in os.environ, 
-#             "username" in os.environ, 
-#             "password" in os.environ]):
-#         pass
-#     else:
-#         return print("'Instantiate Model' unsuccessful. Please provide credentials with set_credentials().")
-
-#     aws_client = get_aws_client()   
-#     onnx_model = _get_onnx_from_bucket(apiurl, aws_client, version=version)
-#     meta_dict = _get_metadata(onnx_model)
-
-#     # get model config 
-#     model_config = ast.literal_eval(meta_dict['model_config'])
-#     ml_framework = meta_dict['ml_framework']
-    
-#     if ml_framework == 'sklearn':
-
-#         if trained == False:
-#             model_type = meta_dict['model_type']
-#             model_class = model_from_string(model_type)
-#             model = model_class(**model_config)
-
-#         if trained == True:
-            
-#             model_pkl = meta_dict['model_weights']
-
-#             temp_dir = tempfile.gettempdir()
-#             temp_path = os.path.join(temp_dir, 'temp_file_name')
-
-#             with open(temp_path, "wb") as f:
-#                 f.write(model_pkl)
-
-#             with open(temp_path, 'rb') as f:
-#                 model = pickle.load(f)
-
-
-#     if ml_framework == 'keras':
-
-#         if trained == False:
-#             model = tf.keras.Sequential().from_config(model_config)
-
-#         if trained == True: 
-#             model = tf.keras.Sequential().from_config(model_config)
-#             model_weights = json.loads(meta_dict['model_weights'])
-
-#             def to_array(x):
-#                 return np.array(x, dtype="float32")
-
-#             model_weights = list(map(to_array, model_weights))
-
-#             model.set_weights(model_weights)
-
-#     return model
 
 
 def _get_layer_names():
