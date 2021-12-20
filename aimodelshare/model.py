@@ -477,7 +477,7 @@ def submit_model(
                 "return_eval": "True",
                 "return_y": "False"}
 
-        headers = { 'Content-Type':'application/json', 'authorizationToken': json.dumps({"token":os.environ.get("AWS_TOKEN"),"eval":"TRUE"}), } 
+        headers = { 'Content-Type':'application/json', 'authorizationToken': json.dumps({"token":os.environ.get("AWS_TOKEN"),"eval":"TEST"}), } 
         apiurl_eval=apiurl[:-1]+"eval"
         prediction = requests.post(apiurl_eval,headers=headers,data=json.dumps(post_dict)) 
 
@@ -517,11 +517,12 @@ def submit_model(
       filedownload_dict=ast.literal_eval(s3_presigned_dict ['put'][i])
       fileputlistofdicts.append(filedownload_dict)
 
-
     with open(preprocessor, 'rb') as f:
       files = {'file': (preprocessor, f)}
       http_response = requests.post(fileputlistofdicts[0]['url'], data=fileputlistofdicts[0]['fields'], files=files)
 
+
+    # ONNX model upload
     putfilekeys=list(s3_presigned_dict['put'].keys())
     modelputfiles = [s for s in putfilekeys if str("onnx") in s]
 
@@ -530,12 +531,12 @@ def submit_model(
       filedownload_dict=ast.literal_eval(s3_presigned_dict ['put'][i])
       fileputlistofdicts.append(filedownload_dict)
 
-
     with open(model_filepath, 'rb') as f:
       files = {'file': (model_filepath, f)}
       http_response = requests.post(fileputlistofdicts[1]['url'], data=fileputlistofdicts[1]['fields'], files=files)
 
 
+    # Reproducibility environment upload
     putfilekeys=list(s3_presigned_dict['put'].keys())
     modelputfiles = [s for s in putfilekeys if str("reproducibility") in s]
 
@@ -548,6 +549,33 @@ def submit_model(
         with open(reproducibility_env_filepath, 'rb') as f:
           files = {'file': (reproducibility_env_filepath, f)}
           http_response = requests.post(fileputlistofdicts[0]['url'], data=fileputlistofdicts[0]['fields'], files=files)
+
+
+    # Model metadata upload
+    putfilekeys=list(s3_presigned_dict['put'].keys())
+    modelputfiles = [s for s in putfilekeys if str("model_metadata") in s]
+
+    fileputlistofdicts=[]
+    for i in modelputfiles:
+      filedownload_dict=ast.literal_eval(s3_presigned_dict ['put'][i])
+      fileputlistofdicts.append(filedownload_dict)
+
+    onnx_model = onnx.load(model_filepath)
+    meta_dict = _get_metadata(onnx_model)
+    model_metadata = {
+        "model_config": meta_dict["model_config"],
+        "ml_framework": meta_dict["ml_framework"],
+        "model_type": meta_dict["model_type"]
+    }
+
+    temp = tempfile.mkdtemp()
+    model_metadata_path = temp + "/" + 'model_metadata.json'
+    with open(model_metadata_path, 'w') as outfile:
+        json.dump(model_metadata, outfile)
+
+    with open(model_metadata_path, 'rb') as f:
+        files = {'file': (model_metadata_path, f)}
+        http_response = requests.post(fileputlistofdicts[0]['url'], data=fileputlistofdicts[0]['fields'], files=files)
 
 
     # Upload model metrics and metadata {{{

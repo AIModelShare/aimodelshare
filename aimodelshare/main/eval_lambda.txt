@@ -11,6 +11,7 @@ import logging
 from botocore.exceptions import ClientError
 import requests
 import jwt
+import sys
 
 logger = logging.getLogger(__name__)
 
@@ -72,6 +73,48 @@ def handler(event, context):
             model_files, err = _get_file_list(s3_client, bucket, model_id)
             print(model_files)
 
+            mversions=[]
+            musers=[]
+            mtimestamp=[]
+            print(idempotentmodel_version)
+            for i in idempotentmodel_version:
+                idemresult=i.split("||||")
+                mversions.append(idemresult[0])
+                musers.append(idemresult[1])
+                mtimestamp.append(idemresult[1])
+            print(mversions)    
+            mversions=[int(i) for i in mversions]
+
+            
+            newleaderboarddata=[]
+            for i in model_files:
+                if i.find("mastertable_v")>0:
+                    newleaderboarddata.append(i)
+        
+            try:
+                leaderboard = get_leaderboard("$task_type")  #task_type variable used here
+                currentversions=leaderboard['version']
+            except:
+                currentversions=[]
+            print("current versions:")
+            print(list(currentversions))
+            allversions = [sub.split('_v')[1].split('.')[0] for sub in newleaderboarddata]
+            print("Named versions in csv files:")
+            allversions=[int(i) for i in allversions]
+            missingincurrent_leaderboard=list(set(allversions)-set(currentversions)) 
+
+            missingingmodelversions=list(set(mversions)-set(currentversions)) 
+
+            print("missing model versions for idemp check")
+            print(missingingmodelversions)
+
+            if len(missingingmodelversions)>1:
+                idempotentmodel_version=min(missingingmodelversions)
+            elif len(missingingmodelversions)==1:
+                idempotentmodel_version=missingingmodelversions[0]
+            else:
+                idempotentmodel_version=0
+            
 
             finalfiles=[]
             
@@ -81,11 +124,15 @@ def handler(event, context):
                 finalfiles.append("onnx_model_v1.onnx")
                 finalfiles.append("predictionmodel_1.onnx")
                 finalfiles.append("preprocessor_v1.zip")
+                finalfiles.append("reproducibility_v1.json")
+                finalfiles.append("model_metadata_v1.json")
             else:
                 finalfiles.append("model_eval_data_mastertable_v"+str(idempotentmodel_version)+".csv")
                 finalfiles.append("onnx_model_mostrecent.onnx")
                 finalfiles.append("onnx_model_v"+str(idempotentmodel_version)+".onnx")
-                finalfiles.append("preprocessor_v"+str(idempotentmodel_version)+".zip")  
+                finalfiles.append("preprocessor_v"+str(idempotentmodel_version)+".zip")
+                finalfiles.append("reproducibility_v"+str(idempotentmodel_version)+".json")
+                finalfiles.append("model_metadata_v"+str(idempotentmodel_version)+".json")
         
             finalfiles.append("inspect_pd.json")
 
@@ -203,6 +250,53 @@ def handler(event, context):
                 "body": json.dumps(leaderboard.to_dict())
                 }
             return leaderboard_dict  
+        
+        if body.get("instantiate_model","ALL") == "True":  
+            version = body["model_version"]
+            reproduce = body["reproduce"]
+            trained = body["trained"]
+
+            reproducibility_env_json = None
+            model_weight_url = None
+            model_metadata_json = get_model_metadata(version)
+            if reproduce:
+                reproducibility_env_json = get_reproducibility_env(version=version)
+            elif trained:
+                # Get the presigned url.
+                s3_client=boto3.client("s3")
+                
+                bucket = "$bucket_name"
+                model_id = "$unique_model_id"
+                onnx_model_name = "onnx_model_v{}.onnx".format(version)
+    
+                method_parameters = {
+                    "Bucket": bucket, 
+                    "Key": model_id + "/" + onnx_model_name,
+                }
+
+                expires_in = 900 # 15 mins
+
+                presigned_url = generate_presigned_url(s3_client, "get_object", method_parameters, expires_in)
+                model_weight_url = str(presigned_url)
+                print("Presigned url: {}".format(str(presigned_url)))
+                
+            data = {
+                "model_weight_url": model_weight_url,
+                "model_metadata": model_metadata_json,
+                "reproducibility_env": reproducibility_env_json
+            }
+            model_dict = {
+                "statusCode": 200,
+                "headers": {
+                    "Access-Control-Allow-Origin" : "*",
+                    "Access-Control-Allow-Credentials": True,
+                    "Allow" : "GET, OPTIONS, POST",
+                    "Access-Control-Allow-Methods" : "GET, OPTIONS, POST",
+                    "Access-Control-Allow-Headers" : "*"
+                },
+                "body":  json.dumps(data)
+            }
+            return model_dict 
             
         if body.get("leaderboard","ALL") == "TRUE":  
 
@@ -287,7 +381,7 @@ import ast
 import six
 import gc
 import importlib
-
+import botocore
 
 #from s3connect import get_onnx_mem
 
@@ -685,9 +779,9 @@ def get_leaderboard(task_type="$task_type", verbose=3, columns=None):
     #TODO: check if items in leaderboard, if so, then do following
     if len(missingincurrent_leaderboard)>0:
         for i in missingincurrent_leaderboard:
-            with open("/tmp/"+"model_eval_data_mastertable_v"+i+".csv", "wb") as lbfo:
-              bucketres.download_fileobj("$unique_model_id/"+"model_eval_data_mastertable_v"+i+".csv", lbfo)
-            newleaderboard = pd.read_csv("/tmp/"+"model_eval_data_mastertable_v"+i+".csv", sep="\t")
+            with open("/tmp/"+"model_eval_data_mastertable_v"+str(i)+".csv", "wb") as lbfo:
+              bucketres.download_fileobj("$unique_model_id/"+"model_eval_data_mastertable_v"+str(i)+".csv", lbfo)
+            newleaderboard = pd.read_csv("/tmp/"+"model_eval_data_mastertable_v"+str(i)+".csv", sep="\t")
             newleaderboard.drop(newleaderboard.filter(regex="Unname"),axis=1, inplace=True)
             
             leaderboard=leaderboard.append(newleaderboard).drop_duplicates()
@@ -712,7 +806,7 @@ def get_leaderboard(task_type="$task_type", verbose=3, columns=None):
     other = ['timestamp']
 
     if columns:
-    	leaderboard = leaderboard.filter(clf+reg+columns+other)
+        leaderboard = leaderboard.filter(clf+reg+columns+other)
 
 
     if task_type == "classification":
@@ -725,9 +819,9 @@ def get_leaderboard(task_type="$task_type", verbose=3, columns=None):
     leaderboard = pd.concat([leaderboard_eval_metrics, leaderboard_model_meta], axis=1, ignore_index=False)
 
     if verbose == 1:
-    	leaderboard = leaderboard.filter(regex=("^(?!.*(_layers|_act))"))
+        leaderboard = leaderboard.filter(regex=("^(?!.*(_layers|_act))"))
     elif verbose == 2:
-    	leaderboard = leaderboard.filter(regex=("^(?!.*_act)"))
+        leaderboard = leaderboard.filter(regex=("^(?!.*_act)"))
 
 
     if task_type == "classification":
@@ -798,14 +892,40 @@ def get_onnx_temp(version):
       bucket.download_fileobj("$unique_model_id/"+onnx_model_name, onnxfo)
     onnx_model = onnx.load("/tmp/"+onnx_model_name)
     return onnx_model
-    
-    
-def get_onnx_mem(version):
+
+def get_onnx_string(version):
   
     onnx_model_name = "onnx_model_v{version}.onnx".format(version = version)
     s3 = boto3.resource('s3')
     obj = s3.Object("$bucket_name", "$unique_model_id/"+onnx_model_name)
     onnx_string = obj.get()['Body'].read()
+    
+    return onnx_string
+
+def get_model_metadata(version):
+    s3 = boto3.resource("s3")
+    bucket = s3.Bucket("$bucket_name")
+
+    try:
+        if version == None:
+            with open("/tmp/metadata.json", "wb") as temp_path:
+                bucket.download_fileobj("$unique_model_id/runtime_metadata.json",  temp_path)
+        else:
+            with open("/tmp/metadata.json", "wb") as temp_path:
+                bucket.download_fileobj("$unique_model_id/model_metadata_v{}.json".format(version),  temp_path)
+        
+        model_metadata_json = json.load(open("/tmp/metadata.json","rb"))
+    except botocore.exceptions.ClientError as e:
+        if e.response['Error']['Code'] == "404":
+            print("The object does not exist.")
+            return None
+        else:
+            raise
+    return model_metadata_json
+    
+def get_onnx_mem(version):
+  
+    onnx_string = get_onnx_string(version)
     onnx_model = onnx.load_from_string(onnx_string)
 
     return onnx_model
@@ -925,3 +1045,24 @@ def get_authorizedcompetitionuserdata(example_data_filename = "competitionuserda
         bucket.download_fileobj("$unique_model_id/competitionuserdata.json",  exampledatapath)
     competitionuserdatajson = json.load(open("/tmp/competitionuserdata.json","rb") ) 
     return competitionuserdatajson
+
+def get_reproducibility_env(version=None):
+    s3 = boto3.resource("s3")
+    bucket = s3.Bucket("$bucket_name")
+
+    try:
+        if version == None:
+            with open("/tmp/reproducibility.json", "wb") as temp_path:
+                bucket.download_fileobj("$unique_model_id/runtime_reproducibility.json",  temp_path)
+        else:
+            with open("/tmp/reproducibility.json", "wb") as temp_path:
+                bucket.download_fileobj("$unique_model_id/reproducibility_v{}.json".format(version),  temp_path)
+        
+        reproducibility_env_json = json.load(open("/tmp/reproducibility.json","rb"))
+    except botocore.exceptions.ClientError as e:
+        if e.response['Error']['Code'] == "404":
+            print("The object does not exist.")
+            return None
+        else:
+            raise
+    return reproducibility_env_json

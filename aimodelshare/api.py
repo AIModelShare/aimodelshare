@@ -12,6 +12,7 @@ import requests
 import sys
 from zipfile import ZipFile, ZIP_STORED, ZipInfo
 import shutil
+import shortuuid
 from aimodelshare.containerization import create_lambda_using_base_image
 from aimodelshare.containerisation import deploy_container
 
@@ -329,10 +330,10 @@ def create_prediction_api(model_filepath, unique_model_id, model_type, categoric
 
     roles = user_session.client('iam').list_roles()
     
-    lambdarolename = 'myService-dev-us-east-1-lambdaRole'+str(random.randint(1, 1000000))
-    lambdafxnname = 'modfunction'+str(random.randint(1, 1000000))
-    lambdaauthfxnname = 'redisAccess'+str(random.randint(1, 1000000))
-    lambdaevalfxnname = 'evalfunction'+str(random.randint(1, 1000000))
+    lambdarolename = 'myService-dev-us-east-1-lambdaRole'+str(shortuuid.uuid())
+    lambdafxnname = 'modfunction'+str(shortuuid.uuid())
+    lambdaauthfxnname = 'redisAccess'+str(shortuuid.uuid())
+    lambdaevalfxnname = 'evalfunction'+str(shortuuid.uuid())
 
     response6 = user_session.resource('iam').create_role(
             AssumeRolePolicyDocument=json.dumps(lambdarole1),
@@ -345,7 +346,7 @@ def create_prediction_api(model_filepath, unique_model_id, model_type, categoric
             lambdafxnname +
             ':*:*"],"Effect": "Allow"},{"Action": ["s3:GetObject"],"Resource": ["arn:aws:s3:::' +
             os.environ.get("BUCKET_NAME")+'/*"],"Effect": "Allow"}]}',
-            PolicyName='S3AccessandcloudwatchlogPolicy'+str(random.randint(1, 1000000)),
+            PolicyName='S3AccessandcloudwatchlogPolicy'+str(shortuuid.uuid()),
             RoleName=lambdarolename,
         )
 
@@ -355,7 +356,7 @@ def create_prediction_api(model_filepath, unique_model_id, model_type, categoric
             lambdaauthfxnname +
             ':*:*"],"Effect": "Allow"},{"Action": ["s3:GetObject"],"Resource": ["arn:aws:s3:::' +
             os.environ.get("BUCKET_NAME")+'/*"],"Effect": "Allow"}]}',
-            PolicyName='S3AccessandcloudwatchlogPolicy'+str(random.randint(1, 1000000)),
+            PolicyName='S3AccessandcloudwatchlogPolicy'+str(shortuuid.uuid()),
             RoleName=lambdarolename,
         )
 
@@ -367,7 +368,7 @@ def create_prediction_api(model_filepath, unique_model_id, model_type, categoric
             os.environ.get("BUCKET_NAME")+'"],"Effect": "Allow"},{"Action": ["s3:GetObject"],"Resource": ["arn:aws:s3:::' +
             os.environ.get("BUCKET_NAME")+'/*"],"Effect": "Allow"},{"Action": ["s3:PutObject"],"Resource": ["arn:aws:s3:::' +
             os.environ.get("BUCKET_NAME")+'/*"],"Effect": "Allow"}]}',
-            PolicyName='S3AccessandcloudwatchlogPolicy'+str(random.randint(1, 1000000)),
+            PolicyName='S3AccessandcloudwatchlogPolicy'+str(shortuuid.uuid()),
             RoleName=lambdarolename,
         )
 
@@ -436,7 +437,7 @@ def create_prediction_api(model_filepath, unique_model_id, model_type, categoric
 
     #add create api about here
     #TODO: 
-    api_name = 'modapi'+str(random.randint(1, 1000000))	
+    api_name = 'modapi'+str(shortuuid.uuid())	
 
     # Update note:  change apiname in apijson from modapi890799 to randomly generated apiname?  or aimodelshare generic name?
 
@@ -473,7 +474,7 @@ def create_prediction_api(model_filepath, unique_model_id, model_type, categoric
 
     fxn_list = lambdaclient.list_functions()
 
-    stmt_id = 'apigateway-prod-'+str(random.randint(1, 1000000))
+    stmt_id = 'apigateway-prod-'+str(shortuuid.uuid())
     # upload authfxn code first
 
     response7_1 = lambdaclient.add_permission(
@@ -674,7 +675,7 @@ def create_prediction_api(model_filepath, unique_model_id, model_type, categoric
 
     authorizerid=responseauthfxnapigateway['items'][0]['id']
 
-    stmt_idauth = 'apigateway-prod-'+str(random.randint(1, 1000000))
+    stmt_idauth = 'apigateway-prod-'+str(shortuuid.uuid())
     response70 = user_session.client('lambda').add_permission(
         FunctionName=lambdaauthfxnname,
         StatementId=stmt_idauth,
