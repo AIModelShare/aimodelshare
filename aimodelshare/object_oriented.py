@@ -277,7 +277,7 @@ class Competition:
         model = instantiate_model(apiurl=self.playground_url, trained=trained, version=version, reproduce=reproduce)
         return model
 
-    def inspect_model(self, version=None):
+    def inspect_model(self, version=None, naming_convention=None):
         """
         Examine structure of model submitted to a competition leaderboard
 
@@ -291,10 +291,10 @@ class Competition:
         inspect_pd : dictionary of model summary & metadata
         """
         from aimodelshare.aimsonnx import inspect_model
-        inspect_pd = inspect_model(apiurl=self.playground_url, version=version)
+        inspect_pd = inspect_model(apiurl=self.playground_url, version=version, naming_convention=naming_convention)
         return inspect_pd
 
-    def compare_models(self, version_list="None", by_model_type=None, best_model=None, verbose=3):
+    def compare_models(self, version_list="None", by_model_type=None, best_model=None, verbose=1, naming_convention=None):
         """
         Compare the structure of two or more models submitted to a competition leaderboard.
         Use in conjuction with stylize_compare to visualize data. 
@@ -315,10 +315,11 @@ class Competition:
                       version_list = version_list, 
                       by_model_type = by_model_type,
                       best_model = best_model, 
-                      verbose = verbose)
+                      verbose = verbose,
+                      naming_convention=naming_convention)
         return data
 
-    def stylize_compare(self, compare_dict):
+    def stylize_compare(self, compare_dict, naming_convention=None):
         """
         Stylizes data received from compare_models to highlight similarities & differences.
 
@@ -331,7 +332,7 @@ class Competition:
         formatted table of model comparisons 
         """
         from aimodelshare.aimsonnx import stylize_model_comparison
-        stylized_compare = stylize_model_comparison(comp_dict_out=compare_dict)
+        stylized_compare = stylize_model_comparison(comp_dict_out=compare_dict, naming_convention=naming_convention)
         return(stylized_compare)
 
     def inspect_y_test(self):
@@ -373,7 +374,7 @@ class Competition:
                  apiurl = self.playground_url)
         return data
     
-    def stylize_leaderboard(self, leaderboard):
+    def stylize_leaderboard(self, leaderboard, naming_convention="keras"):
         """
         Stylizes data received from get_leaderbord.
 
@@ -386,7 +387,7 @@ class Competition:
         Formatted competition leaderboard
         """
         from aimodelshare.leaderboard import stylize_leaderboard as stylize_lead
-        stylized_leaderboard = stylize_lead(leaderboard = leaderboard)
+        stylized_leaderboard = stylize_lead(leaderboard = leaderboard, naming_convention=naming_convention)
         return stylized_leaderboard
     
     def update_access_list(self, email_list=[],update_type="Replace_list"):

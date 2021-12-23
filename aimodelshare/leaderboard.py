@@ -5,7 +5,7 @@ import os
 import requests
 
 from aimodelshare.aws import run_function_on_lambda, get_aws_client
-from aimodelshare.aimsonnx import _get_layer_names
+from aimodelshare.aimsonnx import _get_layer_names, layer_mapping
 
 
 def get_leaderboard_aws(apiurl, verbose=3, columns=None):
@@ -56,7 +56,6 @@ def get_leaderboard_aws(apiurl, verbose=3, columns=None):
             task_type = 'classification'
         else:
             task_type = 'regression'
-
 
         if task_type == 'classification':
             leaderboard_eval_metrics = leaderboard[clf]
@@ -157,7 +156,10 @@ def get_leaderboard(apiurl, verbose=3, columns=None):
 
 
 
-def stylize_leaderboard(leaderboard):
+def stylize_leaderboard(leaderboard, naming_convention="keras"):
+
+    leaderboard = consolidate_leaderboard(leaderboard, naming_convention=naming_convention)
+
     # Dropping some columns {{{
     drop_cols = ["timestamp"]
     leaderboard = leaderboard.drop(drop_cols, axis=1)
@@ -208,6 +210,66 @@ def stylize_leaderboard(leaderboard):
     # }}}
 
     return board
+
+
+def consolidate_leaderboard(data, naming_convention="keras"):
+
+  for i in data: 
+
+    i = i.replace('_layers', '')
+    i = i.replace('_act', '')
+
+    if 'maxpooling2d_layers' in data.columns and 'maxpool2d_layers' in data.columns:
+      matched_cols = ['maxpooling2d_layers', 'maxpool2d_layers']
+      sum_cols = data[matched_cols].sum(axis=1)
+      data[matched_cols[1]] = sum_cols
+      data = data.drop(matched_cols[0], axis=1)
+
+    if naming_convention == 'keras':
+      mapping = layer_mapping('torch_to_keras')
+      mapping_inverse = layer_mapping('keras_to_torch')
+    elif naming_convention == 'pytorch':
+      mapping = layer_mapping('keras_to_torch')
+      mapping_inverse = layer_mapping('torch_to_keras')
+
+    mapping_lower = {i.lower(): mapping[i].lower() for i in mapping if i is not None and mapping[i] is not None}
+    mapping_inverse_lower = {i.lower(): mapping_inverse[i].lower() for i in mapping_inverse if i is not None and mapping_inverse[i] is not None}
+
+    try:
+
+      if i in mapping_lower.keys():
+
+        if not i == mapping_lower.get(i):
+          
+          matched_cols = [i+"_layers", mapping_lower.get(i)+"_layers"]
+
+          sum_cols = data[matched_cols].sum(axis=1)
+
+          data[matched_cols[1]] = sum_cols
+
+          data = data.drop(matched_cols[0], axis=1)
+
+    except:
+      pass
+
+    try:
+      if i in mapping_inverse_lower.keys() and naming_convention == 'keras':
+
+        if not i == mapping_inverse_lower.get(i):
+          
+          matched_cols = [i+"_layers", mapping_inverse_lower.get(i)+"_layers"]
+
+          sum_cols = data[matched_cols].sum(axis=1)
+
+          data[matched_cols[0]] = sum_cols
+
+          data = data.drop(matched_cols[1], axis=1)
+
+    except:
+      pass
+    
+  return data
+
 
 
 __all__ = [
