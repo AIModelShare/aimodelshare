@@ -185,7 +185,7 @@ def _update_leaderboard(
     # }}}
 
 def _update_leaderboard_public(
-    modelpath, eval_metrics,s3_presigned_dict):
+    modelpath, eval_metrics, s3_presigned_dict):
     # Loading the model and its metadata {{{
     if not os.path.exists(modelpath):
         raise FileNotFoundError(f"The model file at {modelpath} does not exist")
@@ -269,7 +269,7 @@ def upload_model_dict(modelpath, s3_presigned_dict, bucket, model_id, model_vers
     onnx_model = onnx.load(modelpath)
     meta_dict = _get_metadata(onnx_model)
 
-    if meta_dict['ml_framework'] == 'keras':
+    if meta_dict['ml_framework'] in ['keras', 'pytorch']:
 
         inspect_pd = _model_summary(meta_dict)
         
@@ -280,8 +280,6 @@ def upload_model_dict(modelpath, s3_presigned_dict, bucket, model_id, model_vers
 
         stringconfig=model_config
 
-
-
         problemnodes=[]
         for node in ast.walk(tree):
             if isinstance(node, ast.Call):
@@ -290,9 +288,6 @@ def upload_model_dict(modelpath, s3_presigned_dict, bucket, model_id, model_vers
         problemnodesunique=set(problemnodes)
         for i in problemnodesunique:
             stringconfig=stringconfig.replace(i,"'"+i+"'")
-
-
-        
 
         try:
             model_config=ast.literal_eval(stringconfig)
@@ -315,35 +310,71 @@ def upload_model_dict(modelpath, s3_presigned_dict, bucket, model_id, model_vers
    
     try:
         #Get inspect json
-        inspectdatafilename = wget.download(s3_presigned_dict['get']['inspect_pd.json'], out=temp+"/"+'inspect_pd.json')
+        inspectdatafilename = wget.download(s3_presigned_dict['get']['inspect_pd_'+str(model_version)+'.json'], out=temp+"/"+'inspect_pd_'+str(model_version)+'.json')
         
-        with open(temp+"/"+'inspect_pd.json') as f:
+        with open(temp+"/"+'inspect_pd_'+str(model_version)+'.json') as f:
             model_dict  = json.load(f)
     except: 
-      model_dict = {}
+        model_dict = {}
 
     model_dict[str(model_version)] = {'ml_framework': meta_dict['ml_framework'],
                                       'model_type': meta_dict['model_type'],
                                       'model_dict': inspect_pd.to_dict()}
 
-    with open(temp+"/"+'inspect_pd.json', 'w') as outfile:
+    with open(temp+"/"+'inspect_pd_'+str(model_version)+'.json', 'w') as outfile:
         json.dump(model_dict, outfile)
 
     try:
 
       putfilekeys=list(s3_presigned_dict['put'].keys())
-      modelputfiles = [s for s in putfilekeys if str("inspect_pd.json") in s]
+      modelputfiles = [s for s in putfilekeys if str('inspect_pd_'+str(model_version)+'.json') in s]
 
       fileputlistofdicts=[]
       for i in modelputfiles:
         filedownload_dict=ast.literal_eval(s3_presigned_dict ['put'][i])
         fileputlistofdicts.append(filedownload_dict)
 
-      with open(temp+"/"+'inspect_pd.json', 'rb') as f:
-        files = {'file': (temp+"/"+'inspect_pd.json', f)}
+      with open(temp+"/"+'inspect_pd_'+str(model_version)+'.json', 'rb') as f:
+        files = {'file': (temp+"/"+'inspect_pd_'+str(model_version)+'.json', f)}
         http_response = requests.post(fileputlistofdicts[0]['url'], data=fileputlistofdicts[0]['fields'], files=files)
     except:
       pass
+    return 1
+
+
+def upload_model_graph(modelpath, aws_client, bucket, model_id, model_version):
+
+    # get model summary from onnx
+    onnx_model = onnx.load(modelpath)
+    meta_dict = _get_metadata(onnx_model)
+
+    if meta_dict['ml_framework'] == 'keras':
+
+        model_graph = meta_dict['model_graph']
+
+    if meta_dict['ml_framework'] == 'pytorch':
+
+        model_graph = ''
+
+    elif meta_dict['ml_framework'] in ['sklearn', 'xgboost']:
+
+        model_graph = ''
+
+    key = model_id+'/model_graph_'+str(model_version)+'.json'
+    
+    try:
+      resp = aws_client['client'].get_object(Bucket=bucket, Key=key)
+      data = resp.get('Body').read()
+      graph_dict = json.loads(data)
+    except: 
+      graph_dict = {}
+
+    graph_dict[str(model_version)] = {'ml_framework': meta_dict['ml_framework'],
+                                      'model_type': meta_dict['model_type'],
+                                      'model_graph': model_graph}
+
+    aws_client['client'].put_object(Bucket=bucket, Key=key, Body=json.dumps(graph_dict).encode())
+
     return 1
 
 
@@ -437,7 +468,7 @@ def submit_model(
                 "return_eval": "True",
                 "return_y": "False"}
 
-        headers = { 'Content-Type':'application/json', 'authorizationToken': json.dumps({"token":os.environ.get("AWS_TOKEN"),"eval":"TRUE"}), } 
+        headers = { 'Content-Type':'application/json', 'authorizationToken': json.dumps({"token":os.environ.get("AWS_TOKEN"),"eval":"TEST"}), } 
         apiurl_eval=apiurl[:-1]+"eval"
         prediction = requests.post(apiurl_eval,headers=headers,data=json.dumps(post_dict)) 
 
@@ -523,6 +554,14 @@ def submit_model(
 
     upload_model_dict(model_filepath, s3_presigned_dict, bucket, model_id, model_version)
 
+
+    # needs to be changed to s3_presigned_dict approach
+    aws_client=get_aws_client(aws_key=os.environ.get('AWS_ACCESS_KEY_ID'),
+                              aws_secret=os.environ.get('AWS_SECRET_ACCESS_KEY'), 
+                              aws_region=os.environ.get('AWS_REGION'))
+
+    upload_model_graph(model_filepath, aws_client, bucket, model_id, model_version)
+
     modelpath=model_filepath
 
     def dict_clean(items):
@@ -584,6 +623,12 @@ def submit_model(
     if meta_dict['ml_framework'] == 'keras':
 
         inspect_pd = _model_summary(meta_dict)
+        model_graph = meta_dict['model_graph']
+
+    if meta_dict['ml_framework'] == 'pytorch':
+
+        inspect_pd = _model_summary(meta_dict)
+        model_graph = ""
         
     elif meta_dict['ml_framework'] in ['sklearn', 'xgboost']:
         import ast
@@ -626,6 +671,9 @@ def submit_model(
                                     'default_value': default_config,
                                     'param_value': model_configvalues})
 
+        model_graph = ''
+        
+
     keys_to_extract = [ "accuracy", "f1_score", "precision", "recall", "mse", "rmse", "mae", "r2"]
 
     eval_metrics_subset = {key: eval_metrics[key] for key in keys_to_extract}
@@ -637,6 +685,7 @@ def submit_model(
     bodydatamodels = {
                 "apiurl": apiurl,
                 "modelsummary":json.dumps(inspect_pd.to_json()),
+                "model_graph": model_graph,
                 "Private":"FALSE",
                 "modelsubmissiondescription": modelsubmissiondescription,
                 "modelsubmissiontags":modelsubmissiontags,
