@@ -28,7 +28,7 @@ from aimodelshare.containerization import clone_base_image
 from aimodelshare.aimsonnx import _get_metadata
 
 
-def take_user_info_and_generate_api(model_filepath, model_type, categorical,labels, preprocessor_filepath, region, custom_libraries, requirements, exampledata_json_filepath, repo_name, image_tag, reproducibility_env_filepath):
+def take_user_info_and_generate_api(model_filepath, model_type, categorical,labels, preprocessor_filepath,custom_libraries, requirements, exampledata_json_filepath, repo_name, image_tag, reproducibility_env_filepath):
     """
     Generates an api using model parameters and user credentials, from the user
 
@@ -172,7 +172,7 @@ def take_user_info_and_generate_api(model_filepath, model_type, categorical,labe
     # }}}
     
     apiurl = create_prediction_api(model_filepath, unique_model_id,
-                                   model_type, categorical, labels,api_id, region, custom_libraries, requirements, repo_name, image_tag)
+                                   model_type, categorical, labels,api_id,custom_libraries, requirements, repo_name, image_tag)
 
     finalresult = [apiurl["body"], apiurl["statusCode"],
                    now, unique_model_id, os.environ.get("BUCKET_NAME"), input_shape]
@@ -319,7 +319,7 @@ def send_model_data_to_dyndb_and_return_api(api_info, private, categorical, prep
     return print("\n\n" + finalresult2 + "\n" + final_message + web_dashboard_url)
 
 
-def model_to_api(model_filepath, model_type, private, categorical, y_train, preprocessor_filepath, region, custom_libraries="FALSE", example_data=None, image="aimodelshare_base_image:v3", base_image_api_endpoint="https://vupwujn586.execute-api.us-east-1.amazonaws.com/dev/copybasetouseracct", update=False, reproducibility_env_filepath=None):
+def model_to_api(model_filepath, model_type, private, categorical, y_train, preprocessor_filepath, custom_libraries="FALSE", example_data=None, image="aimodelshare_base_image:v3", base_image_api_endpoint="https://vupwujn586.execute-api.us-east-1.amazonaws.com/dev/copybasetouseracct", update=False, reproducibility_env_filepath=None):
     """
       Launches a live prediction REST API for deploying ML models using model parameters and user credentials, provided by the user
       Inputs : 8
@@ -379,12 +379,9 @@ def model_to_api(model_filepath, model_type, private, categorical, y_train, prep
     #  2. send_model_data_to_dyndb_and_return_api : to add new record to database with user data, model and api related information
 
     # Get user inputs, pass to other functions  {{{
-    if(region == None):
-        region = os.environ.get("AWS_REGION")
-
     user_session = boto3.session.Session(aws_access_key_id=os.environ.get("AWS_ACCESS_KEY_ID"),
                                          aws_secret_access_key = os.environ.get("AWS_SECRET_ACCESS_KEY"), 
-                                         region_name=region)
+                                         region_name=os.environ.get("AWS_REGION"))
 
     if(image!=""):
         repo_name, image_tag = image.split(':')
@@ -454,7 +451,7 @@ def model_to_api(model_filepath, model_type, private, categorical, y_train, prep
     # }}}
     
     api_info = take_user_info_and_generate_api( 
-        model_filepath, model_type, categorical, labels,preprocessor_filepath,region, custom_libraries, requirements, exampledata_json_filepath, repo_name, image_tag, reproducibility_env_filepath)
+        model_filepath, model_type, categorical, labels,preprocessor_filepath,custom_libraries, requirements, exampledata_json_filepath, repo_name, image_tag, reproducibility_env_filepath)
 
     ### Progress Update #5/6 {{{
     sys.stdout.write('\r')
