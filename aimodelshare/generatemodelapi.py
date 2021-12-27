@@ -572,7 +572,8 @@ def create_competition(apiurl, data_directory, y_test,  email_list=[], public=Fa
                 "Private": "FALSE",
                 "delete": "FALSE",
                 'datadescription':aishare_datadescription,
-                'dataecruri':datauri['ecr_uri']}
+                'dataecruri':datauri['ecr_uri'],
+                 'datalicense': aishare_datalicense}
     
     # Get the response
     headers_with_authentication = {'Content-Type': 'application/json', 'authorizationToken': os.environ.get("JWT_AUTHORIZATION_TOKEN"), 'Access-Control-Allow-Headers':
