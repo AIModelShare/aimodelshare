@@ -16,7 +16,7 @@ import shortuuid
 from aimodelshare.containerization import create_lambda_using_base_image
 from aimodelshare.containerisation import deploy_container
 
-def create_prediction_api(model_filepath, unique_model_id, model_type, categorical, labels, apiid, custom_libraries, requirements, repo_name="", image_tag=""):
+def create_prediction_api(model_filepath, unique_model_id, model_type, categorical, labels, apiid, region, custom_libraries, requirements, repo_name="", image_tag=""):
 
     from zipfile import ZipFile
     import zipfile
@@ -55,9 +55,12 @@ def create_prediction_api(model_filepath, unique_model_id, model_type, categoric
     # Wait for 5 seconds to ensure aws iam user on user account has time to load into aws's system
     #time.sleep(5)
 
+    if(region == None):
+        region = os.environ.get("AWS_REGION")
+
     user_session = boto3.session.Session(aws_access_key_id=os.environ.get("AWS_ACCESS_KEY_ID"),
                                           aws_secret_access_key = os.environ.get("AWS_SECRET_ACCESS_KEY"), 
-                                          region_name=os.environ.get("AWS_REGION"))
+                                          region_name=region)
     if(model_type=="neural style transfer"):
             model_layer ="arn:aws:lambda:us-east-1:517169013426:layer:keras_image:1"
             eval_layer ="arn:aws:lambda:us-east-1:517169013426:layer:eval_layer_test:6"
