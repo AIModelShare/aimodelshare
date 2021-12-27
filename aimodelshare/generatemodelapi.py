@@ -540,12 +540,19 @@ def create_competition(apiurl, data_directory, y_test,  email_list=[], public=Fa
 
     #create and upload json file with list of authorized users who can submit to this competition.
     _create_competitionuserauth_json(apiurl, email_list,public)
+    print("\n--INPUT COMPETITION DETAILS--\n")
 
     aishare_competitionname = input("Enter competition name:")
     aishare_competitiondescription = input("Enter competition description:")
+
+    print("\n--INPUT DATA DETAILS--\n")
+    print("Note: (optional) Save an optional LICENSE.txt file in your competition data directory to make users aware of any restrictions on data sharing/usage.\n")
+
     aishare_datadescription = input(
         "Enter data description (i.e.- filenames denoting training and test data, file types, and any subfolders where files are stored):")
     
+    aishare_datalicense = input(
+        "Enter optional data license descriptive name (e.g.- 'MIT, Apache 2.0, CC0, Other, etc.'):")    
     user_session = boto3.session.Session(aws_access_key_id=os.environ.get("AWS_ACCESS_KEY_ID"),
                                           aws_secret_access_key = os.environ.get("AWS_SECRET_ACCESS_KEY"), 
                                          region_name=os.environ.get("AWS_REGION"))
