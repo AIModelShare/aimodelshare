@@ -28,7 +28,7 @@ from aimodelshare.containerization import clone_base_image
 from aimodelshare.aimsonnx import _get_metadata
 
 
-def take_user_info_and_generate_api(model_filepath, model_type, categorical,labels, preprocessor_filepath, custom_libraries, requirements, exampledata_json_filepath, repo_name, image_tag, reproducibility_env_filepath):
+def take_user_info_and_generate_api(model_filepath, model_type, categorical,labels, preprocessor_filepath, region, custom_libraries, requirements, exampledata_json_filepath, repo_name, image_tag, reproducibility_env_filepath):
     """
     Generates an api using model parameters and user credentials, from the user
 
@@ -454,7 +454,7 @@ def model_to_api(model_filepath, model_type, private, categorical, y_train, prep
     # }}}
     
     api_info = take_user_info_and_generate_api( 
-        model_filepath, model_type, categorical, labels,preprocessor_filepath,custom_libraries, requirements, exampledata_json_filepath, repo_name, image_tag, reproducibility_env_filepath)
+        model_filepath, model_type, categorical, labels,preprocessor_filepath,region, custom_libraries, requirements, exampledata_json_filepath, repo_name, image_tag, reproducibility_env_filepath)
 
     ### Progress Update #5/6 {{{
     sys.stdout.write('\r')
