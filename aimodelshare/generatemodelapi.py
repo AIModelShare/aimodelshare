@@ -545,7 +545,8 @@ def create_competition(apiurl, data_directory, y_test,  email_list=[], public=Fa
     aishare_competitiondescription = input("Enter competition description:")
     aishare_datadescription = input(
         "Enter data description (i.e.- filenames denoting training and test data, file types, and any subfolders where files are stored):")
-    
+    aishare_datalicense = input(
+        "Enter data license description (e.g.- 'MIT, Apache 2.0, CC0, etc.'):/nWe also suggest that you include a LICENSE.txt file in your data directory, so that users are aware of any restrictions on sharing or using this data.")
     user_session = boto3.session.Session(aws_access_key_id=os.environ.get("AWS_ACCESS_KEY_ID"),
                                           aws_secret_access_key = os.environ.get("AWS_SECRET_ACCESS_KEY"), 
                                          region_name=os.environ.get("AWS_REGION"))
