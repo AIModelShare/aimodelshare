@@ -1023,8 +1023,43 @@ def delete_deployment(apiurl):
     # competitiondata lambda function invoked through below url to update model submissions and contributors
     requests.post("https://o35jwfakca.execute-api.us-east-1.amazonaws.com/dev/modeldata",
                   json=bodydata, headers=headers_with_authentication)
+    
+    # Delete container image
+    import json  
+    content_object = s3.Object(bucket_name=api_bucket, key=model_id + "/competitionuserdata.json")
+    file_content = content_object.get()['Body'].read().decode('utf-8')
+    json_content = json.loads(file_content)
+    ecr_uri=json_content['datauri']      
+    
+    ecr_client = usersession.client('ecr-public')
 
-    return "API deleted successfully."
+    repository_image = ecr_uri.split('/')[2]
+
+    repository = repository_image.split(':')[0]
+    image = repository_image.split(':')[1]
+
+    response = ecr_client.batch_delete_image(
+        repositoryName=repository,
+        imageIds=[
+            {
+                'imageTag': image
+            }
+        ]
+    )
+
+    image_details = ecr_client.describe_images(
+        repositoryName=repository
+    )
+
+    print("The dataset accessible at '" + ecr_uri + "' has been deleted successfully.")
+
+    if len(image_details['imageDetails']==0):
+        response = ecr_client.delete_repository(
+            repositoryName=repository
+        )
+
+
+    return "Deployment deleted successfully."
 
 
 __all__ = [
