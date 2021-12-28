@@ -904,7 +904,8 @@ def delete_deployment(apiurl):
     WARNING: User must supply high-level credentials in order to delete an API. 
     """
     from aimodelshare.aws import run_function_on_lambda
-    
+    import json  
+
     # Provide Warning & Have user confirm deletion 
     print("Running this function will permanently delete all resources tied to this deployment, \n including the eval lambda and all models submitted to the model competition.\n")
     confirmation = input(prompt="To confirm, type 'permanently delete':")
@@ -1025,7 +1026,6 @@ def delete_deployment(apiurl):
                   json=bodydata, headers=headers_with_authentication)
     
     # Delete container image
-    import json  
     content_object = s3.Object(bucket_name=api_bucket, key=model_id + "/competitionuserdata.json")
     file_content = content_object.get()['Body'].read().decode('utf-8')
     json_content = json.loads(file_content)
