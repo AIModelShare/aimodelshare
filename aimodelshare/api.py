@@ -953,9 +953,6 @@ def delete_deployment(apiurl):
         print("Permission denied. Please provide credentials that allow administrator access to this api.")
         return
 
-    # delete s3 folder
-    bucket = s3.Bucket(api_bucket)
-    bucket.objects.filter(Prefix= model_id+'/').delete() 
 
     # get api resources
     api = user_sess.client('apigateway')
