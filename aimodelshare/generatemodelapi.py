@@ -713,7 +713,7 @@ def update_access_list(apiurl, email_list=[],update_type="Add"):
       elif update_type=="Add":
           import json  
           import tempfile
-          
+          tempdir = tempfile.TemporaryDirectory()
           content_object = aws_client['resource'].Object(bucket_name=api_bucket, key=model_id + "/competitionuserdata.json")
           file_content = content_object.get()['Body'].read().decode('utf-8')
           json_content = json.loads(file_content)
@@ -734,7 +734,8 @@ def update_access_list(apiurl, email_list=[],update_type="Add"):
       elif update_type=="Remove":
           import json  
           import tempfile
-          
+          tempdir = tempfile.TemporaryDirectory()
+    
           aws_client['resource']
           content_object = aws_client['resource'].Object(bucket_name=api_bucket, key=model_id + "/competitionuserdata.json")
           file_content = content_object.get()['Body'].read().decode('utf-8')
@@ -755,7 +756,8 @@ def update_access_list(apiurl, email_list=[],update_type="Add"):
       elif update_type=="Get":
           import json  
           import tempfile
-          
+          tempdir = tempfile.TemporaryDirectory()
+
           aws_client['resource']
           content_object = aws_client['resource'].Object(bucket_name=api_bucket, key=model_id + "/competitionuserdata.json")
           file_content = content_object.get()['Body'].read().decode('utf-8')
