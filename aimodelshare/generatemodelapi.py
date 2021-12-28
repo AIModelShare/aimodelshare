@@ -538,8 +538,6 @@ def create_competition(apiurl, data_directory, y_test,  email_list=[], public=Fa
     api_url_trim = apiurl.split('https://')[1]
     api_id = api_url_trim.split(".")[0]
 
-    #create and upload json file with list of authorized users who can submit to this competition.
-    _create_competitionuserauth_json(apiurl, email_list,public)
     print("\n--INPUT COMPETITION DETAILS--\n")
 
     aishare_competitionname = input("Enter competition name:")
@@ -560,6 +558,9 @@ def create_competition(apiurl, data_directory, y_test,  email_list=[], public=Fa
         'sts').get_caller_identity().get('Account')
 
     datauri=share_data_codebuild(account_number,os.environ.get("AWS_REGION"),data_directory)
+    
+    #create and upload json file with list of authorized users who can submit to this competition.
+    _create_competitionuserauth_json(apiurl, email_list,public,datauri['ecr_uri'])
 
     bodydata = {"unique_model_id": model_id,
                 "bucket_name": api_bucket,
@@ -594,7 +595,7 @@ def create_competition(apiurl, data_directory, y_test,  email_list=[], public=Fa
   
     return print(final_message)
 
-def _create_competitionuserauth_json(apiurl, email_list=[],public=False): 
+def _create_competitionuserauth_json(apiurl, email_list=[],public=False, datauri=None): 
       import json
       if all(["AWS_ACCESS_KEY_ID" in os.environ, 
             "AWS_SECRET_ACCESS_KEY" in os.environ,
@@ -631,7 +632,7 @@ def _create_competitionuserauth_json(apiurl, email_list=[],public=False):
       import tempfile
       tempdir = tempfile.TemporaryDirectory()
       with open(tempdir.name+'/competitionuserdata.json', 'w', encoding='utf-8') as f:
-          json.dump({"emaillist": email_list, "public":str(public).upper()}, f, ensure_ascii=False, indent=4)
+          json.dump({"emaillist": email_list, "public":str(public).upper(),"datauri":str(datauri)}, f, ensure_ascii=False, indent=4)
 
       aws_client['client'].upload_file(
             tempdir.name+"/competitionuserdata.json", api_bucket, model_id + "/competitionuserdata.json"
