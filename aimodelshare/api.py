@@ -1048,9 +1048,7 @@ def delete_deployment(apiurl):
         repositoryName=repository
     )
 
-    print("The dataset accessible at '" + ecr_uri + "' has been deleted successfully.")
-
-    if len(image_details['imageDetails']==0):
+    if len(image_details['imageDetails'])==0:
         response = ecr_client.delete_repository(
             repositoryName=repository
         )
