@@ -721,14 +721,15 @@ def update_access_list(apiurl, email_list=[],update_type="Add"):
           email_list_old=json_content["emaillist"]
           email_list_new=email_list_old+email_list
           print(email_list_new)
-
-          tempdir = tempfile.TemporaryDirectory()
+            
+          json_content["emaillist"]=email_list_new
           with open(tempdir.name+'/competitionuserdata.json', 'w', encoding='utf-8') as f:
-              json.dump({"emaillist": email_list_new, "public":json_content["public"]}, f, ensure_ascii=False, indent=4)
+              json.dump(json_content, f, ensure_ascii=False, indent=4)
 
           aws_client['client'].upload_file(
                 tempdir.name+"/competitionuserdata.json", api_bucket, model_id + "/competitionuserdata.json"
             )
+     
           return "Success: Your competition participant access list is now updated."
       elif update_type=="Remove":
           import json  
@@ -742,10 +743,10 @@ def update_access_list(apiurl, email_list=[],update_type="Add"):
           email_list_old=json_content["emaillist"]
           email_list_new=list(set(list(email_list_old)) - set(email_list))
           print(email_list_new)
-        
-          tempdir = tempfile.TemporaryDirectory()
+            
+          json_content["emaillist"]=email_list_new
           with open(tempdir.name+'/competitionuserdata.json', 'w', encoding='utf-8') as f:
-              json.dump({"emaillist": email_list_new, "public":json_content["public"]}, f, ensure_ascii=False, indent=4)
+              json.dump(json_content, f, ensure_ascii=False, indent=4)
 
           aws_client['client'].upload_file(
                 tempdir.name+"/competitionuserdata.json", api_bucket, model_id + "/competitionuserdata.json"
