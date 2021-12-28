@@ -1028,7 +1028,7 @@ def delete_deployment(apiurl):
     json_content = json.loads(file_content)
     ecr_uri=json_content['datauri']      
     
-    ecr_client = usersession.client('ecr-public')
+    ecr_client = user_sess.client('ecr-public')
 
     repository_image = ecr_uri.split('/')[2]
 
