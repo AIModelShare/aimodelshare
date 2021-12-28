@@ -388,7 +388,9 @@ def model_to_api(model_filepath, model_type, private, categorical, y_train, prep
     elif model_type=="tabular":
         image_tag="tabular"
     elif model_type=="text":
-        image_tag="text"
+        image_tag="texttest"
+    elif model_type=="image":
+        image_tag="v3"
     else:
         pass
     

@@ -59,34 +59,34 @@ def create_prediction_api(model_filepath, unique_model_id, model_type, categoric
                                           aws_secret_access_key = os.environ.get("AWS_SECRET_ACCESS_KEY"), 
                                           region_name=os.environ.get("AWS_REGION"))
     if(model_type=="neural style transfer"):
-            model_layer ="arn:aws:lambda:us-east-1:517169013426:layer:keras_image:1"
-            eval_layer ="arn:aws:lambda:us-east-1:517169013426:layer:eval_layer_test:6"
-            auth_layer ="arn:aws:lambda:us-east-1:517169013426:layer:aimsauth_layer:2"
+            model_layer ="arn:aws:lambda:" + str(os.environ.get("AWS_REGION")) + ":517169013426:layer:keras_image:1"
+            eval_layer ="arn:aws:lambda:" + str(os.environ.get("AWS_REGION")) + ":517169013426:layer:eval_layer_test:6"
+            auth_layer ="arn:aws:lambda:" + str(os.environ.get("AWS_REGION")) + ":517169013426:layer:aimsauth_layer:2"
     elif model_type=='image' :
-            model_layer ="arn:aws:lambda:us-east-1:517169013426:layer:keras_image:1"
-            eval_layer ="arn:aws:lambda:us-east-1:517169013426:layer:eval_layer_test:6"
-            auth_layer ="arn:aws:lambda:us-east-1:517169013426:layer:aimsauth_layer:2"
+            model_layer ="arn:aws:lambda:" + str(os.environ.get("AWS_REGION")) + ":517169013426:layer:keras_image:1"
+            eval_layer ="arn:aws:lambda:" + str(os.environ.get("AWS_REGION")) + ":517169013426:layer:eval_layer_test:6"
+            auth_layer ="arn:aws:lambda:" + str(os.environ.get("AWS_REGION")) + ":517169013426:layer:aimsauth_layer:2"
     elif model_type=='text':
-            model_layer ="arn:aws:lambda:us-east-1:517169013426:layer:tabular_layer:2"
-            keras_layer ='arn:aws:lambda:us-east-1:517169013426:layer:keras_preprocesor:1'
-            eval_layer ="arn:aws:lambda:us-east-1:517169013426:layer:eval_layer_test:6"
-            auth_layer ="arn:aws:lambda:us-east-1:517169013426:layer:aimsauth_layer:2"
+            model_layer ="arn:aws:lambda:" + str(os.environ.get("AWS_REGION")) + ":517169013426:layer:tabular_layer:2"
+            keras_layer ="arn:aws:lambda:" + str(os.environ.get("AWS_REGION")) + ":517169013426:layer:keras_preprocesor:1"
+            eval_layer ="arn:aws:lambda:" + str(os.environ.get("AWS_REGION")) + ":517169013426:layer:eval_layer_test:6"
+            auth_layer ="arn:aws:lambda:" + str(os.environ.get("AWS_REGION")) + ":517169013426:layer:aimsauth_layer:2"
     elif model_type == 'tabular' or model_type =='timeseries':
-            model_layer ="arn:aws:lambda:us-east-1:517169013426:layer:tabular_cloudpicklelayer:1"
-            eval_layer ="arn:aws:lambda:us-east-1:517169013426:layer:eval_layer_test:6"
-            auth_layer ="arn:aws:lambda:us-east-1:517169013426:layer:aimsauth_layer:2"
+            model_layer ="arn:aws:lambda:" + str(os.environ.get("AWS_REGION")) + ":517169013426:layer:tabular_cloudpicklelayer:1"
+            eval_layer ="arn:aws:lambda:" + str(os.environ.get("AWS_REGION")) + ":517169013426:layer:eval_layer_test:6"
+            auth_layer ="arn:aws:lambda:" + str(os.environ.get("AWS_REGION")) + ":517169013426:layer:aimsauth_layer:2"
     elif model_type.lower() == 'audio':
-            model_layer = "arn:aws:lambda:us-east-1:517169013426:layer:librosa_nosklearn:9"
-            eval_layer ="arn:aws:lambda:us-east-1:517169013426:layer:eval_layer_test:6"
-            auth_layer ="arn:aws:lambda:us-east-1:517169013426:layer:aimsauth_layer:2"
+            model_layer = "arn:aws:lambda:" + str(os.environ.get("AWS_REGION")) + ":517169013426:layer:librosa_nosklearn:9"
+            eval_layer ="arn:aws:lambda:" + str(os.environ.get("AWS_REGION")) + ":517169013426:layer:eval_layer_test:6"
+            auth_layer ="arn:aws:lambda:" + str(os.environ.get("AWS_REGION")) + ":517169013426:layer:aimsauth_layer:2"
     elif model_type.lower() == 'video':
-            model_layer = "arn:aws:lambda:us-east-1:517169013426:layer:videolayer:3"
-            eval_layer ="arn:aws:lambda:us-east-1:517169013426:layer:eval_layer_test:6"
-            auth_layer ="arn:aws:lambda:us-east-1:517169013426:layer:aimsauth_layer:2"
+            model_layer = "arn:aws:lambda:" + str(os.environ.get("AWS_REGION")) + ":517169013426:layer:videolayer:3"
+            eval_layer ="arn:aws:lambda:" + str(os.environ.get("AWS_REGION")) + ":517169013426:layer:eval_layer_test:6"
+            auth_layer ="arn:aws:lambda:" + str(os.environ.get("AWS_REGION")) + ":517169013426:layer:aimsauth_layer:2"
     elif model_type.lower() == 'custom':
-            model_layer = "arn:aws:lambda:us-east-1:517169013426:layer:videolayer:3"
-            eval_layer ="arn:aws:lambda:us-east-1:517169013426:layer:eval_layer_test:6"
-            auth_layer ="arn:aws:lambda:us-east-1:517169013426:layer:aimsauth_layer:2"
+            model_layer = "arn:aws:lambda:" + str(os.environ.get("AWS_REGION")) + ":517169013426:layer:videolayer:3"
+            eval_layer ="arn:aws:lambda:" + str(os.environ.get("AWS_REGION")) + ":517169013426:layer:eval_layer_test:6"
+            auth_layer ="arn:aws:lambda:" + str(os.environ.get("AWS_REGION")) + ":517169013426:layer:aimsauth_layer:2"
     else :
         print("no matching model data type to load correct python package zip file (lambda layer)")
 
