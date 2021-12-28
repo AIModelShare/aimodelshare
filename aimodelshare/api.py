@@ -925,7 +925,8 @@ def delete_deployment(apiurl):
     WARNING: User must supply high-level credentials in order to delete an API. 
     """
     from aimodelshare.aws import run_function_on_lambda
-    
+    import json  
+
     # Provide Warning & Have user confirm deletion 
     print("Running this function will permanently delete all resources tied to this deployment, \n including the eval lambda and all models submitted to the model competition.\n")
     confirmation = input(prompt="To confirm, type 'permanently delete':")
@@ -973,9 +974,6 @@ def delete_deployment(apiurl):
         print("Permission denied. Please provide credentials that allow administrator access to this api.")
         return
 
-    # delete s3 folder
-    bucket = s3.Bucket(api_bucket)
-    bucket.objects.filter(Prefix= model_id+'/').delete() 
 
     # get api resources
     api = user_sess.client('apigateway')
@@ -1045,7 +1043,41 @@ def delete_deployment(apiurl):
     requests.post("https://o35jwfakca.execute-api.us-east-1.amazonaws.com/dev/modeldata",
                   json=bodydata, headers=headers_with_authentication)
 
-    return "API deleted successfully."
+    # Delete container image
+    content_object = s3.Object(bucket_name=api_bucket, key=model_id + "/competitionuserdata.json")
+    file_content = content_object.get()['Body'].read().decode('utf-8')
+    json_content = json.loads(file_content)
+    ecr_uri=json_content['datauri']      
+    
+    ecr_client = user_sess.client('ecr-public')
+
+    repository_image = ecr_uri.split('/')[2]
+
+    repository = repository_image.split(':')[0]
+    image = repository_image.split(':')[1]
+
+    response = ecr_client.batch_delete_image(
+        repositoryName=repository,
+        imageIds=[
+            {
+                'imageTag': image
+            }
+        ]
+    )
+
+    image_details = ecr_client.describe_images(
+        repositoryName=repository
+    )
+
+    if len(image_details['imageDetails'])==0:
+        response = ecr_client.delete_repository(
+            repositoryName=repository
+        )
+    # delete s3 folder
+    bucket = s3.Bucket(api_bucket)
+    bucket.objects.filter(Prefix= model_id+'/').delete() 
+
+    return "Deployment deleted successfully."
 
 
 __all__ = [
