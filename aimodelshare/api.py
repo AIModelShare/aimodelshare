@@ -1022,36 +1022,39 @@ def delete_deployment(apiurl):
     requests.post("https://o35jwfakca.execute-api.us-east-1.amazonaws.com/dev/modeldata",
                   json=bodydata, headers=headers_with_authentication)
 
-    # Delete container image
-    content_object = s3.Object(bucket_name=api_bucket, key=model_id + "/competitionuserdata.json")
-    file_content = content_object.get()['Body'].read().decode('utf-8')
-    json_content = json.loads(file_content)
-    ecr_uri=json_content['datauri']      
-    
-    ecr_client = user_sess.client('ecr-public')
+    # Delete competition data container image
+    try:
+            content_object = s3.Object(bucket_name=api_bucket, key=model_id + "/competitionuserdata.json")
+            file_content = content_object.get()['Body'].read().decode('utf-8')
+            json_content = json.loads(file_content)
+            ecr_uri=json_content['datauri']      
 
-    repository_image = ecr_uri.split('/')[2]
+            ecr_client = user_sess.client('ecr-public')
 
-    repository = repository_image.split(':')[0]
-    image = repository_image.split(':')[1]
+            repository_image = ecr_uri.split('/')[2]
 
-    response = ecr_client.batch_delete_image(
-        repositoryName=repository,
-        imageIds=[
-            {
-                'imageTag': image
-            }
-        ]
-    )
+            repository = repository_image.split(':')[0]
+            image = repository_image.split(':')[1]
 
-    image_details = ecr_client.describe_images(
-        repositoryName=repository
-    )
+            response = ecr_client.batch_delete_image(
+                repositoryName=repository,
+                imageIds=[
+                    {
+                        'imageTag': image
+                    }
+                ]
+            )
 
-    if len(image_details['imageDetails'])==0:
-        response = ecr_client.delete_repository(
-            repositoryName=repository
-        )
+            image_details = ecr_client.describe_images(
+                repositoryName=repository
+            )
+
+            if len(image_details['imageDetails'])==0:
+                response = ecr_client.delete_repository(
+                    repositoryName=repository
+                )
+    except:
+        pass
     # delete s3 folder
     bucket = s3.Bucket(api_bucket)
     bucket.objects.filter(Prefix= model_id+'/').delete() 
