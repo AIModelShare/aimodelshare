@@ -129,11 +129,11 @@ def deploy_custom_lambda(input_json_exampledata, output_json_exampledata, lambda
 
     apiurl = create_prediction_api(None, str(api_id), 'custom', 'FALSE', [], api_id, "TRUE", custom_libraries)
 
-    print("We need some information about your model before we can generate your API.\n")
-    aishare_modelname = input("Name your model: ")
-    aishare_modeldescription = input("Describe your model: ")
-    aishare_modelevaluation = input("Describe your model's performance: ")
-    aishare_tags = input("Enter comma-separated search categories for your model: ")
+    print("\n\nWe need some information about your model before we can generate your API.\n")
+    aishare_modelname = input("Name your deployment: ")
+    aishare_modeldescription = input("Describe your deployment: ")
+    aishare_modelevaluation = input("Describe your deployment's performance (OPTIONAL): ")
+    aishare_tags = input("Enter comma-separated search categories for your deployment (OPTIONAL): ")
     aishare_apicalls = 0
     print('')
     # unpack user credentials
@@ -169,6 +169,15 @@ def deploy_custom_lambda(input_json_exampledata, output_json_exampledata, lambda
     requests.post("https://bhrdesksak.execute-api.us-east-1.amazonaws.com/dev/modeldata",
                   json=bodydata, headers=headers_with_authentication)
 
+    # Get the response
+    headers_with_authentication = {'Content-Type': 'application/json', 'authorizationToken': os.environ.get("JWT_AUTHORIZATION_TOKEN"), 'Access-Control-Allow-Headers':
+                                   'Content-Type,X-Amz-Date,authorizationToken,Access-Control-Allow-Origin,X-Api-Key,X-Amz-Security-Token,Authorization', 'Access-Control-Allow-Origin': '*'}
+    # modeltoapi lambda function invoked through below url to return new prediction api in response
+    response = requests.post("https://bhrdesksak.execute-api.us-east-1.amazonaws.com/dev/modeldata",
+                              json=bodydata, headers=headers_with_authentication)
+    response_string = response.text
+    response_string = response_string[1:-1]
+
     end = datetime.datetime.now()    # end timer
     difference = (end - start).total_seconds()
     finalresult2 = "Your AI Model Share API was created in " + \
@@ -200,9 +209,23 @@ def deploy_custom_lambda(input_json_exampledata, output_json_exampledata, lambda
     finalresultteams3info = "Your team members can submit improved models to your prediction api using the update_model_version() function. \nTo upload new models and/or preprocessors to this model team members should use the following awskey/password/region:\n\n aws_key = " + \
         os.environ.get("AI_MODELSHARE_ACCESS_KEY_ID") + ", aws_password = " + os.environ.get("AI_MODELSHARE_SECRET_ACCESS_KEY") + " region = " + \
         os.environ.get("AWS_REGION") +".  \n\nThis aws key/password combination limits team members to file upload access only."
-    api_info = finalresult2+"\n"+finalresultteams3info
+    api_info = finalresult2+"\n"
+
+    # Build output {{{
+    final_message = ("Follow this link to explore your Model Playground's functionality\n"
+                     "You can make predictions with the cURL functionality and access example code from the Programmatic tab.\n")
+    web_dashboard_url = ("https://www.modelshare.org/detail/"+ response_string)
+
+    end = datetime.datetime.now()
+    difference = (end - start).total_seconds()
+    finalresult2 = "Success! Your Model Playground was created in " + \
+        str(int(difference)) + " seconds."
+
+    print(api_info)
+
+    print("\n\n" + final_message + web_dashboard_url)
     
-    return print(api_info)
+    return
 
 __all__ = [
     deploy_custom_lambda

@@ -18,6 +18,15 @@ from aimodelshare.containerisation import deploy_container
 
 def create_prediction_api(model_filepath, unique_model_id, model_type, categorical, labels, apiid, custom_libraries, requirements, repo_name="", image_tag=""):
 
+    if model_type=="tabular":
+        memory=3072
+    elif model_type=="text":
+        memory = 6144
+    elif model_type=="image":
+        memory=3072
+    else:
+        memory = 3072
+
     from zipfile import ZipFile
     import zipfile
     import tempfile
@@ -59,34 +68,34 @@ def create_prediction_api(model_filepath, unique_model_id, model_type, categoric
                                           aws_secret_access_key = os.environ.get("AWS_SECRET_ACCESS_KEY"), 
                                           region_name=os.environ.get("AWS_REGION"))
     if(model_type=="neural style transfer"):
-            model_layer ="arn:aws:lambda:us-east-1:517169013426:layer:keras_image:1"
-            eval_layer ="arn:aws:lambda:us-east-1:517169013426:layer:eval_layer_test:6"
-            auth_layer ="arn:aws:lambda:us-east-1:517169013426:layer:aimsauth_layer:2"
+            model_layer ="arn:aws:lambda:" + str(os.environ.get("AWS_REGION")) + ":517169013426:layer:keras_image:1"
+            eval_layer ="arn:aws:lambda:" + str(os.environ.get("AWS_REGION")) + ":517169013426:layer:eval_layer_test:6"
+            auth_layer ="arn:aws:lambda:" + str(os.environ.get("AWS_REGION")) + ":517169013426:layer:aimsauth_layer:2"
     elif model_type=='image' :
-            model_layer ="arn:aws:lambda:us-east-1:517169013426:layer:keras_image:1"
-            eval_layer ="arn:aws:lambda:us-east-1:517169013426:layer:eval_layer_test:6"
-            auth_layer ="arn:aws:lambda:us-east-1:517169013426:layer:aimsauth_layer:2"
+            model_layer ="arn:aws:lambda:" + str(os.environ.get("AWS_REGION")) + ":517169013426:layer:keras_image:1"
+            eval_layer ="arn:aws:lambda:" + str(os.environ.get("AWS_REGION")) + ":517169013426:layer:eval_layer_test:6"
+            auth_layer ="arn:aws:lambda:" + str(os.environ.get("AWS_REGION")) + ":517169013426:layer:aimsauth_layer:2"
     elif model_type=='text':
-            model_layer ="arn:aws:lambda:us-east-1:517169013426:layer:tabular_layer:2"
-            keras_layer ='arn:aws:lambda:us-east-1:517169013426:layer:keras_preprocesor:1'
-            eval_layer ="arn:aws:lambda:us-east-1:517169013426:layer:eval_layer_test:6"
-            auth_layer ="arn:aws:lambda:us-east-1:517169013426:layer:aimsauth_layer:2"
+            model_layer ="arn:aws:lambda:" + str(os.environ.get("AWS_REGION")) + ":517169013426:layer:tabular_layer:2"
+            keras_layer ="arn:aws:lambda:" + str(os.environ.get("AWS_REGION")) + ":517169013426:layer:keras_preprocesor:1"
+            eval_layer ="arn:aws:lambda:" + str(os.environ.get("AWS_REGION")) + ":517169013426:layer:eval_layer_test:6"
+            auth_layer ="arn:aws:lambda:" + str(os.environ.get("AWS_REGION")) + ":517169013426:layer:aimsauth_layer:2"
     elif model_type == 'tabular' or model_type =='timeseries':
-            model_layer ="arn:aws:lambda:us-east-1:517169013426:layer:tabular_cloudpicklelayer:1"
-            eval_layer ="arn:aws:lambda:us-east-1:517169013426:layer:eval_layer_test:6"
-            auth_layer ="arn:aws:lambda:us-east-1:517169013426:layer:aimsauth_layer:2"
+            model_layer ="arn:aws:lambda:" + str(os.environ.get("AWS_REGION")) + ":517169013426:layer:tabular_cloudpicklelayer:1"
+            eval_layer ="arn:aws:lambda:" + str(os.environ.get("AWS_REGION")) + ":517169013426:layer:eval_layer_test:6"
+            auth_layer ="arn:aws:lambda:" + str(os.environ.get("AWS_REGION")) + ":517169013426:layer:aimsauth_layer:2"
     elif model_type.lower() == 'audio':
-            model_layer = "arn:aws:lambda:us-east-1:517169013426:layer:librosa_nosklearn:9"
-            eval_layer ="arn:aws:lambda:us-east-1:517169013426:layer:eval_layer_test:6"
-            auth_layer ="arn:aws:lambda:us-east-1:517169013426:layer:aimsauth_layer:2"
+            model_layer = "arn:aws:lambda:" + str(os.environ.get("AWS_REGION")) + ":517169013426:layer:librosa_nosklearn:9"
+            eval_layer ="arn:aws:lambda:" + str(os.environ.get("AWS_REGION")) + ":517169013426:layer:eval_layer_test:6"
+            auth_layer ="arn:aws:lambda:" + str(os.environ.get("AWS_REGION")) + ":517169013426:layer:aimsauth_layer:2"
     elif model_type.lower() == 'video':
-            model_layer = "arn:aws:lambda:us-east-1:517169013426:layer:videolayer:3"
-            eval_layer ="arn:aws:lambda:us-east-1:517169013426:layer:eval_layer_test:6"
-            auth_layer ="arn:aws:lambda:us-east-1:517169013426:layer:aimsauth_layer:2"
+            model_layer = "arn:aws:lambda:" + str(os.environ.get("AWS_REGION")) + ":517169013426:layer:videolayer:3"
+            eval_layer ="arn:aws:lambda:" + str(os.environ.get("AWS_REGION")) + ":517169013426:layer:eval_layer_test:6"
+            auth_layer ="arn:aws:lambda:" + str(os.environ.get("AWS_REGION")) + ":517169013426:layer:aimsauth_layer:2"
     elif model_type.lower() == 'custom':
-            model_layer = "arn:aws:lambda:us-east-1:517169013426:layer:videolayer:3"
-            eval_layer ="arn:aws:lambda:us-east-1:517169013426:layer:eval_layer_test:6"
-            auth_layer ="arn:aws:lambda:us-east-1:517169013426:layer:aimsauth_layer:2"
+            model_layer = "arn:aws:lambda:" + str(os.environ.get("AWS_REGION")) + ":517169013426:layer:videolayer:3"
+            eval_layer ="arn:aws:lambda:" + str(os.environ.get("AWS_REGION")) + ":517169013426:layer:eval_layer_test:6"
+            auth_layer ="arn:aws:lambda:" + str(os.environ.get("AWS_REGION")) + ":517169013426:layer:aimsauth_layer:2"
     else :
         print("no matching model data type to load correct python package zip file (lambda layer)")
 
@@ -398,7 +407,7 @@ def create_prediction_api(model_filepath, unique_model_id, model_type, categoric
     # }}}
     
     if(any([custom_libraries=='FALSE',custom_libraries=='false'])):
-        response6 = create_lambda_using_base_image(user_session, os.getenv("BUCKET_NAME"), file_objects_folder_path, lambdafxnname, apiid, repo_name, image_tag, 3072, 90)
+        response6 = create_lambda_using_base_image(user_session, os.getenv("BUCKET_NAME"), file_objects_folder_path, lambdafxnname, apiid, repo_name, image_tag, memory, 90)
     elif(any([custom_libraries=='TRUE',custom_libraries=='true'])):
 
         requirements = requirements.split(",")
@@ -414,6 +423,20 @@ def create_prediction_api(model_filepath, unique_model_id, model_type, categoric
 
         #response6 = deploy_lambda_using_sam(user_session, os.getenv("BUCKET_NAME"), requirements, file_objects_folder_path, lambdafxnname, apiid, 1024, 90, "3.7")
         response6 = deploy_container(account_number, os.environ.get("AWS_REGION"), user_session, lambdafxnname, file_objects_folder_path,requirements_file_path,apiid)
+
+    # if model_type=="audio":
+    #     lambda_client = user_session.client("lambda")
+    #     lambda_client.update_function_configuration(
+    #         FunctionName=response6['FunctionName'],
+    #         Environment={
+    #             'Variables': {
+    #                 'bucket': os.getenv("BUCKET_NAME"),     # bucket where zip file is located
+    #                 'api_id': apiid,     # api_id in the bucket in which zip file is stored
+    #                 'function_name': response6['FunctionName'],
+    #                 'NUMBA_CACHE_DIR': '/tmp'
+    #             }
+    #         }
+    #     )
 
     response6evalfxn = lambdaclient.create_function(FunctionName=lambdaevalfxnname, Runtime='python3.7', Role='arn:aws:iam::'+account_number+':role/'+lambdarolename, Handler='main.handler',
                                           Code={
@@ -723,6 +746,13 @@ def create_prediction_api(model_filepath, unique_model_id, model_type, categoric
 
 
     result = 'https://'+api_id + '.execute-api.'+os.environ.get("AWS_REGION")+'.amazonaws.com/prod/m'
+
+    if model_type=='custom':
+        ### Progress Update #6/6 {{{
+        sys.stdout.write('\r')
+        sys.stdout.write("[=====================================] Progress: 100% - API deployment completed!                          ")
+        sys.stdout.flush()
+        # }}}
 
     return {"statusCode": 200,
             "headers": {
