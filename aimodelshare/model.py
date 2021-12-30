@@ -342,8 +342,12 @@ def upload_model_dict(modelpath, s3_presigned_dict, bucket, model_id, model_vers
     return 1
 
 
-def upload_model_graph(modelpath, aws_client, bucket, model_id, model_version):
-
+def upload_model_graph(modelpath,  s3_presigned_dict, bucket, model_id, model_version):
+    import wget
+    import json
+    import tempfile
+    import ast
+    temp=tempfile.mkdtemp()
     # get model summary from onnx
     onnx_model = onnx.load(modelpath)
     meta_dict = _get_metadata(onnx_model)
@@ -363,17 +367,37 @@ def upload_model_graph(modelpath, aws_client, bucket, model_id, model_version):
     key = model_id+'/model_graph_'+str(model_version)+'.json'
     
     try:
-      resp = aws_client['client'].get_object(Bucket=bucket, Key=key)
-      data = resp.get('Body').read()
-      graph_dict = json.loads(data)
+        #Get inspect json
+        modelgraphdatafilename = wget.download(s3_presigned_dict['get']['model_graph_'+str(model_version)+'.json'], out=temp+"/"+'model_graph_'+str(model_version)+'.json')
+
+        with open(temp+"/"+'model_graph_'+str(model_version)+'.json') as f:
+            graph_dict  = json.load(f)
+
     except: 
-      graph_dict = {}
+        graph_dict = {}
 
     graph_dict[str(model_version)] = {'ml_framework': meta_dict['ml_framework'],
                                       'model_type': meta_dict['model_type'],
                                       'model_graph': model_graph}
 
-    aws_client['client'].put_object(Bucket=bucket, Key=key, Body=json.dumps(graph_dict).encode())
+    with open(temp+"/"+'model_graph_'+str(model_version)+'.json', 'w') as outfile:
+        json.dump(graph_dict, outfile)
+
+    try:
+
+      putfilekeys=list(s3_presigned_dict['put'].keys())
+      modelputfiles = [s for s in putfilekeys if str('model_graph_'+str(model_version)+'.json') in s]
+
+      fileputlistofdicts=[]
+      for i in modelputfiles:
+        filedownload_dict=ast.literal_eval(s3_presigned_dict ['put'][i])
+        fileputlistofdicts.append(filedownload_dict)
+
+      with open(temp+"/"+'model_graph_'+str(model_version)+'.json', 'rb') as f:
+        files = {'file': (temp+"/"+'model_graph_'+str(model_version)+'.json', f)}
+        http_response = requests.post(fileputlistofdicts[0]['url'], data=fileputlistofdicts[0]['fields'], files=files)
+    except:
+      pass
 
     return 1
 
@@ -554,13 +578,7 @@ def submit_model(
 
     upload_model_dict(model_filepath, s3_presigned_dict, bucket, model_id, model_version)
 
-
-    # needs to be changed to s3_presigned_dict approach
-    aws_client=get_aws_client(aws_key=os.environ.get('AWS_ACCESS_KEY_ID'),
-                              aws_secret=os.environ.get('AWS_SECRET_ACCESS_KEY'), 
-                              aws_region=os.environ.get('AWS_REGION'))
-
-    upload_model_graph(model_filepath, aws_client, bucket, model_id, model_version)
+    upload_model_graph(model_filepath, s3_presigned_dict, bucket, model_id, model_version)
 
     modelpath=model_filepath
 
