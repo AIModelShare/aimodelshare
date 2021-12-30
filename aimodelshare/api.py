@@ -21,7 +21,7 @@ def create_prediction_api(model_filepath, unique_model_id, model_type, categoric
     if model_type=="tabular":
         memory=3072
     elif model_type=="text":
-        memory = 6144
+        memory = 1024
     elif model_type=="image":
         memory=3072
     else:
