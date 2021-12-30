@@ -135,7 +135,7 @@ def handler(event, context):
                 finalfiles.append("model_metadata_v"+str(idempotentmodel_version)+".json")
         
             finalfiles.append("inspect_pd_"+str(idempotentmodel_version)+".json")
-
+            finalfiles.append("model_graph_"+str(idempotentmodel_version)+".json")
             print("finalfiles:"+str(finalfiles))
 
             #TODO: Change method params with string template params in eval_lambda / also need to change bucket and prefix for file lists
