@@ -384,6 +384,7 @@ def _keras_to_onnx(model, transfer_learning=None,
     try:
             modelstringtest="python -m tf2onnx.convert --saved-model  "+temp_dir+" --output "+output_path+" --opset 13"
             resultonnx=os.system(modelstringtest)
+            resultonnx2=1
             if resultonnx==0:
               pass
             else:
