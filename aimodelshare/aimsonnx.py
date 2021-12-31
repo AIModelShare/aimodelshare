@@ -387,7 +387,7 @@ def _keras_to_onnx(model, transfer_learning=None,
             if resultonnx==0:
               pass
             else:
-              raise Exception('This model didn't save, try another approach!')
+              raise Exception('Model conversion to onnx unsuccessful.  Please try different model or submit predictions to leaderboard without submitting preprocessor or model files.')
     except:
             converter = tf.lite.TFLiteConverter.from_saved_model(temp_dir) # path to the SavedModel directory
             converter.target_spec.supported_ops = [
