@@ -377,7 +377,12 @@ def _keras_to_onnx(model, transfer_learning=None,
     
     tf.get_logger().setLevel('ERROR') # probably not good practice
     output_path = os.path.join(temp_dir, 'temp.onnx')
+    
+    from random import random
 
+    for layer in model.layers:
+        layer._name = layer.name + str("_"+str(random()))
+    
     model.save(temp_dir)
 
     # Convert the model
