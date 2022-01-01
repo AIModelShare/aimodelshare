@@ -16,16 +16,17 @@ import shortuuid
 from aimodelshare.containerization import create_lambda_using_base_image
 from aimodelshare.containerisation import deploy_container
 
-def create_prediction_api(model_filepath, unique_model_id, model_type, categorical, labels, apiid, custom_libraries, requirements, repo_name="", image_tag=""):
+def create_prediction_api(model_filepath, unique_model_id, model_type, categorical, labels, apiid, custom_libraries, requirements, repo_name="", image_tag="", memory=None, timeout=None):
 
-    if model_type=="tabular":
-        memory=3072
-    elif model_type=="text":
-        memory = 1024
-    elif model_type=="image":
-        memory=3072
-    else:
-        memory = 3072
+    if(memory != None):
+        if model_type=="tabular":
+            memory=1024
+        elif model_type=="text":
+            memory = 1024
+        elif model_type=="image":
+            memory=1024
+        else:
+            memory = 1024
 
     from zipfile import ZipFile
     import zipfile
