@@ -84,7 +84,7 @@ class ModelPlayground:
                                       image=image,
                                       reproducibility_env_filepath = reproducibility_env_filepath,
                                       memory=memory,
-                                      timeou=timeout)
+                                      timeout=timeout)
 
         #remove extra quotes
         self.playground_url = self.playground_url[1:-1]
