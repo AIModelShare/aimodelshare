@@ -18,7 +18,7 @@ from aimodelshare.containerisation import deploy_container
 
 def create_prediction_api(model_filepath, unique_model_id, model_type, categorical, labels, apiid, custom_libraries, requirements, repo_name="", image_tag="", memory=None, timeout=None):
 
-    if(memory != None):
+    if(memory == None):
         if model_type=="tabular":
             memory=1024
         elif model_type=="text":
@@ -27,6 +27,9 @@ def create_prediction_api(model_filepath, unique_model_id, model_type, categoric
             memory=1024
         else:
             memory = 1024
+
+    if(timeout == None):
+        timeout = 90
 
     from zipfile import ZipFile
     import zipfile
