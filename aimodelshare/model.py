@@ -571,10 +571,10 @@ def submit_model(
       filedownload_dict=ast.literal_eval(s3_presigned_dict ['put'][i])
       fileputlistofdicts.append(filedownload_dict)
 
-
-    with open(preprocessor, 'rb') as f:
-      files = {'file': (preprocessor, f)}
-      http_response = requests.post(fileputlistofdicts[0]['url'], data=fileputlistofdicts[0]['fields'], files=files)
+    if preprocessor is not None: 
+        with open(preprocessor, 'rb') as f:
+          files = {'file': (preprocessor, f)}
+          http_response = requests.post(fileputlistofdicts[0]['url'], data=fileputlistofdicts[0]['fields'], files=files)
 
     putfilekeys=list(s3_presigned_dict['put'].keys())
     modelputfiles = [s for s in putfilekeys if str("onnx") in s]
