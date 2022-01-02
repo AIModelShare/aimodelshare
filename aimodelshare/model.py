@@ -138,19 +138,20 @@ def _update_leaderboard(
         model = onnx.load(modelpath)
         metadata = _get_leaderboard_data(model, eval_metrics)
 
-        print(metadata)
+    else: 
 
-    else:
         metadata = eval_metrics
 
         # get general model info
-        metadata['ml_framework'] = "None"
-        metadata['transfer_learning'] = ''
-        metadata['deep_learning'] = ''
-        metadata['model_type'] = 'None'
-        metadata['model_config'] = ''
+        metadata['ml_framework'] = 'unknown'
+        metadata['transfer_learning'] = None
+        metadata['deep_learning'] = None
+        metadata['model_type'] = 'unknown'
+        metadata['model_config'] = None
 
-        print(metadata)
+    if custom_metadata is not None: 
+
+        metadata = dict(metadata, **custom_metadata)
 
 
     # }}}
@@ -185,7 +186,8 @@ def _update_leaderboard(
     # }}}
 
     # Update the leaderboard {{{
-    metadata = {col: metadata.get(col, None) for col in columns}
+    metadata_temp = {col: metadata.get(col, None) for col in columns}
+    metadata = dict(metadata, **metadata_temp)
     leaderboard = leaderboard.append(metadata, ignore_index=True, sort=False)
 
     leaderboard_csv = leaderboard.to_csv(index=False, sep="\t")
@@ -234,8 +236,6 @@ def _update_leaderboard_public(
     if custom_metadata is not None: 
 
         metadata = dict(metadata, **custom_metadata)
-
-        print(metadata)
 
     # }}}
 
