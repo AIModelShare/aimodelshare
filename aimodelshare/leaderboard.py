@@ -165,7 +165,9 @@ def stylize_leaderboard(leaderboard, naming_convention="keras"):
     leaderboard = leaderboard.drop(drop_cols, axis=1)
 
     #truncate model config info
-    leaderboard.model_config = leaderboard.model_config.map(lambda x: x[0:30]+'...')
+
+    if "model_config" in leaderboard.columns:
+        leaderboard.model_config = leaderboard.model_config.map(lambda x: x[0:30]+'...')
 
     # }}}
 
