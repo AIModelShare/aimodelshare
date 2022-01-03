@@ -15,7 +15,7 @@ ENV PATH=$SPARK_HOME/python:$PATH
 ENV SPARK_MASTER_HOST="localhost"
 ENV SPARK_LOCAL_IP="127.0.0.1"
 
-ENV JAVA_HOME="/usr/lib/jvm/java-1.8.0-openjdk-1.8.0.302.b08-0.67.amzn1.x86_64/jre"
+ENV JAVA_HOME="/usr/lib/jvm/java-1.8.0-openjdk*/jre"
 ENV PATH=$PATH:$JAVA_HOME/bin
 
 COPY spark-class $SPARK_HOME/bin/

@@ -1646,6 +1646,7 @@ def _get_onnx_from_bucket(apiurl, aws_client, version=None):
 
 
 def instantiate_model(apiurl, version=None, trained=False, reproduce=False):
+    # The priority mode, reproduce -> trained.
     # Confirm that creds are loaded, print warning if not
     if all(["username" in os.environ, 
           "password" in os.environ]):
@@ -1716,6 +1717,11 @@ def instantiate_model(apiurl, version=None, trained=False, reproduce=False):
                 model = pickle.load(f)
 
     if ml_framework == 'pyspark':
+        if not trained or reproduce:
+            print("Pyspark model can only be instantiated in trained mode.")
+            print("Please rerun the function with proper parameters.")
+            return None
+
         # pyspark model object is always trained. The unfitted / untrained one 
         # is the estimator and cannot be treated as model. 
         # Model is transformer and created by estimator

@@ -40,37 +40,31 @@ def pyspark_model_from_string(model_type):
     return model_class
 
 def get_preprocessor(preprocessor_s3_filename="runtime_preprocessor.zip"):
-    import pickle
-    from zipfile import ZipFile
-    from io import BytesIO
     import os
-    from pyspark.sql import SparkSession
-    from pathlib import Path
+    import pickle
     import tempfile
+    from io import BytesIO
+    from pathlib import Path
+    from zipfile import ZipFile
+    from pyspark.sql import SparkSession
     
 
     #create temporary folder
     temp_dir = tempfile.gettempdir()
 
-    print("Get Java Version")
-    print(os.system("java -version"))
-
     s3 = boto3.resource("s3")
     bucket = s3.Bucket("$bucket_name")
     
-    zip_obj = s3.Object(bucket_name="$bucket_name", key="$unique_model_id/runtime_preprocessor.zip")
+    zip_obj = s3.Object(bucket_name="$bucket_name",
+                        key="$unique_model_id/runtime_preprocessor.zip")
     buffer = BytesIO(zip_obj.get()["Body"].read())
     z = ZipFile(buffer)
-    # Extract all the contents of zip file in current directory
+    # Extract all the contents of zip file in temp directory
     z.extractall(temp_dir)
     
-    # folderpath=os.path.dirname(os.path.abspath("/tmp/preprocessor.py"))
-    # file_name=os.path.basename("/tmp/preprocessor.py")
-
-    #Then import all pkl files you want from bucket (need to generate this list from...
-    # function globals)
-    import os
-    pickle_file_list=[]
+    # Then import all pkl files you want from bucket (need to generate this list from
+    # function globals
+    pickle_file_list = []
     zip_file_list = []
     for file in os.listdir(temp_dir):
         if file.endswith(".pkl"):
@@ -79,9 +73,9 @@ def get_preprocessor(preprocessor_s3_filename="runtime_preprocessor.zip"):
             zip_file_list.append(os.path.join(temp_dir, file))
     
     for i in pickle_file_list: 
-        objectname=str(os.path.basename(i)).replace(".pkl", "")
-        objects={objectname:""}
-        globals()[objectname]=pickle.load(open(str(i), "rb" ) )
+        objectname = str(os.path.basename(i)).replace(".pkl", "")
+        objects = { objectname: "" }
+        globals()[objectname] = pickle.load(open(str(i), "rb"))
     
     # Need spark session and context to instantiate model object
     # zip_file_list is only used by pyspark
@@ -126,25 +120,25 @@ def get_runtimedata(runtimedata_s3_filename="runtime_data.json"):
       return runtime_data
 
 
-runtime_data=get_runtimedata(runtimedata_s3_filename="runtime_data.json")
+runtime_data = get_runtimedata(runtimedata_s3_filename="runtime_data.json")
 
-preprocessor_type=runtime_data["runtime_preprocessor"]
+preprocessor_type = runtime_data["runtime_preprocessor"]
 
-runtime_model=runtime_data["runtime_model"]["name"]
+runtime_model = runtime_data["runtime_model"]["name"]
 
 # Load model
-model=get_model_onnx(runtimemodel_s3_filename='runtime_model.onnx')
+model = get_model_onnx(runtimemodel_s3_filename='runtime_model.onnx')
 
 # Load preprocessor
-preprocessor=get_preprocessor(preprocessor_s3_filename="runtime_preprocessor.zip")
+preprocessor = get_preprocessor(preprocessor_s3_filename="runtime_preprocessor.zip")
 
 
 def predict(event,model,preprocessor):
+    import six
     import pyspark
 
     body = event["body"]
-    labels=$labels
-    import six
+    labels = $labels
     if isinstance(event["body"], six.string_types):
         body = json.loads(event["body"])
         print(body["data"])
@@ -155,16 +149,14 @@ def predict(event,model,preprocessor):
         print(bodydata)
 
     def predict_classes(x): # adjusted from keras github code
-        if len(x.shape)==2:
+        if len(x.shape) == 2:
             index = x.argmax(axis=-1)
             return list(map(lambda x: labels[x], index))
         else:
             return list(x)
     input_name = model.get_inputs()[0].name
-    print(input_name)
     input_data = preprocessor(bodydata).astype('float32') #needs to be float32
-    print(input_data)
-    res=model.run(None,  {input_name: input_data})
+    res = model.run(None, {input_name: input_data})
     prob = res[0]
     print(prob)
 
@@ -177,13 +169,15 @@ def predict(event,model,preprocessor):
     return prediction
 
 def handler(event, context):
-        result = predict(event,model,preprocessor)
-        return {"statusCode": 200,
+    result = predict(event,model, preprocessor)
+    return {
+        "statusCode": 200,
         "headers": {
-        "Access-Control-Allow-Origin" : "*",
-        "Access-Control-Allow-Credentials": True,
-        "Allow" : "GET, OPTIONS, POST",
-        "Access-Control-Allow-Methods" : "GET, OPTIONS, POST",
-        "Access-Control-Allow-Headers" : "*"
+            "Access-Control-Allow-Origin": "*",
+            "Access-Control-Allow-Credentials": True,
+            "Allow": "GET, OPTIONS, POST",
+            "Access-Control-Allow-Methods": "GET, OPTIONS, POST",
+            "Access-Control-Allow-Headers": "*"
         },
-        "body": json.dumps(result)}
+        "body": json.dumps(result)
+    }
