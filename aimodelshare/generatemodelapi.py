@@ -320,7 +320,7 @@ def send_model_data_to_dyndb_and_return_api(api_info, private, categorical, prep
     return print("\n\n" + finalresult2 + "\n" + final_message + web_dashboard_url)
 
 
-def model_to_api(model_filepath, model_type, private, categorical, y_train, preprocessor_filepath, custom_libraries="FALSE", example_data=None, image="aimodelshare_base_image:v3", base_image_api_endpoint="https://vupwujn586.execute-api.us-east-1.amazonaws.com/dev/copybasetouseracct", update=False, reproducibility_env_filepath=None):
+def model_to_api(model_filepath, model_type, private, categorical, y_train, preprocessor_filepath, custom_libraries="FALSE", example_data=None, image="", base_image_api_endpoint="https://vupwujn586.execute-api.us-east-1.amazonaws.com/dev/copybasetouseracct", update=False, reproducibility_env_filepath=None):
     """
       Launches a live prediction REST API for deploying ML models using model parameters and user credentials, provided by the user
       Inputs : 8
@@ -384,11 +384,14 @@ def model_to_api(model_filepath, model_type, private, categorical, y_train, prep
                                          aws_secret_access_key = os.environ.get("AWS_SECRET_ACCESS_KEY"), 
                                          region_name=os.environ.get("AWS_REGION"))
 
-    repo_name, image_tag = image.split(':')
-    if model_type=="tabular":
-        image_tag="tabular"
+    if(image!=""):
+        repo_name, image_tag = image.split(':')
+    elif model_type=="tabular":
+        repo_name, image_tag = "aimodelshare_base_image", "tabular"
     elif model_type=="text":
-        image_tag="text"
+        repo_name, image_tag = "aimodelshare_base_image", "texttest"
+    elif model_type=="image":
+        repo_name, image_tag = "aimodelshare_base_image", "v3"
     else:
         pass
     
@@ -539,14 +542,19 @@ def create_competition(apiurl, data_directory, y_test,  email_list=[], public=Fa
     api_url_trim = apiurl.split('https://')[1]
     api_id = api_url_trim.split(".")[0]
 
-    #create and upload json file with list of authorized users who can submit to this competition.
-    _create_competitionuserauth_json(apiurl, email_list,public)
+    print("\n--INPUT COMPETITION DETAILS--\n")
 
     aishare_competitionname = input("Enter competition name:")
     aishare_competitiondescription = input("Enter competition description:")
+
+    print("\n--INPUT DATA DETAILS--\n")
+    print("Note: (optional) Save an optional LICENSE.txt file in your competition data directory to make users aware of any restrictions on data sharing/usage.\n")
+
     aishare_datadescription = input(
         "Enter data description (i.e.- filenames denoting training and test data, file types, and any subfolders where files are stored):")
     
+    aishare_datalicense = input(
+        "Enter optional data license descriptive name (e.g.- 'MIT, Apache 2.0, CC0, Other, etc.'):")    
     user_session = boto3.session.Session(aws_access_key_id=os.environ.get("AWS_ACCESS_KEY_ID"),
                                           aws_secret_access_key = os.environ.get("AWS_SECRET_ACCESS_KEY"), 
                                          region_name=os.environ.get("AWS_REGION"))
@@ -554,6 +562,9 @@ def create_competition(apiurl, data_directory, y_test,  email_list=[], public=Fa
         'sts').get_caller_identity().get('Account')
 
     datauri=share_data_codebuild(account_number,os.environ.get("AWS_REGION"),data_directory)
+    
+    #create and upload json file with list of authorized users who can submit to this competition.
+    _create_competitionuserauth_json(apiurl, email_list,public,datauri['ecr_uri'])
 
     bodydata = {"unique_model_id": model_id,
                 "bucket_name": api_bucket,
@@ -566,7 +577,8 @@ def create_competition(apiurl, data_directory, y_test,  email_list=[], public=Fa
                 "Private": "FALSE",
                 "delete": "FALSE",
                 'datadescription':aishare_datadescription,
-                'dataecruri':datauri['ecr_uri']}
+                'dataecruri':datauri['ecr_uri'],
+                 'datalicense': aishare_datalicense}
     
     # Get the response
     headers_with_authentication = {'Content-Type': 'application/json', 'authorizationToken': os.environ.get("JWT_AUTHORIZATION_TOKEN"), 'Access-Control-Allow-Headers':
@@ -587,7 +599,7 @@ def create_competition(apiurl, data_directory, y_test,  email_list=[], public=Fa
   
     return print(final_message)
 
-def _create_competitionuserauth_json(apiurl, email_list=[],public=False): 
+def _create_competitionuserauth_json(apiurl, email_list=[],public=False, datauri=None): 
       import json
       if all(["AWS_ACCESS_KEY_ID" in os.environ, 
             "AWS_SECRET_ACCESS_KEY" in os.environ,
@@ -624,7 +636,7 @@ def _create_competitionuserauth_json(apiurl, email_list=[],public=False):
       import tempfile
       tempdir = tempfile.TemporaryDirectory()
       with open(tempdir.name+'/competitionuserdata.json', 'w', encoding='utf-8') as f:
-          json.dump({"emaillist": email_list, "public":str(public).upper()}, f, ensure_ascii=False, indent=4)
+          json.dump({"emaillist": email_list, "public":str(public).upper(),"datauri":str(datauri)}, f, ensure_ascii=False, indent=4)
 
       aws_client['client'].upload_file(
             tempdir.name+"/competitionuserdata.json", api_bucket, model_id + "/competitionuserdata.json"
@@ -705,7 +717,7 @@ def update_access_list(apiurl, email_list=[],update_type="Add"):
       elif update_type=="Add":
           import json  
           import tempfile
-          
+          tempdir = tempfile.TemporaryDirectory()
           content_object = aws_client['resource'].Object(bucket_name=api_bucket, key=model_id + "/competitionuserdata.json")
           file_content = content_object.get()['Body'].read().decode('utf-8')
           json_content = json.loads(file_content)
@@ -713,19 +725,21 @@ def update_access_list(apiurl, email_list=[],update_type="Add"):
           email_list_old=json_content["emaillist"]
           email_list_new=email_list_old+email_list
           print(email_list_new)
-
-          tempdir = tempfile.TemporaryDirectory()
+            
+          json_content["emaillist"]=email_list_new
           with open(tempdir.name+'/competitionuserdata.json', 'w', encoding='utf-8') as f:
-              json.dump({"emaillist": email_list_new, "public":json_content["public"]}, f, ensure_ascii=False, indent=4)
+              json.dump(json_content, f, ensure_ascii=False, indent=4)
 
           aws_client['client'].upload_file(
                 tempdir.name+"/competitionuserdata.json", api_bucket, model_id + "/competitionuserdata.json"
             )
+     
           return "Success: Your competition participant access list is now updated."
       elif update_type=="Remove":
           import json  
           import tempfile
-          
+          tempdir = tempfile.TemporaryDirectory()
+    
           aws_client['resource']
           content_object = aws_client['resource'].Object(bucket_name=api_bucket, key=model_id + "/competitionuserdata.json")
           file_content = content_object.get()['Body'].read().decode('utf-8')
@@ -734,10 +748,10 @@ def update_access_list(apiurl, email_list=[],update_type="Add"):
           email_list_old=json_content["emaillist"]
           email_list_new=list(set(list(email_list_old)) - set(email_list))
           print(email_list_new)
-        
-          tempdir = tempfile.TemporaryDirectory()
+            
+          json_content["emaillist"]=email_list_new
           with open(tempdir.name+'/competitionuserdata.json', 'w', encoding='utf-8') as f:
-              json.dump({"emaillist": email_list_new, "public":json_content["public"]}, f, ensure_ascii=False, indent=4)
+              json.dump(json_content, f, ensure_ascii=False, indent=4)
 
           aws_client['client'].upload_file(
                 tempdir.name+"/competitionuserdata.json", api_bucket, model_id + "/competitionuserdata.json"
@@ -746,7 +760,8 @@ def update_access_list(apiurl, email_list=[],update_type="Add"):
       elif update_type=="Get":
           import json  
           import tempfile
-          
+          tempdir = tempfile.TemporaryDirectory()
+
           aws_client['resource']
           content_object = aws_client['resource'].Object(bucket_name=api_bucket, key=model_id + "/competitionuserdata.json")
           file_content = content_object.get()['Body'].read().decode('utf-8')

@@ -157,7 +157,7 @@ def pull_image(image_uri):
 
 	return docker_tar
 
-def extract_data_from_image(image_name, file_name):
+def extract_data_from_image(image_name, file_name, location):
     tar = tarfile.open(image_name, 'r')
     files = []
     for t in tar.getmembers():
@@ -172,13 +172,13 @@ def extract_data_from_image(image_name, file_name):
     tar_layer.extractall(members=files, path=tempfile.gettempdir())
     if(os.path.isdir(file_name)):
         shutil.rmtree(file_name)
-    shutil.copytree(tempfile.gettempdir()+'/var/task/'+file_name, file_name)
+    shutil.copytree(tempfile.gettempdir()+'/var/task/'+file_name, os.path.join(location, file_name))
     shutil.rmtree(tempfile.gettempdir()+'/var')
 
-def download_data(repository):
+def download_data(repository, location="./"):
 	data_zip_name = repository.split('/')[2].split('-repository')[0]
 	docker_tar = pull_image(repository)
-	extract_data_from_image(docker_tar, data_zip_name)
+	extract_data_from_image(docker_tar, data_zip_name, location)
 	os.remove(docker_tar)
 	print('\n\nData downloaded successfully.')
 
