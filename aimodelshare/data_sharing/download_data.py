@@ -219,6 +219,13 @@ def import_quickstart_data(tutorial, section="modelplayground"):
         quickstart_repository = "public.ecr.aws/y2e2a1d6/quickstart_sports_competition-repository:latest"
         existing_folder = 'sports_clips_competition_data'
 
+    if all([tutorial == "dogs", section == "modelplayground"]):
+        quickstart_repository = "public.ecr.aws/y2e2a1d6/dog_breed_quickstart_materials-repository:latest"   
+        existing_folder = 'dog_competition_data'
+    if all([tutorial == "dogs", section == "competition"]):
+        quickstart_repository = "public.ecr.aws/y2e2a1d6/quickstart_dog_breed_competition-repository:latest"
+        existing_folder = 'dog_competition_data'
+
     download_data(quickstart_repository)
     
     #Delete pre-existing tutorial folders
@@ -229,6 +236,13 @@ def import_quickstart_data(tutorial, section="modelplayground"):
     if section == "modelplayground": 
         print("\nPreparing downloaded files for use...")
         
+        if tutorial == "dogs":
+           #instantiate model
+            model = tf.keras.models.load_model('dog_breed_quickstart_materials/model.h5')
+            
+            #unpack data
+            y_train = pd.read_csv("dog_breed_quickstart_materials/y_train.csv")
+
         if tutorial == "flowers":
            #instantiate model
             model = tf.keras.models.load_model('quickstart_materials/flowermodel.h5')
@@ -389,6 +403,23 @@ def import_quickstart_data(tutorial, section="modelplayground"):
                 
             for f in folders:
                 shutil.move(f, 'flower_competition_data')
+
+        if tutorial == "dogs":
+            #Instantiate Model 
+            model_2 = tf.keras.models.load_model('quickstart_dog_breed_competition/model_2.h5')
+        
+            #unpack data
+            with open("quickstart_dog_breed_competition/y_test_labels.txt", "rb") as fp:  
+                y_test_labels = pickle.load(fp)
+                
+            #move data files to folder to upload with create_competiton
+            os.mkdir('dog_competition_data')
+                
+            folders = ['quickstart_dog_breed_competition/dog_breed_competition_data/test_images', 
+                      'quickstart_dog_breed_competition/dog_breed_competition_data/train_images']
+                
+            for f in folders:
+                shutil.move(f, 'dog_competition_data')
         
         if tutorial == "sports":
             model_2 = tf.keras.models.load_model('quickstart_sports_competition/video_2.h5')
@@ -411,6 +442,12 @@ def import_quickstart_data(tutorial, section="modelplayground"):
 
     if all ([tutorial == "flowers", section == "competition"]): 
         return model_2, y_test_labels
+
+    if all([tutorial == "dogs", section == "modelplayground"]):
+        return model, y_train
+
+    if all ([tutorial == "dogs", section == "competition"]): 
+        return model_2, y_test_labels
     
     if all([tutorial == "sports", section == "modelplayground"]):
         return model, y_train_labels
@@ -426,4 +463,3 @@ def import_quickstart_data(tutorial, section="modelplayground"):
     
     if tutorial == "clickbait":
         return X_train, X_test, y_train, y_test, example_data, lstm_model, lstm_model2	
-
