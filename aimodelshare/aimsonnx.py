@@ -1237,7 +1237,7 @@ def compare_models_dict(apiurl, version_list=None,
     
     for i, j in zip(version_list, ml_framework_list): 
 
-        if j == "sklearn":
+        if j == "sklearn" or j == "pyspark":
         
             temp_pd = pd.DataFrame(model_dict[str(i)]['model_dict'])
             temp_pd.columns = ['param_name', 'default_value', "model_version_"+str(i)]
