@@ -61,8 +61,8 @@ def create_user_getkeyandpassword():
 
     #Remove special characters from username
     username_clean = re.sub('[^A-Za-z0-9-]+', '', os.environ.get("username"))
-    bucket_name = 'aimodelshare' + username_clean.lower()+str(account_number)
-    master_name = 'aimodelshare' + username_clean.lower()+str(account_number)
+    bucket_name = 'aimodelshare' + username_clean.lower()+str(account_number) + region.replace('-', '')
+    master_name = 'aimodelshare' + username_clean.lower()+str(account_number) + region.replace('-', '')
                             
     from botocore.client import ClientError
     try:
