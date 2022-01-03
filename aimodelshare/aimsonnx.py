@@ -370,34 +370,51 @@ def _keras_to_onnx(model, transfer_learning=None,
     # convert to onnx
     #onx = convert_keras(model)
     # generate tempfile for onnx object 
-    temp_dir = os.path.join(tempfile.gettempdir(), 'test')
-    temp_dir = tempfile.gettempdir()
+    temp_dir = tempfile.mkdtemp()
 
 
 
     
     tf.get_logger().setLevel('ERROR') # probably not good practice
     output_path = os.path.join(temp_dir, 'temp.onnx')
+    
+    from random import random
 
+    for layer in model.layers:
+        layer._name = layer.name + str("_"+str(random()))
+    
     model.save(temp_dir)
 
     # Convert the model
-    converter = tf.lite.TFLiteConverter.from_saved_model(temp_dir) # path to the SavedModel directory
-    converter.target_spec.supported_ops = [
-        tf.lite.OpsSet.TFLITE_BUILTINS, # enable TensorFlow Lite ops.
-        tf.lite.OpsSet.SELECT_TF_OPS # enable TensorFlow ops.
-      ]
-    tflite_model = converter.convert()
+    try:
+            modelstringtest="python -m tf2onnx.convert --saved-model  "+temp_dir+" --output "+output_path+" --opset 13"
+            resultonnx=os.system(modelstringtest)
+            resultonnx2=1
+            if resultonnx==0:
+              pass
+            else:
+              raise Exception('Model conversion to onnx unsuccessful.  Please try different model or submit predictions to leaderboard without submitting preprocessor or model files.')
+    except:
+            converter = tf.lite.TFLiteConverter.from_saved_model(temp_dir) # path to the SavedModel directory
+            converter.target_spec.supported_ops = [
+                tf.lite.OpsSet.TFLITE_BUILTINS, # enable TensorFlow Lite ops.
+                tf.lite.OpsSet.SELECT_TF_OPS # enable TensorFlow ops.
+              ]
+            tflite_model = converter.convert()
 
-    # Save the model.
-    with open(os.path.join(temp_dir,'tempmodel.tflite'), 'wb') as f:
-      f.write(tflite_model)
+            # Save the model.
+            with open(os.path.join(temp_dir,'tempmodel.tflite'), 'wb') as f:
+              f.write(tflite_model)
 
-    modelstringtest="python -m tf2onnx.convert --tflite "+os.path.join(temp_dir,'tempmodel.tflite')+" --output "+output_path+" --opset 13"
-    os.system(modelstringtest)
-    output_path = os.path.join(temp_dir, 'temp.onnx')
-    modelstringtest="python -m tf2onnx.convert --saved-model "+temp_dir+" --output "+output_path+" --opset 13"
-    os.system(modelstringtest)
+            modelstringtest="python -m tf2onnx.convert --tflite "+os.path.join(temp_dir,'tempmodel.tflite')+" --output "+output_path+" --opset 13"
+            resultonnx2=os.system(modelstringtest)
+            pass
+
+    if any([resultonnx==0, resultonnx2==0]):
+      pass
+    else:
+      return print("Model conversion to onnx unsuccessful.  Please try different model or submit\npredictions to leaderboard without submitting preprocessor or model files.")
+
     onx = onnx.load(output_path)
 
 
