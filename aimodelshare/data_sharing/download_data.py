@@ -211,6 +211,10 @@ def import_quickstart_data(tutorial, section="modelplayground"):
     if all([tutorial == "clickbait", section == "modelplayground"]):
         quickstart_repository = "public.ecr.aws/y2e2a1d6/quickstart_clickbait_materials-repository:latest" 
         existing_folder = 'clickbait_competition_data'
+
+    if all([tutorial == "covid_tweets", section == "modelplayground"]):
+        quickstart_repository = "public.ecr.aws/y2e2a1d6/quickstart_covid_competition-repository:latest" 
+        existing_folder = 'covid_tweet_competition_data'
         
     if all([tutorial == "sports", section == "modelplayground"]):
         quickstart_repository = "public.ecr.aws/y2e2a1d6/sports_quick_start_materials-repository:latest" 
@@ -242,6 +246,25 @@ def import_quickstart_data(tutorial, section="modelplayground"):
             
             #unpack data
             y_train = pd.read_csv("dog_breed_quickstart_materials/y_train.csv")
+        
+        if tutorial == "covid_tweets":
+            #unpack data 
+            X_train = pd.read_csv("quickstart_covid_competition/X_train.csv", squeeze=True)
+            X_test = pd.read_csv("quickstart_covid_competition/X_test.csv", squeeze=True)
+            y_test_labels = pd.read_csv("quickstart_covid_competition/y_test_labels.csv", squeeze=True)
+            y_train_labels = pd.read_csv("quickstart_covid_competition/y_train_labels.csv", squeeze=True)
+            # example data
+            example_data = X_train[50:55]
+
+            #move data files to cometition folder
+            os.mkdir('covid_tweet_competition_data')
+                
+            files = ['quickstart_covid_competition/X_train.csv', 
+                      'quickstart_covid_competition/X_test.csv',
+                     'quickstart_covid_competition/y_train_labels.csv']
+                
+            for f in files:
+                shutil.move(f, 'covid_tweet_competition_data')
 
         if tutorial == "flowers":
            #instantiate model
@@ -465,3 +488,6 @@ def import_quickstart_data(tutorial, section="modelplayground"):
     
     if tutorial == "clickbait":
         return X_train, X_test, y_train, y_test, example_data, lstm_model, lstm_model2	
+
+    if tutorial == "covid_tweets":
+        return X_train, X_test, y_train_labels, y_test_labels, example_data
