@@ -63,7 +63,7 @@ def create_user_getkeyandpassword():
     username_clean = re.sub('[^A-Za-z0-9-]+', '', os.environ.get("username"))
     bucket_name = 'aimodelshare' + username_clean.lower()+str(account_number) + region.replace('-', '')
     master_name = 'aimodelshare' + username_clean.lower()+str(account_number) + region.replace('-', '')
-                            
+    
     from botocore.client import ClientError
     try:
         s3['resource'].meta.client.head_bucket(Bucket=bucket_name)
@@ -72,7 +72,7 @@ def create_user_getkeyandpassword():
         bucket_exists=True
     if bucket_exists!=True:
         #bucket doesnot exist then create it
-        bucket = s3["client"].create_bucket(ACL ='private',Bucket=bucket_name)
+        bucket = s3["client"].create_bucket(ACL ='private',Bucket=bucket_name, CreateBucketConfiguration={'LocationConstraint': 'us-east-2'})
 
     else :
       pass
