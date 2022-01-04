@@ -316,10 +316,10 @@ def import_quickstart_data(tutorial, section="modelplayground"):
             # create data directory for competition
             X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2)
             training_data = pd.merge(X_train, y_train, left_index=True, right_index=True)
-            training_data.to_csv("training_data.csv")
+            training_data.to_csv("training_data.csv", index=False)
 
             test_data = X_test
-            test_data.to_csv("test_data.csv")
+            test_data.to_csv("test_data.csv", index=False)
             
             os.mkdir('titanic_competition_data')
             files = ['training_data.csv', 
