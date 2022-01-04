@@ -315,9 +315,9 @@ def import_quickstart_data(tutorial, section="modelplayground"):
             example_data = X_train[0:5]
             
             # Create data directory for competition 
-            X_train.to_csv("X_train.csv")
-            X_test.to_csv("X_test.csv")
-            y_train.to_csv("y_train.csv")
+            X_train.to_csv("X_train.csv", index=False)
+            X_test.to_csv("X_test.csv", index=False)
+            y_train.to_csv("y_train.csv", index=False)
             
             os.mkdir('clickbait_competition_data')
             
