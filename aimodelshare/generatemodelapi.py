@@ -95,10 +95,16 @@ def take_user_info_and_generate_api(model_filepath, model_type, categorical,labe
     now = datetime.datetime.now()
     s3, iam, region = get_s3_iam_client(os.environ.get("AWS_ACCESS_KEY_ID"), os.environ.get("AWS_SECRET_ACCESS_KEY"), os.environ.get("AWS_REGION"))
 
-    s3["client"].create_bucket(
-        ACL='private',
-        Bucket=os.environ.get("BUCKET_NAME"),
-        CreateBucketConfiguration={'LocationConstraint': 'us-east-2'})
+    try:
+      response = s3["client"].head_bucket(Bucket=os.environ.get("BUCKET_NAME"))
+      bucket_exists = True
+    except:
+      bucket_exists = False
+    if bucket_exists != True:
+      #bucket doesnot exist then create it
+      bucket = s3["client"].create_bucket(ACL ='private',Bucket=os.environ.get("BUCKET_NAME"), CreateBucketConfiguration={'LocationConstraint': 'us-east-2'})
+    else :
+      pass
     # model upload
     Filepath = model_filepath
     model = onnx.load(model_filepath)
