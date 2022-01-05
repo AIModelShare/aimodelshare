@@ -230,6 +230,10 @@ def import_quickstart_data(tutorial, section="modelplayground"):
         quickstart_repository = "public.ecr.aws/y2e2a1d6/quickstart_dog_breed_competition-repository:latest"
         existing_folder = 'dog_competition_data'
 
+    if all([tutorial == "imdb", section == "modelplayground"]):
+        quickstart_repository = "public.ecr.aws/y2e2a1d6/imdb_quickstart_materials-repository:latest"   
+        existing_folder = 'imdb_competition_data'
+
     download_data(quickstart_repository)
     
     #Delete pre-existing tutorial folders
@@ -265,6 +269,29 @@ def import_quickstart_data(tutorial, section="modelplayground"):
                 
             for f in files:
                 shutil.move(f, 'covid_tweet_competition_data')
+
+        if tutorial == "imdb":
+            #unpack data 
+            X_train = pd.read_csv("imdb_quickstart_materials/X_train.csv", squeeze=True)
+            X_test = pd.read_csv("imdb_quickstart_materials/X_test.csv", squeeze=True)
+            y_test_labels = pd.read_csv("imdb_quickstart_materials/y_test_labels.csv", squeeze=True)
+            y_train_labels = pd.read_csv("imdb_quickstart_materials/y_train_labels.csv", squeeze=True)
+            # example data
+            example_data = X_train[50:55]
+
+            #instantiate models
+            lstm_model = tf.keras.models.load_model('imdb_quickstart_materials/model_1.h5')
+            lstm_model2 = tf.keras.models.load_model('imdb_quickstart_materials/model_2.h5')
+
+            #move data files to cometition folder
+            os.mkdir('imdb_competition_data')
+                
+            files = ['imdb_quickstart_materials/X_train.csv', 
+                      'imdb_quickstart_materials/X_test.csv',
+                      'imdb_quickstart_materials/y_train_labels.csv']
+                
+            for f in files:
+                shutil.move(f, 'imdb_competition_data')
 
         if tutorial == "flowers":
            #instantiate model
@@ -488,6 +515,9 @@ def import_quickstart_data(tutorial, section="modelplayground"):
     
     if tutorial == "clickbait":
         return X_train, X_test, y_train, y_test, example_data, lstm_model, lstm_model2	
+
+    if tutorial == "imdb":
+        return X_train, X_test, y_train_labels, y_test_labels, example_data, lstm_model, lstm_model2	
 
     if tutorial == "covid_tweets":
         return X_train, X_test, y_train_labels, y_test_labels, example_data
