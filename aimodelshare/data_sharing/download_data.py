@@ -199,6 +199,13 @@ def import_quickstart_data(tutorial, section="modelplayground"):
     if all([tutorial == "flowers", section == "competition"]):
         quickstart_repository = "public.ecr.aws/y2e2a1d6/quickstart_flowers_competition-repository:latest"
         existing_folder = 'flower_competition_data'
+    
+    if all([tutorial == "mnist", section == "modelplayground"]):
+        quickstart_repository = "public.ecr.aws/y2e2a1d6/fashion_mnist_quickstart_materials-repository:latest"   
+        existing_folder = 'fashion_mnist_competition_data'
+    if all([tutorial == "mnist", section == "competition"]):
+        quickstart_repository = "public.ecr.aws/y2e2a1d6/quickstart_mnist_competition-repository:latest"
+        existing_folder = 'fashion_mnist_competition_data'
         
     if all([tutorial == "titanic", section == "modelplayground"]):
         quickstart_repository = "public.ecr.aws/y2e2a1d6/titanic_quickstart-repository:latest" 
@@ -299,6 +306,14 @@ def import_quickstart_data(tutorial, section="modelplayground"):
             
             #unpack data
             with open("quickstart_materials/y_train_labels.txt", "rb") as fp:  
+                y_train_labels = pickle.load(fp)
+
+        if tutorial == "mnist":
+           #instantiate model
+            model = tf.keras.models.load_model('fashion_mnist_quickstart_materials/mnist_model_1.h5')
+            
+            #unpack data
+            with open("fashion_mnist_quickstart_materials/y_train_labels.pkl", "rb") as fp:  
                 y_train_labels = pickle.load(fp)
         
         if tutorial == "sports":
@@ -455,6 +470,24 @@ def import_quickstart_data(tutorial, section="modelplayground"):
                 
             for f in folders:
                 shutil.move(f, 'flower_competition_data')
+        
+        if tutorial == "mnist":
+            #Instantiate Model 
+            model_2 = tf.keras.models.load_model('quickstart_mnist_competition/mnist_model_2.h5')
+        
+            #unpack data
+            with open("quickstart_mnist_competition/y_test_labels.pkl", "rb") as fp:  
+                y_test_labels = pickle.load(fp)
+                
+            #move data files to folder to upload with create_competiton
+            os.mkdir('fashion_mnist_competition_data')
+                
+            folders = ['quickstart_mnist_competition/test_data', 
+                      'quickstart_mnist_competition/training_data', 
+                       'fashion_mnist_quickstart_materials/y_train_labels.pkl']
+                
+            for f in folders:
+                shutil.move(f, 'fashion_mnist_competition_data')
 
         if tutorial == "dogs":
             #Instantiate Model 
@@ -493,6 +526,12 @@ def import_quickstart_data(tutorial, section="modelplayground"):
         return model, y_train_labels
 
     if all ([tutorial == "flowers", section == "competition"]): 
+        return model_2, y_test_labels
+    
+    if all([tutorial == "mnist", section == "modelplayground"]):
+        return model, y_train_labels
+
+    if all([tutorial == "mnist", section == "competition"]): 
         return model_2, y_test_labels
 
     if all([tutorial == "dogs", section == "modelplayground"]):
