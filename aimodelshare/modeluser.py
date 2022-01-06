@@ -73,7 +73,7 @@ def create_user_getkeyandpassword():
       bucket_exists = False
     if bucket_exists != True:
       #bucket doesnot exist then create it
-      bucket = s3_client.create_bucket(ACL ='private',Bucket=bucket_name, CreateBucketConfiguration={'LocationConstraint': 'us-east-2'})
+      bucket = s3_client.create_bucket(ACL ='private',Bucket=bucket_name, CreateBucketConfiguration={'LocationConstraint': str(os.environ.get("AWS_REGION"))})
     else :
       pass
 

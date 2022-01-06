@@ -102,7 +102,7 @@ def take_user_info_and_generate_api(model_filepath, model_type, categorical,labe
       bucket_exists = False
     if bucket_exists != True:
       #bucket doesnot exist then create it
-      bucket = s3["client"].create_bucket(ACL ='private',Bucket=os.environ.get("BUCKET_NAME"), CreateBucketConfiguration={'LocationConstraint': 'us-east-2'})
+      bucket = s3["client"].create_bucket(ACL ='private',Bucket=os.environ.get("BUCKET_NAME"), CreateBucketConfiguration={'LocationConstraint': str(os.environ.get("AWS_REGION"))})
     else :
       pass
     # model upload
