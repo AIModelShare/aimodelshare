@@ -339,10 +339,10 @@ def create_prediction_api(model_filepath, unique_model_id, model_type, categoric
 
     roles = user_session.client('iam').list_roles()
     
-    lambdarolename = 'myService-dev-us-east-1-lambdaRole'+str(shortuuid.uuid())
-    lambdafxnname = 'modfunction'+str(shortuuid.uuid())
-    lambdaauthfxnname = 'redisAccess'+str(shortuuid.uuid())
-    lambdaevalfxnname = 'evalfunction'+str(shortuuid.uuid())
+    lambdarolename = "myService-dev-"  + str(os.environ.get("AWS_REGION")) + "-lambdaRole" +str(shortuuid.uuid())
+    lambdafxnname = "modfunction" + str(shortuuid.uuid())
+    lambdaauthfxnname = "redisAccess" + str(shortuuid.uuid())
+    lambdaevalfxnname = "evalfunction" + str(shortuuid.uuid())
 
     response6 = user_session.resource('iam').create_role(
             AssumeRolePolicyDocument=json.dumps(lambdarole1),
@@ -350,8 +350,8 @@ def create_prediction_api(model_filepath, unique_model_id, model_type, categoric
             RoleName=lambdarolename,
         )
     response6_2 = user_session.client('iam').put_role_policy(
-            PolicyDocument='{"Version":"2012-10-17","Statement":[{"Action": ["logs:CreateLogGroup"],"Resource": ["arn:aws:logs:us-east-1:'+account_number+':*"],"Effect": "Allow"},{"Action": ["logs:CreateLogStream"], "Resource": ["arn:aws:logs:us-east-1:'+account_number+':log-group:/aws/lambda/'+lambdafxnname +
-            ':*"],"Effect": "Allow"},{"Action": ["logs:PutLogEvents"],"Resource": ["arn:aws:logs:us-east-1:'+account_number+':log-group:/aws/lambda/' +
+            PolicyDocument='{"Version":"2012-10-17","Statement":[{"Action": ["logs:CreateLogGroup"],"Resource": ["arn:aws:logs:' + str(os.environ.get("AWS_REGION")) + ':'+account_number+':*"],"Effect": "Allow"},{"Action": ["logs:CreateLogStream"],"Resource": ["arn:aws:logs:' + str(os.environ.get("AWS_REGION")) + ':' + account_number + ':log-group:/aws/lambda/'+lambdafxnname +
+            ':*"],"Effect": "Allow"},{"Action": ["logs:PutLogEvents"],"Resource": ["arn:aws:logs:' + str(os.environ.get("AWS_REGION")) + ':'+account_number+':log-group:/aws/lambda/' +
             lambdafxnname +
             ':*:*"],"Effect": "Allow"},{"Action": ["s3:GetObject"],"Resource": ["arn:aws:s3:::' +
             os.environ.get("BUCKET_NAME")+'/*"],"Effect": "Allow"}]}',
@@ -360,8 +360,8 @@ def create_prediction_api(model_filepath, unique_model_id, model_type, categoric
         )
 
     response6_2 = user_session.client('iam').put_role_policy(
-            PolicyDocument='{"Version":"2012-10-17","Statement":[{"Action": ["logs:CreateLogStream"], "Resource": ["arn:aws:logs:us-east-1:'+account_number+':log-group:/aws/lambda/'+lambdaauthfxnname +
-            ':*"],"Effect": "Allow"},{"Action": ["logs:PutLogEvents"],"Resource": ["arn:aws:logs:us-east-1:'+account_number+':log-group:/aws/lambda/' +
+            PolicyDocument='{"Version":"2012-10-17","Statement":[{"Action": ["logs:CreateLogStream"], "Resource": ["arn:aws:logs:' + str(os.environ.get("AWS_REGION")) + ':'+account_number+':log-group:/aws/lambda/'+lambdaauthfxnname +
+            ':*"],"Effect": "Allow"},{"Action": ["logs:PutLogEvents"],"Resource": ["arn:aws:logs:' + str(os.environ.get("AWS_REGION")) + ':'+account_number+':log-group:/aws/lambda/' +
             lambdaauthfxnname +
             ':*:*"],"Effect": "Allow"},{"Action": ["s3:GetObject"],"Resource": ["arn:aws:s3:::' +
             os.environ.get("BUCKET_NAME")+'/*"],"Effect": "Allow"}]}',
@@ -370,8 +370,8 @@ def create_prediction_api(model_filepath, unique_model_id, model_type, categoric
         )
 
     response6_2 = user_session.client('iam').put_role_policy(
-            PolicyDocument='{"Version":"2012-10-17","Statement":[{"Action": ["logs:CreateLogStream"], "Resource": ["arn:aws:logs:us-east-1:'+account_number+':log-group:/aws/lambda/'+lambdaevalfxnname +
-            ':*"],"Effect": "Allow"},{"Action": ["logs:PutLogEvents"],"Resource": ["arn:aws:logs:us-east-1:'+account_number+':log-group:/aws/lambda/' +
+            PolicyDocument='{"Version":"2012-10-17","Statement":[{"Action": ["logs:CreateLogStream"], "Resource": ["arn:aws:logs:' + str(os.environ.get("AWS_REGION")) + ':'+account_number+':log-group:/aws/lambda/'+lambdaevalfxnname +
+            ':*"],"Effect": "Allow"},{"Action": ["logs:PutLogEvents"],"Resource": ["arn:aws:logs:' + str(os.environ.get("AWS_REGION")) + ':'+account_number+':log-group:/aws/lambda/' +
             lambdaevalfxnname +
             ':*:*"],"Effect": "Allow"},{"Action": ["s3:ListBucket"],"Resource": ["arn:aws:s3:::' +
             os.environ.get("BUCKET_NAME")+'"],"Effect": "Allow"},{"Action": ["s3:GetObject"],"Resource": ["arn:aws:s3:::' +
@@ -504,7 +504,7 @@ def create_prediction_api(model_filepath, unique_model_id, model_type, categoric
             StatementId=stmt_id,
             Action='lambda:InvokeFunction',
             Principal='apigateway.amazonaws.com',
-            SourceArn='arn:aws:execute-api:us-east-1:'+account_number+":"+api_id+'/*/*',
+            SourceArn='arn:aws:execute-api:' + str(os.environ.get("AWS_REGION")) + ':'+account_number+":"+api_id+'/*/*',
     )
     # Update note:  dyndb data to add.  lambdafxnname
 
@@ -517,7 +517,7 @@ def create_prediction_api(model_filepath, unique_model_id, model_type, categoric
         StatementId='apigateway-prod-2',
         Action='lambda:InvokeFunction',
         Principal='apigateway.amazonaws.com',
-        SourceArn='arn:aws:execute-api:us-east-1:' +
+        SourceArn='arn:aws:execute-api:' + str(os.environ.get("AWS_REGION")) + ':' +
         account_number+":"+api_id+'/*/POST/m',
     )
 
@@ -526,7 +526,7 @@ def create_prediction_api(model_filepath, unique_model_id, model_type, categoric
         StatementId='apigateway-test-2',
         Action='lambda:InvokeFunction',
         Principal='apigateway.amazonaws.com',
-        SourceArn='arn:aws:execute-api:us-east-1:' +
+        SourceArn='arn:aws:execute-api:' + str(os.environ.get("AWS_REGION")) + ':' +
         account_number+":"+api_id+'/*/POST/m',
     )
 
@@ -535,7 +535,7 @@ def create_prediction_api(model_filepath, unique_model_id, model_type, categoric
         StatementId='apigateway-prod-3',
         Action='lambda:InvokeFunction',
         Principal='apigateway.amazonaws.com',
-        SourceArn='arn:aws:execute-api:us-east-1:' +
+        SourceArn='arn:aws:execute-api:' + str(os.environ.get("AWS_REGION")) + ':' +
         account_number+":"+api_id+'/*/POST/eval',
     )
 
@@ -544,7 +544,7 @@ def create_prediction_api(model_filepath, unique_model_id, model_type, categoric
         StatementId='apigateway-test-3',
         Action='lambda:InvokeFunction',
         Principal='apigateway.amazonaws.com',
-        SourceArn='arn:aws:execute-api:us-east-1:' +
+        SourceArn='arn:aws:execute-api:' + str(os.environ.get("AWS_REGION")) + ':' +
         account_number+":"+api_id+'/*/POST/eval',
     )
 
@@ -570,7 +570,7 @@ def create_prediction_api(model_filepath, unique_model_id, model_type, categoric
         httpMethod='POST',
         type='AWS_PROXY',
         integrationHttpMethod='POST',
-        uri='arn:aws:apigateway:us-east-1:lambda:path/2015-03-31/functions/arn:aws:lambda:us-east-1:' +
+        uri='arn:aws:apigateway:' + str(os.environ.get("AWS_REGION")) + ':lambda:path/2015-03-31/functions/arn:aws:lambda:' + str(os.environ.get("AWS_REGION")) + ':' +
         account_number+':function:'+lambdafxnname+'/invocations',
         credentials='arn:aws:iam::'+account_number+':role/lambda_invoke_function_assume_apigw_role')
     response11_1 = user_session.client('apigateway').put_integration(
@@ -582,7 +582,7 @@ def create_prediction_api(model_filepath, unique_model_id, model_type, categoric
             'application/json': '{"statusCode": 200}'
         },
         integrationHttpMethod='OPTIONS',
-        uri='arn:aws:apigateway:us-east-1:lambda:path/2015-03-31/functions/arn:aws:lambda:us-east-1:' +
+        uri='arn:aws:apigateway:' + str(os.environ.get("AWS_REGION")) + ':lambda:path/2015-03-31/functions/arn:aws:lambda:' + str(os.environ.get("AWS_REGION")) + ':' +
         account_number+':function:'+lambdafxnname+'/invocations',
         credentials='arn:aws:iam::'+account_number+':role/lambda_invoke_function_assume_apigw_role')
     response11_1B = user_session.client('apigateway').put_integration(
@@ -629,7 +629,7 @@ def create_prediction_api(model_filepath, unique_model_id, model_type, categoric
         httpMethod='POST',
         type='AWS_PROXY',
         integrationHttpMethod='POST',
-        uri='arn:aws:apigateway:us-east-1:lambda:path/2015-03-31/functions/arn:aws:lambda:us-east-1:' +
+        uri='arn:aws:apigateway:' + str(os.environ.get("AWS_REGION")) + ':lambda:path/2015-03-31/functions/arn:aws:lambda:' + str(os.environ.get("AWS_REGION")) + ':' +
         account_number+':function:'+lambdaevalfxnname+'/invocations',
         credentials='arn:aws:iam::'+account_number+':role/lambda_invoke_function_assume_apigw_role')
     response11_1 = user_session.client('apigateway').put_integration(
@@ -641,7 +641,7 @@ def create_prediction_api(model_filepath, unique_model_id, model_type, categoric
             'application/json': '{"statusCode": 200}'
         },
         integrationHttpMethod='OPTIONS',
-        uri='arn:aws:apigateway:us-east-1:lambda:path/2015-03-31/functions/arn:aws:lambda:us-east-1:' +
+        uri='arn:aws:apigateway:' + str(os.environ.get("AWS_REGION")) + ':lambda:path/2015-03-31/functions/arn:aws:lambda:' + str(os.environ.get("AWS_REGION")) + ':' +
         account_number+':function:'+lambdaevalfxnname+'/invocations',
         credentials='arn:aws:iam::'+account_number+':role/lambda_invoke_function_assume_apigw_role')
     response11_1B = user_session.client('apigateway').put_integration(
