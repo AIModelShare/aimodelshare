@@ -391,8 +391,10 @@ def model_to_api(model_filepath, model_type, private, categorical, y_train, prep
         repo_name, image_tag = "aimodelshare_base_image", "texttest"
     elif model_type=="image":
         repo_name, image_tag = "aimodelshare_base_image", "v3"
+    elif model_type=="video":
+        repo_name, image_tag = "aimodelshare_base_image", "v3"
     else:
-        pass
+        repo_name, image_tag = "aimodelshare_base_image", "v3"
     
     response = clone_base_image(user_session, repo_name, image_tag, "517169013426", base_image_api_endpoint, update)
     if(response["Status"]==0):
