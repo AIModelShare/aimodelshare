@@ -87,7 +87,7 @@ class ModelPlayground:
         #remove extra quotes
         self.playground_url = self.playground_url[1:-1]
     
-    def create_competition(self, data_directory, y_test, email_list = [], public=False):
+    def create_competition(self, data_directory, y_test, eval_metric_filepath=None, email_list = [], public=False):
         """
         Creates a model competition for a deployed prediction REST API
         Inputs : 4
@@ -113,7 +113,9 @@ class ModelPlayground:
         competition = to_competition(self.playground_url, 
                                     data_directory, 
                                     y_test, 
-                                    email_list, public)
+                                    eval_metric_filepath,
+                                    email_list, 
+                                    public)
         return competition
         
     def submit_model(self, model_filepath, preprocessor_filepath, prediction_submission):
