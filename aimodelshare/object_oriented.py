@@ -8,7 +8,7 @@ class ModelPlayground:
     Parameters:
     ----------
     `model_type` : ``string``
-          values - [ 'Text' , 'Image' , 'Tabular' , 'Timeseries' ] 
+          values - [ 'text' , 'image' , 'tabular' , 'video', 'audio','timeseries' ] 
           type of model data     
     `classification`:    ``bool, default=True``
         True [DEFAULT] if model is of Classification type with categorical target variables
