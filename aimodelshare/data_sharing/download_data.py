@@ -87,7 +87,7 @@ def pull_image(image_uri):
 	auth_head = get_auth_head(auth_url, registry, repository)
 
 	resp = requests.get('https://{}/v2/{}/manifests/{}'.format(registry, repository, tag), headers=auth_head, verify=False)
-
+    
 	config = resp.json()['config']['digest']
 	config_resp = requests.get('https://{}/v2/{}/blobs/{}'.format(registry, repository, config), headers=auth_head, verify=False)
 
@@ -381,12 +381,12 @@ def import_quickstart_data(tutorial, section="modelplayground"):
             # create data directory for competition
             X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2)
             training_data = pd.merge(X_train, y_train, left_index=True, right_index=True)
-	    
-            training_data = training_data.filter(like='Unnamed', axis=1)
+
+            training_data = training_data.drop(list(training_data.filter(like='Unnamed')), axis=1)
             training_data.to_csv("training_data.csv", index=False)
 
             test_data = X_test
-            test_data = test_data.filter(like='Unnamed', axis=1)
+            test_data = test_data.drop(list(test_data.filter(like='Unnamed')), axis=1)
             test_data.to_csv("test_data.csv", index=False)
             
             os.mkdir('titanic_competition_data')

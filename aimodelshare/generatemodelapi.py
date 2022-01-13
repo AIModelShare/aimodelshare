@@ -387,11 +387,11 @@ def model_to_api(model_filepath, model_type, private, categorical, y_train, prep
     if(image!=""):
         repo_name, image_tag = image.split(':')
     elif model_type=="tabular":
-        repo_name, image_tag = "aimodelshare_base_image", "tabular"
+        repo_name, image_tag = "aimodelshare_base_image", "pyspark"
     elif model_type=="text":
         repo_name, image_tag = "aimodelshare_base_image", "texttest"
     elif model_type=="image":
-        repo_name, image_tag = "aimodelshare_base_image", "v3"
+        repo_name, image_tag = "aimodelshare_base_image", "pyspark"
     elif model_type=="video":
         repo_name, image_tag = "aimodelshare_base_image", "v3"
     else:
