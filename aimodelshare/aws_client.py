@@ -122,7 +122,7 @@ class AWSClient():
         return resources
 
     def integration_setup(self, api_id, resource_id, uri_str, credentials, integration_response):
-        response_1 = self.aws_client.apigateway_client.put_integration(
+        response_1 = self.apigateway_client.put_integration(
             restApiId=api_id,
             resourceId=resource_id,
             httpMethod='POST',
@@ -131,7 +131,7 @@ class AWSClient():
             uri=uri_str,
             credentials=credentials
         )
-        response_2 = self.aws_client.apigateway_client.put_integration(
+        response_2 = self.apigateway_client.put_integration(
             restApiId=api_id,
             resourceId=resource_id,
             httpMethod='OPTIONS',
@@ -141,14 +141,14 @@ class AWSClient():
             uri=uri_str,
             credentials=credentials
         )
-        response_3 = self.aws_client.apigateway_client.put_integration(
+        response_3 = self.apigateway_client.put_integration(
             restApiId=api_id,
             resourceId=resource_id,
             httpMethod='OPTIONS',
             type='MOCK',
             requestTemplates={"application/json": '{"statusCode": 200}'}
         )
-        response_4 = self.aws_client.apigateway_client.put_integration_response(
+        response_4 = self.apigateway_client.put_integration_response(
             restApiId=api_id,
             resourceId=resource_id,
             httpMethod='OPTIONS',
