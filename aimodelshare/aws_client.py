@@ -15,8 +15,7 @@ class AWSClient():
         self.lambda_client = user_session.client("lambda")
         self.codebuild_client = user_session.client("codebuild")
         self.apigateway_client = user_session.client("apigateway")
-        
-        self.account_id = self.account_id
+        self.account_id = self.sts_client.get_caller_identity()["Account"]
 
     def get_repository_details(self, repository_name):
         try:
