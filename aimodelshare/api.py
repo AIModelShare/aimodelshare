@@ -336,11 +336,11 @@ class create_prediction_api_class():
 
         uri_str = "arn:aws:apigateway:" + self.region + ":lambda:path/2015-03-31/functions/arn:aws:lambda:" + self.region + ":" + self.account_id + ':function:' + lambdafxnname + '/invocations'
         credentials = 'arn:aws:iam::'+self.account_id+':role/' + lambdarolename2
-        self.aws_client.integration_setup(self, api_id, resource_id_lambda, uri_str, credentials, integration_response)
+        self.aws_client.integration_setup(api_id, resource_id_lambda, uri_str, credentials, integration_response)
 
         uri_str_2 = "arn:aws:apigateway:" + self.region + ":lambda:path/2015-03-31/functions/arn:aws:lambda:" + self.region + ":" + self.account_id + ':function:' + lambdaevalfxnname + '/invocations'
         credentials_2 = 'arn:aws:iam::'+self.account_id+':role/' + lambdarolename2
-        self.aws_client.integration_setup(self, api_id, resource_id_eval, uri_str_2, credentials_2, integration_response)
+        self.aws_client.integration_setup(api_id, resource_id_eval, uri_str_2, credentials_2, integration_response)
 
         response = self.aws_client.apigateway_client.update_rest_api(
             restApiId=api_id,
