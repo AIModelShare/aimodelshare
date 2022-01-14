@@ -324,7 +324,7 @@ class create_prediction_api_class():
         integration_response = json.loads(pkg_resources.read_text(json_templates, 'integration_response.txt'))
 
         lambdarole2 = json.loads(pkg_resources.read_text(json_templates, 'lambda_role_2.txt'))
-        lambdarolename2 = 'lambda_invoke_function_assume_apigw_role'
+        lambdarolename2 = 'lambda_invoke_function_assume_apigw_role_2'
         lambdapolicy2 = json.loads(pkg_resources.read_text(json_templates, 'lambda_policy_2.txt'))
         lambdapolicyname2 = 'invokelambda'
 
@@ -335,11 +335,11 @@ class create_prediction_api_class():
         self.aws_client.attach_policy_to_role(lambdarolename2, lambdapolicyname2)
 
         uri_str = "arn:aws:apigateway:" + self.region + ":lambda:path/2015-03-31/functions/arn:aws:lambda:" + self.region + ":" + self.account_id + ':function:' + lambdafxnname + '/invocations'
-        credentials = 'arn:aws:iam::'+self.account_id+':role/lambda_invoke_function_assume_apigw_role'
+        credentials = 'arn:aws:iam::'+self.account_id+':role/' + lambdarolename2
         self.aws_client.integration_setup(self, api_id, resource_id_lambda, uri_str, credentials, integration_response)
 
         uri_str_2 = "arn:aws:apigateway:" + self.region + ":lambda:path/2015-03-31/functions/arn:aws:lambda:" + self.region + ":" + self.account_id + ':function:' + lambdaevalfxnname + '/invocations'
-        credentials_2 = 'arn:aws:iam::'+self.account_id+':role/lambda_invoke_function_assume_apigw_role'
+        credentials_2 = 'arn:aws:iam::'+self.account_id+':role/' + lambdarolename2
         self.aws_client.integration_setup(self, api_id, resource_id_eval, uri_str_2, credentials_2, integration_response)
 
         response = self.aws_client.apigateway_client.update_rest_api(
