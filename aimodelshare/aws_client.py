@@ -153,6 +153,6 @@ class AWSClient():
             resourceId=resource_id,
             httpMethod='OPTIONS',
             statusCode='200',
-            responseParameters=json.dumps(integration_response),
+            responseParameters=integration_response,
             responseTemplates={"application/json": '{"statusCode": 200}'}
         )
