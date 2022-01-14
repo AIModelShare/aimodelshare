@@ -376,7 +376,7 @@ class create_prediction_api_class():
             StatementId=stmt_idauth,
             Action='lambda:InvokeFunction',
             Principal='apigateway.amazonaws.com',
-            SourceArn=uri_str+'/authorizers/'+authorizerid,
+            SourceArn='arn:aws:execute-api:'+self.region+':' + self.account_id+':'+api_id + '/authorizers/' + authorizerid
         )
         
         response_modmthd_addauth = self.user_session.client('apigateway').update_method(
