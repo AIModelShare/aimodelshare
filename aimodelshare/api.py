@@ -82,7 +82,6 @@ class create_prediction_api_class():
         #####
 
         self.model_type = self.model_type.lower()
-        self.categorical = self.categorical.upper()
 
         if(self.categorical == "TRUE"):
             self.categorical = True
