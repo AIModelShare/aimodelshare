@@ -57,7 +57,8 @@ class create_prediction_api_class():
             aws_secret_access_key = os.environ.get("AWS_SECRET_ACCESS_KEY"), 
             region_name=os.environ.get("AWS_REGION")
         )
-        
+        self.sts_client = self.user_session.client("sts")
+        self.account_id = self.sts_client.get_caller_identity()["Account"]
         #####
 
         self.aws_client = AWSClient(self.user_session)
