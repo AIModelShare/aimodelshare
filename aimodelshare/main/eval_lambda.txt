@@ -656,6 +656,11 @@ def compare_models(version_list, by_model_type=None, best_model=None, verbose=1,
 
             comp_dict_out["nn"] = comp_pd_nn.to_json()
 
+
+        elif j == "undefined": 
+            
+            comp_dict_out["undefined_"+str(i)] = pd.DataFrame({'param_name':[], 'default_value':[], 'model_version_'+str(i):[]}).to_json()
+
         
     return comp_dict_out
 
