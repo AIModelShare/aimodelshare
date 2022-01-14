@@ -51,13 +51,16 @@ class AWSClient():
 
     def detach_policies_from_role(self, role_name):
         response = self.iam_client.list_attached_role_policies(RoleName=role_name)
+        print(response)
         policies = response['AttachedPolicies']
+        print(policies)
         for policy in policies:
             response = self.iam_client.detach_role_policy(RoleName=role_name, PolicyArn=policy['PolicyArn'])
             time.sleep(delay)
 
     def delete_iam_role(self, role_name):
         if(len(self.get_role_details(role_name))):
+            print(self.get_role_details(role_name))
             response = self.detach_policies_from_role(role_name)
             response = self.iam_client.delete_role(RoleName=role_name)
             time.sleep(delay)
