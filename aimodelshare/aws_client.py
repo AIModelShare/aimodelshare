@@ -112,7 +112,7 @@ class AWSClient():
 
     def get_api_resources(self, api_id):
         try:
-            response = self.user_client.get_resources(restApiId=api_id)
+            response = self.apigateway_client.get_resources(restApiId=api_id)
             resources = response['items']
         except:
             resources = []
