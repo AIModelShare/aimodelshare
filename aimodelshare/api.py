@@ -109,6 +109,9 @@ class create_prediction_api_class():
         }
 
         self.temp_dir_file_deletion_list = ['archive.zip', 'archivetest.zip', 'archiveeval.zip', 'archiveauth.zip', 'main.py', 'ytest.pkl']
+        print(self.memory_model_mapping)
+        print(self.memory)
+        print(self.model_type)
         self.memory = self.memory_model_mapping[self.model_type] if self.memory==None else 1024
         self.timeout = self.timeout_model_mapping[self.model_type] if self.timeout==None else 30
 
@@ -117,7 +120,6 @@ class create_prediction_api_class():
 
         self.temp_dir = tempfile.gettempdir()
         self.file_objects_folder_path = os.path.join(self.temp_dir, 'file_objects')
-        self.model_type = self.model_type.lower()
 
         self.memory_1 = {
             "lambda": 1024,
