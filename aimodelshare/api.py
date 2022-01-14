@@ -260,12 +260,12 @@ class create_prediction_api_class():
                 for lib in requirements:
                     f.write('%s\n' % lib)
             requirements_file_path = os.path.join(self.file_objects_folder_path, 'requirements.txt')
-            response6 = deploy_container(self.account_number, os.environ.get("AWS_REGION"), self.user_session, lambdafxnname, self.file_objects_folder_path,requirements_file_path,self.apiid)
+            response6 = deploy_container(self.account_id, os.environ.get("AWS_REGION"), self.user_session, lambdafxnname, self.file_objects_folder_path,requirements_file_path,self.apiid)
 
         ##########
 
         lambdaclient = self.user_session.client('lambda')
-        role_arn = 'arn:aws:iam::' + self.account_number + ':role/' + lambdarolename
+        role_arn = 'arn:aws:iam::' + self.account_id + ':role/' + lambdarolename
         handler = 'main.handler'
 
         def create_lambda_function(self, function_name, python_runtime, role_arn, handler, code_source, timeout, memory_size, layers):
@@ -309,7 +309,7 @@ class create_prediction_api_class():
 
         fxn_list = self.aws_client.lambda_client.list_functions()
 
-        arn_prefix = "arn:aws:execute-api:" + self.region + ":" + self.account_number + ":" + api_id
+        arn_prefix = "arn:aws:execute-api:" + self.region + ":" + self.account_id + ":" + api_id
         self.aws_client.add_invoke_resource_policy_to_lambda(lambdaauthfxnname, stmt_id, arn_prefix + "/*")
         self.aws_client.add_invoke_resource_policy_to_lambda(lambdafxnname, 'apigateway-prod-2', arn_prefix + "/*/POST/m")
         self.aws_client.add_invoke_resource_policy_to_lambda(lambdafxnname, 'apigateway-test-2', arn_prefix + "/*/POST/m")
@@ -329,12 +329,12 @@ class create_prediction_api_class():
         self.aws_client.create_iam_policy(lambdapolicyname2, lambdapolicy2) # creating policy for CodeBuild
         self.aws_client.attach_policy_to_role(lambdarolename2, lambdapolicyname2)
 
-        uri_str = "arn:aws:apigateway:" + self.region + ":lambda:path/2015-03-31/functions/arn:aws:lambda:" + self.region + ":" + self.account_number + ':function:' + lambdafxnname + '/invocations'
-        credentials = 'arn:aws:iam::'+self.account_number+':role/lambda_invoke_function_assume_apigw_role'
+        uri_str = "arn:aws:apigateway:" + self.region + ":lambda:path/2015-03-31/functions/arn:aws:lambda:" + self.region + ":" + self.account_id + ':function:' + lambdafxnname + '/invocations'
+        credentials = 'arn:aws:iam::'+self.account_id+':role/lambda_invoke_function_assume_apigw_role'
         self.aws_client.integration_setup(self, api_id, resource_id_lambda, uri_str, credentials, integration_response)
 
-        uri_str_2 = "arn:aws:apigateway:" + self.region + ":lambda:path/2015-03-31/functions/arn:aws:lambda:" + self.region + ":" + self.account_number + ':function:' + lambdaevalfxnname + '/invocations'
-        credentials_2 = 'arn:aws:iam::'+self.account_number+':role/lambda_invoke_function_assume_apigw_role'
+        uri_str_2 = "arn:aws:apigateway:" + self.region + ":lambda:path/2015-03-31/functions/arn:aws:lambda:" + self.region + ":" + self.account_id + ':function:' + lambdaevalfxnname + '/invocations'
+        credentials_2 = 'arn:aws:iam::'+self.account_id+':role/lambda_invoke_function_assume_apigw_role'
         self.aws_client.integration_setup(self, api_id, resource_id_eval, uri_str_2, credentials_2, integration_response)
 
 
@@ -344,12 +344,12 @@ class create_prediction_api_class():
                 {
                     "op": "replace",
                     "path": "/policy",
-                    "value": '{"Version": "2012-10-17","Statement": [{"Effect": "Allow","Principal": "*","Action": "execute-api:Invoke","Resource": "arn:aws:execute-api:'+os.environ.get("AWS_REGION")+':'+self.account_number+':'+api_id+'/prod/OPTIONS/*"}]}'
+                    "value": '{"Version": "2012-10-17","Statement": [{"Effect": "Allow","Principal": "*","Action": "execute-api:Invoke","Resource": "arn:aws:execute-api:'+os.environ.get("AWS_REGION")+':'+self.account_id+':'+api_id+'/prod/OPTIONS/*"}]}'
                 }
             ]
         )
 
-        auth_uri_str = "arn:aws:apigateway:"+ os.environ.get("AWS_REGION") +":lambda:path/2015-03-31/functions/arn:aws:lambda:"+os.environ.get("AWS_REGION")+":"+self.account_number+":function:"+lambdaauthfxnname+"/invocations"
+        auth_uri_str = "arn:aws:apigateway:"+ os.environ.get("AWS_REGION") +":lambda:path/2015-03-31/functions/arn:aws:lambda:"+os.environ.get("AWS_REGION")+":"+self.account_id+":function:"+lambdaauthfxnname+"/invocations"
 
         responseauthfxnapigateway = self.aws_client.apigateway_client.create_authorizer(
             restApiId=api_id,
