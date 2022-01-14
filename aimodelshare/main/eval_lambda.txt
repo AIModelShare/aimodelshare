@@ -881,6 +881,10 @@ def get_leaderboard(task_type="$task_type", verbose=3, columns=None):
     leaderboard.drop(leaderboard.filter(regex="Unname"),axis=1, inplace=True)
     # }}}
 
+    leaderboard['username']=leaderboard.pop("username")
+    leaderboard['timestamp'] = leaderboard.pop("timestamp")
+    leaderboard['version'] = leaderboard.pop("version")
+
     return leaderboard
 
 
