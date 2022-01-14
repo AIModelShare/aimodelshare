@@ -434,7 +434,7 @@ class create_prediction_api_class():
 
 
 def create_prediction_api(model_filepath, unique_model_id, model_type, categorical, labels, apiid, custom_libraries, requirements, repo_name="", image_tag="", memory=None, timeout=None):
-    api_class = create_prediction_api_class(unique_model_id, model_type, categorical, labels, apiid, custom_libraries, requirements, repo_name, image_tag, memory, timeout)
+    api_class = create_prediction_api_class(model_filepath, unique_model_id, model_type, categorical, labels, apiid, custom_libraries, requirements, repo_name, image_tag, memory, timeout)
     return api_class.create_prediction_api()
 
 def get_api_json():
