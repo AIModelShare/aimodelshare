@@ -242,7 +242,7 @@ class create_prediction_api_class():
         self.aws_client.create_iam_role(lambdarolename, lambdarole1) # creating role for CodeBuild
         self.aws_client.delete_iam_policy(lambdapolicyname) # delete policy for CodeBuild if policy with same name exists
         self.aws_client.create_iam_policy(lambdapolicyname, lambdapolicy1) # creating policy for CodeBuild
-        self.aws_client.attach_policy_to_role(lambdarole1, lambdapolicy1)
+        self.aws_client.attach_policy_to_role(lambdarolename, lambdapolicyname)
 
         sys.stdout.write('\r')
         sys.stdout.write("[============                         ] Progress: 40% - Creating custom containers...                        ")
@@ -327,7 +327,7 @@ class create_prediction_api_class():
         self.aws_client.create_iam_role(lambdarolename2, lambdarole2) # creating role for CodeBuild
         self.aws_client.delete_iam_policy(lambdapolicyname2) # delete policy for CodeBuild if policy with same name exists
         self.aws_client.create_iam_policy(lambdapolicyname2, lambdapolicy2) # creating policy for CodeBuild
-        self.aws_client.attach_policy_to_role(lambdarole2, lambdapolicyname2)
+        self.aws_client.attach_policy_to_role(lambdarolename2, lambdapolicyname2)
 
         uri_str = "arn:aws:apigateway:" + self.region + ":lambda:path/2015-03-31/functions/arn:aws:lambda:" + self.region + ":" + self.account_number + ':function:' + lambdafxnname + '/invocations'
         credentials = 'arn:aws:iam::'+self.account_number+':role/lambda_invoke_function_assume_apigw_role'
