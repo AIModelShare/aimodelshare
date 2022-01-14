@@ -88,6 +88,11 @@ class create_prediction_api_class():
         elif(self.categorical == "FALSE"):
             self.categorical = False
 
+        if(self.custom_libraries == "TRUE"):
+            self.custom_libraries = True
+        elif(self.custom_libraries == "FALSE"):
+            self.custom_libraries = False
+
         self.memory_model_mapping = {
             "tabular": 1024,
             "text": 1024,
