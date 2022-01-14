@@ -491,7 +491,16 @@ def model_eval_metrics(y_true, y_pred, task_type="$task_type"):
             
             eval_metric = get_eval_metric(eval_metric_s3_filename=file)
             custom_eval = eval_metric(y_true, y_pred)
-            metricdata[file.replace("metrics_","").replace(".zip", "")] = [custom_eval]
+
+            if isinstance(custom_eval, dict): 
+                
+                for i in custom_eval.keys(): 
+                    
+                    metricdata[i] = [custom_eval[i]]
+                    
+            else:
+            
+                metricdata[file.replace("metrics_","").replace(".zip", "")] = [custom_eval]
         
     finalmetricdata = pd.DataFrame.from_dict(metricdata)
 
