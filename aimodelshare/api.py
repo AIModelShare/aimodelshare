@@ -113,7 +113,7 @@ class create_prediction_api_class():
             "us-east-1": "arn:aws:lambda:us-east-1:517169013426:layer:aimsauth_layer:2"
         }
 
-        self.temp_dir_file_deletion_list = ['archive.zip', 'archivetest.zip', 'archiveeval.zip', 'archiveauth.zip', 'main.py', 'ytest.pkl']
+        self.temp_dir_file_deletion_list = ['archive2.zip', 'archive3.zip', 'archive.zip', 'archivetest.zip', 'archiveeval.zip', 'archiveauth.zip', 'main.py', 'ytest.pkl']
         print(self.memory_model_mapping)
         print(self.memory)
         print(self.model_type)
@@ -141,12 +141,23 @@ class create_prediction_api_class():
 
     def create_prediction_api(self):
 
+        print(self.memory)
+        print(self.timeout)
+
         delete_files_from_temp_dir(self.temp_dir_file_deletion_list)
+
+        print(os.listdir(tempfile.gettempdir()))
+
+        print(self.account_id)
+
+        print(self.file_objects_folder_path)
 
         if self.model_type != "custom":  # file_objects already initialized if custom
             delete_folder(self.file_objects_folder_path)
+            print(os.listdir(tempfile.gettempdir()))
             make_folder(self.file_objects_folder_path)
-
+            print(os.listdir(tempfile.gettempdir()))
+            
         if(self.model_type == "neural style transfer"):
                 data = pkg_resources.read_text(main, 'nst.txt')
                 from string import Template
@@ -214,6 +225,7 @@ class create_prediction_api_class():
         
         t = Template(pkg_resources.read_text(main, 'eval_lambda.txt'))
         data = t.substitute(bucket_name = self.bucket_name, unique_model_id = self.unique_model_id, task_type = self.task_type)
+        print(data)
         with open(os.path.join(self.temp_dir, 'main.py'), 'w') as file:
             file.write(data)
         with zipfile.ZipFile(os.path.join(self.temp_dir, 'archive2.zip'), 'a') as z:
@@ -221,10 +233,12 @@ class create_prediction_api_class():
         self.aws_client.upload_file_to_s3(os.path.join(self.temp_dir, 'archive2.zip'), os.environ.get("BUCKET_NAME"), self.unique_model_id+"/"+'archiveeval.zip')
 
         delete_files_from_temp_dir(self.temp_dir_file_deletion_list)
+        print(os.listdir(tempfile.gettempdir()))
 
-        data = pkg_resources.read_text(main, 'authorization.txt')
+        data2 = pkg_resources.read_text(main, 'authorization.txt')
+        print(data2)
         with open(os.path.join(self.temp_dir, 'main.py'), 'w') as file:
-            file.write(data)
+            file.write(data2)
         with zipfile.ZipFile(os.path.join(self.temp_dir, 'archive3.zip'), 'a') as z:
             z.write(os.path.join(self.temp_dir, 'main.py'), 'main.py')
         self.aws_client.upload_file_to_s3(os.path.join(self.temp_dir, 'archive3.zip'), os.environ.get("BUCKET_NAME"), self.unique_model_id+"/"+'archiveauth.zip')
@@ -232,7 +246,9 @@ class create_prediction_api_class():
         if self.model_type.lower() == 'custom':
             self.aws_client.upload_file_to_s3(os.path.join(self.temp_dir, 'exampledata.json'), os.environ.get("BUCKET_NAME"), self.unique_model_id+"/"+"exampledata.json")
     
+        print(os.listdir(tempfile.gettempdir()))
         delete_files_from_temp_dir(self.temp_dir_file_deletion_list)
+        print(os.listdir(tempfile.gettempdir()))
 
         ####################
 
@@ -295,7 +311,7 @@ class create_prediction_api_class():
 
         auth_code_source = {'S3Bucket': self.bucket_name, 'S3Key':  self.unique_model_id + "/" + "archiveauth.zip"}
         auth_layers = [self.auth_layer]
-        create_lambda_function(lambdaauthfxnname, self.python_runtime, role_arn, handler, eval_code_source, 10, 512, auth_layers)
+        create_lambda_function(lambdaauthfxnname, self.python_runtime, role_arn, handler, auth_code_source, 10, 512, auth_layers)
 
         sys.stdout.write('\r')
         sys.stdout.write("[==========================           ] Progress: 75% - Deploying prediction API...                          ")
