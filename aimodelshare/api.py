@@ -446,7 +446,7 @@ def create_prediction_api(model_filepath, unique_model_id, model_type, categoric
 
 def get_api_json():
     region = "us-east-2"
-    apijson = """"
+    apijson = '''
     {
       "openapi": "3.0.1",
       "info": {
@@ -603,7 +603,7 @@ def get_api_json():
         ]
       }
     }
-            """ % (region, region)
+            ''' % (region, region)
     print(apijson)
     return apijson
 
