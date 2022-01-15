@@ -445,9 +445,165 @@ def create_prediction_api(model_filepath, unique_model_id, model_type, categoric
     return api_class.create_prediction_api()
 
 def get_api_json():
-    t = Template(pkg_resources.read_text(json_templates, 'api_json.txt'))
-    apijson = t.substitute(region=os.environ.get("AWS_REGION"), ref="$ref")
-    print(apijson)
+    region = os.environ.get("AWS_REGION")
+    apijson = """
+        {
+          "openapi": "3.0.1",
+          "info": {
+            "title": "modapi36146",
+            "description": "This is a copy of my first API",
+            "version": "2020-05-12T21:25:38Z"
+          },
+          "servers": [
+            {
+              "url": "https://8nee9nskdb.execute-api.%region.amazonaws.com/{basePath}",
+              "variables": {
+                "basePath": {
+                  "default": "/prod"
+                }
+              }
+            }
+          ],
+          "paths": {
+            "/eval": {
+              "post": {
+                "responses": {
+                  "200": {
+                    "description": "200 response",
+                    "headers": {
+                      "Access-Control-Allow-Origin": {
+                        "schema": {
+                          "type": "string"
+                        }
+                      }
+                    },
+                    "content": {
+                      "application/json": {
+                        "schema": {
+                          "$ref": "#/components/schemas/outputmodel"
+                        }
+                      }
+                    }
+                  }
+                }
+              },
+              "options": {
+                "responses": {
+                  "200": {
+                    "description": "200 response",
+                    "headers": {
+                      "Access-Control-Allow-Origin": {
+                        "schema": {
+                          "type": "string"
+                        }
+                      },
+                      "Access-Control-Allow-Methods": {
+                        "schema": {
+                          "type": "string"
+                        }
+                      },
+                      "Access-Control-Allow-Headers": {
+                        "schema": {
+                          "type": "string"
+                        }
+                      }
+                    },
+                    "content": {
+                      "application/json": {
+                        "schema": {
+                          "$ref": "#/components/schemas/Empty"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            "/m": {
+              "post": {
+                "responses": {
+                  "200": {
+                    "description": "200 response",
+                    "headers": {
+                      "Access-Control-Allow-Origin": {
+                        "schema": {
+                          "type": "string"
+                        }
+                      }
+                    },
+                    "content": {
+                      "application/json": {
+                        "schema": {
+                          "$ref": "#/components/schemas/outputmodel"
+                        }
+                      }
+                    }
+                  }
+                }
+              },
+              "options": {
+                "responses": {
+                  "200": {
+                    "description": "200 response",
+                    "headers": {
+                      "Access-Control-Allow-Origin": {
+                        "schema": {
+                          "type": "string"
+                        }
+                      },
+                      "Access-Control-Allow-Methods": {
+                        "schema": {
+                          "type": "string"
+                        }
+                      },
+                      "Access-Control-Allow-Headers": {
+                        "schema": {
+                          "type": "string"
+                        }
+                      }
+                    },
+                    "content": {
+                      "application/json": {
+                        "schema": {
+                          "$ref": "#/components/schemas/Empty"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "components": {
+            "schemas": {
+              "Empty": {
+                "title": "Empty Schema",
+                "type": "object"
+              },
+              "outputmodel": {
+                "title": "Output",
+                "type": "object",
+                "properties": {
+                  "body": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          },
+          "x-amazon-apigateway-policy": {
+            "Version": "2012-10-17",
+            "Statement": [
+              {
+                "Effect": "Allow",
+                "Principal": "*",
+                "Action": "execute-api:Invoke",
+                "Resource": "arn:aws:execute-api:us-east-1:517169013426:8nee9nskdb/prod/OPTIONS/*"
+              }
+            ]
+          }
+        }
+                """ % (region)
     return apijson
 
 def delete_deployment(apiurl):
