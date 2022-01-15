@@ -96,7 +96,8 @@ def take_user_info_and_generate_api(model_filepath, model_type, categorical,labe
     s3, iam, region = get_s3_iam_client(os.environ.get("AWS_ACCESS_KEY_ID"), os.environ.get("AWS_SECRET_ACCESS_KEY"), os.environ.get("AWS_REGION"))
     s3["client"].create_bucket(
         ACL='private',
-        Bucket=os.environ.get("BUCKET_NAME"))
+        Bucket=os.environ.get("BUCKET_NAME"),
+        region=os.environ.get("AWS_REGION"))
     # model upload
     Filepath = model_filepath
     model = onnx.load(model_filepath)
