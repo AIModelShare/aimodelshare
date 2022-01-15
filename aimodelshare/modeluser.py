@@ -61,18 +61,27 @@ def create_user_getkeyandpassword():
 
     #Remove special characters from username
     username_clean = re.sub('[^A-Za-z0-9-]+', '', os.environ.get("username"))
-    bucket_name = 'aimodelshare' + username_clean.lower()+str(account_number)
+    bucket_name = 'aimodelshare' + username_clean.lower()+str(account_number) + region.strip('-')
     master_name = 'aimodelshare' + username_clean.lower()+str(account_number)
                             
     from botocore.client import ClientError
     try:
-        s3['resource'].meta.client.head_bucket(Bucket=bucket_name)
+        s3['client'].meta.client.head_bucket(Bucket=bucket_name)
+        location = {'LocationConstraint': os.environ.get("AWS_REGION")}
+        s3["client"].create_bucket(
+            ACL='private',
+            Bucket=bucket_name,
+            CreateBucketConfiguration=location)
         bucket_exists=False
     except:
         bucket_exists=True
     if bucket_exists!=True:
         #bucket doesnot exist then create it
-        bucket = s3["client"].create_bucket(ACL ='private',Bucket=bucket_name)
+        location = {'LocationConstraint': os.environ.get("AWS_REGION")}
+        s3["client"].create_bucket(
+            ACL='private',
+            Bucket=bucket_name,
+            CreateBucketConfiguration=location)
 
     else :
       pass
