@@ -446,7 +446,7 @@ def create_prediction_api(model_filepath, unique_model_id, model_type, categoric
 
 def get_api_json():
     t = Template(pkg_resources.read_text(json_templates, 'api_json.txt'))
-    apijson = json.dumps(t.substitute(region=os.environ.get("AWS_REGION")), ref="$ref")
+    apijson = json.dumps(t.substitute(region=os.environ.get("AWS_REGION"), ref="$ref"))
     return apijson
 
 def delete_deployment(apiurl):
