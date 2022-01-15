@@ -212,17 +212,19 @@ class create_prediction_api_class():
         with open(os.path.join(self.file_objects_folder_path, 'lambda_function.py'), 'w') as file:
             file.write(data)
         
-        data = Template(pkg_resources.read_text(main, 'eval_lambda.txt'))
-        data = data.substitute(bucket_name = self.bucket_name, unique_model_id = self.unique_model_id, task_type = self.task_type)
+        t = Template(pkg_resources.read_text(main, 'eval_lambda.txt'))
+        data = t.substitute(bucket_name = self.bucket_name, unique_model_id = self.unique_model_id, task_type = self.task_type)
         with open(os.path.join(self.temp_dir, 'main.py'), 'w') as file:
             file.write(data)
         with zipfile.ZipFile(os.path.join(self.temp_dir, 'archive2.zip'), 'a') as z:
             z.write(os.path.join(self.temp_dir, 'main.py'), 'main.py')
         self.aws_client.upload_file_to_s3(os.path.join(self.temp_dir, 'archive2.zip'), os.environ.get("BUCKET_NAME"), self.unique_model_id+"/"+'archiveeval.zip')
 
+        delete_files_from_temp_dir(self.temp_dir_file_deletion_list)
+
         data = pkg_resources.read_text(main, 'authorization.txt')
         with open(os.path.join(self.temp_dir, 'main.py'), 'w') as file:
-            file.write(newdata)
+            file.write(data)
         with zipfile.ZipFile(os.path.join(self.temp_dir, 'archive3.zip'), 'a') as z:
             z.write(os.path.join(self.temp_dir, 'main.py'), 'main.py')
         self.aws_client.upload_file_to_s3(os.path.join(self.temp_dir, 'archive3.zip'), os.environ.get("BUCKET_NAME"), self.unique_model_id+"/"+'archiveauth.zip')
@@ -230,6 +232,8 @@ class create_prediction_api_class():
         if self.model_type.lower() == 'custom':
             self.aws_client.upload_file_to_s3(os.path.join(self.temp_dir, 'exampledata.json'), os.environ.get("BUCKET_NAME"), self.unique_model_id+"/"+"exampledata.json")
     
+        delete_files_from_temp_dir(self.temp_dir_file_deletion_list)
+
         ####################
 
         short_uuid = str(shortuuid.uuid())
