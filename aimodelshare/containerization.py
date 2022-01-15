@@ -285,7 +285,8 @@ def build_new_base_image(libraries, repository, image_tag, python_version):
     bucket_name = os.environ.get("BUCKET_NAME")
 
     s3_client = user_session.client("s3")
-    response = s3_client.create_bucket(ACL="private", Bucket=bucket_name, region=os.environ.get("AWS_REGION"))
+    location = {'LocationConstraint': os.environ.get("AWS_REGION")}
+    response = s3_client.create_bucket(ACL="private", Bucket=bucket_name, CreateBucketConfiguration=location)
     print("S3 Bucket \"" + bucket_name + "\" used for all storage purposes.")
     
     unique_name = repository + "_" + image_tag
