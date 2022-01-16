@@ -177,7 +177,27 @@ def share_data_codebuild(account_id, region, dataset_dir, dataset_tag='latest', 
         response = ecr.create_repository(
             repositoryName=repository
         )
+        dataset_tag='v1'
     except:
+        response = ecr.describe_images(
+            repositoryName='clickbait_competition_data-repository',
+        )
+
+        #images not returned in specific order: find most recent and get image tag 
+        image_dates = []
+        for image in response['imageDetails']:
+            image_dates.append(image['imagePushedAt'])
+
+        imageindex = image_dates.index(max(image_dates))
+        most_recent_tag = response['imageDetails'][imageindex]['imageTags'][0]
+
+        #set new dataset_tag
+        if most_recent_tag == 'latest':
+            dataset_tag='v1'
+        else: 
+            last_version = most_recent_tag.split('v')[1]
+            new_version = int(last_version) + 1
+            dataset_tag = 'v'+str(new_version)
         pass
 
     create_docker_folder_codebuild(dataset_dir, dataset_name, template_folder, region, registry_uri, repository, dataset_tag, python_version)
