@@ -189,7 +189,10 @@ def share_data_codebuild(account_id, region, dataset_dir, dataset_tag='latest', 
             image_dates.append(image['imagePushedAt'])
 
         imageindex = image_dates.index(max(image_dates))
-        most_recent_tag = response['imageDetails'][imageindex]['imageTags'][0]
+        try: 
+            most_recent_tag = response['imageDetails'][imageindex]['imageTags'][0]
+        except KeyError: #captures 'untagged' repos 
+            most_recent_tag='v0'
 
         #set new dataset_tag
         if most_recent_tag == 'latest':
@@ -198,7 +201,6 @@ def share_data_codebuild(account_id, region, dataset_dir, dataset_tag='latest', 
             last_version = most_recent_tag.split('v')[1]
             new_version = int(last_version) + 1
             dataset_tag = 'v'+str(new_version)
-        pass
 
     create_docker_folder_codebuild(dataset_dir, dataset_name, template_folder, region, registry_uri, repository, dataset_tag, python_version)
 
