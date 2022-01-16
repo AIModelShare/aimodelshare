@@ -107,17 +107,17 @@ class create_prediction_api_class():
 
         self.eval_layer_map = {
             "us-east-1": "arn:aws:lambda:us-east-1:517169013426:layer:eval_layer_test:6",
-            "us-east-2": "arn:aws:lambda:us-east-2:517169013426:layer:eval_layer_test:1"
+            "us-east-2": "arn:aws:lambda:us-east-2:517169013426:layer:eval_layer_test:5"
         }
 
         self.auth_layer_map = {
             "us-east-1": "arn:aws:lambda:us-east-1:517169013426:layer:aimsauth_layer:2",
-            "us-east-2": "arn:aws:lambda:us-east-2:517169013426:layer:aimsauth_layer:1"
+            "us-east-2": "arn:aws:lambda:us-east-2:517169013426:layer:aimsauth_layer:9"
         }
 
         self.temp_dir_file_deletion_list = ['archive2.zip', 'archive3.zip', 'archive.zip', 'archivetest.zip', 'archiveeval.zip', 'archiveauth.zip', 'main.py', 'ytest.pkl']
-        self.memory = self.memory_model_mapping[self.model_type] if self.memory==None else 1024
-        self.timeout = self.timeout_model_mapping[self.model_type] if self.timeout==None else 30
+        self.memory = self.memory_model_mapping[self.model_type] if self.memory==None else memory
+        self.timeout = self.timeout_model_mapping[self.model_type] if self.timeout==None else timeout
 
         self.eval_layer = self.eval_layer_map[self.region]
         self.auth_layer = self.auth_layer_map[self.region]
@@ -142,7 +142,7 @@ class create_prediction_api_class():
 
         delete_files_from_temp_dir(self.temp_dir_file_deletion_list)
 
-        if self.model_type != "custom":  # file_objects already initialized if custom
+        if self.model_type != "custom":
             delete_folder(self.file_objects_folder_path)
             make_folder(self.file_objects_folder_path)
             
@@ -211,6 +211,7 @@ class create_prediction_api_class():
         with open(os.path.join(self.file_objects_folder_path, 'lambda_function.py'), 'w') as file:
             file.write(data)
         
+        ###
         t = Template(pkg_resources.read_text(main, 'eval_lambda.txt'))
         data = t.substitute(bucket_name = self.bucket_name, unique_model_id = self.unique_model_id, task_type = self.task_type)
         with open(os.path.join(self.temp_dir, 'main.py'), 'w') as file:
@@ -219,14 +220,13 @@ class create_prediction_api_class():
             z.write(os.path.join(self.temp_dir, 'main.py'), 'main.py')
         self.aws_client.upload_file_to_s3(os.path.join(self.temp_dir, 'archive2.zip'), os.environ.get("BUCKET_NAME"), self.unique_model_id+"/"+'archiveeval.zip')
 
-        delete_files_from_temp_dir(self.temp_dir_file_deletion_list)
-
         data2 = pkg_resources.read_text(main, 'authorization.txt')
         with open(os.path.join(self.temp_dir, 'main.py'), 'w') as file:
             file.write(data2)
         with zipfile.ZipFile(os.path.join(self.temp_dir, 'archive3.zip'), 'a') as z:
             z.write(os.path.join(self.temp_dir, 'main.py'), 'main.py')
         self.aws_client.upload_file_to_s3(os.path.join(self.temp_dir, 'archive3.zip'), os.environ.get("BUCKET_NAME"), self.unique_model_id+"/"+'archiveauth.zip')
+        ###
 
         if self.model_type.lower() == 'custom':
             self.aws_client.upload_file_to_s3(os.path.join(self.temp_dir, 'exampledata.json'), os.environ.get("BUCKET_NAME"), self.unique_model_id+"/"+"exampledata.json")

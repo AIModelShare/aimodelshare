@@ -98,6 +98,24 @@ class AWSClient():
         response = self.s3_client.delete_object(Bucket=bucket_name, Key=bucket_file_path)
         time.sleep(delay)
 
+    def create_s3_bucket(self, bucket_name, region):
+        try:
+            response=self.s3_client.head_bucket(Bucket=bucket_name)
+        except:
+            if(region=="us-east-1"):
+                response = self.s3_client.create_bucket(
+                    ACL="private",
+                    Bucket=bucket_name
+                )
+            else:
+                location = {'LocationConstraint': region}
+                response = self.s3_client.create_bucket(
+                    ACL="private",
+                    Bucket=bucket_name,
+                    CreateBucketConfiguration=location
+                )
+        return response
+
     ####################################################################################################
 
     def add_invoke_resource_policy_to_lambda(self, lambda_function, statement_id, source_arn):
