@@ -180,7 +180,7 @@ def share_data_codebuild(account_id, region, dataset_dir, dataset_tag='latest', 
         dataset_tag='v1'
     except:
         response = ecr.describe_images(
-            repositoryName='clickbait_competition_data-repository',
+            repositoryName=repository,
         )
 
         #images not returned in specific order: find most recent and get image tag 
