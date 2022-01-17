@@ -19,16 +19,20 @@ from aimodelshare.containerisation import deploy_container
 # Remove uppercase letter since it is not allowed by ecr repository name property
 shortuuid.set_alphabet("23456789abcdefghijkmnopqrstuvwxyz")
 
-def create_prediction_api(model_filepath, unique_model_id, model_type, categorical, labels, apiid, custom_libraries, requirements, repo_name="", image_tag=""):
+def create_prediction_api(model_filepath, unique_model_id, model_type, categorical, labels, apiid, custom_libraries, requirements, repo_name="", image_tag="", memory=None, timeout=None):
 
-    if model_type=="tabular":
-        memory=3072
-    elif model_type=="text":
-        memory = 6144
-    elif model_type=="image":
-        memory=3072
-    else:
-        memory = 3072
+    if(memory == None):
+        if model_type=="tabular":
+            memory=1024
+        elif model_type=="text":
+            memory = 1024
+        elif model_type=="image":
+            memory=1024
+        else:
+            memory = 1024
+
+    if(timeout == None):
+        timeout = 90
 
     from zipfile import ZipFile
     import zipfile
@@ -410,7 +414,7 @@ def create_prediction_api(model_filepath, unique_model_id, model_type, categoric
     # }}}
     
     if(any([custom_libraries=='FALSE',custom_libraries=='false'])):
-        response6 = create_lambda_using_base_image(user_session, os.getenv("BUCKET_NAME"), file_objects_folder_path, lambdafxnname, apiid, repo_name, image_tag, memory, 90)
+        response6 = create_lambda_using_base_image(user_session, os.getenv("BUCKET_NAME"), file_objects_folder_path, lambdafxnname, apiid, repo_name, image_tag, memory, timeout)
     elif(any([custom_libraries=='TRUE',custom_libraries=='true'])):
 
         requirements = requirements.split(",")

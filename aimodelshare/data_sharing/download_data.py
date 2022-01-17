@@ -381,7 +381,6 @@ def import_quickstart_data(tutorial, section="modelplayground"):
             # create data directory for competition
             X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2)
             training_data = pd.merge(X_train, y_train, left_index=True, right_index=True)
-
             training_data = training_data.drop(list(training_data.filter(like='Unnamed')), axis=1)
             training_data.to_csv("training_data.csv", index=False)
 
