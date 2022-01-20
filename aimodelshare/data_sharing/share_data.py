@@ -341,7 +341,10 @@ def share_dataset(data_directory="folder_file_path",classification="default", pr
     # modeltoapi lambda function invoked through below url to return new prediction api in response
     response=requests.post("https://jyz9nn0joe.execute-api.us-east-1.amazonaws.com/dev/modeldata",
                   json=bodydata, headers=headers_with_authentication)
-    return "Your dataset has been shared to modelshare.org."
+    success_message = (" Success! Your dataset has been shared to modelshare.org. \n"
+                      "Download your dataset with the following code: \n"
+                      "download_data('"+datauri['ecr_uri']+"')")
+    return print(success_message)
 
 def delete_dataset(ecr_uri):
 
