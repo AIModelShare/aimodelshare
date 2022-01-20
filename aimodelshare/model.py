@@ -131,11 +131,29 @@ def _update_leaderboard(
     modelpath, eval_metrics, client, bucket, model_id, model_version
 ):
     # Loading the model and its metadata {{{
-    if not os.path.exists(modelpath):
-        raise FileNotFoundError(f"The model file at {modelpath} does not exist")
+    if modelpath is not None:
+        if not os.path.exists(modelpath):
+            raise FileNotFoundError(f"The model file at {modelpath} does not exist")
 
-    model = onnx.load(modelpath)
-    metadata = _get_leaderboard_data(model, eval_metrics)
+        model = onnx.load(modelpath)
+        metadata = _get_leaderboard_data(model, eval_metrics)
+
+    else: 
+
+        metadata = eval_metrics
+
+        # get general model info
+        metadata['ml_framework'] = 'unknown'
+        metadata['transfer_learning'] = None
+        metadata['deep_learning'] = None
+        metadata['model_type'] = 'unknown'
+        metadata['model_config'] = None
+
+    if custom_metadata is not None: 
+
+        metadata = dict(metadata, **custom_metadata)
+
+
     # }}}
 
     # Adding extra details to metadata {{{
@@ -168,8 +186,13 @@ def _update_leaderboard(
     # }}}
 
     # Update the leaderboard {{{
-    metadata = {col: metadata.get(col, None) for col in columns}
+    metadata_temp = {col: metadata.get(col, None) for col in columns}
+    metadata = dict(metadata, **metadata_temp)
     leaderboard = leaderboard.append(metadata, ignore_index=True, sort=False)
+
+    leaderboard['username']=leaderboard.pop("username")
+    leaderboard['timestamp'] = leaderboard.pop("timestamp")
+    leaderboard['version'] = leaderboard.pop("version")
 
     leaderboard_csv = leaderboard.to_csv(index=False, sep="\t")
     metadata.pop("model_config", "pop worked")
@@ -185,27 +208,46 @@ def _update_leaderboard(
     # }}}
 
 def _update_leaderboard_public(
-    modelpath, eval_metrics, s3_presigned_dict):
+    modelpath, eval_metrics, s3_presigned_dict, custom_metadata=None):
     # Loading the model and its metadata {{{
-    if not os.path.exists(modelpath):
-        raise FileNotFoundError(f"The model file at {modelpath} does not exist")
+
+    if modelpath is not None:
+        if not os.path.exists(modelpath):
+            raise FileNotFoundError(f"The model file at {modelpath} does not exist")
 
     model_versions = [os.path.splitext(f)[0].split("_")[-1][1:] for f in s3_presigned_dict['put'].keys()]
     
     model_versions = filter(lambda v: v.isnumeric(), model_versions)
     model_versions = list(map(int, model_versions))
     model_version=model_versions[0]
+    
+    if modelpath is not None:
 
-    model_version
+        model = onnx.load(modelpath)
+        metadata = _get_leaderboard_data(model, eval_metrics)
 
-    model = onnx.load(modelpath)
-    metadata = _get_leaderboard_data(model, eval_metrics)
+    else: 
+
+        metadata = eval_metrics
+
+        # get general model info
+        metadata['ml_framework'] = 'unknown'
+        metadata['transfer_learning'] = None
+        metadata['deep_learning'] = None
+        metadata['model_type'] = 'unknown'
+        metadata['model_config'] = None
+
+    if custom_metadata is not None: 
+
+        metadata = dict(metadata, **custom_metadata)
+
     # }}}
 
     # Adding extra details to metadata {{{
     metadata["username"] = os.environ.get("username")
     metadata["timestamp"] = str(datetime.now())
     metadata["version"] = model_version
+
     # }}}
     import tempfile
     temp=tempfile.mkdtemp()
@@ -214,7 +256,6 @@ def _update_leaderboard_public(
     # Read existing table {{{
     try:
         import wget
-
 
         #Get leaderboard
         leaderboardfilename = wget.download(s3_presigned_dict['get']['model_eval_data_mastertable.csv'], out=temp+"/"+'model_eval_data_mastertable.csv')
@@ -233,9 +274,15 @@ def _update_leaderboard_public(
     # }}}
 
     # Update the leaderboard {{{
-    metadata = {col: metadata.get(col, None) for col in columns}
+
+    metadata_temp = {col: metadata.get(col, None) for col in columns}
+    metadata = dict(metadata, **metadata_temp)
     leaderboard = leaderboard.append(metadata, ignore_index=True, sort=False)
-    
+
+    leaderboard['username']=leaderboard.pop("username")
+    leaderboard['timestamp'] = leaderboard.pop("timestamp")
+    leaderboard['version'] = leaderboard.pop("version")
+        
     leaderboard_csv = leaderboard.to_csv(temp+"/"+'model_eval_data_mastertable.csv',index=False, sep="\t")
     metadata.pop("model_config", "pop worked")
 
@@ -257,7 +304,7 @@ def _update_leaderboard_public(
         return err
  
 
-def upload_model_dict(modelpath, s3_presigned_dict, bucket, model_id, model_version):
+def upload_model_dict(modelpath, s3_presigned_dict, bucket, model_id, model_version, placeholder=False):
     import wget
     import json
     import tempfile
@@ -266,47 +313,59 @@ def upload_model_dict(modelpath, s3_presigned_dict, bucket, model_id, model_vers
     # get model summary from onnx
     import ast
     import astunparse
-    onnx_model = onnx.load(modelpath)
-    meta_dict = _get_metadata(onnx_model)
 
-    if meta_dict['ml_framework'] in ['keras', 'pytorch']:
+    if placeholder==False: 
+        onnx_model = onnx.load(modelpath)
+        meta_dict = _get_metadata(onnx_model)
 
-        inspect_pd = _model_summary(meta_dict)
-        
-    elif meta_dict['ml_framework'] in ['sklearn', 'xgboost']:
+        if meta_dict['ml_framework'] in ['keras', 'pytorch']:
 
-        model_config = meta_dict["model_config"]
-        tree = ast.parse(model_config)
+            inspect_pd = _model_summary(meta_dict)
+            
+        elif meta_dict['ml_framework'] in ['sklearn', 'xgboost']:
 
-        stringconfig=model_config
+            model_config = meta_dict["model_config"]
+            tree = ast.parse(model_config)
 
-        problemnodes=[]
-        for node in ast.walk(tree):
-            if isinstance(node, ast.Call):
-                problemnodes.append(astunparse.unparse(node).replace("\n",""))
+            stringconfig=model_config
 
-        problemnodesunique=set(problemnodes)
-        for i in problemnodesunique:
-            stringconfig=stringconfig.replace(i,"'"+i+"'")
+            problemnodes=[]
+            for node in ast.walk(tree):
+                if isinstance(node, ast.Call):
+                    problemnodes.append(astunparse.unparse(node).replace("\n",""))
 
-        try:
-            model_config=ast.literal_eval(stringconfig)
-            model_class = model_from_string(meta_dict['model_type'])
-            default = model_class()
-            default_config = default.get_params().values()
-            model_configkeys=model_config.keys()
-            model_configvalues=model_config.values()
-        except:
-            model_class = str(model_from_string(meta_dict['model_type']))
-            if model_class.find("Voting")>0:
-                  default_config = ["No data available"]
-                  model_configkeys=["No data available"]
-                  model_configvalues=["No data available"]
+            problemnodesunique=set(problemnodes)
+            for i in problemnodesunique:
+                stringconfig=stringconfig.replace(i,"'"+i+"'")
+
+            try:
+                model_config=ast.literal_eval(stringconfig)
+                model_class = model_from_string(meta_dict['model_type'])
+                default = model_class()
+                default_config = default.get_params().values()
+                model_configkeys=model_config.keys()
+                model_configvalues=model_config.values()
+            except:
+                model_class = str(model_from_string(meta_dict['model_type']))
+                if model_class.find("Voting")>0:
+                      default_config = ["No data available"]
+                      model_configkeys=["No data available"]
+                      model_configvalues=["No data available"]
 
 
-        inspect_pd = pd.DataFrame({'param_name': model_configkeys,
-                                    'default_value': default_config,
-                                    'param_value': model_configvalues})
+            inspect_pd = pd.DataFrame({'param_name': model_configkeys,
+                                        'default_value': default_config,
+                                        'param_value': model_configvalues})
+
+    else:
+        meta_dict = {}
+        meta_dict['ml_framework'] = "undefined"
+        meta_dict['model_type'] = "undefined"
+
+        #inspect_pd = pd.DataFrame({' ':["No metadata available for this model"]})
+        inspect_pd = pd.DataFrame()
+
+
    
     try:
         #Get inspect json
@@ -407,7 +466,8 @@ def submit_model(
     apiurl=None,
     prediction_submission=None,
     preprocessor=None,
-    reproducibility_env_filepath=None
+    reproducibility_env_filepath=None,
+    custom_metadata=None
     ):
     """
     Submits model/preprocessor to machine learning competition using live prediction API url generated by AI Modelshare library
@@ -532,10 +592,10 @@ def submit_model(
       filedownload_dict=ast.literal_eval(s3_presigned_dict ['put'][i])
       fileputlistofdicts.append(filedownload_dict)
 
-
-    with open(preprocessor, 'rb') as f:
-      files = {'file': (preprocessor, f)}
-      http_response = requests.post(fileputlistofdicts[0]['url'], data=fileputlistofdicts[0]['fields'], files=files)
+    if preprocessor is not None: 
+        with open(preprocessor, 'rb') as f:
+          files = {'file': (preprocessor, f)}
+          http_response = requests.post(fileputlistofdicts[0]['url'], data=fileputlistofdicts[0]['fields'], files=files)
 
     putfilekeys=list(s3_presigned_dict['put'].keys())
     modelputfiles = [s for s in putfilekeys if str("onnx") in s]
@@ -545,10 +605,10 @@ def submit_model(
       filedownload_dict=ast.literal_eval(s3_presigned_dict ['put'][i])
       fileputlistofdicts.append(filedownload_dict)
 
-
-    with open(model_filepath, 'rb') as f:
-      files = {'file': (model_filepath, f)}
-      http_response = requests.post(fileputlistofdicts[1]['url'], data=fileputlistofdicts[1]['fields'], files=files)
+    if model_filepath is not None:
+        with open(model_filepath, 'rb') as f:
+          files = {'file': (model_filepath, f)}
+          http_response = requests.post(fileputlistofdicts[1]['url'], data=fileputlistofdicts[1]['fields'], files=files)
 
 
     putfilekeys=list(s3_presigned_dict['put'].keys())
@@ -567,8 +627,8 @@ def submit_model(
 
     # Upload model metrics and metadata {{{
     modelleaderboarddata = _update_leaderboard_public(
-        model_filepath, eval_metrics,s3_presigned_dict
-    )
+        model_filepath, eval_metrics, s3_presigned_dict, custom_metadata)
+
 
     model_versions = [os.path.splitext(f)[0].split("_")[-1][1:] for f in s3_presigned_dict['put'].keys()]
 
@@ -576,9 +636,16 @@ def submit_model(
     model_versions = list(map(int, model_versions))
     model_version=model_versions[0]
 
-    upload_model_dict(model_filepath, s3_presigned_dict, bucket, model_id, model_version)
+    if model_filepath is not None:
 
-    upload_model_graph(model_filepath, s3_presigned_dict, bucket, model_id, model_version)
+        upload_model_dict(model_filepath, s3_presigned_dict, bucket, model_id, model_version)
+
+        upload_model_graph(model_filepath, s3_presigned_dict, bucket, model_id, model_version)
+
+    else:
+
+        upload_model_dict(model_filepath, s3_presigned_dict, bucket, model_id, model_version, placeholder=True)
+
 
     modelpath=model_filepath
 
@@ -634,62 +701,66 @@ def submit_model(
                   json=bodydata, headers=headers_with_authentication)
 
 
-    # get model summary from onnx
-    onnx_model = onnx.load(modelpath)
-    meta_dict = _get_metadata(onnx_model)
+    if modelpath is not None:
 
-    if meta_dict['ml_framework'] == 'keras':
+        # get model summary from onnx
+        onnx_model = onnx.load(modelpath)
+        meta_dict = _get_metadata(onnx_model)
 
-        inspect_pd = _model_summary(meta_dict)
-        model_graph = meta_dict['model_graph']
+        if meta_dict['ml_framework'] == 'keras':
 
-    if meta_dict['ml_framework'] == 'pytorch':
+            inspect_pd = _model_summary(meta_dict)
+            model_graph = meta_dict['model_graph']
 
-        inspect_pd = _model_summary(meta_dict)
-        model_graph = ""
+        if meta_dict['ml_framework'] == 'pytorch':
+
+            inspect_pd = _model_summary(meta_dict)
+            model_graph = ""
+            
+        elif meta_dict['ml_framework'] in ['sklearn', 'xgboost']:
+            import ast
+            import astunparse
+            model_config = meta_dict["model_config"]
+            tree = ast.parse(model_config)
+
+            stringconfig=model_config
+
+            problemnodes=[]
+            for node in ast.walk(tree):
+                if isinstance(node, ast.Call):
+                    problemnodes.append(astunparse.unparse(node).replace("\n",""))
+
+            problemnodesunique=set(problemnodes)
+            for i in problemnodesunique:
+                stringconfig=stringconfig.replace(i,"'"+i+"'")
+
+
+            try:
+                model_config=ast.literal_eval(stringconfig)
+                model_class = model_from_string(meta_dict['model_type'])
+                default = model_class()
+                default_config = default.get_params().values()
+                model_configkeys=model_config.keys()
+                model_configvalues=model_config.values()
+            except:
+                model_class = str(model_from_string(meta_dict['model_type']))
+                if model_class.find("Voting")>0:
+                      default_config = ["No data available"]
+                      model_configkeys=["No data available"]
+                      model_configvalues=["No data available"]
+
+
+            inspect_pd = pd.DataFrame({'param_name': model_configkeys,
+                                        'default_value': default_config,
+                                        'param_value': model_configvalues})
+
+            model_graph = ''
         
-    elif meta_dict['ml_framework'] in ['sklearn', 'xgboost']:
-        import ast
-        import astunparse
-        model_config = meta_dict["model_config"]
-        tree = ast.parse(model_config)
+    else: 
 
-        stringconfig=model_config
-
-
-
-        problemnodes=[]
-        for node in ast.walk(tree):
-            if isinstance(node, ast.Call):
-                problemnodes.append(astunparse.unparse(node).replace("\n",""))
-
-        problemnodesunique=set(problemnodes)
-        for i in problemnodesunique:
-            stringconfig=stringconfig.replace(i,"'"+i+"'")
-
-
-        
-
-        try:
-            model_config=ast.literal_eval(stringconfig)
-            model_class = model_from_string(meta_dict['model_type'])
-            default = model_class()
-            default_config = default.get_params().values()
-            model_configkeys=model_config.keys()
-            model_configvalues=model_config.values()
-        except:
-            model_class = str(model_from_string(meta_dict['model_type']))
-            if model_class.find("Voting")>0:
-                  default_config = ["No data available"]
-                  model_configkeys=["No data available"]
-                  model_configvalues=["No data available"]
-
-
-        inspect_pd = pd.DataFrame({'param_name': model_configkeys,
-                                    'default_value': default_config,
-                                    'param_value': model_configvalues})
-
+        inspect_pd = pd.DataFrame()
         model_graph = ''
+
         
 
     keys_to_extract = [ "accuracy", "f1_score", "precision", "recall", "mse", "rmse", "mae", "r2"]

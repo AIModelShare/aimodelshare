@@ -1009,8 +1009,11 @@ def inspect_model(apiurl, version=None, naming_convention=None):
 
     elif naming_convention == 'pytorch': 
         inspect_pd['Layer'] = rename_layers(inspect_pd['Layer'], direction="keras_to_torch", activation=False)
-    
-    return inspect_pd
+
+    if inspect_pd.empty:
+        print("No metadata available for model "+ str(version)+".")
+    else:
+        return inspect_pd
 
 
 def compare_models_dict(apiurl, version_list=None, 
@@ -1284,6 +1287,18 @@ def stylize_model_comparison(comp_dict_out, naming_convention=None):
                 'props': [('color', 'black'), ('font-size', '18px')]}])
 
             display(HTML(df_styled.render()))
+
+        elif 'undefined' in i:
+
+            version = i.split('_')[-1]
+
+            df_styled = comp_dict_out[i].style
+
+            df_styled = df_styled.set_caption("No metadata available for model "+ str(version)).set_table_styles([{'selector': 'caption',
+                'props': [('color', 'black'), ('font-size', '18px')]}])
+
+            display(HTML(df_styled.render()))
+            print('\n\n')
 
         else:
 
