@@ -581,7 +581,6 @@ def get_api_json():
       }
     }
             ''' % (region, region)
-    print(apijson)
     return apijson
 
 def delete_deployment(apiurl):
