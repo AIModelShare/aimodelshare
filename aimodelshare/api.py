@@ -1,31 +1,27 @@
-import json
-import os
-import random
-import boto3
-import botocore
-import tempfile
-import shutil
 import time
-import functools
-import requests
 import sys
-from zipfile import ZipFile, ZIP_STORED, ZipInfo
+import os
 import shutil
-import shortuuid
-from aimodelshare.containerization import create_lambda_using_base_image
-from aimodelshare.containerisation import deploy_container
+import random
+import tempfile
+import functools
+import json
+import requests
 
 from zipfile import ZipFile
-import zipfile
-import tempfile
 from string import Template
+
+import shortuuid
+import boto3
+import botocore
 
 try:
     import importlib.resources as pkg_resources
 except ImportError:
-    # Try backported to PY<37 `importlib_resources`.
     import importlib_resources as pkg_resources
 
+from aimodelshare.containerization import create_lambda_using_base_image
+from aimodelshare.containerisation import deploy_container
 
 from . import main  # relative-import the *package* containing the templates
 from . import json_templates
@@ -33,19 +29,7 @@ from . import custom_approach
 
 from .aws_client import AWSClient
 
-def delete_files_from_temp_dir(temp_dir_file_deletion_list):
-    temp_dir = tempfile.gettempdir()
-    for file_name in temp_dir_file_deletion_list:
-        file_path = os.path.join(temp_dir, file_name)
-        if(os.path.exists(file_path)):
-            os.remove(file_path)
-
-def delete_folder(folder_path):
-    if os.path.exists(folder_path):
-        shutil.rmtree(folder_path)
-
-def make_folder(folder_path):
-    os.makedirs(folder_path, exist_ok=True)
+import utils
 
 class create_prediction_api_class():
 
@@ -62,7 +46,7 @@ class create_prediction_api_class():
         #####
 
         self.aws_client = AWSClient(self.user_session)
-        
+                
         #####
         self.account_id = self.account_id
         self.unique_model_id = unique_model_id
@@ -125,8 +109,8 @@ class create_prediction_api_class():
         self.temp_dir = tempfile.gettempdir()
         self.file_objects_folder_path = os.path.join(self.temp_dir, 'file_objects')
 
-        self.memory_1 = {
-            "lambda": 1024,
+        self.memory_lambda = {
+            "main": 1024,
             "eval": 2048,
             "auth": 512
         }
@@ -137,73 +121,66 @@ class create_prediction_api_class():
             self.task_type="regression"
         else:
             self.task_type="custom"
+        
+        if(self.model_type=="custom"):
+            self.model_class="custom"
+        elif(self.model_type=="neural style transfer"):
+            self.model_class="generative"
+        elif(self.categorical==True):
+            self.model_class="classification"
+        elif(self.categorical==False):
+            self.model_class="regression"
+
+        self.model_template_mapping = {
+            "classification": {
+                "text": "1.txt",
+                "image": "2.txt",
+                "tabular": "4.txt",
+                "audio": "7.txt",
+                "video": "8.txt"
+            },
+            "regression": {
+                "text": "1B.txt",
+                "image": "3.txt",
+                "tabular": "5.txt",
+                "timeseries": "6.txt"
+            },
+            "generative": {
+                "neural style transfer": "nst.txt"
+            }
+        }
 
     def create_prediction_api(self):
 
-        delete_files_from_temp_dir(self.temp_dir_file_deletion_list)
+        utils.delete_files_from_temp_dir(self.temp_dir_file_deletion_list)
 
         if self.model_type != "custom":
-            delete_folder(self.file_objects_folder_path)
-            make_folder(self.file_objects_folder_path)
-            
-        if(self.model_type == "neural style transfer"):
-                data = pkg_resources.read_text(main, 'nst.txt')
-                from string import Template
-                t = Template(data)
-                newdata = t.substitute(bucket_name=os.environ.get("BUCKET_NAME"), unique_model_id=self.unique_model_id)
-        elif self.model_type == 'text' and self.categorical == True:
-                data = pkg_resources.read_text(main, '1.txt')
-                from string import Template
-                t = Template(data)
-                newdata = t.substitute(bucket_name=os.environ.get("BUCKET_NAME"), unique_model_id=self.unique_model_id, labels=self.labels)
-        elif self.model_type == 'text' and self.categorical == False:
-                data = pkg_resources.read_text(main, '1B.txt')
-                from string import Template
-                t = Template(data)
-                newdata = t.substitute(bucket_name=os.environ.get("BUCKET_NAME"), unique_model_id=self.unique_model_id)
-        elif self.model_type == 'image' and self.categorical == True:
-                data = pkg_resources.read_text(main, '2.txt')
-                from string import Template
-                t = Template(data)            
-                newdata = t.substitute(bucket_name=os.environ.get("BUCKET_NAME"), unique_model_id=self.unique_model_id, labels=self.labels)
-        elif self.model_type == 'image' and self.categorical == False:
-                data = pkg_resources.read_text(main, '3.txt')
-                from string import Template
-                t = Template(data)
-                newdata = t.substitute(bucket_name=os.environ.get("BUCKET_NAME"), unique_model_id=self.unique_model_id)
-        elif all([self.model_type == 'tabular', self.categorical == True]):
-                data = pkg_resources.read_text(main, '4.txt')
-                from string import Template
-                t = Template(data)
-                newdata = t.substitute(bucket_name=os.environ.get("BUCKET_NAME"), unique_model_id=self.unique_model_id, labels=self.labels)
-        elif all([self.model_type == 'tabular', self.categorical == False]):
-                data = pkg_resources.read_text(main, '5.txt')
-                from string import Template
-                t = Template(data)
-                newdata = t.substitute(bucket_name=os.environ.get("BUCKET_NAME"), unique_model_id=self.unique_model_id)
-        elif self.model_type.lower() == 'timeseries' and self.categorical == False:
-                data = pkg_resources.read_text(main, '6.txt')
-                from string import Template
-                t = Template(data)
-                newdata = t.substitute(bucket_name=os.environ.get("BUCKET_NAME"), unique_model_id=self.unique_model_id)
-        elif self.model_type.lower() == 'audio' and self.categorical == True:
-                data = pkg_resources.read_text(main, '7.txt')
-                from string import Template
-                t = Template(data)
-                newdata = t.substitute(bucket_name=os.environ.get("BUCKET_NAME"), unique_model_id=self.unique_model_id, labels=self.labels)
-        elif self.model_type.lower() == 'video' and self.categorical == True:
-                data = pkg_resources.read_text(main, '8.txt')
-                from string import Template
-                t = Template(data)
-                newdata = t.substitute(bucket_name=os.environ.get("BUCKET_NAME"), unique_model_id=self.unique_model_id, labels=self.labels)
-        elif self.model_type.lower() == 'custom':
+            utils.delete_folder(self.file_objects_folder_path)
+            utils.make_folder(self.file_objects_folder_path)
+
+
+        if self.model_type == 'custom':
             with open("custom_lambda.py", 'r') as in_file:     
                 newdata = in_file.read()
+        else:
+            data = pkg_resources.read_text(main, self.model_template_mapping[self.model_class][self.model_type])
+            t = Template(data)
+            if(self.model_class=="classification"):
+                newdata = t.substitute(
+                    bucket_name=os.environ.get("BUCKET_NAME"),
+                    unique_model_id=self.unique_model_id,
+                    labels=self.labels
+                )
+            else:
+                newdata = t.substitute(
+                    bucket_name=os.environ.get("BUCKET_NAME"),
+                    unique_model_id=self.unique_model_id
+                )
 
         with open(os.path.join(self.file_objects_folder_path, 'model.py'), 'w') as file:
             file.write(newdata)
 
-        if(self.model_type.lower() == 'custom'):
+        if(self.model_type == 'custom'):
             data = pkg_resources.read_text(custom_approach, 'lambda_function.py')
         else:
             data = pkg_resources.read_text(main, 'lambda_function.txt')
@@ -216,14 +193,14 @@ class create_prediction_api_class():
         data = t.substitute(bucket_name = self.bucket_name, unique_model_id = self.unique_model_id, task_type = self.task_type)
         with open(os.path.join(self.temp_dir, 'main.py'), 'w') as file:
             file.write(data)
-        with zipfile.ZipFile(os.path.join(self.temp_dir, 'archive2.zip'), 'a') as z:
+        with ZipFile(os.path.join(self.temp_dir, 'archive2.zip'), 'a') as z:
             z.write(os.path.join(self.temp_dir, 'main.py'), 'main.py')
         self.aws_client.upload_file_to_s3(os.path.join(self.temp_dir, 'archive2.zip'), os.environ.get("BUCKET_NAME"), self.unique_model_id+"/"+'archiveeval.zip')
 
         data2 = pkg_resources.read_text(main, 'authorization.txt')
         with open(os.path.join(self.temp_dir, 'main.py'), 'w') as file:
             file.write(data2)
-        with zipfile.ZipFile(os.path.join(self.temp_dir, 'archive3.zip'), 'a') as z:
+        with ZipFile(os.path.join(self.temp_dir, 'archive3.zip'), 'a') as z:
             z.write(os.path.join(self.temp_dir, 'main.py'), 'main.py')
         self.aws_client.upload_file_to_s3(os.path.join(self.temp_dir, 'archive3.zip'), os.environ.get("BUCKET_NAME"), self.unique_model_id+"/"+'archiveauth.zip')
         ###
@@ -231,7 +208,7 @@ class create_prediction_api_class():
         if self.model_type.lower() == 'custom':
             self.aws_client.upload_file_to_s3(os.path.join(self.temp_dir, 'exampledata.json'), os.environ.get("BUCKET_NAME"), self.unique_model_id+"/"+"exampledata.json")
     
-        delete_files_from_temp_dir(self.temp_dir_file_deletion_list)
+        utils.delete_files_from_temp_dir(self.temp_dir_file_deletion_list)
 
         ####################
 
@@ -613,7 +590,6 @@ def delete_deployment(apiurl):
     WARNING: User must supply high-level credentials in order to delete an API. 
     """
     from aimodelshare.aws import run_function_on_lambda
-    import json  
 
     # Provide Warning & Have user confirm deletion 
     print("Running this function will permanently delete all resources tied to this deployment, \n including the eval lambda and all models submitted to the model competition.\n")
