@@ -29,7 +29,7 @@ from . import custom_approach
 
 from .aws_client import AWSClient
 
-import utils
+from .utils import *
 
 class create_prediction_api_class():
 
@@ -152,11 +152,11 @@ class create_prediction_api_class():
 
     def create_prediction_api(self):
 
-        utils.delete_files_from_temp_dir(self.temp_dir_file_deletion_list)
+        delete_files_from_temp_dir(self.temp_dir_file_deletion_list)
 
         if self.model_type != "custom":
-            utils.delete_folder(self.file_objects_folder_path)
-            utils.make_folder(self.file_objects_folder_path)
+            delete_folder(self.file_objects_folder_path)
+            make_folder(self.file_objects_folder_path)
 
 
         if self.model_type == 'custom':
@@ -208,7 +208,7 @@ class create_prediction_api_class():
         if self.model_type.lower() == 'custom':
             self.aws_client.upload_file_to_s3(os.path.join(self.temp_dir, 'exampledata.json'), os.environ.get("BUCKET_NAME"), self.unique_model_id+"/"+"exampledata.json")
     
-        utils.delete_files_from_temp_dir(self.temp_dir_file_deletion_list)
+        delete_files_from_temp_dir(self.temp_dir_file_deletion_list)
 
         ####################
 
