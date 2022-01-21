@@ -154,8 +154,6 @@ def get_leaderboard(apiurl, verbose=3, columns=None):
     return leaderboard_pd
 
 
-
-
 def stylize_leaderboard(leaderboard, naming_convention="keras"):
 
     leaderboard = consolidate_leaderboard(leaderboard, naming_convention=naming_convention)
@@ -165,7 +163,10 @@ def stylize_leaderboard(leaderboard, naming_convention="keras"):
     leaderboard = leaderboard.drop(drop_cols, axis=1)
 
     #truncate model config info
-    leaderboard.model_config = leaderboard.model_config.map(lambda x: x[0:30]+'...')
+
+    if "model_config" in leaderboard.columns:
+        leaderboard.model_config = leaderboard.model_config.fillna('None')
+        leaderboard.model_config = leaderboard.model_config.map(lambda x: x[0:30]+'...')
 
     # }}}
 

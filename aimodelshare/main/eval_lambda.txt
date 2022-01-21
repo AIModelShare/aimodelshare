@@ -446,7 +446,6 @@ def model_eval_metrics(y_true, y_pred, task_type="$task_type"):
         r2_eval = None
         
         metricdata = {'accuracy': [accuracy_eval], 'f1_score': [f1_score_eval], 'precision': [precision_eval], 'recall': [recall_eval], 'mse': [mse_eval], 'rmse': [rmse_eval], 'mae': [mae_eval], 'r2': [r2_eval]}
-        finalmetricdata = pd.DataFrame.from_dict(metricdata)
         
     else:
         
@@ -474,9 +473,36 @@ def model_eval_metrics(y_true, y_pred, task_type="$task_type"):
         f1_score_eval = None
         precision_eval = None
         recall_eval = None
-        
+
         metricdata = {'accuracy': [accuracy_eval], 'f1_score': [f1_score_eval], 'precision': [precision_eval], 'recall': [recall_eval], 'mse': [mse_eval], 'rmse': [rmse_eval], 'mae': [mae_eval], 'r2': [r2_eval]}
-        finalmetricdata = pd.DataFrame.from_dict(metricdata)
+
+
+    s3 = boto3.resource("s3")
+    bucket = s3.Bucket("$bucket_name")
+    
+    metrics_files = bucket.objects.filter(Prefix= "$unique_model_id"+"/metrics_")
+    
+
+    if metrics_files: 
+
+        for i in metrics_files:
+
+            file = i.key.split('/')[-1]
+            
+            eval_metric = get_eval_metric(eval_metric_s3_filename=file)
+            custom_eval = eval_metric(y_true, y_pred)
+
+            if isinstance(custom_eval, dict): 
+                
+                for i in custom_eval.keys(): 
+                    
+                    metricdata[i] = [custom_eval[i]]
+                    
+            else:
+            
+                metricdata[file.replace("metrics_","").replace(".zip", "")] = [custom_eval]
+        
+    finalmetricdata = pd.DataFrame.from_dict(metricdata)
 
     return finalmetricdata.to_dict('records')[0]
 
@@ -638,6 +664,11 @@ def compare_models(version_list, by_model_type=None, best_model=None, verbose=1,
             comp_pd_nn = pd.concat([comp_pd_nn, temp_pd_nn], axis=1)
 
             comp_dict_out["nn"] = comp_pd_nn.to_json()
+
+
+        elif j == "undefined": 
+            
+            comp_dict_out["undefined_"+str(i)] = pd.DataFrame({'param_name':[], 'default_value':[], 'model_version_'+str(i):[]}).to_json()
 
         
     return comp_dict_out
@@ -858,6 +889,10 @@ def get_leaderboard(task_type="$task_type", verbose=3, columns=None):
     leaderboard = leaderboard.loc[order].reset_index().drop("index", axis=1).drop_duplicates(subset=['version', 'username'], keep='last')
     leaderboard.drop(leaderboard.filter(regex="Unname"),axis=1, inplace=True)
     # }}}
+
+    leaderboard['username']=leaderboard.pop("username")
+    leaderboard['timestamp'] = leaderboard.pop("timestamp")
+    leaderboard['version'] = leaderboard.pop("version")
 
     return leaderboard
 
@@ -1361,3 +1396,47 @@ def get_reproducibility_env(version=None):
         else:
             raise
     return reproducibility_env_json
+
+
+def get_eval_metric(eval_metric_s3_filename):
+
+    import pickle
+    from zipfile import ZipFile
+    from io import BytesIO
+    import os
+
+    s3 = boto3.resource("s3")
+    bucket = s3.Bucket("$bucket_name")
+
+    zip_obj = s3.Object(bucket_name="$bucket_name",
+                        key="$unique_model_id/"+eval_metric_s3_filename)
+
+    buffer = BytesIO(zip_obj.get()["Body"].read())
+
+    z = ZipFile(buffer)
+    # Extract all the contents of zip file in current directory
+    z.extractall("/tmp/")
+
+    metric_py = eval_metric_s3_filename.split('.')[-2] + '.py'
+
+    folderpath = os.path.dirname(os.path.abspath("/tmp/"+metric_py))
+    file_name = os.path.basename("/tmp/"+metric_py)
+
+    pickle_file_list = []
+    for file in os.listdir(folderpath):
+        if file.endswith(".pkl"):
+            pickle_file_list.append(os.path.join(folderpath, file))
+
+    for i in pickle_file_list:
+        objectname = str(os.path.basename(i)).replace(".pkl", "")
+        objects = {objectname: ""}
+        globals()[objectname] = pickle.load(open(str(i), "rb"))
+
+    metric_py = metric_py.replace("metrics_", "")
+
+    exec(open(os.path.join(folderpath, metric_py)).read(), globals())
+    
+    print(globals()['custom_eval_metric'])
+    eval_metric = globals()['custom_eval_metric']
+
+    return eval_metric
