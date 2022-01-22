@@ -470,7 +470,7 @@ def model_to_api(model_filepath, model_type, private, categorical, y_train, prep
     
     return api_info[0]
 
-def create_competition(apiurl, data_directory, y_test,  email_list=[], public=False):
+def create_competition(apiurl, data_directory, y_test, eval_metric_filepath=None, email_list=[], public=False):
     """
     Creates a model competition for a deployed prediction REST API
     Inputs : 4
@@ -537,6 +537,25 @@ def create_competition(apiurl, data_directory, y_test,  email_list=[], public=Fa
 
     pickle.dump(y_test,open(ytest_path,"wb"))
     s3["client"].upload_file(ytest_path, os.environ.get("BUCKET_NAME"),  model_id + "/ytest.pkl")
+
+
+    if eval_metric_filepath is not None:
+    
+        if isinstance(eval_metric_filepath, list):
+
+            for i in eval_metric_filepath: 
+
+                eval_metric_name = i.split('/')[-1]
+
+                s3["client"].upload_file(i, os.environ.get("BUCKET_NAME"),  model_id + '/metrics_' + eval_metric_name)
+
+        else:
+
+            eval_metric_name = eval_metric_filepath.split('/')[-1]
+
+            print(eval_metric_name)
+
+            s3["client"].upload_file(eval_metric_filepath, os.environ.get("BUCKET_NAME"), model_id + '/metrics_' + eval_metric_name)
 
 
     # get api_id from apiurl, generate txt file name
