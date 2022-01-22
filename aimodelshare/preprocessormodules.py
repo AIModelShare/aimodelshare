@@ -167,6 +167,7 @@ def export_preprocessor(preprocessor_fxn,directory, globs=globals()):
         import imp
         modulenames = ["sklearn","keras","tensorflow","cv2","resize","pytorch","librosa","pyspark"]
 
+        # List all standard libraries not covered by sys.builtin_module_names
         paths = (os.path.abspath(p) for p in sys.path)
         stdlib = {
             p for p in paths
@@ -174,6 +175,7 @@ def export_preprocessor(preprocessor_fxn,directory, globs=globals()):
                 and 'site-packages' not in p
         }
 
+        # Exclude standard libraries
         for module_name in function_objects:
             try:
                 if module_name in sys.builtin_module_names:
