@@ -188,15 +188,19 @@ def share_data_codebuild(account_id, region, dataset_dir, dataset_tag='latest', 
         for image in response['imageDetails']:
             image_dates.append(image['imagePushedAt'])
 
-        imageindex = image_dates.index(max(image_dates))
         try: 
+            imageindex = image_dates.index(max(image_dates))
+
             most_recent_tag = response['imageDetails'][imageindex]['imageTags'][0]
         except KeyError: #captures 'untagged' repos 
             most_recent_tag='v0'
 
         #set new dataset_tag
-        if most_recent_tag == 'latest':
-            dataset_tag='v1'
+        
+        if most_recent_tag == 'v0':
+            dataset_tag='latest'
+        elif most_recent_tag=='latest':
+            dataset_tag='v1'            
         else: 
             last_version = most_recent_tag.split('v')[1]
             new_version = int(last_version) + 1
