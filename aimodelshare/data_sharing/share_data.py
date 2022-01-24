@@ -177,37 +177,8 @@ def share_data_codebuild(account_id, region, dataset_dir, dataset_tag='latest', 
         response = ecr.create_repository(
             repositoryName=repository
         )
-        dataset_tag='v1'
     except:
-        response = ecr.describe_images(
-            repositoryName=repository,
-        )
-
-        #images not returned in specific order: find most recent and get image tag 
-        image_dates = []
-        for image in response['imageDetails']:
-            image_dates.append(image['imagePushedAt'])
-
-        try:
-            if len(image_dates)>0:
-                imageindex = image_dates.index(max(image_dates))
-            else:
-                imageindex=0
-
-            most_recent_tag = response['imageDetails'][imageindex]['imageTags'][0]
-        except KeyError: #captures 'untagged' repos 
-            most_recent_tag='v0'
-
-        #set new dataset_tag
-        
-        if most_recent_tag == 'v0':
-            dataset_tag='latest'
-        elif most_recent_tag=='latest':
-            dataset_tag='v1'            
-        else: 
-            last_version = most_recent_tag.split('v')[1]
-            new_version = int(last_version) + 1
-            dataset_tag = 'v'+str(new_version)
+        pass
 
     create_docker_folder_codebuild(dataset_dir, dataset_name, template_folder, region, registry_uri, repository, dataset_tag, python_version)
 
@@ -348,10 +319,7 @@ def share_dataset(data_directory="folder_file_path",classification="default", pr
     # modeltoapi lambda function invoked through below url to return new prediction api in response
     response=requests.post("https://jyz9nn0joe.execute-api.us-east-1.amazonaws.com/dev/modeldata",
                   json=bodydata, headers=headers_with_authentication)
-    success_message = ("\nSuccess! Your dataset has been shared to modelshare.org. \n"
-                      "Download your dataset with the following code: \n"
-                      "download_data('"+datauri['ecr_uri']+"')")
-    return print(success_message)
+    return "Your dataset has been shared to modelshare.org."
 
 def delete_dataset(ecr_uri):
 
