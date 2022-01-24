@@ -61,21 +61,33 @@ def create_user_getkeyandpassword():
 
     #Remove special characters from username
     username_clean = re.sub('[^A-Za-z0-9-]+', '', os.environ.get("username"))
-    bucket_name = 'aimodelshare' + username_clean.lower()+str(account_number)
+    bucket_name = 'aimodelshare' + username_clean.lower()+str(account_number) + region.replace('-', '')
     master_name = 'aimodelshare' + username_clean.lower()+str(account_number)
-                            
     from botocore.client import ClientError
-    try:
-        s3['resource'].meta.client.head_bucket(Bucket=bucket_name)
-        bucket_exists=False
-    except:
-        bucket_exists=True
-    if bucket_exists!=True:
-        #bucket doesnot exist then create it
-        bucket = s3["client"].create_bucket(ACL ='private',Bucket=bucket_name)
 
-    else :
-      pass
+    region = os.environ.get("AWS_REGION")
+
+    s3_client = s3['client']
+
+    def create_bucket(s3_client, bucket_name, region):
+        try:
+            response=s3_client.head_bucket(Bucket=bucket_name)
+        except:
+            if(region=="us-east-1"):
+                response = s3_client.create_bucket(
+                    ACL="private",
+                    Bucket=bucket_name
+                )
+            else:
+                location={'LocationConstraint': region}
+                response=s3_client.create_bucket(
+                    ACL="private",
+                    Bucket=bucket_name,
+                    CreateBucketConfiguration=location
+                )
+        return response
+
+    create_bucket(s3['client'], bucket_name, region)
 
     my_policy = _custom_s3_policy(bucket_name)
     #sub_bucket = 'aimodelshare' + username.lower() + ts.replace("_","")

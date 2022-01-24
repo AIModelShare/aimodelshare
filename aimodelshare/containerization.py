@@ -285,7 +285,27 @@ def build_new_base_image(libraries, repository, image_tag, python_version):
     bucket_name = os.environ.get("BUCKET_NAME")
 
     s3_client = user_session.client("s3")
-    response = s3_client.create_bucket(Bucket=bucket_name)
+    
+    def create_bucket(s3_client, bucket_name, region):
+        try:
+            response=s3_client.head_bucket(Bucket=bucket_name)
+        except:
+            if(region=="us-east-1"):
+                response = s3_client.create_bucket(
+                    ACL="private",
+                    Bucket=bucket_name
+                )
+            else:
+                location={'LocationConstraint': region}
+                response=s3_client.create_bucket(
+                    ACL="private",
+                    Bucket=bucket_name,
+                    CreateBucketConfiguration=location
+                )
+        return response
+
+    create_bucket(s3_client, bucket_name, os.environ.get("AWS_REGION"))
+
     print("S3 Bucket \"" + bucket_name + "\" used for all storage purposes.")
     
     unique_name = repository + "_" + image_tag
