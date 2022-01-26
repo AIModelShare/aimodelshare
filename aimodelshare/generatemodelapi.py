@@ -29,7 +29,7 @@ from aimodelshare.containerization import clone_base_image
 from aimodelshare.aimsonnx import _get_metadata
 
 
-def take_user_info_and_generate_api(model_filepath, model_type, categorical,labels, preprocessor_filepath,custom_libraries, requirements, exampledata_json_filepath, repo_name, image_tag, reproducibility_env_filepath, memory, timeout):
+def take_user_info_and_generate_api(model_filepath, model_type, categorical,labels, preprocessor_filepath,custom_libraries, requirements, exampledata_json_filepath, repo_name, image_tag, reproducibility_env_filepath, memory, timeout, is_pyspark=False):
     """
     Generates an api using model parameters and user credentials, from the user
 
@@ -173,7 +173,9 @@ def take_user_info_and_generate_api(model_filepath, model_type, categorical,labe
     # }}}
     
     apiurl = create_prediction_api(model_filepath, unique_model_id,
-                                   model_type, categorical, labels,api_id,custom_libraries, requirements, repo_name, image_tag, memory, timeout)
+                                   model_type, categorical, labels,api_id,
+                                   custom_libraries, requirements, repo_name, 
+                                   image_tag, memory, timeout, is_pyspark=is_pyspark)
 
     finalresult = [apiurl["body"], apiurl["statusCode"],
                    now, unique_model_id, os.environ.get("BUCKET_NAME"), input_shape]
@@ -387,15 +389,21 @@ def model_to_api(model_filepath, model_type, private, categorical, y_train, prep
     if(image!=""):
         repo_name, image_tag = image.split(':')
     elif model_type=="tabular":
-        repo_name, image_tag = "aimodelshare_base_image", "pyspark"
+        repo_name, image_tag = "aimodelshare_base_image", "v3"
     elif model_type=="text":
         repo_name, image_tag = "aimodelshare_base_image", "texttest"
     elif model_type=="image":
-        repo_name, image_tag = "aimodelshare_base_image", "pyspark"
+        repo_name, image_tag = "aimodelshare_base_image", "v3"
     elif model_type=="video":
         repo_name, image_tag = "aimodelshare_base_image", "v3"
     else:
         repo_name, image_tag = "aimodelshare_base_image", "v3"
+
+    # Pyspark mode
+    framework = _get_metadata(onnx.load(model_filepath))['ml_framework']
+
+    if framework == "pyspark":
+        repo_name, image_tag = "aimodelshare_base_image", "pyspark"
     
     response = clone_base_image(user_session, repo_name, image_tag, "517169013426", base_image_api_endpoint, update)
     if(response["Status"]==0):
@@ -455,8 +463,12 @@ def model_to_api(model_filepath, model_type, private, categorical, y_train, prep
     sys.stdout.flush()
     # }}}
     
+    is_pyspark = framework == "pyspark"
     api_info = take_user_info_and_generate_api( 
-        model_filepath, model_type, categorical, labels,preprocessor_filepath,custom_libraries, requirements, exampledata_json_filepath, repo_name, image_tag, reproducibility_env_filepath, memory, timeout)
+        model_filepath, model_type, categorical, labels, 
+        preprocessor_filepath, custom_libraries, requirements, 
+        exampledata_json_filepath, repo_name, image_tag, 
+        reproducibility_env_filepath, memory, timeout, is_pyspark=is_pyspark)
 
     ### Progress Update #5/6 {{{
     sys.stdout.write('\r')

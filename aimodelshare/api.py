@@ -19,7 +19,7 @@ from aimodelshare.containerisation import deploy_container
 # Remove uppercase letter since it is not allowed by ecr repository name property
 shortuuid.set_alphabet("23456789abcdefghijkmnopqrstuvwxyz")
 
-def create_prediction_api(model_filepath, unique_model_id, model_type, categorical, labels, apiid, custom_libraries, requirements, repo_name="", image_tag="", memory=None, timeout=None):
+def create_prediction_api(model_filepath, unique_model_id, model_type, categorical, labels, apiid, custom_libraries, requirements, repo_name="", image_tag="", memory=None, timeout=None, is_pyspark=False):
 
     if(memory == None):
         if model_type=="tabular":
@@ -131,7 +131,9 @@ def create_prediction_api(model_filepath, unique_model_id, model_type, categoric
       import importlib_resources as pkg_resources
 
     from . import main  # relative-import the *package* containing the templates
-
+    if is_pyspark:
+        from . import pyspark as main
+    
     from . import custom_approach
 
     file_objects_folder_path = os.path.join(temp_dir, 'file_objects')
