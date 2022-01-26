@@ -260,26 +260,29 @@ def handler(event, context):
             reproducibility_env_json = None
             model_weight_url = None
             model_metadata_json = get_model_metadata(version)
-            if reproduce:
-                reproducibility_env_json = get_reproducibility_env(version=version)
-            elif trained:
-                # Get the presigned url.
-                s3_client=boto3.client("s3")
-                
-                bucket = "$bucket_name"
-                model_id = "$unique_model_id"
-                onnx_model_name = "onnx_model_v{}.onnx".format(version)
-    
-                method_parameters = {
-                    "Bucket": bucket, 
-                    "Key": model_id + "/" + onnx_model_name,
-                }
 
-                expires_in = 900 # 15 mins
+            # the model version is found (users didn't only submit prediction for this version)
+            if model_metadata_json:
+                if reproduce:
+                    reproducibility_env_json = get_reproducibility_env(version=version)
+                elif trained:
+                    # Get the presigned url.
+                    s3_client=boto3.client("s3")
+                    
+                    bucket = "$bucket_name"
+                    model_id = "$unique_model_id"
+                    onnx_model_name = "onnx_model_v{}.onnx".format(version)
+        
+                    method_parameters = {
+                        "Bucket": bucket, 
+                        "Key": model_id + "/" + onnx_model_name,
+                    }
 
-                presigned_url = generate_presigned_url(s3_client, "get_object", method_parameters, expires_in)
-                model_weight_url = str(presigned_url)
-                print("Presigned url: {}".format(str(presigned_url)))
+                    expires_in = 900 # 15 mins
+
+                    presigned_url = generate_presigned_url(s3_client, "get_object", method_parameters, expires_in)
+                    model_weight_url = str(presigned_url)
+                    print("Presigned url: {}".format(str(presigned_url)))
                 
             data = {
                 "model_weight_url": model_weight_url,

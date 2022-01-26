@@ -669,30 +669,31 @@ def submit_model(
           http_response = requests.post(fileputlistofdicts[0]['url'], data=fileputlistofdicts[0]['fields'], files=files)
 
     # Model metadata upload
-    putfilekeys=list(s3_presigned_dict['put'].keys())
-    modelputfiles = [s for s in putfilekeys if str("model_metadata") in s]
+    if model_filepath:
+        putfilekeys=list(s3_presigned_dict['put'].keys())
+        modelputfiles = [s for s in putfilekeys if str("model_metadata") in s]
 
-    fileputlistofdicts=[]
-    for i in modelputfiles:
-        filedownload_dict=ast.literal_eval(s3_presigned_dict ['put'][i])
-        fileputlistofdicts.append(filedownload_dict)
+        fileputlistofdicts=[]
+        for i in modelputfiles:
+            filedownload_dict=ast.literal_eval(s3_presigned_dict ['put'][i])
+            fileputlistofdicts.append(filedownload_dict)
 
-    onnx_model = onnx.load(model_filepath)
-    meta_dict = _get_metadata(onnx_model)
-    model_metadata = {
-        "model_config": meta_dict["model_config"],
-        "ml_framework": meta_dict["ml_framework"],
-        "model_type": meta_dict["model_type"]
-    }
+        onnx_model = onnx.load(model_filepath)
+        meta_dict = _get_metadata(onnx_model)
+        model_metadata = {
+            "model_config": meta_dict["model_config"],
+            "ml_framework": meta_dict["ml_framework"],
+            "model_type": meta_dict["model_type"]
+        }
 
-    temp = tempfile.mkdtemp()
-    model_metadata_path = temp + "/" + 'model_metadata.json'
-    with open(model_metadata_path, 'w') as outfile:
-        json.dump(model_metadata, outfile)
+        temp = tempfile.mkdtemp()
+        model_metadata_path = temp + "/" + 'model_metadata.json'
+        with open(model_metadata_path, 'w') as outfile:
+            json.dump(model_metadata, outfile)
 
-    with open(model_metadata_path, 'rb') as f:
-        files = {'file': (model_metadata_path, f)}
-        http_response = requests.post(fileputlistofdicts[0]['url'], data=fileputlistofdicts[0]['fields'], files=files)
+        with open(model_metadata_path, 'rb') as f:
+            files = {'file': (model_metadata_path, f)}
+            http_response = requests.post(fileputlistofdicts[0]['url'], data=fileputlistofdicts[0]['fields'], files=files)
 
     # Upload model metrics and metadata {{{
     modelleaderboarddata = _update_leaderboard_public(
