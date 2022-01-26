@@ -1541,6 +1541,10 @@ def instantiate_model(apiurl, version=None, trained=False, reproduce=False):
 
     resp_dict = json.loads(resp.text)
 
+    if resp_dict['model_metadata'] == None:
+        print("Model for this version doesn't exist or is not submitted by the author")
+        return None
+
     if reproduce:
         if resp_dict['reproducibility_env'] != None:
             set_reproducibility_env(resp_dict['reproducibility_env'])
