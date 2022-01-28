@@ -43,6 +43,7 @@ import shutil
 from pathlib import Path
 from zipfile import ZipFile
 import wget            
+from copy import copy
 
 from pympler import asizeof
 from IPython.core.display import display, HTML, SVG
@@ -371,6 +372,8 @@ def _pyspark_to_onnx(model, initial_types, spark_session,
     if isinstance(model, (TrainValidationSplitModel, CrossValidatorModel)):
         model = model.bestModel
 
+    whole_model = copy(model)
+    
     # Look for the last model in the pipeline
     if isinstance(model, PipelineModel):
         for t in model.stages:
@@ -378,7 +381,7 @@ def _pyspark_to_onnx(model, initial_types, spark_session,
                 model = t
 
     # convert to onnx
-    onx = convert_sparkml(model, 'Pyspark model', initial_types, 
+    onx = convert_sparkml(whole_model, 'Pyspark model', initial_types, 
                          spark_session=spark_session)
             
     # generate metadata dict 
