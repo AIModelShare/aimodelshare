@@ -501,6 +501,7 @@ def create_lambda_using_base_image(user_session, bucket_name, directory, lambda_
             'NUMBA_CACHE_DIR': '/tmp'
         }
     }
+    arn_prefix = "arn:aws:execute-api:" + region + ":" + account_id + ":" + api_id
     template_body = get_cloudformation_template()
     template = Template(template_body)
     new_template = template.substitute(
@@ -514,7 +515,10 @@ def create_lambda_using_base_image(user_session, bucket_name, directory, lambda_
         FunctionName = lambda_name,
         MemorySize = memory_size,
         PackageType = package_type,
-        Timeout = timeout
+        Timeout = timeout,
+        Action1 = 'lambda:InvokeFunction',
+        Principal1 = 'apigateway.amazonaws.com',
+        SourceArn1 = arn_prefix + "/*/POST/m"
     )
     template_body = new_template
 
@@ -685,6 +689,16 @@ def get_cloudformation_template():
                         "PackageType" : "$PackageType",
                         "Role" : "$RoleName",
                         "Timeout" : $Timeout
+                    }
+                },
+                "LambdaInvokePermission1": {
+                    "DependsOn": "Lambda",
+                    "Type" : "AWS::Lambda::Permission",
+                    "Properties" : {
+                        "Action" : "$Action1",
+                        "FunctionName" : "$FunctionName",
+                        "Principal" : "$Principal1,
+                        "SourceArn" : "$SourceArn1"
                     }
                 }
             }

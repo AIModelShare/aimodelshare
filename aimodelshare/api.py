@@ -296,8 +296,8 @@ class create_prediction_api_class():
 
         arn_prefix = "arn:aws:execute-api:" + self.region + ":" + self.account_id + ":" + api_id
         self.aws_client.add_invoke_resource_policy_to_lambda(lambdaauthfxnname, stmt_id, arn_prefix + "/*/*")
-        self.aws_client.add_invoke_resource_policy_to_lambda(lambdafxnname, 'apigateway-prod-2', arn_prefix + "/*/POST/m")
-        self.aws_client.add_invoke_resource_policy_to_lambda(lambdafxnname, 'apigateway-test-2', arn_prefix + "/*/POST/m")
+        #self.aws_client.add_invoke_resource_policy_to_lambda(lambdafxnname, 'apigateway-prod-2', arn_prefix + "/*/POST/m")
+        #self.aws_client.add_invoke_resource_policy_to_lambda(lambdafxnname, 'apigateway-test-2', arn_prefix + "/*/POST/m")
         self.aws_client.add_invoke_resource_policy_to_lambda(lambdaevalfxnname, 'apigateway-prod-3', arn_prefix + "/*/POST/eval")
         self.aws_client.add_invoke_resource_policy_to_lambda(lambdaevalfxnname, 'apigateway-test-3', arn_prefix + "/*/POST/eval")
 
