@@ -507,8 +507,8 @@ def create_lambda_using_base_image(user_session, bucket_name, directory, lambda_
         PolicyDocument = json.dumps(policy),
         PolicyName = policy_name,
         TrustPolicy = json.dumps(trust_policy),
+        Policies = json.dumps([policy_name]),
         RoleName = role_name,
-        Policies = [policy_name],
         Code = json.dumps(code),
         Environment = json.dumps(environment),
         FunctionName = lambda_name,
@@ -656,38 +656,38 @@ def clone_base_image(user_session, repository, image_tag, source_account_id, api
 def get_cloudformation_template():
     return """
         {
-        "AWSTemplateFormatVersion": "2010-09-09",
-        "Description": "Creation of Policies, Roles, Lambda",
-        "Resources": {
-            "Policy": {
-                "Type" : "AWS::IAM::Policy",
-                "Properties" : {
-                    "PolicyDocument" : $PolicyDocument,
-                    "PolicyName" : $PolicyName
-                }
-            },
-            "Role": {
-                "DependsOn": "Policy",
-                "Type" : "AWS::IAM::Role",
-                "Properties" : {
-                    "AssumeRolePolicyDocument" : $TrustPolicy,
-                    "Policies" : $Policies,
-                    "RoleName" : $RoleName
-                }
-            },
-            "Lambda": {
-                "DependsOn": "Role",
-                "Type" : "AWS::Lambda::Function",
-                "Properties" : {
-                    "Code" : $Code,
-                    "Environment" : $Environment,
-                    "FunctionName" : $FunctionName,
-                    "MemorySize" : $MemorySize,
-                    "PackageType" : $PackageType,
-                    "Role" : "${Role.Arn}",
-                    "Timeout" : $Timeout,
+            "AWSTemplateFormatVersion": "2010-09-09",
+            "Description": "Creation of Policies, Roles, Lambda",
+            "Resources": {
+                "Policy": {
+                    "Type" : "AWS::IAM::Policy",
+                    "Properties" : {
+                        "PolicyDocument" : $PolicyDocument,
+                        "PolicyName" : "$PolicyName"
+                    }
+                },
+                "Role": {
+                    "DependsOn": "Policy",
+                    "Type" : "AWS::IAM::Role",
+                    "Properties" : {
+                        "AssumeRolePolicyDocument" : $TrustPolicy,
+                        "Policies" : $Policies,
+                        "RoleName" : "$RoleName"
+                    }
+                },
+                "Lambda": {
+                    "DependsOn": "Role",
+                    "Type" : "AWS::Lambda::Function",
+                    "Properties" : {
+                        "Code" : $Code,
+                        "Environment" : $Environment,
+                        "FunctionName" : "$FunctionName",
+                        "MemorySize" : $MemorySize,
+                        "PackageType" : "$PackageType",
+                        "Role" : "${Role.Arn}",
+                        "Timeout" : $Timeout
+                    }
                 }
             }
         }
-    }
     """
