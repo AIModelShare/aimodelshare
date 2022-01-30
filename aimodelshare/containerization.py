@@ -480,7 +480,7 @@ def create_lambda_using_base_image(user_session, bucket_name, directory, lambda_
     #             None
     #             #print("Lambda function did not reflected.")
 
-    stack_name = 'stack_' + api_id
+    stack_name = 'stack-' + api_id
     role_name = "lambda_role_" + api_id
     trust_policy = json.loads(pkg_resources.read_text(iam, "lambda_trust_relationship.txt"))
     policy_name = "lambda_policy_" + api_id
