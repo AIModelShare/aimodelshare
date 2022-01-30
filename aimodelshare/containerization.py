@@ -522,7 +522,7 @@ def create_lambda_using_base_image(user_session, bucket_name, directory, lambda_
         StackName = stack_name,
         TemplateBody = template_body,
         DisableRollback=False,
-        ResourceTypes=['AWS::*']
+        Capabilities=['CAPABILITY_IAM', 'CAPABILITY_NAMED_IAM', 'CAPABILITY_AUTO_EXPAND']
     )
 
     os.remove(temp_dir + ".zip")    # delete the zip file created in tmp directory
