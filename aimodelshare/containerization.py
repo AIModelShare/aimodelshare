@@ -503,7 +503,7 @@ def create_lambda_using_base_image(user_session, bucket_name, directory, lambda_
     }
     template_body = get_cloudformation_template()
     template = Template(template_body)
-    new_template = template.substitute(
+    new_template = template.safe_substitute(
         PolicyDocument = json.dumps(policy),
         PolicyName = policy_name,
         TrustPolicy = json.dumps(trust_policy),
