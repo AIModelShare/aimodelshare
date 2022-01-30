@@ -16,7 +16,7 @@ from . import iam
 from . import sam
 from . import containerization_templates
 
-time_delay=2
+time_delay=1
 
 # abstraction to return list of strings of paths of all files present in a given directory
 def get_all_file_paths_in_directory(directory):
@@ -203,6 +203,8 @@ def build_image(user_session, bucket_name, zip_file, image_name, image):
 
     # attaching policies to role to execute CodeBuild to build Docker image
     attach_policy_to_role(user_session, role_name, policy_name)
+
+    time.sleep(5)
 
     # creating CodeBuild project
     # specify which zip to be sourced from S3 that contains all the files to create the image
