@@ -481,7 +481,6 @@ def create_lambda_using_base_image(user_session, bucket_name, directory, lambda_
     #             #print("Lambda function did not reflected.")
 
     stack_name = api_id + '_stack'
-    template_body = get_cloudformation_template()
     role_name = "lambda_role_" + api_id
     trust_policy = json.loads(pkg_resources.read_text(iam, "lambda_trust_relationship.txt"))
     policy_name = "lambda_policy_" + api_id
@@ -502,24 +501,25 @@ def create_lambda_using_base_image(user_session, bucket_name, directory, lambda_
             'NUMBA_CACHE_DIR': '/tmp'
         }
     }
+    template_body = json.loads(get_cloudformation_template())
+    template = Template(template_body)
+    new_template = template.substitute(
+        PolicyDocument = json.dumps(policy),
+        PolicyName = policy_name,
+        TrustPolicy = json.dumps(trust_policy),
+        RoleName = role_name,
+        Code = json.dumps(code),
+        Environment = json.dumps(environment),
+        FunctionName = lambda_name,
+        MemorySize = memory_size,
+        PackageType = package_type,
+        Timeout = timeout
+    )
+    template_body = json.dumps(new_template)
 
     response = cloudformation_client.create_stack(
         StackName = stack_name,
         TemplateBody = template_body,
-        Parameters=[
-            {
-                "PolicyDocument": policy,
-                "PolicyName": policy_name,
-                "TrustPolicy": trust_policy,
-                "RoleName": role_name,
-                "Code": code,
-                "Environment": environment,
-                "FunctionName": lambda_name,
-                "MemorySize": memory_size,
-                "PackageType": package_type,
-                "Timeout": timeout
-            }
-        ],
         DisableRollback=False,
         Capabilities=['CAPABILITY_IAM', 'CAPABILITY_NAMED_IAM', 'CAPABILITY_AUTO_EXPAND'],
         ResourceTypes=['AWS::*']
@@ -658,69 +658,39 @@ def get_cloudformation_template():
         "AWSTemplateFormatVersion": "2010-09-09",
         "Description": "Creation of Policies, Roles, Lambda",
         "Parameters": {
-            "PolicyDocument": {
-                "Type": "Json"
-            },
-            "PolicyName": {
-                "Type": "String"
-            },
-            "TrustPolicy": {
-                "Type": "Json"
-            },
             "Policies": {
                 "Type": "List",
                 "Default": ["${PolicyName}"]
-            },
-            "RoleName": {
-                "Type": "String"
-            },
-            "Code": {
-                "Type": "Json"
-            },
-            "Environment": {
-                "Type": "Json"
-            },
-            "FunctionName": {
-                "Type": "String
-            },
-            "MemorySize": {
-                "Type": "Integer"
-            },
-            "PackageType": {
-                "Type": "String"
-            },
-            "Timeout": {
-                "Type": "Integer"
             }
         },
         "Resources": {
             "Policy": {
                 "Type" : "AWS::IAM::Policy",
                 "Properties" : {
-                    "PolicyDocument" : "${PolicyDocument}",
-                    "PolicyName" : "${PolicyName}"
+                    "PolicyDocument" : $PolicyDocument,
+                    "PolicyName" : $PolicyName
                 }
             },
             "Role": {
                 "DependsOn": "Policy",
                 "Type" : "AWS::IAM::Role",
                 "Properties" : {
-                    "AssumeRolePolicyDocument" : "${TrustPolicy}",
-                    "Policies" : "${Policies}",
-                    "RoleName" : "${RoleName}"
+                    "AssumeRolePolicyDocument" : $TrustPolicy,
+                    "Policies" : $Policies,
+                    "RoleName" : $RoleName
                 }
             },
             "Lambda": {
                 "DependsOn": "Role",
                 "Type" : "AWS::Lambda::Function",
                 "Properties" : {
-                    "Code" : "${Code},
-                    "Environment" : "${Environment}",
-                    "FunctionName" : "${FunctionName}",
-                    "MemorySize" : "${MemorySize}",
-                    "PackageType" : "${PackageType}",
+                    "Code" : $Code,
+                    "Environment" : $Environment,
+                    "FunctionName" : $FunctionName,
+                    "MemorySize" : $MemorySize,
+                    "PackageType" : $PackageType,
                     "Role" : "${Role.Arn}",
-                    "Timeout" : "${Timeout}",
+                    "Timeout" : $Timeout,
                 }
             }
         }
