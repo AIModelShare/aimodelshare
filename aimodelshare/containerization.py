@@ -501,7 +501,7 @@ def create_lambda_using_base_image(user_session, bucket_name, directory, lambda_
             'NUMBA_CACHE_DIR': '/tmp'
         }
     }
-    template_body = json.loads(get_cloudformation_template())
+    template_body = get_cloudformation_template()
     template = Template(template_body)
     new_template = template.substitute(
         PolicyDocument = json.dumps(policy),
@@ -515,7 +515,7 @@ def create_lambda_using_base_image(user_session, bucket_name, directory, lambda_
         PackageType = package_type,
         Timeout = timeout
     )
-    template_body = json.dumps(new_template)
+    template_body = new_template
 
     response = cloudformation_client.create_stack(
         StackName = stack_name,
