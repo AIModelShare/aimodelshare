@@ -2,7 +2,7 @@ import time
 import json
 import boto3
 
-delay=5
+delay=2
 
 class AWSClient():
 
