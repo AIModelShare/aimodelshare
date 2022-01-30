@@ -508,6 +508,7 @@ def create_lambda_using_base_image(user_session, bucket_name, directory, lambda_
         PolicyName = policy_name,
         TrustPolicy = json.dumps(trust_policy),
         RoleName = role_name,
+        Policies = [policy_name],
         Code = json.dumps(code),
         Environment = json.dumps(environment),
         FunctionName = lambda_name,
@@ -657,12 +658,6 @@ def get_cloudformation_template():
         {
         "AWSTemplateFormatVersion": "2010-09-09",
         "Description": "Creation of Policies, Roles, Lambda",
-        "Parameters": {
-            "Policies": {
-                "Type": "List",
-                "Default": ["${PolicyName}"]
-            }
-        },
         "Resources": {
             "Policy": {
                 "Type" : "AWS::IAM::Policy",
