@@ -666,7 +666,6 @@ def get_cloudformation_template():
                     "Type" : "AWS::IAM::Role",
                     "Properties" : {
                         "AssumeRolePolicyDocument" : $TrustPolicy,
-                        "Policies" : $Policies,
                         "RoleName" : "$RoleName"
                     }
                 },
@@ -675,7 +674,8 @@ def get_cloudformation_template():
                     "Type" : "AWS::IAM::Policy",
                     "Properties" : {
                         "PolicyDocument" : $PolicyDocument,
-                        "PolicyName" : "$PolicyName"
+                        "PolicyName" : "$PolicyName",
+                        "Roles": ["$RoleName"]
                     }
                 },
                 "Lambda": {
