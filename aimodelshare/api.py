@@ -7,7 +7,7 @@ import tempfile
 import functools
 import json
 import requests
-
+import math
 from zipfile import ZipFile
 from string import Template
 
@@ -99,8 +99,10 @@ class create_prediction_api_class():
             "us-east-2": "arn:aws:lambda:us-east-2:517169013426:layer:aimsauth_layer:9"
         }
 
+        onnx_size = math.ceil(os.path.getsize(model_filepath)/(1024*1024))
+
         self.temp_dir_file_deletion_list = ['archive2.zip', 'archive3.zip', 'archive.zip', 'archivetest.zip', 'archiveeval.zip', 'archiveauth.zip', 'main.py', 'ytest.pkl']
-        self.memory = self.memory_model_mapping[self.model_type] if self.memory==None else memory
+        self.memory = onnx_size+256 if self.memory==None else memory
         self.timeout = self.timeout_model_mapping[self.model_type] if self.timeout==None else timeout
 
         self.eval_layer = self.eval_layer_map[self.region]

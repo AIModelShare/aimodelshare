@@ -116,6 +116,7 @@ def take_user_info_and_generate_api(model_filepath, model_type, categorical,labe
     create_bucket(s3['client'], os.environ.get("BUCKET_NAME"), region)
 
     # model upload
+
     Filepath = model_filepath
     model = onnx.load(model_filepath)
     metadata = _extract_model_metadata(model)
@@ -471,7 +472,7 @@ def model_to_api(model_filepath, model_type, private, categorical, y_train, prep
     sys.stdout.write("[===                                  ] Progress: 5% - Accessing Amazon Web Services, uploading resources...")
     sys.stdout.flush()
     # }}}
-    
+
     api_info = take_user_info_and_generate_api( 
         model_filepath, model_type, categorical, labels,preprocessor_filepath,custom_libraries, requirements, exampledata_json_filepath, repo_name, image_tag, reproducibility_env_filepath, memory, timeout)
 
