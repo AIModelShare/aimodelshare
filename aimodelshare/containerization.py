@@ -697,7 +697,7 @@ def get_cloudformation_template():
                     "Properties" : {
                         "Action" : "$Action1",
                         "FunctionName" : "$FunctionName",
-                        "Principal" : "$Principal1,
+                        "Principal" : "$Principal1",
                         "SourceArn" : "$SourceArn1"
                     }
                 }
