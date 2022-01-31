@@ -662,15 +662,7 @@ def get_cloudformation_template():
             "AWSTemplateFormatVersion": "2010-09-09",
             "Description": "Creation of Policies, Roles, Lambda",
             "Resources": {
-                "Policy": {
-                    "Type" : "AWS::IAM::Policy",
-                    "Properties" : {
-                        "PolicyDocument" : $PolicyDocument,
-                        "PolicyName" : "$PolicyName"
-                    }
-                },
                 "Role": {
-                    "DependsOn": "Policy",
                     "Type" : "AWS::IAM::Role",
                     "Properties" : {
                         "AssumeRolePolicyDocument" : $TrustPolicy,
@@ -678,8 +670,16 @@ def get_cloudformation_template():
                         "RoleName" : "$RoleName"
                     }
                 },
-                "Lambda": {
+                "Policy": {
                     "DependsOn": "Role",
+                    "Type" : "AWS::IAM::Policy",
+                    "Properties" : {
+                        "PolicyDocument" : $PolicyDocument,
+                        "PolicyName" : "$PolicyName"
+                    }
+                },
+                "Lambda": {
+                    "DependsOn": "Policy",
                     "Type" : "AWS::Lambda::Function",
                     "Properties" : {
                         "Code" : $Code,
@@ -687,7 +687,12 @@ def get_cloudformation_template():
                         "FunctionName" : "$FunctionName",
                         "MemorySize" : $MemorySize,
                         "PackageType" : "$PackageType",
-                        "Role" : "$RoleName",
+                        "Role" : {
+                            "Fn::GetAtt": [
+                                "Role",
+                                "Arn"
+                            ]
+                        },
                         "Timeout" : $Timeout
                     }
                 },
