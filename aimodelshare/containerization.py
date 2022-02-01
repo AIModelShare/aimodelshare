@@ -404,88 +404,25 @@ def create_lambda_using_base_image(user_session, bucket_name, directory, lambda_
 
     upload_file_to_s3(user_session, temp_dir + ".zip", bucket_name, api_id + "/" + lambda_name + ".zip")        # upload zip file to S3 bucket
 
-    # # reading JSON of the trust relationship required to create role and authorize it to use CodeBuild to build Docker image
-    # role_name = "lambda_role_" + api_id
-    # trust_relationship = json.loads(pkg_resources.read_text(iam, "lambda_trust_relationship.txt"))
-    
-    # # creating role for CodeBuild
-    # create_iam_role(user_session, role_name, trust_relationship)
-
-    # # reading JSON of all the policies that CodeBuild requires for accessing AWS services 
-    # policy_name = "lambda_policy_" + api_id
-    # policy = json.loads(pkg_resources.read_text(iam, "lambda_policy.txt"))
-
-    # # creating policy for CodeBuild    
-    # create_iam_policy(user_session, policy_name, policy)
-
-    # # attaching policies to role to execute CodeBuild to build Docker image
-    # attach_policy_to_role(user_session, role_name, policy_name)
-
-    # #print("Creating Lambda function \"" + lambda_name + "\".")
-
-    # role = 'arn:aws:iam::' + account_id + ':role/' + role_name
-    # code = {
-    #     'ImageUri': account_id + '.dkr.ecr.' + region + '.amazonaws.com/' + repository + ":" + image_tag
-    # }
-    # package_type = "Image"
-    # timeout = int(timeout)
-    # memory_size = int(memory_size)
-    # environment = {
-    #     'Variables': {
-    #         'bucket': bucket_name,     # bucket where zip file is located
-    #         'api_id': api_id,     # api_id in the bucket in which zip file is stored
-    #         'function_name': lambda_name,        # Lambda function name
-    #         'NUMBA_CACHE_DIR': '/tmp'
-    #     }
-    # }
-
-    # lambda_client = user_session.client("lambda")
-    # counter=1
-    # while(counter<=3):
-    #     try:
-    #         #print("Attempt " + str(counter) + " to create Lambda function.")
-    #         response_lambda = lambda_client.create_function(
-    #             FunctionName=lambda_name,
-    #             Role = role,
-    #             Code = code,
-    #             PackageType = package_type,
-    #             Timeout = timeout,
-    #             MemorySize = memory_size,
-    #             Environment = environment
-    #         )
-    #         break
-    #     except:
-    #         counter+=1
-    #         if(counter<=3):
-    #             print("Lambda function creation failed. Waiting for dependent resources to reflect. Retrying again in 10 seconds.")
-    #             time.sleep(time_delay)
-    #         else:
-    #             print("Lambda function creation failed.")
-
-    # # running through loop until function reflects
-    # counter=1
-    # while(counter<=3):
-    #     try:
-    #         response = lambda_client.get_function(
-    #             FunctionName=lambda_name
-    #         )
-    #         #print("Created Lambda function " + lambda_name + "\" successfully.")
-    #         break
-    #     except:
-    #         counter+=1
-    #         if(counter<=3):
-    #             #print("Lambda function did not reflected. Waiting for Lambda function to reflect.")
-    #             time.sleep(time_delay)
-    #         else:
-    #             None
-    #             #print("Lambda function did not reflected.")
-
-    stack_name = 'stack-' + api_id
+    # reading JSON of the trust relationship required to create role and authorize it to use CodeBuild to build Docker image
     role_name = "lambda_role_" + api_id
-    trust_policy = json.loads(pkg_resources.read_text(iam, "lambda_trust_relationship.txt"))
+    trust_relationship = json.loads(pkg_resources.read_text(iam, "lambda_trust_relationship.txt"))
+    
+    # creating role for CodeBuild
+    create_iam_role(user_session, role_name, trust_relationship)
+
+    # reading JSON of all the policies that CodeBuild requires for accessing AWS services 
     policy_name = "lambda_policy_" + api_id
     policy = json.loads(pkg_resources.read_text(iam, "lambda_policy.txt"))
-    
+
+    # creating policy for CodeBuild    
+    create_iam_policy(user_session, policy_name, policy)
+
+    # attaching policies to role to execute CodeBuild to build Docker image
+    attach_policy_to_role(user_session, role_name, policy_name)
+
+    #print("Creating Lambda function \"" + lambda_name + "\".")
+
     role = 'arn:aws:iam::' + account_id + ':role/' + role_name
     code = {
         'ImageUri': account_id + '.dkr.ecr.' + region + '.amazonaws.com/' + repository + ":" + image_tag
@@ -501,33 +438,95 @@ def create_lambda_using_base_image(user_session, bucket_name, directory, lambda_
             'NUMBA_CACHE_DIR': '/tmp'
         }
     }
-    arn_prefix = "arn:aws:execute-api:" + region + ":" + account_id + ":" + api_id
-    template_body = get_cloudformation_template()
-    template = Template(template_body)
-    new_template = template.substitute(
-        PolicyDocument = json.dumps(policy),
-        PolicyName = policy_name,
-        TrustPolicy = json.dumps(trust_policy),
-        Policies = json.dumps([policy_name]),
-        RoleName = role_name,
-        Code = json.dumps(code),
-        Environment = json.dumps(environment),
-        FunctionName = lambda_name,
-        MemorySize = memory_size,
-        PackageType = package_type,
-        Timeout = timeout,
-        Action1 = 'lambda:InvokeFunction',
-        Principal1 = 'apigateway.amazonaws.com',
-        SourceArn1 = arn_prefix + "/*/POST/m"
-    )
-    template_body = new_template
 
-    response = cloudformation_client.create_stack(
-        StackName = stack_name,
-        TemplateBody = template_body,
-        DisableRollback=False,
-        Capabilities=['CAPABILITY_IAM', 'CAPABILITY_NAMED_IAM', 'CAPABILITY_AUTO_EXPAND']
-    )
+    lambda_client = user_session.client("lambda")
+    counter=1
+    while(counter<=3):
+        try:
+            #print("Attempt " + str(counter) + " to create Lambda function.")
+            response_lambda = lambda_client.create_function(
+                FunctionName=lambda_name,
+                Role = role,
+                Code = code,
+                PackageType = package_type,
+                Timeout = timeout,
+                MemorySize = memory_size,
+                Environment = environment
+            )
+            break
+        except:
+            counter+=1
+            if(counter<=3):
+                time.sleep(5)
+            else:
+                print("Lambda function creation failed.")
+
+    # running through loop until function reflects
+    counter=1
+    while(counter<=3):
+        try:
+            response = lambda_client.get_function(
+                FunctionName=lambda_name
+            )
+            #print("Created Lambda function " + lambda_name + "\" successfully.")
+            break
+        except:
+            counter+=1
+            if(counter<=3):
+                #print("Lambda function did not reflected. Waiting for Lambda function to reflect.")
+                time.sleep(5)
+            else:
+                None
+                #print("Lambda function did not reflected.")
+
+    # stack_name = 'stack-' + api_id
+    # role_name = "lambda_role_" + api_id
+    # trust_policy = json.loads(pkg_resources.read_text(iam, "lambda_trust_relationship.txt"))
+    # policy_name = "lambda_policy_" + api_id
+    # policy = json.loads(pkg_resources.read_text(iam, "lambda_policy.txt"))
+    
+    # role = 'arn:aws:iam::' + account_id + ':role/' + role_name
+    # code = {
+    #     'ImageUri': account_id + '.dkr.ecr.' + region + '.amazonaws.com/' + repository + ":" + image_tag
+    # }
+    # package_type = "Image"
+    # timeout = int(timeout)
+    # memory_size = int(memory_size)
+    # environment = {
+    #     'Variables': {
+    #         'bucket': bucket_name,     # bucket where zip file is located
+    #         'api_id': api_id,     # api_id in the bucket in which zip file is stored
+    #         'function_name': lambda_name,        # Lambda function name
+    #         'NUMBA_CACHE_DIR': '/tmp'
+    #     }
+    # }
+    # arn_prefix = "arn:aws:execute-api:" + region + ":" + account_id + ":" + api_id
+    # template_body = get_cloudformation_template()
+    # template = Template(template_body)
+    # new_template = template.substitute(
+    #     PolicyDocument = json.dumps(policy),
+    #     PolicyName = policy_name,
+    #     TrustPolicy = json.dumps(trust_policy),
+    #     Policies = json.dumps([policy_name]),
+    #     RoleName = role_name,
+    #     Code = json.dumps(code),
+    #     Environment = json.dumps(environment),
+    #     FunctionName = lambda_name,
+    #     MemorySize = memory_size,
+    #     PackageType = package_type,
+    #     Timeout = timeout,
+    #     Action1 = 'lambda:InvokeFunction',
+    #     Principal1 = 'apigateway.amazonaws.com',
+    #     SourceArn1 = arn_prefix + "/*/POST/m"
+    # )
+    # template_body = new_template
+
+    # response = cloudformation_client.create_stack(
+    #     StackName = stack_name,
+    #     TemplateBody = template_body,
+    #     DisableRollback=False,
+    #     Capabilities=['CAPABILITY_IAM', 'CAPABILITY_NAMED_IAM', 'CAPABILITY_AUTO_EXPAND']
+    # )
 
     os.remove(temp_dir + ".zip")    # delete the zip file created in tmp directory
     if(os.path.isdir(temp_dir)):    # delete the temporary folder created in tmp directory
