@@ -660,7 +660,7 @@ def get_cloudformation_template():
     return """
         {
             "AWSTemplateFormatVersion": "2010-09-09",
-            "Description": "Creation of Policies, Roles, Lambda",
+            "Description": "Creation of Role, Policy, Lambda, Lambda Permission",
             "Resources": {
                 "Role": {
                     "Type" : "AWS::IAM::Role",

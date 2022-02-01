@@ -102,7 +102,7 @@ class create_prediction_api_class():
         onnx_size = math.ceil(os.path.getsize(model_filepath)/(1024*1024))
 
         self.temp_dir_file_deletion_list = ['archive2.zip', 'archive3.zip', 'archive.zip', 'archivetest.zip', 'archiveeval.zip', 'archiveauth.zip', 'main.py', 'ytest.pkl']
-        self.memory = onnx_size+256 if self.memory==None else memory
+        self.memory = self.memory_model_mapping[self.model_type] if self.memory==None else memory
         self.timeout = self.timeout_model_mapping[self.model_type] if self.timeout==None else timeout
 
         self.eval_layer = self.eval_layer_map[self.region]
