@@ -1,1 +1,3 @@
-recursive-include aimodelshare *
+
+recursive-include package *
+
