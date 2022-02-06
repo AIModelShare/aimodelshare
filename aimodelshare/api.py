@@ -16,6 +16,14 @@ import shortuuid
 from aimodelshare.containerization import create_lambda_using_base_image
 from aimodelshare.containerisation import deploy_container
 
+def get_role_details(iam_client, role_name):
+    try:
+        response = iam_client.get_role(RoleName=role_name)
+        role_details = response['Role']
+    except:
+        role_details = {}
+    return role_details
+
 def create_prediction_api(model_filepath, unique_model_id, model_type, categorical, labels, apiid, custom_libraries, requirements, repo_name="", image_tag="", memory=None, timeout=None):
 
     if(memory == None):
@@ -558,7 +566,9 @@ def create_prediction_api(model_filepath, unique_model_id, model_type, categoric
     lambdarole2 = {u'Version': u'2012-10-17', u'Statement': [{u'Action': u'sts:AssumeRole', u'Principal': {
         u'Service': [u'lambda.amazonaws.com', u'apigateway.amazonaws.com']}, u'Effect': u'Allow', u'Sid': u''}]}
 
-    if str(roles['Roles']).find("lambda_invoke_function_assume_apigw_role") > 0:
+    iam_client = user_session.client("iam")
+    
+    if get_role_details(iam_client, "lambda_invoke_function_assume_apigw_role") != {}:
         None
     else:
         response10 = user_session.resource('iam').create_role(
