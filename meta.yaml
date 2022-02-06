@@ -2,23 +2,22 @@
 {% set version = "0.0.94" %}
 
 package:
-  name: "{{ name|lower }}"
-  version: "{{ version }}"
+  name: {{ name|lower }}
+  version: {{ version }}
 
 source:
-  url: "https://pypi.io/packages/source/{{ name[0] }}/{{ name }}/{{ name }}-{{ version }}.tar.gz"
+  url: https://pypi.io/packages/source/{{ name[0] }}/{{ name }}/{{ name }}-{{ version }}.tar.gz
   sha256: 36b35968e0605fa57610eee39b568a491666ed4d76b5287ea8d276fb83294dd4
-  git_url: https://github.com/AIModelShare/aimodelshare
 
 build:
   noarch: python
   number: 0
-  script: "{{ PYTHON }} -m pip install . -vv"
-
+  script: {{ PYTHON }} -m pip install . -vv
+  
 requirements:
   host:
     - pip
-    - python
+    - python >=3.7
   run:
     - astunparse ==1.6.3
     - boto3 ==1.18.2
@@ -31,7 +30,7 @@ requirements:
     - onnxruntime >=1.7.0
     - pyjwt ==2.2.0
     - pympler ==0.9
-    - python
+    - python >=3.7
     - scikit-learn ==0.24.2
     - seaborn >=0.11.2
     - shortuuid >=1.0.8
@@ -55,11 +54,12 @@ about:
   home: "https://www.modelshare.org"
   license: MIT
   license_family: MIT
-  license_file: 
+  license_file: LICENSE
   summary: "Deploy locally saved machine learning models to a live rest API and web-dashboard.  Share it with the world via modelshare.org"
   doc_url: https://github.com/AIModelShare/aimodelshare/blob/master/README.md
   dev_url: https://github.com/AIModelShare/aimodelshare
 
 extra:
   recipe-maintainers:
-    - aimodelshare
+    - raudipra
+    - mikedparrott
