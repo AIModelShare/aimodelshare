@@ -13,6 +13,24 @@ import tempfile
 import requests
 import uuid
 
+def create_bucket(s3_client, bucket_name, region):
+        try:
+            response=s3_client.head_bucket(Bucket=bucket_name)
+        except:
+            if(region=="us-east-1"):
+                response = s3_client.create_bucket(
+                    ACL="private",
+                    Bucket=bucket_name
+                )
+            else:
+                location={'LocationConstraint': region}
+                response=s3_client.create_bucket(
+                    ACL="private",
+                    Bucket=bucket_name,
+                    CreateBucketConfiguration=location
+                )
+        return response
+
 def create_docker_folder_local(dataset_dir, dataset_name, python_version):
 
     tmp_dataset_dir = tempfile.gettempdir() + '/' + '/'.join(['tmp_dataset_dir', dataset_name])
@@ -71,7 +89,7 @@ def create_docker_folder_codebuild(dataset_dir, dataset_name, template_folder, r
     newdata = template.substitute(
         aws_access_key_id=os.environ['AWS_ACCESS_KEY_ID'],
         aws_secret_access_key=os.environ['AWS_SECRET_ACCESS_KEY'],
-        region=region,
+        region='region',
         registry_uri=registry_uri,
         repository=repository,
         dataset_tag=dataset_tag)
@@ -131,7 +149,7 @@ def share_data_codebuild(account_id, region, dataset_dir, dataset_tag='latest', 
     
     session = boto3.session.Session(aws_access_key_id=os.environ.get("AWS_ACCESS_KEY_ID"),
                                     aws_secret_access_key = os.environ.get("AWS_SECRET_ACCESS_KEY"), 
-                                    region_name=os.environ.get("AWS_REGION"))
+                                    region_name='us-east-1')
 
     flag = 0
 
@@ -150,17 +168,7 @@ def share_data_codebuild(account_id, region, dataset_dir, dataset_tag='latest', 
 
     bucket_name = "aimodelshare"+str(account_id)+"sharedata"
     
-    try:
-        s3_client.create_bucket(
-            Bucket=bucket_name,
-            CreateBucketConfiguration = {
-                'LocationConstraint': region
-            }
-        )
-    except:
-        s3_client.create_bucket(
-            Bucket=bucket_name
-        )
+    create_bucket(s3_client, bucket_name, region)
     
     s3_resource = session.resource('s3', region_name=region)
 
