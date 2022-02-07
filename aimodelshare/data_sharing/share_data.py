@@ -147,9 +147,11 @@ def share_data_codebuild(account_id, region, dataset_dir, dataset_tag='latest', 
 
     print('Uploading your data. Please wait for a confirmation message.')
     
+    region = 'us-east-1'
+
     session = boto3.session.Session(aws_access_key_id=os.environ.get("AWS_ACCESS_KEY_ID"),
                                     aws_secret_access_key = os.environ.get("AWS_SECRET_ACCESS_KEY"), 
-                                    region_name='us-east-1')
+                                    region_name=region)
 
     flag = 0
 
