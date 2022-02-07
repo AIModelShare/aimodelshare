@@ -160,7 +160,6 @@ class create_prediction_api_class():
             delete_folder(self.file_objects_folder_path)
             make_folder(self.file_objects_folder_path)
 
-
         if self.model_type == 'custom':
             with open("custom_lambda.py", 'r') as in_file:     
                 newdata = in_file.read()
