@@ -97,10 +97,29 @@ def take_user_info_and_generate_api(model_filepath, model_type, categorical,labe
     api_id = response2['id']
     now = datetime.datetime.now()
     s3, iam, region = get_s3_iam_client(os.environ.get("AWS_ACCESS_KEY_ID"), os.environ.get("AWS_SECRET_ACCESS_KEY"), os.environ.get("AWS_REGION"))
-    s3["client"].create_bucket(
-        ACL='private',
-        Bucket=os.environ.get("BUCKET_NAME"))
+    
+    def create_bucket(s3_client, bucket_name, region):
+        try:
+            response=s3_client.head_bucket(Bucket=bucket_name)
+        except:
+            if(region=="us-east-1"):
+                response = s3_client.create_bucket(
+                    ACL="private",
+                    Bucket=bucket_name
+                )
+            else:
+                location={'LocationConstraint': region}
+                response=s3_client.create_bucket(
+                    ACL="private",
+                    Bucket=bucket_name,
+                    CreateBucketConfiguration=location
+                )
+        return response
+
+    create_bucket(s3['client'], os.environ.get("BUCKET_NAME"), region)
+
     # model upload
+
     Filepath = model_filepath
     model = onnx.load(model_filepath)
     metadata = _extract_model_metadata(model)
@@ -465,7 +484,7 @@ def model_to_api(model_filepath, model_type, private, categorical, y_train, prep
     sys.stdout.write("[===                                  ] Progress: 5% - Accessing Amazon Web Services, uploading resources...")
     sys.stdout.flush()
     # }}}
-    
+
     api_info = take_user_info_and_generate_api( 
         model_filepath, model_type, categorical, labels, 
         preprocessor_filepath, custom_libraries, requirements, 

@@ -16,8 +16,7 @@ from . import iam
 from . import sam
 from . import containerization_templates
 
-time_delay=10
-
+time_delay=2
 
 # abstraction to return list of strings of paths of all files present in a given directory
 def get_all_file_paths_in_directory(directory):
@@ -205,6 +204,8 @@ def build_image(user_session, bucket_name, zip_file, image_name, image):
     # attaching policies to role to execute CodeBuild to build Docker image
     attach_policy_to_role(user_session, role_name, policy_name)
 
+    time.sleep(5)
+
     # creating CodeBuild project
     # specify which zip to be sourced from S3 that contains all the files to create the image
     # and specify the Linux environment that will be used to build the image
@@ -285,7 +286,27 @@ def build_new_base_image(libraries, repository, image_tag, python_version):
     bucket_name = os.environ.get("BUCKET_NAME")
 
     s3_client = user_session.client("s3")
-    response = s3_client.create_bucket(Bucket=bucket_name)
+    
+    def create_bucket(s3_client, bucket_name, region):
+        try:
+            response=s3_client.head_bucket(Bucket=bucket_name)
+        except:
+            if(region=="us-east-1"):
+                response = s3_client.create_bucket(
+                    ACL="private",
+                    Bucket=bucket_name
+                )
+            else:
+                location={'LocationConstraint': region}
+                response=s3_client.create_bucket(
+                    ACL="private",
+                    Bucket=bucket_name,
+                    CreateBucketConfiguration=location
+                )
+        return response
+
+    create_bucket(s3_client, bucket_name, os.environ.get("AWS_REGION"))
+
     print("S3 Bucket \"" + bucket_name + "\" used for all storage purposes.")
     
     unique_name = repository + "_" + image_tag
@@ -361,6 +382,8 @@ def build_new_base_image(libraries, repository, image_tag, python_version):
 # create lambda function using a base image from a specific repository having a specific tag
 def create_lambda_using_base_image(user_session, bucket_name, directory, lambda_name, api_id, repository, image_tag, memory_size, timeout):
 
+    cloudformation_client = user_session.client('cloudformation')
+
     sts_client = user_session.client("sts")
     account_id = sts_client.get_caller_identity()["Account"]
     region = user_session.region_name
@@ -400,6 +423,22 @@ def create_lambda_using_base_image(user_session, bucket_name, directory, lambda_
 
     #print("Creating Lambda function \"" + lambda_name + "\".")
 
+    role = 'arn:aws:iam::' + account_id + ':role/' + role_name
+    code = {
+        'ImageUri': account_id + '.dkr.ecr.' + region + '.amazonaws.com/' + repository + ":" + image_tag
+    }
+    package_type = "Image"
+    timeout = int(timeout)
+    memory_size = int(memory_size)
+    environment = {
+        'Variables': {
+            'bucket': bucket_name,     # bucket where zip file is located
+            'api_id': api_id,     # api_id in the bucket in which zip file is stored
+            'function_name': lambda_name,        # Lambda function name
+            'NUMBA_CACHE_DIR': '/tmp'
+        }
+    }
+
     lambda_client = user_session.client("lambda")
     counter=1
     while(counter<=3):
@@ -407,28 +446,18 @@ def create_lambda_using_base_image(user_session, bucket_name, directory, lambda_
             #print("Attempt " + str(counter) + " to create Lambda function.")
             response_lambda = lambda_client.create_function(
                 FunctionName=lambda_name,
-                Role = 'arn:aws:iam::' + account_id + ':role/' + role_name,
-                Code = {
-                    'ImageUri': account_id + '.dkr.ecr.' + region + '.amazonaws.com/' + repository + ":" + image_tag
-                },
-                PackageType = "Image",
-                Timeout = int(timeout),
-                MemorySize = int(memory_size),
-                Environment = {
-                    'Variables': {
-                        'bucket': bucket_name,     # bucket where zip file is located
-                        'api_id': api_id,     # api_id in the bucket in which zip file is stored
-                        'function_name': lambda_name,        # Lambda function name
-                        'NUMBA_CACHE_DIR': '/tmp'
-                    }
-                }
+                Role = role,
+                Code = code,
+                PackageType = package_type,
+                Timeout = timeout,
+                MemorySize = memory_size,
+                Environment = environment
             )
             break
         except:
             counter+=1
             if(counter<=3):
-                print("Lambda function creation failed. Waiting for dependent resources to reflect. Retrying again in 10 seconds.")
-                time.sleep(time_delay)
+                time.sleep(5)
             else:
                 print("Lambda function creation failed.")
 
@@ -445,16 +474,65 @@ def create_lambda_using_base_image(user_session, bucket_name, directory, lambda_
             counter+=1
             if(counter<=3):
                 #print("Lambda function did not reflected. Waiting for Lambda function to reflect.")
-                time.sleep(time_delay)
+                time.sleep(5)
             else:
                 None
                 #print("Lambda function did not reflected.")
+
+    # stack_name = 'stack-' + api_id
+    # role_name = "lambda_role_" + api_id
+    # trust_policy = json.loads(pkg_resources.read_text(iam, "lambda_trust_relationship.txt"))
+    # policy_name = "lambda_policy_" + api_id
+    # policy = json.loads(pkg_resources.read_text(iam, "lambda_policy.txt"))
+    
+    # role = 'arn:aws:iam::' + account_id + ':role/' + role_name
+    # code = {
+    #     'ImageUri': account_id + '.dkr.ecr.' + region + '.amazonaws.com/' + repository + ":" + image_tag
+    # }
+    # package_type = "Image"
+    # timeout = int(timeout)
+    # memory_size = int(memory_size)
+    # environment = {
+    #     'Variables': {
+    #         'bucket': bucket_name,     # bucket where zip file is located
+    #         'api_id': api_id,     # api_id in the bucket in which zip file is stored
+    #         'function_name': lambda_name,        # Lambda function name
+    #         'NUMBA_CACHE_DIR': '/tmp'
+    #     }
+    # }
+    # arn_prefix = "arn:aws:execute-api:" + region + ":" + account_id + ":" + api_id
+    # template_body = get_cloudformation_template()
+    # template = Template(template_body)
+    # new_template = template.substitute(
+    #     PolicyDocument = json.dumps(policy),
+    #     PolicyName = policy_name,
+    #     TrustPolicy = json.dumps(trust_policy),
+    #     Policies = json.dumps([policy_name]),
+    #     RoleName = role_name,
+    #     Code = json.dumps(code),
+    #     Environment = json.dumps(environment),
+    #     FunctionName = lambda_name,
+    #     MemorySize = memory_size,
+    #     PackageType = package_type,
+    #     Timeout = timeout,
+    #     Action1 = 'lambda:InvokeFunction',
+    #     Principal1 = 'apigateway.amazonaws.com',
+    #     SourceArn1 = arn_prefix + "/*/POST/m"
+    # )
+    # template_body = new_template
+
+    # response = cloudformation_client.create_stack(
+    #     StackName = stack_name,
+    #     TemplateBody = template_body,
+    #     DisableRollback=False,
+    #     Capabilities=['CAPABILITY_IAM', 'CAPABILITY_NAMED_IAM', 'CAPABILITY_AUTO_EXPAND']
+    # )
 
     os.remove(temp_dir + ".zip")    # delete the zip file created in tmp directory
     if(os.path.isdir(temp_dir)):    # delete the temporary folder created in tmp directory
         shutil.rmtree(temp_dir)
 
-    return response_lambda
+    return response
 
 # check if the image exists in the specified repository with specified image tag
 def check_if_image_exists(user_session, repo_name, image_tag):
@@ -576,3 +654,57 @@ def clone_base_image(user_session, repository, image_tag, source_account_id, api
         result = {"Status": 0, "Success" : "API endpoint not valid/not provided and image does not exist either."}
     return result
 
+
+def get_cloudformation_template():
+    return """
+        {
+            "AWSTemplateFormatVersion": "2010-09-09",
+            "Description": "Creation of Role, Policy, Lambda, Lambda Permission",
+            "Resources": {
+                "Role": {
+                    "Type" : "AWS::IAM::Role",
+                    "Properties" : {
+                        "AssumeRolePolicyDocument" : $TrustPolicy,
+                        "RoleName" : "$RoleName"
+                    }
+                },
+                "Policy": {
+                    "DependsOn": "Role",
+                    "Type" : "AWS::IAM::Policy",
+                    "Properties" : {
+                        "PolicyDocument" : $PolicyDocument,
+                        "PolicyName" : "$PolicyName",
+                        "Roles": ["$RoleName"]
+                    }
+                },
+                "Lambda": {
+                    "DependsOn": "Policy",
+                    "Type" : "AWS::Lambda::Function",
+                    "Properties" : {
+                        "Code" : $Code,
+                        "Environment" : $Environment,
+                        "FunctionName" : "$FunctionName",
+                        "MemorySize" : $MemorySize,
+                        "PackageType" : "$PackageType",
+                        "Role" : {
+                            "Fn::GetAtt": [
+                                "Role",
+                                "Arn"
+                            ]
+                        },
+                        "Timeout" : $Timeout
+                    }
+                },
+                "LambdaInvokePermission1": {
+                    "DependsOn": "Lambda",
+                    "Type" : "AWS::Lambda::Permission",
+                    "Properties" : {
+                        "Action" : "$Action1",
+                        "FunctionName" : "$FunctionName",
+                        "Principal" : "$Principal1",
+                        "SourceArn" : "$SourceArn1"
+                    }
+                }
+            }
+        }
+    """
