@@ -184,7 +184,7 @@ def share_data_codebuild(account_id, region, dataset_dir, dataset_tag='latest', 
 
     codebuild_dataset_name=dataset_name+'-upload'
 
-    s3_client = session.resource('s3', region_name=region)
+    s3_client = session.client('s3', region_name=region)
 
     bucket_name = "aimodelshare"+str(account_id)+"sharedata"
     

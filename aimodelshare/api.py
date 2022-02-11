@@ -154,6 +154,7 @@ class create_prediction_api_class():
         }
 
     def create_prediction_api(self):
+        global main
         if self.pyspark_support:
             from . import pyspark as main
         
