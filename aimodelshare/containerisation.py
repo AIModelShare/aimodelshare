@@ -8,7 +8,7 @@ import time
 import importlib.resources as pkg_resources
 from string import Template
 
-def deploy_container(account_id, region, session, project_name, model_dir, requirements_file_path, apiid, memory_size='1024', timeout='120', python_version='3.7'):
+def deploy_container(account_id, region, session, project_name, model_dir, requirements_file_path, apiid, memory_size='1024', timeout='120', python_version='3.7', pyspark_support=False):
 
     codebuild_bucket_name=os.environ.get("BUCKET_NAME") # s3 bucket name to create  #TODO: use same bucket and subfolder we used previously to store this data
                                                         # Why? AWS limits users to 100 total buckets!  Our old code only creates one per user per acct.
@@ -120,35 +120,47 @@ def deploy_container(account_id, region, session, project_name, model_dir, requi
         file.write(newdata)
 
     #####
+    if pyspark_support:
+        data = pkg_resources.read_text(sam, 'Dockerfile_PySpark.txt')
+        #with open(os.path.join('sam', 'Dockerfile.txt'), 'r') as file:
+        #    data = file.read()
 
-    data = pkg_resources.read_text(sam, 'Dockerfile.txt')
-    #with open(os.path.join('sam', 'Dockerfile.txt'), 'r') as file:
-    #    data = file.read()
+        template = Template(data)
+        newdata = template.substitute(
+            python_version=python_version,
+            directory=model_dir,
+            requirements_file_path=requirements_file_path,
+            PATH="$PATH",
+            SPARK_HOME="$SPARK_HOME",
+            PYTHONPATH="$PYTHONPATH",
+            JAVA_HOME="$JAVA_HOME"
+        )
 
-    template = Template(data)
-    newdata = template.substitute(
-        python_version=python_version,
-        directory=model_dir,
-        requirements_file_path=requirements_file_path,
-        PATH="$PATH",
-        SPARK_HOME="$SPARK_HOME",
-        PYTHONPATH="$PYTHONPATH",
-        JAVA_HOME="$JAVA_HOME"
-    )
+        with open(os.path.join('/'.join([template_folder, 'app']), 'Dockerfile'), 'w') as file:
+            file.write(newdata)
 
-    with open(os.path.join('/'.join([template_folder, 'app']), 'Dockerfile'), 'w') as file:
-        file.write(newdata)
+        data = pkg_resources.read_text(sam, 'spark-class.txt')
+        
+        template = Template(data)
+        newdata = template.substitute(
+            python_version=python_version,
+            var="$@"
+        )
+        
+        with open(os.path.join('/'.join([template_folder, 'app']), 'spark-class'), 'w') as file:
+            file.write(newdata)
+    else:
+        data = pkg_resources.read_text(sam, 'Dockerfile.txt')
+        #with open(os.path.join('sam', 'Dockerfile.txt'), 'r') as file:
+        #    data = file.read()
 
-    data = pkg_resources.read_text(sam, 'spark-class.txt')
-    
-    template = Template(data)
-    newdata = template.substitute(
-        python_version=python_version,
-        var="$@"
-    )
-    
-    with open(os.path.join('/'.join([template_folder, 'app']), 'spark-class'), 'w') as file:
-        file.write(newdata)
+        template = Template(data)
+        newdata = template.substitute(
+            python_version=python_version,
+            directory=model_dir,
+            requirements_file_path=requirements_file_path)
+        with open(os.path.join('/'.join([template_folder, 'app']), 'Dockerfile'), 'w') as file:
+            file.write(newdata)
         
     response = shutil.copytree(model_dir, '/'.join([template_folder, 'app', model_dir]))
 

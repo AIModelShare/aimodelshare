@@ -250,7 +250,7 @@ class create_prediction_api_class():
                 for lib in requirements:
                     f.write('%s\n' % lib)
             requirements_file_path = os.path.join(self.file_objects_folder_path, 'requirements.txt')
-            response6 = deploy_container(self.account_id, os.environ.get("AWS_REGION"), self.user_session, lambdafxnname, self.file_objects_folder_path,requirements_file_path,self.apiid)
+            response6 = deploy_container(self.account_id, os.environ.get("AWS_REGION"), self.user_session, lambdafxnname, self.file_objects_folder_path,requirements_file_path,self.apiid, pyspark_support=self.pyspark_support)
 
         ##########
 
