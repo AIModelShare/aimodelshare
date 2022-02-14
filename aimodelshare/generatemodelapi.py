@@ -1,6 +1,8 @@
+import email
 import boto3
 import botocore
 import os
+import jwt
 from numpy.core.fromnumeric import var
 import requests
 import uuid
@@ -220,7 +222,8 @@ def upload_model_metadata(model, s3, bucket, model_id):
 
 def send_model_data_to_dyndb_and_return_api(api_info, private, categorical, preprocessor_filepath,
                                             aishare_modelname, aishare_modeldescription, aishare_modelevaluation, model_type,
-                                            aishare_tags, aishare_apicalls, exampledata_json_filepath,variablename_and_type_data="default"):
+                                            aishare_tags, aishare_apicalls, exampledata_json_filepath,
+                                            variablename_and_type_data="default", email_list=[]):
     """
     Updates dynamodb with model data taken as input from user along with already generated api info
     -----------
@@ -264,27 +267,29 @@ def send_model_data_to_dyndb_and_return_api(api_info, private, categorical, prep
         exampledata_addtodatabase={"exampledata":"TRUE"}
     else:
         exampledata_addtodatabase={"exampledata":"FALSE"}
-    bodydata = {"id": int(math.log(1/((time.time()*1000000)))*100000000000000),
-                "unique_model_id": unique_model_id,
-                "apideveloper": os.environ.get("username"),  # change this to first and last name
-                "apimodeldescription": aishare_modeldescription,
-                "apimodelevaluation": aishare_modelevaluation,
-                "apimodeltype": model_type,
-                # getting rid of extra quotes that screw up dynamodb string search on apiurls
-                "apiurl": api_info[0].strip('\"'),
-                "bucket_name": bucket_name,
-                "version": 1,
-                "modelname": aishare_modelname,
-                "tags": aishare_tags,
-                "Private": private,
-                "Categorical": categorical,
-                "delete": "FALSE",
-                "input_feature_dtypes": variablename_and_type_data[0],
-                "input_feature_names": variablename_and_type_data[1],
-                "preprocessor": preprocessor_filepath,
-                "preprocessor_fileextension": preprocessor_file_extension,
-                "input_shape": input_shape
-                }
+    bodydata = {
+        "id": int(math.log(1/((time.time()*1000000)))*100000000000000),
+        "unique_model_id": unique_model_id,
+        "apideveloper": os.environ.get("username"),  # change this to first and last name
+        "apimodeldescription": aishare_modeldescription,
+        "apimodelevaluation": aishare_modelevaluation,
+        "apimodeltype": model_type,
+        # getting rid of extra quotes that screw up dynamodb string search on apiurls
+        "apiurl": api_info[0].strip('\"'),
+        "bucket_name": bucket_name,
+        "version": 1,
+        "modelname": aishare_modelname,
+        "tags": aishare_tags,
+        "Private": private,
+        "Categorical": categorical,
+        "delete": "FALSE",
+        "input_feature_dtypes": variablename_and_type_data[0],
+        "input_feature_names": variablename_and_type_data[1],
+        "preprocessor": preprocessor_filepath,
+        "preprocessor_fileextension": preprocessor_file_extension,
+        "input_shape": input_shape,
+        "email_list": email_list,
+    }
     bodydata.update(exampledata_addtodatabase)
     # Get the response
     headers_with_authentication = {'Content-Type': 'application/json', 'authorizationToken': os.environ.get("JWT_AUTHORIZATION_TOKEN"), 'Access-Control-Allow-Headers':
@@ -319,7 +324,12 @@ def send_model_data_to_dyndb_and_return_api(api_info, private, categorical, prep
     return print("\n\n" + finalresult2 + "\n" + final_message + web_dashboard_url)
 
 
-def model_to_api(model_filepath, model_type, private, categorical, y_train, preprocessor_filepath, custom_libraries="FALSE", example_data=None, image="", base_image_api_endpoint="https://vupwujn586.execute-api.us-east-1.amazonaws.com/dev/copybasetouseracct", update=False, reproducibility_env_filepath=None, memory=None, timeout=None):
+def model_to_api(model_filepath, model_type, private, categorical, 
+                y_train, preprocessor_filepath, custom_libraries="FALSE", 
+                example_data=None, image="", 
+                base_image_api_endpoint="https://vupwujn586.execute-api.us-east-1.amazonaws.com/dev/copybasetouseracct", 
+                update=False, reproducibility_env_filepath=None, 
+                memory=None, timeout=None, email_list=[]):
     """
       Launches a live prediction REST API for deploying ML models using model parameters and user credentials, provided by the user
       Inputs : 8
@@ -367,6 +377,9 @@ def model_to_api(model_filepath, model_type, private, categorical, y_train, prep
                                 [OPTIONAL] to be set by the user
                                 "./reproducibility.json" 
                                 file is generated using export_reproducibility_env function from the AI Modelshare library
+      email_list: list of string
+                value - list of all email list that has access to playground
+                [OPTIONAL] to be set by the user
       -----------
       Returns
       print_api_info : prints statements with generated live prediction API details
@@ -382,6 +395,14 @@ def model_to_api(model_filepath, model_type, private, categorical, y_train, prep
     user_session = boto3.session.Session(aws_access_key_id=os.environ.get("AWS_ACCESS_KEY_ID"),
                                          aws_secret_access_key = os.environ.get("AWS_SECRET_ACCESS_KEY"), 
                                          region_name=os.environ.get("AWS_REGION"))
+
+    if all([isinstance(email_list, list)]):
+        idtoken = get_aws_token()
+        decoded = jwt.decode(idtoken, options={"verify_signature": False})  # works in PyJWT < v2.0
+        email = decoded['email']
+        email_list.append(email)
+    else:
+        return print("email_list argument empty or incorrectly formatted. Please provide a list of emails for authorized competition participants formatted as strings.")
 
     if(image!=""):
         repo_name, image_tag = image.split(':')
@@ -466,7 +487,8 @@ def model_to_api(model_filepath, model_type, private, categorical, y_train, prep
     print_api_info = send_model_data_to_dyndb_and_return_api(
         api_info, private, categorical,preprocessor_filepath, aishare_modelname,
         aishare_modeldescription, aishare_modelevaluation, model_type,
-        aishare_tags, aishare_apicalls, exampledata_json_filepath,variablename_and_type_data)
+        aishare_tags, aishare_apicalls, exampledata_json_filepath,
+        variablename_and_type_data, email_list)
     
     return api_info[0]
 
@@ -663,6 +685,63 @@ def _create_competitionuserauth_json(apiurl, email_list=[],public=False, datauri
         )
       
       return
+
+def update_playground_access_list(apiurl, email_list=[], update_type="Add"): 
+    """
+    Updates list of authenticated participants who can submit new models to a competition.
+    ---------------
+    Parameters:
+    apiurl: string
+            URL of deployed prediction API 
+    
+    email_list: [REQUIRED] list of comma separated emails for users who are allowed to submit models to competition.  Emails should be strings in a list.
+    update_type:[REQUIRED] options, string: 'Add', 'Remove', 'Replace'. Add appends user emails to original list, Remove deletes users from list, 
+                and 'Replace' overwrites the original list with the new list provided.    
+    -----------------
+    Returns
+    response:   "Success" upon successful request
+    """
+    if update_type not in ['Add', 'Remove', 'Replace']:
+        return "Error: update_type must be in the form of 'Add', 'Remove', or 'Replace'"
+    
+    bodydata = {
+        "modifyaccess": "TRUE",
+        "apideveloper": os.environ.get("username"),  # change this to first and last name
+        "apiurl": apiurl,
+        "operation": update_type,
+        "email_list": email_list,
+    }
+
+    # Get the response
+    headers_with_authentication = {'Content-Type': 'application/json', 'authorizationToken': os.environ.get("JWT_AUTHORIZATION_TOKEN"), 'Access-Control-Allow-Headers':
+                                'Content-Type,X-Amz-Date,authorizationToken,Access-Control-Allow-Origin,X-Api-Key,X-Amz-Security-Token,Authorization', 'Access-Control-Allow-Origin': '*'}
+    # modeltoapi lambda function invoked through below url to return new prediction api in response
+    response = requests.post("https://bhrdesksak.execute-api.us-east-1.amazonaws.com/dev/modeldata",
+                            json=bodydata, headers=headers_with_authentication)
+    response_string = response.text
+    response_string = response_string[1:-1]
+
+    # Build output {{{
+    finalresult = "Success! Your Model Playground email list has been updated. Playground Url: " + apiurl
+    return finalresult
+
+def get_playground_access_list(apiurl):
+    bodydata = {
+        "getaccess": "TRUE",
+        "apideveloper": os.environ.get("username"),  # change this to first and last name
+        "apiurl": apiurl,
+    }
+
+    # Get the response
+    headers_with_authentication = {'Content-Type': 'application/json', 'authorizationToken': os.environ.get("JWT_AUTHORIZATION_TOKEN"), 'Access-Control-Allow-Headers':
+                                'Content-Type,X-Amz-Date,authorizationToken,Access-Control-Allow-Origin,X-Api-Key,X-Amz-Security-Token,Authorization', 'Access-Control-Allow-Origin': '*'}
+    # modeltoapi lambda function invoked through below url to return new prediction api in response
+    response = requests.post("https://bhrdesksak.execute-api.us-east-1.amazonaws.com/dev/modeldata",
+                            json=bodydata, headers=headers_with_authentication)
+    response_string = response.text
+    response_string = response_string[1:-1]
+
+    return response_string.split(',')
 
 def update_access_list(apiurl, email_list=[],update_type="Add"): 
       """
