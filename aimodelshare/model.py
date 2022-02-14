@@ -14,7 +14,7 @@ from datetime import datetime
 
 from aimodelshare.aws import run_function_on_lambda, get_token, get_aws_token, get_aws_client
 
-from aimodelshare.aimsonnx import _get_leaderboard_data, inspect_model, _get_metadata, _model_summary, model_from_string
+from aimodelshare.aimsonnx import _get_leaderboard_data, inspect_model, _get_metadata, _model_summary, model_from_string, pyspark_model_from_string
 
 
 def _get_file_list(client, bucket, model_id):
@@ -357,6 +357,52 @@ def upload_model_dict(modelpath, s3_presigned_dict, bucket, model_id, model_vers
                                         'default_value': default_config,
                                         'param_value': model_configvalues})
 
+        elif meta_dict['ml_framework'] in ['pyspark']:
+            import ast
+            import astunparse
+
+            model_config = meta_dict["model_config"]
+            tree = ast.parse(model_config)
+
+            stringconfig=model_config
+
+            problemnodes=[]
+            for node in ast.walk(tree):
+                if isinstance(node, ast.Call):
+                    problemnodes.append(astunparse.unparse(node).replace("\n",""))
+
+            problemnodesunique=set(problemnodes)
+            for i in problemnodesunique:
+                stringconfig=stringconfig.replace(i,"'"+i+"'")
+
+            try:
+                model_config_temp = ast.literal_eval(stringconfig)
+                model_class = pyspark_model_from_string(meta_dict['model_type'])
+                default = model_class()
+
+                # get model config dict from pyspark model object
+                default_config_temp = {}
+                for key, value in default.extractParamMap().items():
+                    default_config_temp[key.name] = value
+                
+                # Sort the keys so default and model config key matches each other
+                model_config = dict(sorted(model_config_temp.items()))
+                default_config = dict(sorted(default_config_temp.items()))
+                
+                model_configkeys = model_config.keys()
+                model_configvalues = model_config.values()
+                default_config = default_config.values()
+            except:
+                model_class = str(pyspark_model_from_string(meta_dict['model_type']))
+                if model_class.find("Voting")>0:
+                      default_config = ["No data available"]
+                      model_configkeys=["No data available"]
+                      model_configvalues=["No data available"]
+
+            inspect_pd = pd.DataFrame({'param_name': model_configkeys,
+                                        'default_value': default_config,
+                                        'param_value': model_configvalues})
+
     else:
         meta_dict = {}
         meta_dict['ml_framework'] = "undefined"
@@ -364,8 +410,6 @@ def upload_model_dict(modelpath, s3_presigned_dict, bucket, model_id, model_vers
 
         #inspect_pd = pd.DataFrame({' ':["No metadata available for this model"]})
         inspect_pd = pd.DataFrame()
-
-
    
     try:
         #Get inspect json
@@ -419,7 +463,7 @@ def upload_model_graph(modelpath,  s3_presigned_dict, bucket, model_id, model_ve
 
         model_graph = ''
 
-    elif meta_dict['ml_framework'] in ['sklearn', 'xgboost']:
+    elif meta_dict['ml_framework'] in ['sklearn', 'xgboost', 'pyspark']:
 
         model_graph = ''
 
@@ -557,8 +601,8 @@ def submit_model(
         prediction = requests.post(apiurl_eval,headers=headers,data=json.dumps(post_dict)) 
 
         eval_metrics=json.loads(prediction.text)
-    except:
-        pass
+    except Exception as e:
+        print(e)
 
     if all([isinstance(eval_metrics, dict),"message" not in eval_metrics]):
         pass        
@@ -760,7 +804,6 @@ def submit_model(
             for i in problemnodesunique:
                 stringconfig=stringconfig.replace(i,"'"+i+"'")
 
-
             try:
                 model_config=ast.literal_eval(stringconfig)
                 model_class = model_from_string(meta_dict['model_type'])
@@ -781,14 +824,59 @@ def submit_model(
                                         'param_value': model_configvalues})
 
             model_graph = ''
-        
+
+        elif meta_dict['ml_framework'] in ['pyspark']:
+            import ast
+            import astunparse
+
+            model_config = meta_dict["model_config"]
+            tree = ast.parse(model_config)
+
+            stringconfig=model_config
+
+            problemnodes=[]
+            for node in ast.walk(tree):
+                if isinstance(node, ast.Call):
+                    problemnodes.append(astunparse.unparse(node).replace("\n",""))
+
+            problemnodesunique=set(problemnodes)
+            for i in problemnodesunique:
+                stringconfig=stringconfig.replace(i,"'"+i+"'")
+
+            try:
+                model_config_temp = ast.literal_eval(stringconfig)
+                model_class = pyspark_model_from_string(meta_dict['model_type'])
+                default = model_class()
+
+                # get model config dict from pyspark model object
+                default_config_temp = {}
+                for key, value in default.extractParamMap().items():
+                    default_config_temp[key.name] = value
+                
+                # Sort the keys so default and model config key matches each other
+                model_config = dict(sorted(model_config_temp.items()))
+                default_config = dict(sorted(default_config_temp.items()))
+                
+                model_configkeys = model_config.keys()
+                model_configvalues = model_config.values()
+                default_config = default_config.values()
+            except:
+                model_class = str(pyspark_model_from_string(meta_dict['model_type']))
+                if model_class.find("Voting")>0:
+                      default_config = ["No data available"]
+                      model_configkeys=["No data available"]
+                      model_configvalues=["No data available"]
+
+            inspect_pd = pd.DataFrame({'param_name': model_configkeys,
+                                    'default_value': default_config,
+                                    'param_value': model_configvalues})
+            model_graph = ""
     else: 
 
         inspect_pd = pd.DataFrame()
         model_graph = ''
-
         
-
+        
     keys_to_extract = [ "accuracy", "f1_score", "precision", "recall", "mse", "rmse", "mae", "r2"]
 
     eval_metrics_subset = {key: eval_metrics[key] for key in keys_to_extract}

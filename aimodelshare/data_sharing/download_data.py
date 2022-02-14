@@ -87,7 +87,7 @@ def pull_image(image_uri):
 	auth_head = get_auth_head(auth_url, registry, repository)
 
 	resp = requests.get('https://{}/v2/{}/manifests/{}'.format(registry, repository, tag), headers=auth_head, verify=False)
-
+    
 	config = resp.json()['config']['digest']
 	config_resp = requests.get('https://{}/v2/{}/blobs/{}'.format(registry, repository, config), headers=auth_head, verify=False)
 

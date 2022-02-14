@@ -1,0 +1,8 @@
+import json
+from model import handler
+
+def lambda_handler(event, context):
+
+    print("lambda_handler from main")
+
+    return handler(event, context)

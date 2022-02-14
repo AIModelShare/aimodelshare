@@ -8,6 +8,10 @@ from sklearn.model_selection import GridSearchCV, RandomizedSearchCV
 import torch
 import xgboost
 import tensorflow as tf
+import pyspark
+from pyspark.sql import SparkSession
+from pyspark.ml import PipelineModel, Model
+from pyspark.ml.tuning import CrossValidatorModel, TrainValidationSplitModel
 
 
 # onnx modules
@@ -20,7 +24,7 @@ from onnx.tools.net_drawer import GetPydotGraph, GetOpNodeProducer
 import importlib
 import onnxmltools
 import onnxruntime as rt
-
+from onnxmltools import convert_sparkml
 
 # aims modules
 from aimodelshare.aws import run_function_on_lambda, get_aws_client
@@ -35,9 +39,11 @@ import re
 import pickle
 import requests
 import sys
-import tempfile
+import shutil
+from pathlib import Path
+from zipfile import ZipFile
 import wget            
-
+from copy import copy
 
 from pympler import asizeof
 from IPython.core.display import display, HTML, SVG
@@ -344,7 +350,160 @@ def _sklearn_to_onnx(model, initial_types, transfer_learning=None,
 
     return onx
 
+def get_pyspark_model_files_paths(directory):
+    # Get list of relative path of all model files
 
+    # initializing empty file paths list
+    file_paths = []
+  
+    for path in Path(directory).rglob('*'):
+        if not path.is_dir():
+            file_paths.append(path.relative_to(directory))
+
+    # returning all file paths
+    return file_paths
+
+def _pyspark_to_onnx(model, initial_types, spark_session, 
+                    transfer_learning=None, deep_learning=None, 
+                    task_type=None):
+    '''Extracts metadata from pyspark model object.'''
+    
+    # deal with pipelines and parameter search 
+    if isinstance(model, (TrainValidationSplitModel, CrossValidatorModel)):
+        model = model.bestModel
+
+    whole_model = copy(model)
+    
+    # Look for the last model in the pipeline
+    if isinstance(model, PipelineModel):
+        for t in model.stages:
+            if isinstance(t, Model):
+                model = t
+
+    # convert to onnx
+    onx = convert_sparkml(whole_model, 'Pyspark model', initial_types, 
+                         spark_session=spark_session)
+            
+    # generate metadata dict 
+    metadata = {}
+    
+    # placeholders, need to be generated elsewhere
+    metadata['model_id'] = None
+    metadata['data_id'] = None
+    metadata['preprocessor_id'] = None
+    
+    # infer ml framework from function call
+    metadata['ml_framework'] = 'pyspark'
+    
+    # get model type from model object
+    model_type = str(model).split(':')[0]
+    metadata['model_type'] = model_type
+    
+    # get transfer learning bool from user input
+    metadata['transfer_learning'] = transfer_learning
+
+    # get deep learning bool from user input
+    metadata['deep_learning'] = deep_learning
+    
+    # get task type from user input
+    metadata['task_type'] = task_type
+    
+    # placeholders, need to be inferred from data 
+    metadata['target_distribution'] = None
+    metadata['input_type'] = None
+    metadata['input_shape'] = None
+    metadata['input_dtypes'] = None       
+    metadata['input_distribution'] = None
+    
+    # get model config dict from pyspark model object
+    model_config = {}
+    for key, value in model.extractParamMap().items():
+        model_config[key.name] = value
+    metadata['model_config'] = str(model_config)
+
+    # get weights for pretrained models 
+    temp_dir = tempfile.gettempdir()
+    temp_path = os.path.join(temp_dir, 'temp_pyspark_model')
+
+    model.write().overwrite().save(temp_path)
+
+    # calling function to get all file paths in the directory
+    file_paths = get_pyspark_model_files_paths(temp_path)
+
+    temp_path_zip = os.path.join(temp_dir, 'temp_pyspark_model.zip')
+    with ZipFile(temp_path_zip, 'w') as zip:
+        # writing each file one by one
+        for file in file_paths:
+            zip.write(os.path.join(temp_path, file), file)
+    
+    with open(temp_path_zip, "rb") as f:
+        pkl_str = f.read()
+
+    metadata['model_weights'] = pkl_str
+    
+    # clean up temp directory files for future runs
+    try:
+        shutil.rmtree(temp_path)
+        os.remove(temp_path_zip)
+    except:
+        pass
+
+    # get model state from sklearn model object
+    metadata['model_state'] = None
+
+    # get model architecture    
+    if model_type == 'MultilayerPerceptronClassificationModel':
+
+        #  https://spark.apache.org/docs/latest/ml-classification-regression.html#multilayer-perceptron-classifier
+        loss = 'log-loss'
+        hidden_layer_activation = 'sigmoid'
+        output_layer_activation = 'softmax'
+
+        n_params = []
+        layer_dims = model.getLayers()
+        hidden_layers = layer_dims[1:-1]
+        for i in range(len(layer_dims)-1):
+            n_params.append(layer_dims[i]*layer_dims[i+1] + layer_dims[i+1])
+
+        # insert data into model architecture dict 
+        model_architecture = {'layers_number': len(hidden_layers),
+                              'layers_sequence': ['Dense']*len(hidden_layers),
+                              'layers_summary': {'Dense': len(hidden_layers)},
+                              'layers_n_params': n_params, #double check 
+                              'layers_shapes': hidden_layers,
+                              'activations_sequence': [hidden_layer_activation]*len(hidden_layers) + [output_layer_activation],
+                              'activations_summary': {hidden_layer_activation: len(hidden_layers), output_layer_activation: 1},
+                              'loss': loss,
+                              'optimizer': model.getSolver()
+                             }
+
+        metadata['model_architecture'] = str(model_architecture)
+
+
+    else:
+        model_architecture = {}
+
+        if hasattr(model, 'coefficients'):
+            model_architecture['layers_n_params'] = [model.coefficients.size]
+        if hasattr(model, 'getSolver') and callable(model.getSolver):
+            model_architecture['optimizer'] = model.getSolver()
+
+        metadata['model_architecture'] = str(model_architecture)
+
+    metadata['memory_size'] = asizeof.asizeof(model)    
+
+    # placeholder, needs evaluation engine
+    metadata['eval_metrics'] = None  
+    
+    # add metadata from onnx object
+    # metadata['metadata_onnx'] = str(_extract_onnx_metadata(onx, framework='sklearn'))
+    metadata['metadata_onnx'] = None
+
+    meta = onx.metadata_props.add()
+    meta.key = 'model_metadata'
+    meta.value = str(metadata)
+
+    return onx
 
 def _keras_to_onnx(model, transfer_learning=None,
                   deep_learning=None, task_type=None, epochs=None):
@@ -631,7 +790,7 @@ def _pytorch_to_onnx(model, model_input, transfer_learning=None,
 
 def model_to_onnx(model, framework, model_input=None, initial_types=None,
                   transfer_learning=None, deep_learning=None, task_type=None, 
-                  epochs=None):
+                  epochs=None, spark_session=None):
     
     '''Transforms sklearn, keras, or pytorch model object into ONNX format 
     and extracts model metadata dictionary. The model metadata dictionary 
@@ -664,9 +823,9 @@ def model_to_onnx(model, framework, model_input=None, initial_types=None,
     '''
 
     # assert that framework exists
-    frameworks = ['sklearn', 'keras', 'pytorch', 'xgboost']
+    frameworks = ['sklearn', 'keras', 'pytorch', 'xgboost', 'pyspark']
     assert framework in frameworks, \
-    'Please choose "sklearn", "keras", "pytorch", or "xgboost".'
+    'Please choose "sklearn", "keras", "pytorch", "pyspark" or "xgboost".'
     
     # assert model input type THIS IS A PLACEHOLDER
     if model_input is not None:
@@ -719,6 +878,12 @@ def model_to_onnx(model, framework, model_input=None, initial_types=None,
                                 task_type=task_type,
                                 epochs=epochs)
 
+    elif framework == 'pyspark':
+        onnx = _pyspark_to_onnx(model, initial_types=initial_types, 
+                                transfer_learning=transfer_learning, 
+                                deep_learning=deep_learning, 
+                                task_type=task_type,
+                                spark_session=spark_session)
 
     try: 
         rt.InferenceSession(onnx.SerializeToString())   
@@ -819,8 +984,8 @@ def _get_leaderboard_data(onnx_model, eval_metrics=None):
         metadata['epochs'] = metadata_raw['epochs']
         metadata['memory_size'] = metadata_raw['memory_size']
 
-    # get sklearn model metrics
-    elif metadata_raw['ml_framework'] == 'sklearn' or metadata_raw['ml_framework'] == 'xgboost':
+    # get sklearn & pyspark model metrics
+    elif metadata_raw['ml_framework'] in ['sklearn', 'xgboost', 'pyspark']:
         metadata['depth'] = 0
 
         try:
@@ -909,7 +1074,7 @@ def inspect_model_aws(apiurl, version=None):
     if meta_dict['ml_framework'] == 'keras':
         inspect_pd = _model_summary(meta_dict)
         
-    elif meta_dict['ml_framework'] in ['sklearn', 'xgboost']:
+    elif meta_dict['ml_framework'] in ['sklearn', 'xgboost', 'pyspark']:
         model_config = meta_dict["model_config"]
         model_config = ast.literal_eval(model_config)
         inspect_pd = pd.DataFrame({'param_name': model_config.keys(),
@@ -1074,7 +1239,7 @@ def compare_models_dict(apiurl, version_list=None,
     
     for i, j in zip(version_list, ml_framework_list): 
 
-        if j == "sklearn":
+        if j == "sklearn" or j == "pyspark":
         
             temp_pd = pd.DataFrame(model_dict[str(i)]['model_dict'])
             temp_pd.columns = ['param_name', 'default_value', "model_version_"+str(i)]
@@ -1369,6 +1534,29 @@ def compare_models_aws(apiurl, version_list=None,
         df_styled = comp_pd.style.apply(lambda x: ["background: tomato" if v != x.iloc[0] else "" for v in x], 
                                         axis = 1, subset=comp_pd.columns[1:])
 
+    if ml_framework_list[0] == 'pyspark':
+        model_type = model_type_list[0]
+        model_class = pyspark_model_from_string(model_type)
+        default = model_class()
+
+        # get model config dict from pyspark model object
+        default_config = {}
+        for key, value in default.extractParamMap().items():
+            default_config[key.name] = value
+        
+        comp_pd = pd.DataFrame({'param_name': default_config.keys(),
+                           'param_value': default_config.values()})
+        
+        for i in version_list: 
+            
+            temp_pd = inspect_model(apiurl, version=i)
+            comp_pd = comp_pd.merge(temp_pd, on='param_name')
+        
+        comp_pd.columns = ['param_name', 'model_default'] + ["Model_"+str(i) for i in version_list]
+        
+        df_styled = comp_pd.style.apply(lambda x: ["background: tomato" if v != x.iloc[0] else "" for v in x], 
+                                        axis = 1, subset=comp_pd.columns[1:])
+
         
     if ml_framework_list[0] == 'keras':
 
@@ -1511,6 +1699,7 @@ def _get_onnx_from_bucket(apiurl, aws_client, version=None):
 
 
 def instantiate_model(apiurl, version=None, trained=False, reproduce=False):
+    # The priority mode, reproduce -> trained.
     # Confirm that creds are loaded, print warning if not
     if all(["username" in os.environ, 
           "password" in os.environ]):
@@ -1584,6 +1773,58 @@ def instantiate_model(apiurl, version=None, trained=False, reproduce=False):
             with open(temp_path, 'rb') as f:
                 model = pickle.load(f)
 
+    if ml_framework == 'pyspark':
+        if not trained or reproduce:
+            print("Pyspark model can only be instantiated in trained mode.")
+            print("Please rerun the function with proper parameters.")
+            return None
+
+        # pyspark model object is always trained. The unfitted / untrained one 
+        # is the estimator and cannot be treated as model. 
+        # Model is transformer and created by estimator
+        model_pkl = None
+        temp = tempfile.mkdtemp()
+        temp_path = temp + "/" + "onnx_model_v{}.onnx".format(version)
+        
+        # Get leaderboard
+        status = wget.download(model_weight_url, out=temp_path)
+        onnx_model = onnx.load(temp_path)
+        model_pkl = _get_metadata(onnx_model)['model_weights']
+
+        temp_dir = tempfile.gettempdir()
+        temp_path_zip = os.path.join(temp_dir, 'temp_pyspark_model.zip')
+        temp_path = os.path.join(temp_dir, 'temp_pyspark_model')
+        
+        if not os.path.exists(temp_path):
+            os.mkdir(temp_path)
+
+        with open(temp_path_zip, "wb") as f:
+            f.write(model_pkl)
+        
+        dirname_idx = -1
+        with ZipFile(temp_path_zip, 'r') as zip_file:
+            zip_file.extractall(temp_path)
+        
+        model_type = model_metadata['model_type']
+        model_class = pyspark_model_from_string(model_type)
+        # model_config is for the Estimator not the Transformer / Model
+        model = model_class()
+
+        # Need spark session and context to instantiate model object
+        spark = SparkSession \
+            .builder \
+            .appName('Pyspark Model') \
+            .getOrCreate()
+
+        model = model.load(temp_path)
+
+        # clean up temp directory files for future runs
+        try:
+            shutil.rmtree(temp_path)
+            os.remove(temp_path_zip)
+        except:
+            pass
+
     if ml_framework == 'keras':
         if trained == False or reproduce == True:
             model = tf.keras.Sequential().from_config(model_config)
@@ -1609,63 +1850,6 @@ def instantiate_model(apiurl, version=None, trained=False, reproduce=False):
 
     print("Your model is successfully instantiated.")
     return model
-
-# def instantiate_model(apiurl, version=None, trained=False):
-#     if all(["AWS_ACCESS_KEY_ID" in os.environ, 
-#             "AWS_SECRET_ACCESS_KEY" in os.environ,
-#             "AWS_REGION" in os.environ, 
-#             "username" in os.environ, 
-#             "password" in os.environ]):
-#         pass
-#     else:
-#         return print("'Instantiate Model' unsuccessful. Please provide credentials with set_credentials().")
-
-#     aws_client = get_aws_client()   
-#     onnx_model = _get_onnx_from_bucket(apiurl, aws_client, version=version)
-#     meta_dict = _get_metadata(onnx_model)
-
-#     # get model config 
-#     model_config = ast.literal_eval(meta_dict['model_config'])
-#     ml_framework = meta_dict['ml_framework']
-    
-#     if ml_framework == 'sklearn':
-
-#         if trained == False:
-#             model_type = meta_dict['model_type']
-#             model_class = model_from_string(model_type)
-#             model = model_class(**model_config)
-
-#         if trained == True:
-            
-#             model_pkl = meta_dict['model_weights']
-
-#             temp_dir = tempfile.gettempdir()
-#             temp_path = os.path.join(temp_dir, 'temp_file_name')
-
-#             with open(temp_path, "wb") as f:
-#                 f.write(model_pkl)
-
-#             with open(temp_path, 'rb') as f:
-#                 model = pickle.load(f)
-
-
-#     if ml_framework == 'keras':
-
-#         if trained == False:
-#             model = tf.keras.Sequential().from_config(model_config)
-
-#         if trained == True: 
-#             model = tf.keras.Sequential().from_config(model_config)
-#             model_weights = json.loads(meta_dict['model_weights'])
-
-#             def to_array(x):
-#                 return np.array(x, dtype="float32")
-
-#             model_weights = list(map(to_array, model_weights))
-
-#             model.set_weights(model_weights)
-
-#     return model
 
 
 def _get_layer_names():
@@ -1728,6 +1912,27 @@ def model_from_string(model_type):
     model_class = getattr(importlib.import_module(module), model_type)
     return model_class
 
+def _get_pyspark_modules():
+    pyspark_modules = ['ml', 'ml.feature', 'ml.classification', 'ml.clustering', 'ml.regression']
+
+    models_modules_dict = {}
+
+    for i in pyspark_modules:
+        models_list = [j for j in dir(eval('pyspark.'+i)) if callable(getattr(eval('pyspark.'+i), j))]
+        models_list = [j for j in models_list if re.match('^[A-Z]', j)]
+
+        for k in models_list: 
+            models_modules_dict[k] = 'pyspark.'+i
+    
+    return models_modules_dict
+
+
+def pyspark_model_from_string(model_type):
+    models_modules_dict = _get_pyspark_modules()
+    module = models_modules_dict[model_type]
+    model_class = getattr(importlib.import_module(module), model_type)
+    return model_class
+
 
 def print_y_stats(y_stats): 
 
@@ -1749,8 +1954,8 @@ def inspect_y_test(apiurl):
   post_dict = {"y_pred": [],
                "return_eval": "False",
                "return_y": "True"}
-    
-  headers = { 'Content-Type':'application/json', 'authorizationToken': os.environ.get("AWS_TOKEN"),}
+
+  headers = { 'Content-Type':'application/json', 'authorizationToken': os.environ.get("AWS_TOKEN"),} 
 
   apiurl_eval=apiurl[:-1]+"eval"
 

@@ -2,6 +2,7 @@ FROM public.ecr.aws/lambda/python:$python_version
 
 RUN yum -y install java-1.8.0-openjdk
 
+COPY $directory/. ./
 COPY $requirements_file_path ./
 
 RUN pip install -r ./requirements.txt

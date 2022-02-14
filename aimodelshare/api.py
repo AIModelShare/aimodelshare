@@ -33,7 +33,7 @@ from .utils import *
 
 class create_prediction_api_class():
 
-    def __init__(self, model_filepath, unique_model_id, model_type, categorical, labels, apiid, custom_libraries, requirements, repo_name="", image_tag="", memory=None, timeout=None):
+    def __init__(self, model_filepath, unique_model_id, model_type, categorical, labels, apiid, custom_libraries, requirements, repo_name="", image_tag="", memory=None, timeout=None, pyspark_support=False):
 
         #####
         self.user_session = boto3.session.Session(
@@ -60,6 +60,7 @@ class create_prediction_api_class():
         self.image_tag = image_tag
         self.memory = memory
         self.timeout = timeout
+        self.pyspark_support = pyspark_support
         self.region = os.environ.get("AWS_REGION")
         self.bucket_name = os.environ.get("BUCKET_NAME")
         self.python_runtime = 'python3.7'
@@ -153,7 +154,10 @@ class create_prediction_api_class():
         }
 
     def create_prediction_api(self):
-
+        global main
+        if self.pyspark_support:
+            from . import pyspark as main
+        
         delete_files_from_temp_dir(self.temp_dir_file_deletion_list)
 
         if self.model_type != "custom":
@@ -246,7 +250,7 @@ class create_prediction_api_class():
                 for lib in requirements:
                     f.write('%s\n' % lib)
             requirements_file_path = os.path.join(self.file_objects_folder_path, 'requirements.txt')
-            response6 = deploy_container(self.account_id, os.environ.get("AWS_REGION"), self.user_session, lambdafxnname, self.file_objects_folder_path,requirements_file_path,self.apiid)
+            response6 = deploy_container(self.account_id, os.environ.get("AWS_REGION"), self.user_session, lambdafxnname, self.file_objects_folder_path,requirements_file_path,self.apiid, pyspark_support=self.pyspark_support)
 
         ##########
 
@@ -418,8 +422,14 @@ class create_prediction_api_class():
 
 
 
-def create_prediction_api(model_filepath, unique_model_id, model_type, categorical, labels, apiid, custom_libraries, requirements, repo_name="", image_tag="", memory=None, timeout=None):
-    api_class = create_prediction_api_class(model_filepath, unique_model_id, model_type, categorical, labels, apiid, custom_libraries, requirements, repo_name, image_tag, memory, timeout)
+def create_prediction_api(model_filepath, unique_model_id, model_type, 
+                          categorical, labels, apiid, custom_libraries, 
+                          requirements, repo_name="", image_tag="", 
+                          memory=None, timeout=None, pyspark_support=False):
+    api_class = create_prediction_api_class(model_filepath, unique_model_id, 
+                                           model_type, categorical, labels, apiid, 
+                                           custom_libraries, requirements, repo_name, 
+                                           image_tag, memory, timeout, pyspark_support)
     return api_class.create_prediction_api()
 
 def get_api_json():
