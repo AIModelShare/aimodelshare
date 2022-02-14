@@ -608,16 +608,24 @@ def create_competition(apiurl, data_directory, y_test, eval_metric_filepath=None
                   json=bodydata, headers=headers_with_authentication)
 
       
-    final_message = ("\n Success! Model competition created. \n\n"
-                "You may now update your prediction API runtime model and verify evaluation metrics with the update_runtime_model() function.\n\n"
-                "To upload new models and/or preprocessors to this API, team members should use \n"
-                "the following credentials:\n\napiurl='" + apiurl+"'"+"\nfrom aimodelshare.aws import set_credentials\nset_credentials(apiurl=apiurl)\n\n"
-                "They can then submit models to your competition by using the following code: \n\ncompetition= ai.Competition(apiurl)\n"
-                "download_data('"+datauri['ecr_uri']+"') \n"
-                 "# Use this data to preprocess data and train model. Write and save preprocessor fxn, save model to onnx file, generate predicted y values\n using X test data, then submit a model below.\n\n"
-                "competition.submit_model(model_filepath, preprocessor_filepath, prediction_submission_list)")
-  
-    return print(final_message)
+    final_message_pt1 = ("\n Success! Model competition created. \n\n"
+                    "You may now update your prediction API runtime model and verify evaluation metrics with the update_runtime_model() function.\n")
+    print(final_message_pt1)
+    time.sleep(2)
+    final_message_pt2 = (" Team members can use this code to upload new models and/or preprocessors to this API: \n"
+                "apiurl='" + apiurl+"'"+"\nfrom aimodelshare.aws import set_credentials\nset_credentials(apiurl=apiurl)\n")
+    print(final_message_pt2)
+    time.sleep(2)
+    final_message_pt3 = (" They can then submit models to your competition: \n"
+                        "# Use this data to preprocess data and train model. \n"
+                        "from aimodelshare import download_data\n"
+                        "download_data('"+datauri['ecr_uri']+"') \n")
+    print(final_message_pt3)
+    time.sleep(2)
+    final_message_pt4 = ("# Write and save preprocessor fxn, save model to onnx file, generate predicted y values using X test data, then submit a model.\n"
+                        "competition= ai.Competition(apiurl)\n"
+                        "competition.submit_model(model_filepath, preprocessor_filepath, prediction_submission_list)")
+    return print(final_message_pt4)
 
 def _create_competitionuserauth_json(apiurl, email_list=[],public=False, datauri=None): 
       import json

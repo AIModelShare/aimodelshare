@@ -177,7 +177,7 @@ def share_data_codebuild(account_id, region, dataset_dir, dataset_tag='latest', 
         response = ecr.create_repository(
             repositoryName=repository
         )
-        dataset_tag='v1'
+        dataset_tag='v1' #assigns tag 'v1' if repo doesnt already exist
     except:
         response = ecr.describe_images(
                 repositoryName=repository,
