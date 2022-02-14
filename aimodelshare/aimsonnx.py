@@ -545,6 +545,7 @@ def _pytorch_to_onnx(model, model_input, transfer_learning=None,
 
     # generate onnx file and save it to temporary path
     export(model, model_input, temp_path)
+        #operator_export_type=torch.onnx.OperatorExportTypes.ONNX_ATEN_FALLBACK)
 
     # load onnx file from temporary path
     onx = onnx.load(temp_path)
@@ -785,6 +786,8 @@ def _get_leaderboard_data(onnx_model, eval_metrics=None):
     layer_list = list(set(layer_list_keras + layer_list_pytorch))
     activation_list =  list(set(activation_list_keras + activation_list_pytorch))
 
+    print(layer_list)
+
     # get general model info
     metadata['ml_framework'] = metadata_raw['ml_framework']
     metadata['transfer_learning'] = metadata_raw['transfer_learning']
@@ -800,7 +803,7 @@ def _get_leaderboard_data(onnx_model, eval_metrics=None):
         for i in layer_list:
             if i in metadata_raw['model_architecture']['layers_summary']:
                 metadata[i.lower()+'_layers'] = metadata_raw['model_architecture']['layers_summary'][i]
-            else:
+            elif i.lower()+'_layers' not in metadata.keys():
                 metadata[i.lower()+'_layers'] = 0
 
         for i in activation_list:
@@ -1931,7 +1934,7 @@ def torch_unpack(model):
     
     for key, module in model._modules.items():
                 
-        if type(module) in [torch.nn.modules.container.Container, torch.nn.modules.container.Sequential]:
+        if len(module._modules):
             
             layers_out, keys_out = torch_unpack(module)
             

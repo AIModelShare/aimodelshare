@@ -4,6 +4,9 @@ import pandas as pd
 import os
 import requests
 
+import matplotlib.pyplot as plt
+
+from collections import Counter
 from aimodelshare.aws import run_function_on_lambda, get_aws_client
 from aimodelshare.aimsonnx import _get_layer_names, layer_mapping
 
@@ -272,8 +275,72 @@ def consolidate_leaderboard(data, naming_convention="keras"):
   return data
 
 
+def leaderboard_basics(leaderboard, metrics=None): 
 
-__all__ = [
-    get_leaderboard,
-    stylize_leaderboard,
-]
+    basic_data = {}
+
+    basic_data['submissions'] = leaderboard.shape[0]
+    basic_data['users'] = len(leaderboard.username.unique())
+    basic_data['ml_frameworks'] = Counter(leaderboard.ml_framework)
+    basic_data['model_types'] = Counter(leaderboard.model_type)
+
+    if metrics == None:
+        metrics = ['accuracy', 'f1_score', 'precision', 'recall']
+
+    for i in metrics:
+
+        summary_metrics = {
+        'avg': leaderboard[i].mean(), 
+        'min': leaderboard[i].min(), 
+        'max': leaderboard[i].max(), 
+        'std': leaderboard[i].std()
+        }
+
+        basic_data['eval_'+i] = summary_metrics
+
+    return basic_data
+
+
+def submission_timeline_metrics(leaderboard, metric=None, descriptives=None, resolution=None):
+
+
+    # Create figure and plot space
+    fig, ax = plt.subplots(figsize=(10, 10))
+
+    # Add x-axis and y-axis
+    ax.plot(leaderboard['timestamp'],
+            leaderboard[metric],
+            color='purple')
+
+    # Set title and labels for axes
+    ax.set(xlabel="Date",
+           ylabel=str(metric),
+           title= str(metric)+ " over time")
+
+    plt.show()
+
+
+def submission_timeline_volume(leaderboard, metric=None, descriptives=None, resolution=None):
+
+
+    leaderboard
+
+    # Create figure and plot space
+    fig, ax = plt.subplots(figsize=(10, 10))
+
+    # Add x-axis and y-axis
+    ax.plot(leaderboard['timestamp'],
+            leaderboard[metric],
+            color='purple')
+
+    # Set title and labels for axes
+    ax.set(xlabel="Date",
+           ylabel=str(metric),
+           title= str(metric)+ " over time")
+
+    plt.show()
+
+
+
+__all__ = [get_leaderboard,
+    stylize_leaderboard]
