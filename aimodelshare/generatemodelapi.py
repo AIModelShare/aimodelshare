@@ -246,7 +246,9 @@ def send_model_data_to_dyndb_and_return_api(api_info, private, categorical, prep
                                 value- extracted from example_data
                                 [variable types,variable columns]
                                 'default' when training data info is not available to extract columns
-    
+    email_list: list of string
+                value - list of all email list that has access to playground
+                [OPTIONAL] to be set by the user
     -----------
     Results
     print (api_info) : statements with the generated live prediction API information for the user
@@ -400,7 +402,8 @@ def model_to_api(model_filepath, model_type, private, categorical,
         idtoken = get_aws_token()
         decoded = jwt.decode(idtoken, options={"verify_signature": False})  # works in PyJWT < v2.0
         email = decoded['email']
-        email_list.append(email)
+        # Owner has to be the first on the list
+        email_list.insert(0, email)
     else:
         return print("email_list argument empty or incorrectly formatted. Please provide a list of emails for authorized competition participants formatted as strings.")
 
