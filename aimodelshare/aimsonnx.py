@@ -1651,20 +1651,18 @@ def compare_models(apiurl, version_list="None",
     try: 
         compare_pd = compare_models_lambda(apiurl, version_list, 
             by_model_type, best_model, verbose, naming_convention)
-        print("compare_models_lambda")
-
+        
     except: 
 
         try: 
             compare_pd = compare_models_dict(apiurl, version_list, 
             by_model_type, best_model, verbose, naming_convention)
-            print("compare_models_dict")
+            
         except:
 
             compare_pd = compare_models_aws(apiurl, version_list, 
                 by_model_type, best_model, verbose, naming_convention)
-            print("compare_models_aws")
-    
+            
     return compare_pd
 
 def _get_onnx_from_string(onnx_string):
