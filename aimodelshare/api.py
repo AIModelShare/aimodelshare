@@ -158,7 +158,10 @@ class create_prediction_api_class():
     def create_prediction_api(self):
         global main
         if self.pyspark_support:
-            from . import pyspark as main
+            try:
+                from . import pyspark as main
+            except:
+                raise("Error: Please install pyspark to enable pyspark features")
         
         delete_files_from_temp_dir(self.temp_dir_file_deletion_list)
 

@@ -39,8 +39,7 @@ def import_preprocessor(filepath):
     import os
     import pickle
     import string
-    from pyspark.sql import SparkSession
-
+    
     #create temporary folder
     temp_dir = tempfile.mkdtemp()
 
@@ -68,6 +67,11 @@ def import_preprocessor(filepath):
     # Need spark session and context to instantiate model object
     # zip_file_list is only used by pyspark
     if len(zip_file_list):
+        try:
+            from pyspark.sql import SparkSession
+        except:
+            raise("Error: Please install pyspark to enable pyspark features")
+            
         spark = SparkSession \
             .builder \
             .appName('Pyspark Model') \

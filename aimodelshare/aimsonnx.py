@@ -8,11 +8,13 @@ from sklearn.model_selection import GridSearchCV, RandomizedSearchCV
 import torch
 import xgboost
 import tensorflow as tf
-import pyspark
-from pyspark.sql import SparkSession
-from pyspark.ml import PipelineModel, Model
-from pyspark.ml.tuning import CrossValidatorModel, TrainValidationSplitModel
-
+try:
+    import pyspark
+    from pyspark.sql import SparkSession
+    from pyspark.ml import PipelineModel, Model
+    from pyspark.ml.tuning import CrossValidatorModel, TrainValidationSplitModel
+except:
+    print("Warning: Please install pyspark to enable pyspark features")
 
 # onnx modules
 import onnx
@@ -367,8 +369,14 @@ def _pyspark_to_onnx(model, initial_types, spark_session,
                     transfer_learning=None, deep_learning=None, 
                     task_type=None):
     '''Extracts metadata from pyspark model object.'''
-    
-    # deal with pipelines and parameter search 
+
+    try:
+        if pyspark is None:
+            raise("Error: Please install pyspark to enable pyspark features")
+    except:
+        raise("Error: Please install pyspark to enable pyspark features")
+
+    # deal with pipelines and parameter search
     if isinstance(model, (TrainValidationSplitModel, CrossValidatorModel)):
         model = model.bestModel
 
@@ -1653,7 +1661,7 @@ def compare_models(apiurl, version_list="None",
 
             compare_pd = compare_models_aws(apiurl, version_list, 
                 by_model_type, best_model, verbose, naming_convention)
-    
+
     return compare_pd
 
 def _get_onnx_from_string(onnx_string):
@@ -1774,6 +1782,12 @@ def instantiate_model(apiurl, version=None, trained=False, reproduce=False):
                 model = pickle.load(f)
 
     if ml_framework == 'pyspark':
+        try:
+            if pyspark is None:
+                raise("Error: Please install pyspark to enable pyspark features")
+        except:
+            raise("Error: Please install pyspark to enable pyspark features")
+
         if not trained or reproduce:
             print("Pyspark model can only be instantiated in trained mode.")
             print("Please rerun the function with proper parameters.")
@@ -1913,6 +1927,12 @@ def model_from_string(model_type):
     return model_class
 
 def _get_pyspark_modules():
+    try:
+        if pyspark is None:
+            raise("Error: Please install pyspark to enable pyspark features")
+    except:
+        raise("Error: Please install pyspark to enable pyspark features")
+
     pyspark_modules = ['ml', 'ml.feature', 'ml.classification', 'ml.clustering', 'ml.regression']
 
     models_modules_dict = {}
@@ -1928,6 +1948,12 @@ def _get_pyspark_modules():
 
 
 def pyspark_model_from_string(model_type):
+    try:
+        if pyspark is None:
+            raise("Error: Please install pyspark to enable pyspark features")
+    except:
+        raise("Error: Please install pyspark to enable pyspark features")
+
     models_modules_dict = _get_pyspark_modules()
     module = models_modules_dict[model_type]
     model_class = getattr(importlib.import_module(module), model_type)
