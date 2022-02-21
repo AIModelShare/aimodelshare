@@ -20,14 +20,7 @@ try:
 except ImportError:
     import importlib_resources as pkg_resources
 
-from aimodelshare.containerization import create_lambda_using_base_image
-from aimodelshare.containerisation import deploy_container
-
 from . import main  # relative-import the *package* containing the templates
-from . import json_templates
-from . import custom_approach
-
-from .aws_client import AWSClient
 
 from .utils import *
 
@@ -45,6 +38,7 @@ class create_prediction_api_class():
         self.account_id = self.sts_client.get_caller_identity()["Account"]
         #####
 
+        from .aws_client import AWSClient
         self.aws_client = AWSClient(self.user_session)
                 
         #####
@@ -191,6 +185,7 @@ class create_prediction_api_class():
             file.write(newdata)
 
         if(self.model_type == 'custom'):
+            from . import custom_approach
             data = pkg_resources.read_text(custom_approach, 'lambda_function.py')
         else:
             data = pkg_resources.read_text(main, 'lambda_function.txt')
@@ -230,6 +225,8 @@ class create_prediction_api_class():
         lambdaauthfxnname = 'redisAccess'+short_uuid
         lambdaevalfxnname = 'evalfunction'+short_uuid
 
+        from . import json_templates
+
         lambdarole1 = json.loads(pkg_resources.read_text(json_templates, 'lambda_role_1.txt'))
         lambdapolicy1 = json.loads(pkg_resources.read_text(json_templates, 'lambda_policy_1.txt'))
 
@@ -246,6 +243,7 @@ class create_prediction_api_class():
         #########
 
         if(self.custom_libraries == False):
+            from aimodelshare.containerization import create_lambda_using_base_image
             response6 = create_lambda_using_base_image(self.user_session, os.getenv("BUCKET_NAME"), self.file_objects_folder_path, lambdafxnname, self.apiid, self.repo_name, self.image_tag, self.memory, self.timeout)
         elif(self.custom_libraries == True):
             requirements = self.requirements.split(",")
@@ -255,6 +253,7 @@ class create_prediction_api_class():
                 for lib in requirements:
                     f.write('%s\n' % lib)
             requirements_file_path = os.path.join(self.file_objects_folder_path, 'requirements.txt')
+            from aimodelshare.containerisation import deploy_container
             response6 = deploy_container(self.account_id, os.environ.get("AWS_REGION"), self.user_session, lambdafxnname, self.file_objects_folder_path,requirements_file_path,self.apiid, pyspark_support=self.pyspark_support)
 
         ##########
