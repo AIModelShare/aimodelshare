@@ -88,6 +88,7 @@ def import_preprocessor(filepath):
 
         preprocessor_type = objectnames[0].split("_")[0]
         objectname = objectnames[1]
+        from aimodelshare.aimsonnx import pyspark_model_from_string
         preprocessor_class = pyspark_model_from_string(preprocessor_type)
         if preprocessor_type == "PipelineModel":
             preprocessor_model = preprocessor_class(stages=None)
