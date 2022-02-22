@@ -9,7 +9,6 @@ import inspect
 import shutil
 from pathlib import Path
 #from aimodelshare.python.my_preprocessor import *
-from aimodelshare.aimsonnx import get_pyspark_model_files_paths, pyspark_model_from_string
 
 # how to import a preprocessor from a zipfile into a tempfile then into the current session
 def import_preprocessor(filepath):
@@ -214,6 +213,7 @@ def export_preprocessor(preprocessor_fxn,directory, globs=globals()):
             globals()[function_objects_listelement].write().overwrite().save(temp_path)
 
             # calling function to get all file paths in the directory
+            from aimodelshare.aimsonnx import get_pyspark_model_files_paths
             file_paths = get_pyspark_model_files_paths(temp_path)
 
             temp_zip_path = os.path.join(temp_dir, model_name_path + ".zip")

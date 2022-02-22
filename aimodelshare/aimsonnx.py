@@ -13,6 +13,7 @@ try:
     from pyspark.sql import SparkSession
     from pyspark.ml import PipelineModel, Model
     from pyspark.ml.tuning import CrossValidatorModel, TrainValidationSplitModel
+    from onnxmltools import convert_sparkml
 except:
     print("Warning: Please install pyspark to enable pyspark features")
 
@@ -26,7 +27,6 @@ from onnx.tools.net_drawer import GetPydotGraph, GetOpNodeProducer
 import importlib
 import onnxmltools
 import onnxruntime as rt
-from onnxmltools import convert_sparkml
 
 # aims modules
 from aimodelshare.aws import run_function_on_lambda, get_aws_client
