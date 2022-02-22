@@ -382,6 +382,8 @@ def build_new_base_image(libraries, repository, image_tag, python_version):
 # create lambda function using a base image from a specific repository having a specific tag
 def create_lambda_using_base_image(user_session, bucket_name, directory, lambda_name, api_id, repository, image_tag, memory_size, timeout):
 
+    from . import iam
+
     cloudformation_client = user_session.client('cloudformation')
 
     sts_client = user_session.client("sts")
