@@ -1,13 +1,9 @@
-import os
-import boto3
-import botocore
 import requests
-import json
-from aimodelshare.exceptions import AuthorizationError, AWSAccessError
-
+from aimodelshare.exceptions import AuthorizationError
+import boto3
+import os
 
 def set_credentials(credential_file=None, type="submit_model", apiurl="apiurl", manual = True):
-  import os
   import getpass
   from aimodelshare.aws import get_aws_token
   from aimodelshare.modeluser import get_jwt_token, create_user_getkeyandpassword
@@ -176,6 +172,7 @@ def set_credentials_public(credential_file=None, type="submit_model", apiurl="ap
   return
 
 def get_aws_token():
+    import botocore
     config = botocore.config.Config(signature_version=botocore.UNSIGNED)
 
     provider_client = boto3.client(
@@ -270,6 +267,7 @@ def run_function_on_lambda(url, **kwargs):
     )
 
     if response.status_code != 200:
+        from aimodelshare.exceptions import AWSAccessError
         return (
             None,
             AWSAccessError(
@@ -290,6 +288,7 @@ def get_token(username, password):
           usernamestring=username, passwordstring=password)
       api_url='https://xgwe1d6wai.execute-api.us-east-1.amazonaws.com/dev' 
       headers={ 'Content-Type':'application/json'}
+      import json
       token =requests.post(api_url,headers=headers,data=json.dumps({"action": "login", "request":newdata}))
       return token.text
 
