@@ -95,6 +95,7 @@ def predict(event,model,preprocessor):
     res=model.run(None,  {input_name: input_data})
     prob = res[0]
     print(prob)
+    prob = prob.tolist()
     return predict_classes(prob)
 
 def handler(event, context):
