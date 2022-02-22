@@ -1,9 +1,9 @@
 import requests
 from aimodelshare.exceptions import AuthorizationError
-import boto3
 import os
 
 def set_credentials(credential_file=None, type="submit_model", apiurl="apiurl", manual = True):
+  import boto3
   import getpass
   from aimodelshare.aws import get_aws_token
   from aimodelshare.modeluser import get_jwt_token, create_user_getkeyandpassword
@@ -174,7 +174,7 @@ def set_credentials_public(credential_file=None, type="submit_model", apiurl="ap
 def get_aws_token():
     import botocore
     config = botocore.config.Config(signature_version=botocore.UNSIGNED)
-
+    import boto3
     provider_client = boto3.client(
         "cognito-idp", region_name="us-east-2", config=config
     )
@@ -193,6 +193,7 @@ def get_aws_token():
 
 
 def get_aws_session(aws_key=None, aws_secret=None, aws_region=None):
+    import boto3
     session = boto3.Session(
         aws_access_key_id=aws_key,
         aws_secret_access_key=aws_secret,
@@ -213,6 +214,7 @@ def get_aws_client(aws_key=None, aws_secret=None, aws_region=None):
     if any([key is None, secret is None, region is None]):
         raise ValueError("Invalid arguments")
 
+    import boto3
     usersession = boto3.session.Session(
         aws_access_key_id=key, aws_secret_access_key=secret, region_name=region,
     )
@@ -236,6 +238,7 @@ def get_s3_iam_client(aws_key=None,aws_password=None, aws_region=None):
   if any([key is None, password is None, region is None]):
         raise AuthorizationError("Please set your aws credentials before creating your prediction API.")
 
+  import boto3
   usersession = boto3.session.Session(
         aws_access_key_id=key, aws_secret_access_key=password, region_name=region,
     )
