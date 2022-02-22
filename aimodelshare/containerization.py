@@ -12,10 +12,6 @@ import importlib_resources as pkg_resources
 import uuid
 import requests
 
-from . import iam
-from . import sam
-from . import containerization_templates
-
 time_delay=2
 
 # abstraction to return list of strings of paths of all files present in a given directory
@@ -178,6 +174,8 @@ def attach_policy_to_role(user_session, role_name, policy_name):
 # build image using CodeBuild from files in zip file
 def build_image(user_session, bucket_name, zip_file, image_name, image):
 
+    from . import iam
+
     # upload zip file to S3 bucket
     upload_file_to_s3(user_session, zip_file, bucket_name, image_name+'.zip')
 
@@ -278,6 +276,8 @@ def build_image(user_session, bucket_name, zip_file, image_name, image):
 
 # create a base image containing a particular set of libraries in repository with specific image tag
 def build_new_base_image(libraries, repository, image_tag, python_version):
+
+    from . import containerization_templates
 
     user_session = boto3.session.Session(aws_access_key_id=os.environ.get("AWS_ACCESS_KEY_ID"),
                                          aws_secret_access_key = os.environ.get("AWS_SECRET_ACCESS_KEY"),

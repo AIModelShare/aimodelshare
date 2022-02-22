@@ -19,15 +19,12 @@ from aimodelshare.tools import extract_varnames_fromtrainingdata, _get_extension
 from aimodelshare.aws import get_s3_iam_client, run_function_on_lambda, get_token, get_aws_token, get_aws_client
 from aimodelshare.bucketpolicy import _custom_upload_policy
 from aimodelshare.exceptions import AuthorizationError, AWSAccessError, AWSUploadError
-from aimodelshare.api import create_prediction_api
 from aimodelshare.api import get_api_json
 from aimodelshare.modeluser import create_user_getkeyandpassword
 from aimodelshare.preprocessormodules import upload_preprocessor
 from aimodelshare.model import _get_predictionmodel_key, _extract_model_metadata
 from aimodelshare.data_sharing.share_data import share_data_codebuild
-from aimodelshare.containerization import clone_base_image
 from aimodelshare.aimsonnx import _get_metadata
-
 
 def take_user_info_and_generate_api(model_filepath, model_type, categorical,labels, preprocessor_filepath,
                                     custom_libraries, requirements, exampledata_json_filepath, repo_name, 
@@ -193,6 +190,7 @@ def take_user_info_and_generate_api(model_filepath, model_type, categorical,labe
     sys.stdout.flush()
     # }}}
     
+    from aimodelshare.api import create_prediction_api
     apiurl = create_prediction_api(model_filepath, unique_model_id,
                                    model_type, categorical, labels,api_id,
                                    custom_libraries, requirements, repo_name, 
@@ -427,6 +425,7 @@ def model_to_api(model_filepath, model_type, private, categorical, y_train, prep
     if pyspark_support:
         repo_name, image_tag = "aimodelshare_base_image", "pyspark"
     
+    from aimodelshare.containerization import clone_base_image
     response = clone_base_image(user_session, repo_name, image_tag, "517169013426", base_image_api_endpoint, update)
     if(response["Status"]==0):
         print(response["Success"])
