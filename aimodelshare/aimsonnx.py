@@ -8,14 +8,6 @@ from sklearn.model_selection import GridSearchCV, RandomizedSearchCV
 import torch
 import xgboost
 import tensorflow as tf
-try:
-    import pyspark
-    from pyspark.sql import SparkSession
-    from pyspark.ml import PipelineModel, Model
-    from pyspark.ml.tuning import CrossValidatorModel, TrainValidationSplitModel
-    from onnxmltools import convert_sparkml
-except:
-    print("Warning: Please install pyspark to enable pyspark features")
 
 # onnx modules
 import onnx
@@ -880,6 +872,14 @@ def model_to_onnx(model, framework, model_input=None, initial_types=None,
 
         
     elif framework == 'pytorch':
+        try:
+            import pyspark
+            from pyspark.sql import SparkSession
+            from pyspark.ml import PipelineModel, Model
+            from pyspark.ml.tuning import CrossValidatorModel, TrainValidationSplitModel
+            from onnxmltools import convert_sparkml
+        except:
+            print("Warning: Please install pyspark to enable pyspark features")
         onnx = _pytorch_to_onnx(model, model_input=model_input,
                                 transfer_learning=transfer_learning, 
                                 deep_learning=deep_learning, 
