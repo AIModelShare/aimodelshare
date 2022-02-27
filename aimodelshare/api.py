@@ -90,7 +90,7 @@ class create_prediction_api_class():
             "us-east-1": "arn:aws:lambda:us-east-1:517169013426:layer:eval_layer_test:6",
             "us-east-2": "arn:aws:lambda:us-east-2:517169013426:layer:eval_layer_test:5",
             "us-west-1": "arn:aws:lambda:us-west-1:517169013426:layer:eval_layer_test:1",
-            "us-west-2": 
+            "us-west-2": "arn:aws:lambda:us-west-2:517169013426:layer:eval_layer_test:1"
         }
 
         self.auth_layer_map = {
