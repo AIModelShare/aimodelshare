@@ -75,13 +75,15 @@ class create_prediction_api_class():
         self.memory_model_mapping = {
             "tabular": 1024,
             "text": 1024,
-            "image": 1024
+            "image": 1024,
+            "video": 1024
         }
 
         self.timeout_model_mapping = {
             "tabular": 30,
             "text": 30,
-            "image": 30
+            "image": 30,
+            "video": 30
         }
 
         self.eval_layer_map = {
