@@ -157,7 +157,7 @@ def pull_image(image_uri):
 
 	return docker_tar
 
-def extract_data_from_image(image_name, file_name):
+def extract_data_from_image(image_name, file_name, location):
     tar = tarfile.open(image_name, 'r')
     files = []
     for t in tar.getmembers():
@@ -172,13 +172,13 @@ def extract_data_from_image(image_name, file_name):
     tar_layer.extractall(members=files, path=tempfile.gettempdir())
     if(os.path.isdir(file_name)):
         shutil.rmtree(file_name)
-    shutil.copytree(tempfile.gettempdir()+'/var/task/'+file_name, file_name)
+    shutil.copytree(tempfile.gettempdir()+'/var/task/'+file_name, os.path.join(location, file_name))
     shutil.rmtree(tempfile.gettempdir()+'/var')
 
-def download_data(repository):
+def download_data(repository, location="./"):
 	data_zip_name = repository.split('/')[2].split('-repository')[0]
 	docker_tar = pull_image(repository)
-	extract_data_from_image(docker_tar, data_zip_name)
+	extract_data_from_image(docker_tar, data_zip_name, location)
 	os.remove(docker_tar)
 	print('\n\nData downloaded successfully.')
 
@@ -199,6 +199,13 @@ def import_quickstart_data(tutorial, section="modelplayground"):
     if all([tutorial == "flowers", section == "competition"]):
         quickstart_repository = "public.ecr.aws/y2e2a1d6/quickstart_flowers_competition-repository:latest"
         existing_folder = 'flower_competition_data'
+    
+    if all([tutorial == "mnist", section == "modelplayground"]):
+        quickstart_repository = "public.ecr.aws/y2e2a1d6/fashion_mnist_quickstart_materials-repository:latest"   
+        existing_folder = 'fashion_mnist_competition_data'
+    if all([tutorial == "mnist", section == "competition"]):
+        quickstart_repository = "public.ecr.aws/y2e2a1d6/quickstart_mnist_competition-repository:latest"
+        existing_folder = 'fashion_mnist_competition_data'
         
     if all([tutorial == "titanic", section == "modelplayground"]):
         quickstart_repository = "public.ecr.aws/y2e2a1d6/titanic_quickstart-repository:latest" 
@@ -211,6 +218,10 @@ def import_quickstart_data(tutorial, section="modelplayground"):
     if all([tutorial == "clickbait", section == "modelplayground"]):
         quickstart_repository = "public.ecr.aws/y2e2a1d6/quickstart_clickbait_materials-repository:latest" 
         existing_folder = 'clickbait_competition_data'
+
+    if all([tutorial == "covid_tweets", section == "modelplayground"]):
+        quickstart_repository = "public.ecr.aws/y2e2a1d6/quickstart_covid_competition-repository:latest" 
+        existing_folder = 'covid_tweet_competition_data'
         
     if all([tutorial == "sports", section == "modelplayground"]):
         quickstart_repository = "public.ecr.aws/y2e2a1d6/sports_quick_start_materials-repository:latest" 
@@ -218,6 +229,17 @@ def import_quickstart_data(tutorial, section="modelplayground"):
     if all([tutorial == "sports", section == "competition"]):
         quickstart_repository = "public.ecr.aws/y2e2a1d6/quickstart_sports_competition-repository:latest"
         existing_folder = 'sports_clips_competition_data'
+
+    if all([tutorial == "dogs", section == "modelplayground"]):
+        quickstart_repository = "public.ecr.aws/y2e2a1d6/dog_breed_quickstart_materials-repository:latest"   
+        existing_folder = 'dog_competition_data'
+    if all([tutorial == "dogs", section == "competition"]):
+        quickstart_repository = "public.ecr.aws/y2e2a1d6/quickstart_dog_breed_competition-repository:latest"
+        existing_folder = 'dog_competition_data'
+
+    if all([tutorial == "imdb", section == "modelplayground"]):
+        quickstart_repository = "public.ecr.aws/y2e2a1d6/imdb_quickstart_materials-repository:latest"   
+        existing_folder = 'imdb_competition_data'
 
     download_data(quickstart_repository)
     
@@ -229,12 +251,69 @@ def import_quickstart_data(tutorial, section="modelplayground"):
     if section == "modelplayground": 
         print("\nPreparing downloaded files for use...")
         
+        if tutorial == "dogs":
+           #instantiate model
+            model = tf.keras.models.load_model('dog_breed_quickstart_materials/model.h5')
+            
+            #unpack data
+            y_train = pd.read_csv("dog_breed_quickstart_materials/y_train.csv")
+        
+        if tutorial == "covid_tweets":
+            #unpack data 
+            X_train = pd.read_csv("quickstart_covid_competition/X_train.csv", squeeze=True)
+            X_test = pd.read_csv("quickstart_covid_competition/X_test.csv", squeeze=True)
+            y_test_labels = pd.read_csv("quickstart_covid_competition/y_test_labels.csv", squeeze=True)
+            y_train_labels = pd.read_csv("quickstart_covid_competition/y_train_labels.csv", squeeze=True)
+            # example data
+            example_data = X_train[50:55]
+
+            #move data files to cometition folder
+            os.mkdir('covid_tweet_competition_data')
+                
+            files = ['quickstart_covid_competition/X_train.csv', 
+                      'quickstart_covid_competition/X_test.csv',
+                     'quickstart_covid_competition/y_train_labels.csv']
+                
+            for f in files:
+                shutil.move(f, 'covid_tweet_competition_data')
+
+        if tutorial == "imdb":
+            #unpack data 
+            X_train = pd.read_csv("imdb_quickstart_materials/X_train.csv", squeeze=True)
+            X_test = pd.read_csv("imdb_quickstart_materials/X_test.csv", squeeze=True)
+            y_test_labels = pd.read_csv("imdb_quickstart_materials/y_test_labels.csv", squeeze=True)
+            y_train_labels = pd.read_csv("imdb_quickstart_materials/y_train_labels.csv", squeeze=True)
+            # example data
+            example_data = X_train[50:55]
+
+            #instantiate models
+            lstm_model = tf.keras.models.load_model('imdb_quickstart_materials/model_1.h5')
+            lstm_model2 = tf.keras.models.load_model('imdb_quickstart_materials/model_2.h5')
+
+            #move data files to cometition folder
+            os.mkdir('imdb_competition_data')
+                
+            files = ['imdb_quickstart_materials/X_train.csv', 
+                      'imdb_quickstart_materials/X_test.csv',
+                      'imdb_quickstart_materials/y_train_labels.csv']
+                
+            for f in files:
+                shutil.move(f, 'imdb_competition_data')
+
         if tutorial == "flowers":
            #instantiate model
             model = tf.keras.models.load_model('quickstart_materials/flowermodel.h5')
             
             #unpack data
             with open("quickstart_materials/y_train_labels.txt", "rb") as fp:  
+                y_train_labels = pickle.load(fp)
+
+        if tutorial == "mnist":
+           #instantiate model
+            model = tf.keras.models.load_model('fashion_mnist_quickstart_materials/mnist_model_1.h5')
+            
+            #unpack data
+            with open("fashion_mnist_quickstart_materials/y_train_labels.pkl", "rb") as fp:  
                 y_train_labels = pickle.load(fp)
         
         if tutorial == "sports":
@@ -278,9 +357,9 @@ def import_quickstart_data(tutorial, section="modelplayground"):
             example_data = X_train[0:5]
             
             # Create data directory for competition 
-            X_train.to_csv("X_train.csv")
-            X_test.to_csv("X_test.csv")
-            y_train.to_csv("y_train.csv")
+            X_train.to_csv("X_train.csv", index=False)
+            X_test.to_csv("X_test.csv", index=False)
+            y_train.to_csv("y_train.csv", index=False)
             
             os.mkdir('clickbait_competition_data')
             
@@ -302,10 +381,12 @@ def import_quickstart_data(tutorial, section="modelplayground"):
             # create data directory for competition
             X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2)
             training_data = pd.merge(X_train, y_train, left_index=True, right_index=True)
-            training_data.to_csv("training_data.csv")
+            training_data = training_data.drop(list(training_data.filter(like='Unnamed')), axis=1)
+            training_data.to_csv("training_data.csv", index=False)
 
             test_data = X_test
-            test_data.to_csv("test_data.csv")
+            test_data = test_data.drop(list(test_data.filter(like='Unnamed')), axis=1)
+            test_data.to_csv("test_data.csv", index=False)
             
             os.mkdir('titanic_competition_data')
             files = ['training_data.csv', 
@@ -357,10 +438,10 @@ def import_quickstart_data(tutorial, section="modelplayground"):
             X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2)
             training_data = X_train
             training_data = pd.merge(X_train, y_train, left_index=True, right_index=True)
-            training_data.to_csv("training_data.csv")
+            training_data.to_csv("training_data.csv", index=False)
 
             test_data = X_test
-            test_data.to_csv("test_data.csv")
+            test_data.to_csv("test_data.csv", index=False)
 
             os.mkdir('used_car_competition_data')
             files = ['training_data.csv', 
@@ -390,6 +471,41 @@ def import_quickstart_data(tutorial, section="modelplayground"):
             for f in folders:
                 shutil.move(f, 'flower_competition_data')
         
+        if tutorial == "mnist":
+            #Instantiate Model 
+            model_2 = tf.keras.models.load_model('quickstart_mnist_competition/mnist_model_2.h5')
+        
+            #unpack data
+            with open("quickstart_mnist_competition/y_test_labels.pkl", "rb") as fp:  
+                y_test_labels = pickle.load(fp)
+                
+            #move data files to folder to upload with create_competiton
+            os.mkdir('fashion_mnist_competition_data')
+                
+            folders = ['quickstart_mnist_competition/test_data', 
+                      'quickstart_mnist_competition/training_data', 
+                       'fashion_mnist_quickstart_materials/y_train_labels.pkl']
+                
+            for f in folders:
+                shutil.move(f, 'fashion_mnist_competition_data')
+
+        if tutorial == "dogs":
+            #Instantiate Model 
+            model_2 = tf.keras.models.load_model('quickstart_dog_breed_competition/model_2.h5')
+        
+            #unpack data
+            with open("quickstart_dog_breed_competition/y_test_labels.txt", "rb") as fp:  
+                y_test_labels = pickle.load(fp)
+                
+            #move data files to folder to upload with create_competiton
+            os.mkdir('dog_competition_data')
+                
+            folders = ['quickstart_dog_breed_competition/dog_breed_competition_data/test_images', 
+                      'quickstart_dog_breed_competition/dog_breed_competition_data/train_images']
+                
+            for f in folders:
+                shutil.move(f, 'dog_competition_data')
+        
         if tutorial == "sports":
             model_2 = tf.keras.models.load_model('quickstart_sports_competition/video_2.h5')
             y_test = pd.read_csv("quickstart_sports_competition/y_test.csv")
@@ -412,6 +528,18 @@ def import_quickstart_data(tutorial, section="modelplayground"):
     if all ([tutorial == "flowers", section == "competition"]): 
         return model_2, y_test_labels
     
+    if all([tutorial == "mnist", section == "modelplayground"]):
+        return model, y_train_labels
+
+    if all([tutorial == "mnist", section == "competition"]): 
+        return model_2, y_test_labels
+
+    if all([tutorial == "dogs", section == "modelplayground"]):
+        return model, y_train
+
+    if all ([tutorial == "dogs", section == "competition"]): 
+        return model_2, y_test_labels
+    
     if all([tutorial == "sports", section == "modelplayground"]):
         return model, y_train_labels
     
@@ -427,3 +555,8 @@ def import_quickstart_data(tutorial, section="modelplayground"):
     if tutorial == "clickbait":
         return X_train, X_test, y_train, y_test, example_data, lstm_model, lstm_model2	
 
+    if tutorial == "imdb":
+        return X_train, X_test, y_train_labels, y_test_labels, example_data, lstm_model, lstm_model2	
+
+    if tutorial == "covid_tweets":
+        return X_train, X_test, y_train_labels, y_test_labels, example_data

@@ -8,8 +8,7 @@ from sklearn.model_selection import GridSearchCV, RandomizedSearchCV
 import torch
 import xgboost
 import tensorflow as tf
-import scikeras
-from scikeras.wrappers import KerasClassifier, KerasRegressor
+
 
 # onnx modules
 import onnx
@@ -25,6 +24,7 @@ import onnxruntime as rt
 
 # aims modules
 from aimodelshare.aws import run_function_on_lambda, get_aws_client
+from aimodelshare.reproducibility import set_reproducibility_env
 
 # os etc
 import os
@@ -35,6 +35,9 @@ import re
 import pickle
 import requests
 import sys
+import tempfile
+import wget            
+
 
 from pympler import asizeof
 from IPython.core.display import display, HTML, SVG
@@ -367,37 +370,47 @@ def _keras_to_onnx(model, transfer_learning=None,
     # convert to onnx
     #onx = convert_keras(model)
     # generate tempfile for onnx object 
-    temp_dir = os.path.join(tempfile.gettempdir(), 'test')
-    temp_dir = tempfile.gettempdir()
+    temp_dir = tempfile.mkdtemp()
 
 
 
     
     tf.get_logger().setLevel('ERROR') # probably not good practice
     output_path = os.path.join(temp_dir, 'temp.onnx')
-
-    try: 
-        model.save(temp_dir)
-    except AttributeError:
-        model.model_.save(temp_dir)
+    
+    
+    model.save(temp_dir)
 
     # Convert the model
-    converter = tf.lite.TFLiteConverter.from_saved_model(temp_dir) # path to the SavedModel directory
-    converter.target_spec.supported_ops = [
-        tf.lite.OpsSet.TFLITE_BUILTINS, # enable TensorFlow Lite ops.
-        tf.lite.OpsSet.SELECT_TF_OPS # enable TensorFlow ops.
-      ]
-    tflite_model = converter.convert()
+    try:
+            modelstringtest="python -m tf2onnx.convert --saved-model  "+temp_dir+" --output "+output_path+" --opset 13"
+            resultonnx=os.system(modelstringtest)
+            resultonnx2=1
+            if resultonnx==0:
+              pass
+            else:
+              raise Exception('Model conversion to onnx unsuccessful.  Please try different model or submit predictions to leaderboard without submitting preprocessor or model files.')
+    except:
+            converter = tf.lite.TFLiteConverter.from_saved_model(temp_dir) # path to the SavedModel directory
+            converter.target_spec.supported_ops = [
+                tf.lite.OpsSet.TFLITE_BUILTINS, # enable TensorFlow Lite ops.
+                tf.lite.OpsSet.SELECT_TF_OPS # enable TensorFlow ops.
+              ]
+            tflite_model = converter.convert()
 
-    # Save the model.
-    with open(os.path.join(temp_dir,'tempmodel.tflite'), 'wb') as f:
-      f.write(tflite_model)
+            # Save the model.
+            with open(os.path.join(temp_dir,'tempmodel.tflite'), 'wb') as f:
+              f.write(tflite_model)
 
-    modelstringtest="python -m tf2onnx.convert --tflite "+os.path.join(temp_dir,'tempmodel.tflite')+" --output "+output_path+" --opset 13"
-    os.system(modelstringtest)
-    output_path = os.path.join(temp_dir, 'temp.onnx')
-    modelstringtest="python -m tf2onnx.convert --saved-model "+temp_dir+" --output "+output_path+" --opset 13"
-    os.system(modelstringtest)
+            modelstringtest="python -m tf2onnx.convert --tflite "+os.path.join(temp_dir,'tempmodel.tflite')+" --output "+output_path+" --opset 13"
+            resultonnx2=os.system(modelstringtest)
+            pass
+
+    if any([resultonnx==0, resultonnx2==0]):
+      pass
+    else:
+      return print("Model conversion to onnx unsuccessful.  Please try different model or submit\npredictions to leaderboard without submitting preprocessor or model files.")
+
     onx = onnx.load(output_path)
 
 
@@ -498,6 +511,10 @@ def _keras_to_onnx(model, transfer_learning=None,
 
     metadata['epochs'] = epochs
 
+    # model graph 
+    G = model_graph_keras(model)
+    metadata['model_graph'] = G.create_dot().decode('utf-8')
+
     # placeholder, needs evaluation engine
     metadata['eval_metrics'] = None
 
@@ -568,42 +585,30 @@ def _pytorch_to_onnx(model, model_input, transfer_learning=None,
     # get model state from pytorch model object
     metadata['model_state'] = str(model.state_dict())
 
-    # extract model architecture metadata
-    activation_names = ['ReLU', 'Softmax']   #placeholder
-    layer_names = []
 
-    layers = []
-    layers_shapes = []
-    n_params = []
+    name_list, layer_list, param_list, weight_list, activation_list = torch_metadata(model)
 
+    model_summary_pd = pd.DataFrame({"Name": name_list,
+    "Layer": layer_list,
+    "Shape": weight_list,
+    "Params": param_list,
+    "Connect": None,
+    "Activation": None})
 
-    for i, j  in model.__dict__['_modules'].items():
-
-        if j._get_name() not in activation_names:
-
-            layers.append(j._get_name())
-            layers_shapes.append(j.out_features)
-            weights = np.prod(j._parameters['weight'].shape)
-            bias = np.prod(j._parameters['bias'].shape)
-            n_params.append(weights+bias)
-
-
-    activations = []
-    for i, j in model.__dict__['_modules'].items():
-        if str(j).split('(')[0] in activation_names:
-            activations.append(str(j).split('(')[0])
-
-
-    model_architecture = {'layers_number': len(layers),
-                  'layers_sequence': layers,
-                  'layers_summary': {i:layers.count(i) for i in set(layers)},
-                  'layers_n_params': n_params,
-                  'layers_shapes': layers_shapes,
-                  'activations_sequence': activations,
-                  'activations_summary': {i:activations.count(i) for i in set(activations)}
-                 }
+    model_architecture = {'layers_number': len(layer_list),
+                  'layers_sequence': layer_list,
+                  'layers_summary': {i:layer_list.count(i) for i in set(layer_list)},
+                  'layers_n_params': param_list,
+                  'layers_shapes': weight_list,
+                  'activations_sequence': activation_list,
+                  'activations_summary': {i:activation_list.count(i) for i in set(activation_list)},
+                  'loss': None,
+                  'optimizer': None}
 
     metadata['model_architecture'] = str(model_architecture)
+
+    metadata['model_summary'] = model_summary_pd.to_json()
+
 
     metadata['memory_size'] = asizeof.asizeof(model)    
     metadata['epochs'] = epochs
@@ -664,7 +669,7 @@ def model_to_onnx(model, framework, model_input=None, initial_types=None,
     'Please choose "sklearn", "keras", "pytorch", or "xgboost".'
     
     # assert model input type THIS IS A PLACEHOLDER
-    if model_input != None:
+    if model_input is not None:
         assert isinstance(model_input, (list, pd.core.series.Series, np.ndarray, torch.Tensor)), \
         'Please format model input as XYZ.'
     
@@ -774,7 +779,11 @@ def _get_leaderboard_data(onnx_model, eval_metrics=None):
     metadata_raw = _get_metadata(onnx_model)
 
     # get list of current layer types 
-    layer_list, activation_list = _get_layer_names()
+    layer_list_keras, activation_list_keras = _get_layer_names()
+    layer_list_pytorch, activation_list_pytorch = _get_layer_names_pytorch()
+
+    layer_list = list(set(layer_list_keras + layer_list_pytorch))
+    activation_list =  list(set(activation_list_keras + activation_list_pytorch))
 
     # get general model info
     metadata['ml_framework'] = metadata_raw['ml_framework']
@@ -784,7 +793,7 @@ def _get_leaderboard_data(onnx_model, eval_metrics=None):
 
 
     # get neural network metrics
-    if metadata_raw['ml_framework'] == 'keras' or metadata_raw['model_type'] in ['MLPClassifier', 'MLPRegressor']:
+    if metadata_raw['ml_framework'] in ['keras', 'pytorch'] or metadata_raw['model_type'] in ['MLPClassifier', 'MLPRegressor']:
         metadata['depth'] = metadata_raw['model_architecture']['layers_number']
         metadata['num_params'] = sum(metadata_raw['model_architecture']['layers_n_params'])
 
@@ -809,8 +818,6 @@ def _get_leaderboard_data(onnx_model, eval_metrics=None):
         metadata['model_config'] = metadata_raw['model_config']
         metadata['epochs'] = metadata_raw['epochs']
         metadata['memory_size'] = metadata_raw['memory_size']
-
-
 
     # get sklearn model metrics
     elif metadata_raw['ml_framework'] == 'sklearn' or metadata_raw['ml_framework'] == 'xgboost':
@@ -910,7 +917,7 @@ def inspect_model_aws(apiurl, version=None):
     
     return inspect_pd
 
-def inspect_model_lambda(apiurl, version=None):
+def inspect_model_lambda(apiurl, version=None, naming_convention = None):
     if all(["username" in os.environ, 
            "password" in os.environ]):
         pass
@@ -934,7 +941,7 @@ def inspect_model_lambda(apiurl, version=None):
     return inspect_pd
 
 
-def inspect_model_dict(apiurl, version=None):
+def inspect_model_dict(apiurl, version=None, naming_convention = None):
 
     if all(["AWS_ACCESS_KEY_ID" in os.environ, 
             "AWS_SECRET_ACCESS_KEY" in os.environ,
@@ -958,7 +965,7 @@ def inspect_model_dict(apiurl, version=None):
 
     _, bucket, model_id = json.loads(response.content.decode("utf-8"))
 
-    key = model_id+'/inspect_pd.json'
+    key = model_id+'/inspect_pd_'+str(version)+'.json'
     
     try:
       resp = aws_client['client'].get_object(Bucket=bucket, Key=key)
@@ -970,12 +977,18 @@ def inspect_model_dict(apiurl, version=None):
     ml_framework = model_dict.get(str(version))['ml_framework']
     model_type = model_dict.get(str(version))['model_type']
     inspect_pd = pd.DataFrame(model_dict.get(str(version))['model_dict'])
+
+    if naming_convention == 'keras' and ml_framework=='pytorch': 
+        inspect_pd['Layer'] = rename_layers(inspect_pd['Layer'], direction="torch_to_keras", activation=False)
+
+    elif naming_convention == 'pytorch' and ml_framework=='keras': 
+        inspect_pd['Layer'] = rename_layers(inspect_pd['Layer'], direction="keras_to_torch", activation=False)
     
     return inspect_pd
 
 
 
-def inspect_model(apiurl, version=None):
+def inspect_model(apiurl, version=None, naming_convention=None):
     if all(["username" in os.environ, 
            "password" in os.environ]):
         pass
@@ -990,12 +1003,21 @@ def inspect_model(apiurl, version=None):
             inspect_pd = inspect_model_dict(apiurl, version)
         except: 
             inspect_pd = inspect_model_aws(apiurl, version)
-    
-    return inspect_pd
+
+    if naming_convention == 'keras': 
+        inspect_pd['Layer'] = rename_layers(inspect_pd['Layer'], direction="torch_to_keras", activation=False)
+
+    elif naming_convention == 'pytorch': 
+        inspect_pd['Layer'] = rename_layers(inspect_pd['Layer'], direction="keras_to_torch", activation=False)
+
+    if inspect_pd.empty:
+        print("No metadata available for model "+ str(version)+".")
+    else:
+        return inspect_pd
 
 
 def compare_models_dict(apiurl, version_list=None, 
-    by_model_type=None, best_model=None, verbose=1):
+    by_model_type=None, best_model=None, verbose=1, naming_convention=None):
     
     if not isinstance(version_list, list):
         raise Exception("Argument 'version' must be a list.")
@@ -1022,29 +1044,38 @@ def compare_models_dict(apiurl, version_list=None,
 
     _, bucket, model_id = json.loads(response.content.decode("utf-8"))
 
-    key = model_id+'/inspect_pd.json'
+
+    ml_framework_list = []
+    model_type_list = []
+    model_dict_list = []
+    model_dict = {}
+
+    for i in version_list: 
+
+        key = model_id+'/inspect_pd_'+str(i)+'.json'
+        
+        try:
+          resp = aws_client['client'].get_object(Bucket=bucket, Key=key)
+          data = resp.get('Body').read()
+          model_dict_temp = json.loads(data)
+        except Exception as e:
+            print(e)
+
+        ml_framework_list.append(model_dict_temp[str(i)]['ml_framework'])
+        model_type_list.append(model_dict_temp[str(i)]['model_type'])
+        model_dict_list.append(model_dict_temp[str(i)]['model_dict'])
+
+        model_dict[str(i)] = model_dict_temp[str(i)]
+
+
+    comp_dict_out = {}
+    comp_pd_nn = pd.DataFrame()
+
     
-    try:
-      resp = aws_client['client'].get_object(Bucket=bucket, Key=key)
-      data = resp.get('Body').read()
-      model_dict = json.loads(data)
-    except Exception as e:
-        print(e)
+    for i, j in zip(version_list, ml_framework_list): 
 
-    ml_framework_list = [model_dict[str(i)]['ml_framework'] for i in version_list]
-    model_type_list = [model_dict[str(i)]['model_type'] for i in version_list]
-    model_dict_list = [model_dict[str(i)]['model_dict'] for i in version_list]
-
-    if not all(x==ml_framework_list[0] for x in ml_framework_list):
-        raise Exception("Incongruent frameworks. Please compare models from the same ML frameworks.")
+        if j == "sklearn":
         
-
-    if ml_framework_list[0] == 'sklearn':
-
-        comp_dict_out = {}
-        
-        for i in version_list: 
-            
             temp_pd = pd.DataFrame(model_dict[str(i)]['model_dict'])
             temp_pd.columns = ['param_name', 'default_value', "model_version_"+str(i)]
 
@@ -1058,37 +1089,38 @@ def compare_models_dict(apiurl, version_list=None,
             else:
                 comp_dict_out[model_dict[str(i)]['model_type']] = temp_pd
 
-        return comp_dict_out
 
-            
-    if ml_framework_list[0] == 'keras':
+        elif j == "keras" or j == 'pytorch':
 
-        comp_pd = pd.DataFrame()
+            temp_pd_nn = pd.DataFrame(model_dict[str(i)]['model_dict'])
 
-        for i in version_list: 
-
-            temp_pd = pd.DataFrame(model_dict[str(i)]['model_dict'])
-
-            temp_pd.iloc[:,2] = temp_pd.iloc[:,2].astype(str)
+            temp_pd_nn.iloc[:,2] = temp_pd_nn.iloc[:,2].astype(str)
 
             if verbose == 0: 
-                temp_pd = temp_pd[['Layer']]
+                temp_pd_nn = temp_pd_nn[['Layer']]
             elif verbose == 1: 
-                temp_pd = temp_pd[['Layer', 'Shape', 'Params']]
+                temp_pd_nn = temp_pd_nn[['Layer', 'Shape', 'Params']]
             elif verbose == 2: 
-                temp_pd = temp_pd[['Name', 'Layer', 'Shape', 'Params', 'Connect']]
+                temp_pd_nn = temp_pd_nn[['Name', 'Layer', 'Shape', 'Params', 'Connect']]
             elif verbose == 3: 
-                temp_pd = temp_pd[['Name', 'Layer', 'Shape', 'Params', 'Connect', 'Activation']]
+                temp_pd_nn = temp_pd_nn[['Name', 'Layer', 'Shape', 'Params', 'Connect', 'Activation']]
 
-            temp_pd = temp_pd.add_prefix('Model_'+str(i)+'_')    
-            comp_pd = pd.concat([comp_pd, temp_pd], axis=1)
+            if naming_convention == 'pytorch': 
+                temp_pd_nn['Layer'] = rename_layers(temp_pd_nn['Layer'], direction="keras_to_torch", activation=False)
 
-        comp_dict_out = {"Sequential": comp_pd}
+            if naming_convention == 'keras': 
+                temp_pd_nn['Layer'] = rename_layers(temp_pd_nn['Layer'], direction="torch_to_keras", activation=False)
+
+            temp_pd_nn = temp_pd_nn.add_prefix('Model_'+str(i)+'_')    
+
+            comp_pd_nn = pd.concat([comp_pd_nn, temp_pd_nn], axis=1)
+
+            comp_dict_out["nn"] = comp_pd_nn
         
-        return comp_dict_out
+    return comp_dict_out
 
 
-def color_pal_assign(val):
+def color_pal_assign(val, naming_convention=None):
   import pandas as pd
   
   # create Pandas Series with default index values
@@ -1215,12 +1247,18 @@ def color_pal_assign(val):
   'ZeroPadding3D'])
 
   layernamelist=list(layer_name_df[0])
+
+  if naming_convention == "pytorch":
+
+    layernamelist = rename_layers(layernamelist, direction="keras_to_torch", activation=False)
+
+
   import seaborn as sns
   paldata=sns.color_palette("Pastel2", len(layernamelist)).as_hex()
 
   if val in layernamelist: 
       valindex=layernamelist.index(val)
-      if any([val=="Concatenate",val=="Conv2D"]):
+      if any([val=="Concatenate",val=="Conv2D", val=="Conv2d"]):
         valindex=valindex+4
       else:
         pass
@@ -1230,29 +1268,39 @@ def color_pal_assign(val):
   color = palvalue if val in layernamelist else 'white'
   return 'background: %s' % color
 
-def stylize_model_comparison(comp_dict_out):
+def stylize_model_comparison(comp_dict_out, naming_convention=None):
 
+    for i in comp_dict_out.keys():
 
-    if 'Sequential' in comp_dict_out.keys():
+        if i == 'nn':
 
-        df_styled = comp_dict_out['Sequential'].style.applymap(color_pal_assign)
+            df_styled = comp_dict_out['nn'].style.applymap(color_pal_assign, naming_convention=naming_convention)
 
-        df_styled = df_styled.set_properties(**{'color': 'black'})
+            df_styled = df_styled.set_properties(**{'color': 'black'})
 
-        df_styled = df_styled.set_caption('Model type: ' + 'Neural Network').set_table_styles([{'selector': 'caption',
-            'props': [('color', 'white'), ('font-size', '18px')]}])
+            df_styled = df_styled.set_caption('Model type: ' + 'Neural Network').set_table_styles([{'selector': 'caption',
+                'props': [('color', 'white'), ('font-size', '18px')]}])
 
-        df_styled = df_styled.set_properties(**{'color': 'black'})
+            df_styled = df_styled.set_properties(**{'color': 'black'})
 
-        df_styled = df_styled.set_caption('Model type: ' + 'Neural Network').set_table_styles([{'selector': 'caption',
-            'props': [('color', 'black'), ('font-size', '18px')]}])
+            df_styled = df_styled.set_caption('Model type: ' + 'Neural Network').set_table_styles([{'selector': 'caption',
+                'props': [('color', 'black'), ('font-size', '18px')]}])
 
-        display(HTML(df_styled.render()))
+            display(HTML(df_styled.render()))
 
+        elif 'undefined' in i:
 
-    else:
+            version = i.split('_')[-1]
 
-        for i in comp_dict_out.keys():
+            df_styled = comp_dict_out[i].style
+
+            df_styled = df_styled.set_caption("No metadata available for model "+ str(version)).set_table_styles([{'selector': 'caption',
+                'props': [('color', 'black'), ('font-size', '18px')]}])
+
+            display(HTML(df_styled.render()))
+            print('\n\n')
+
+        else:
 
             comp_pd = comp_dict_out[i]
 
@@ -1362,7 +1410,7 @@ def compare_models_aws(apiurl, version_list=None,
 
 
 def compare_models_lambda(apiurl, version_list="None", 
-    by_model_type=None, best_model=None, verbose=1):
+    by_model_type=None, best_model=None, verbose=1, naming_convention=None):
     if all(["username" in os.environ, 
            "password" in os.environ]):
         pass
@@ -1376,7 +1424,8 @@ def compare_models_lambda(apiurl, version_list="None",
                "version": "None", 
                "compare_models": "True",
                "version_list": version_list,
-               "verbose": verbose}
+               "verbose": verbose, 
+               "naming_convention": naming_convention}
     
     headers = { 'Content-Type':'application/json', 'authorizationToken': os.environ.get("AWS_TOKEN"),} 
 
@@ -1392,35 +1441,45 @@ def compare_models_lambda(apiurl, version_list="None",
 
 
 def compare_models(apiurl, version_list="None", 
-    by_model_type=None, best_model=None, verbose=3):
+    by_model_type=None, best_model=None, verbose=1, naming_convention=None):
 
     if all(["username" in os.environ, 
            "password" in os.environ]):
         pass
     else:
-        return print("'Inspect Model' unsuccessful. Please provide credentials with set_credentials().")
+        return print("'Compare Model' unsuccessful. Please provide credentials with set_credentials().")
 
     if len(version_list) != len(set(version_list)):
         return print("Model comparison failed. Version list contains duplicates.")
     
     try: 
         compare_pd = compare_models_lambda(apiurl, version_list, 
-            by_model_type, best_model, verbose)
+            by_model_type, best_model, verbose, naming_convention)
 
     except: 
 
         try: 
             compare_pd = compare_models_dict(apiurl, version_list, 
-            by_model_type, best_model, verbose)
-
+            by_model_type, best_model, verbose, naming_convention)
         except:
 
             compare_pd = compare_models_aws(apiurl, version_list, 
-                by_model_type, best_model, verbose)
+                by_model_type, best_model, verbose, naming_convention)
     
     return compare_pd
 
+def _get_onnx_from_string(onnx_string):
+    # generate tempfile for onnx object 
+    temp_dir = tempfile.gettempdir()
+    temp_path = os.path.join(temp_dir, 'temp_file_name')
 
+    # save onnx to temporary path
+    with open(temp_path, "wb") as f:
+        f.write(onnx_string)
+
+    # load onnx file from temporary path
+    onx = onnx.load(temp_path)
+    return onx
 
 def _get_onnx_from_bucket(apiurl, aws_client, version=None):
 
@@ -1446,49 +1505,76 @@ def _get_onnx_from_bucket(apiurl, aws_client, version=None):
     except Exception as err:
         raise err
 
-    # generate tempfile for onnx object 
-    temp_dir = tempfile.gettempdir()
-    temp_path = os.path.join(temp_dir, 'temp_file_name')
-
-    # save onnx to temporary path
-    with open(temp_path, "wb") as f:
-        f.write(onnx_string)
-
-    # load onnx file from temporary path
-    onx = onnx.load(temp_path)
+    onx = _get_onnx_from_string(onnx_string)
 
     return onx
 
 
-def instantiate_model(apiurl, version=None, trained=False):
-    if all(["AWS_ACCESS_KEY_ID" in os.environ, 
-            "AWS_SECRET_ACCESS_KEY" in os.environ,
-            "AWS_REGION" in os.environ, 
-            "username" in os.environ, 
-            "password" in os.environ]):
-        pass
+def instantiate_model(apiurl, version=None, trained=False, reproduce=False):
+    # Confirm that creds are loaded, print warning if not
+    if all(["username" in os.environ, 
+          "password" in os.environ]):
+      pass
     else:
-        return print("'Instantiate Model' unsuccessful. Please provide credentials with set_credentials().")
+      return print("'Submit Model' unsuccessful. Please provide credentials with set_credentials().")
 
-    aws_client = get_aws_client()   
-    onnx_model = _get_onnx_from_bucket(apiurl, aws_client, version=version)
-    meta_dict = _get_metadata(onnx_model)
+    post_dict = {
+        "y_pred": [],
+        "return_eval": "False",
+        "return_y": "False",
+        "inspect_model": "False",
+        "version": "None", 
+        "compare_models": "False",
+        "version_list": "None",
+        "get_leaderboard": "False",
+        "instantiate_model": "True",
+        "reproduce": reproduce,
+        "trained": trained,
+        "model_version": version
+    }
 
-    # get model config 
-    model_config = ast.literal_eval(meta_dict['model_config'])
-    ml_framework = meta_dict['ml_framework']
+    headers = { 'Content-Type':'application/json', 'authorizationToken': os.environ.get("AWS_TOKEN"),} 
+
+    apiurl_eval=apiurl[:-1]+"eval"
+
+    resp = requests.post(apiurl_eval,headers=headers,data=json.dumps(post_dict)) 
+
+    resp_dict = json.loads(resp.text)
+
+    if resp_dict['model_metadata'] == None:
+        print("Model for this version doesn't exist or is not submitted by the author")
+        return None
+
+    if reproduce:
+        if resp_dict['reproducibility_env'] != None:
+            set_reproducibility_env(resp_dict['reproducibility_env'])
+            print("Your reproducibility environment is successfully setup")
+        else:
+            print("Reproducibility environment is not found")
+
+    print("Instantiate the model from metadata..")
     
-    if ml_framework == 'sklearn':
+    model_metadata = resp_dict['model_metadata']
+    model_weight_url = resp_dict['model_weight_url']
+    model_config = ast.literal_eval(model_metadata['model_config'])
+    ml_framework = model_metadata['ml_framework']
 
-        if trained == False:
-            model_type = meta_dict['model_type']
+    if ml_framework == 'sklearn':
+        if trained == False or reproduce == True:
+            model_type = model_metadata['model_type']
             model_class = model_from_string(model_type)
             model = model_class(**model_config)
 
-        if trained == True:
+        elif trained == True:
+            model_pkl = None
+            temp = tempfile.mkdtemp()
+            temp_path = temp + "/" + "onnx_model_v{}.onnx".format(version)
             
-            model_pkl = meta_dict['model_weights']
-
+            # Get leaderboard
+            status = wget.download(model_weight_url, out=temp_path)
+            onnx_model = onnx.load(temp_path)
+            model_pkl = _get_metadata(onnx_model)['model_weights']
+        
             temp_dir = tempfile.gettempdir()
             temp_path = os.path.join(temp_dir, 'temp_file_name')
 
@@ -1498,16 +1584,22 @@ def instantiate_model(apiurl, version=None, trained=False):
             with open(temp_path, 'rb') as f:
                 model = pickle.load(f)
 
-
     if ml_framework == 'keras':
-
-        if trained == False:
+        if trained == False or reproduce == True:
             model = tf.keras.Sequential().from_config(model_config)
 
-        if trained == True: 
+        elif trained == True:
+            model_weights = None
+            temp = tempfile.mkdtemp()
+            temp_path = temp + "/" + "onnx_model_v{}.onnx".format(version)
+        
+            # Get leaderboard
+            status = wget.download(model_weight_url, out=temp_path)
+            onnx_model = onnx.load(temp_path)
+            model_weights = json.loads(_get_metadata(onnx_model)['model_weights'])
+            
             model = tf.keras.Sequential().from_config(model_config)
-            model_weights = json.loads(meta_dict['model_weights'])
-
+            
             def to_array(x):
                 return np.array(x, dtype="float32")
 
@@ -1515,7 +1607,65 @@ def instantiate_model(apiurl, version=None, trained=False):
 
             model.set_weights(model_weights)
 
+    print("Your model is successfully instantiated.")
     return model
+
+# def instantiate_model(apiurl, version=None, trained=False):
+#     if all(["AWS_ACCESS_KEY_ID" in os.environ, 
+#             "AWS_SECRET_ACCESS_KEY" in os.environ,
+#             "AWS_REGION" in os.environ, 
+#             "username" in os.environ, 
+#             "password" in os.environ]):
+#         pass
+#     else:
+#         return print("'Instantiate Model' unsuccessful. Please provide credentials with set_credentials().")
+
+#     aws_client = get_aws_client()   
+#     onnx_model = _get_onnx_from_bucket(apiurl, aws_client, version=version)
+#     meta_dict = _get_metadata(onnx_model)
+
+#     # get model config 
+#     model_config = ast.literal_eval(meta_dict['model_config'])
+#     ml_framework = meta_dict['ml_framework']
+    
+#     if ml_framework == 'sklearn':
+
+#         if trained == False:
+#             model_type = meta_dict['model_type']
+#             model_class = model_from_string(model_type)
+#             model = model_class(**model_config)
+
+#         if trained == True:
+            
+#             model_pkl = meta_dict['model_weights']
+
+#             temp_dir = tempfile.gettempdir()
+#             temp_path = os.path.join(temp_dir, 'temp_file_name')
+
+#             with open(temp_path, "wb") as f:
+#                 f.write(model_pkl)
+
+#             with open(temp_path, 'rb') as f:
+#                 model = pickle.load(f)
+
+
+#     if ml_framework == 'keras':
+
+#         if trained == False:
+#             model = tf.keras.Sequential().from_config(model_config)
+
+#         if trained == True: 
+#             model = tf.keras.Sequential().from_config(model_config)
+#             model_weights = json.loads(meta_dict['model_weights'])
+
+#             def to_array(x):
+#                 return np.array(x, dtype="float32")
+
+#             model_weights = list(map(to_array, model_weights))
+
+#             model.set_weights(model_weights)
+
+#     return model
 
 
 def _get_layer_names():
@@ -1526,7 +1676,7 @@ def _get_layer_names():
     activation_list.remove('deserialize')
     activation_list.remove('get')
     activation_list.remove('linear')
-    activation_list = activation_list+['ReLU', 'Softmax', 'LeakyReLU', 'PReLU', 'ELU', 'ThresholdedReLU']
+    activation_list = activation_list+['Activation', 'ReLU', 'Softmax', 'LeakyReLU', 'PReLU', 'ELU', 'ThresholdedReLU']
 
 
     layer_list = [i for i in dir(tf.keras.layers)]
@@ -1538,12 +1688,25 @@ def _get_layer_names():
     return layer_list, activation_list
 
 
+def _get_layer_names_pytorch():
+
+    activation_list = ['ELU', 'Hardshrink', 'Hardsigmoid', 'Hardtanh', 'Hardswish', 'LeakyReLU', 'LogSigmoid', 
+                    'MultiheadAttention', 'PReLU', 'ReLU', 'ReLU6', 'RReLU', 'SELU', 'CELU', 'GELU', 'Sigmoid',
+                    'SiLU', 'Mish', 'Softplus', 'Softshrink', 'Softsign', 'Tanh', 'Tanhshrink', 'Threshold',
+                    'GLU', 'Softmin', 'Softmax', 'Softmax2d', 'LogSoftmax', 'AdaptiveLogSoftmaxWithLoss']
+
+    layer_list = [i for i in dir(torch.nn) if callable(getattr(torch.nn, i))]
+    layer_list = [i for i in layer_list if not i in activation_list and not 'Loss' in i]
+
+    return layer_list, activation_list
+
+
 def _get_sklearn_modules():
     
     import sklearn
 
     sklearn_modules = ['ensemble', 'gaussian_process', 'isotonic',
-                       'linear_model', 'mixture', 'multiclass', 'naive_bayes', 
+                       'linear_model', 'mixture', 'multiclass', 'naive_bayes',
                        'neighbors', 'neural_network', 'svm', 'tree']
 
     models_modules_dict = {}
@@ -1587,7 +1750,7 @@ def inspect_y_test(apiurl):
                "return_eval": "False",
                "return_y": "True"}
     
-  headers = { 'Content-Type':'application/json', 'authorizationToken': os.environ.get("AWS_TOKEN"),} 
+  headers = { 'Content-Type':'application/json', 'authorizationToken': os.environ.get("AWS_TOKEN"),}
 
   apiurl_eval=apiurl[:-1]+"eval"
 
@@ -1598,6 +1761,7 @@ def inspect_y_test(apiurl):
   # print_y_stats(y_stats_dict)
 
   return y_stats_dict
+
 
 
 def model_summary_keras(model):
@@ -1655,6 +1819,7 @@ def model_summary_keras(model):
     "Activation": activations})
 
     return model_summary
+
 
 
 def model_graph_keras(model):
@@ -1756,3 +1921,346 @@ def plot_keras(model):
     G =  model_graph_keras(model)
 
     display(SVG(G.create_svg()))
+
+
+
+def torch_unpack(model):
+    
+    layers = []
+    keys = []
+    
+    for key, module in model._modules.items():
+                
+        if type(module) in [torch.nn.modules.container.Container, torch.nn.modules.container.Sequential]:
+            
+            layers_out, keys_out = torch_unpack(module)
+            
+            layers = layers + layers_out
+            keys = keys + keys_out
+            
+            
+        else:
+            
+            layers.append(module)
+            keys.append(key)
+            
+    return layers, keys
+    
+
+
+def torch_metadata(model):
+
+    name_list_out = []
+    layer_list = []
+    param_list = []
+    weight_list = []
+    activation_list = []
+    
+    layers, name_list = torch_unpack(model)
+
+    layer_names, activation_names = _get_layer_names_pytorch()
+
+    for module, name in zip(layers, name_list):
+
+        module_name = module._get_name()
+
+
+        if module_name in layer_names:
+
+                name_list_out.append(name)
+
+                layer_list.append(module_name)
+
+                params = sum([np.prod(p.size()) for p in module.parameters()])
+                param_list.append(params)
+
+                weights = tuple([tuple(p.size()) for p in module.parameters()])
+                weight_list.append(weights)
+
+        if module_name in activation_names: 
+
+                activation_list.append(module_name)
+
+    return name_list_out, layer_list, param_list, weight_list, activation_list
+
+
+def layer_mapping(direction='torch_to_keras', activation=False):
+
+    torch_keras = {'AdaptiveAvgPool1d': 'AvgPool1D',
+    'AdaptiveAvgPool2d': 'AvgPool2D',
+    'AdaptiveAvgPool3d': 'AvgPool3D',
+    'AdaptiveMaxPool1d': 'MaxPool1D',
+    'AdaptiveMaxPool2d': 'MaxPool2D',
+    'AdaptiveMaxPool3d': 'MaxPool3D',
+    'AlphaDropout': None,
+    'AvgPool1d': 'AvgPool1D',
+    'AvgPool2d': 'AvgPool2D',
+    'AvgPool3d': 'AvgPool3D',
+    'BatchNorm1d': 'BatchNormalization',
+    'BatchNorm2d': 'BatchNormalization',
+    'BatchNorm3d': 'BatchNormalization',
+    'Bilinear': None,
+    'ConstantPad1d': None,
+    'ConstantPad2d': None,
+    'ConstantPad3d': None,
+    'Container': None,
+    'Conv1d': 'Conv1D',
+    'Conv2d': 'Conv2D',
+    'Conv3d': 'Conv3D',
+    'ConvTranspose1d': 'Conv1DTranspose',
+    'ConvTranspose2d': 'Conv2DTranspose',
+    'ConvTranspose3d': 'Conv3DTranspose',
+    'CosineSimilarity': None,
+    'CrossMapLRN2d': None,
+    'DataParallel': None,
+    'Dropout': 'Dropout',
+    'Dropout2d': 'Dropout',
+    'Dropout3d': 'Dropout',
+    'Embedding': 'Embedding',
+    'EmbeddingBag': 'Embedding',
+    'FeatureAlphaDropout': None,
+    'Flatten': 'Flatten',
+    'Fold': None,
+    'FractionalMaxPool2d': "MaxPool2D",
+    'FractionalMaxPool3d': "MaxPool3D",
+    'GRU': 'GRU',
+    'GRUCell': 'GRUCell',
+    'GroupNorm': None,
+    'Identity': None,
+    'InstanceNorm1d': None,
+    'InstanceNorm2d': None,
+    'InstanceNorm3d': None,
+    'LPPool1d': None,
+    'LPPool2d': None,
+    'LSTM': 'LSTM',
+    'LSTMCell': 'LSTMCell',
+    'LayerNorm': None,
+    'Linear': 'Dense',
+    'LocalResponseNorm': None,
+    'MaxPool1d': 'MaxPool1D',
+    'MaxPool2d': 'MaxPool2D',
+    'MaxPool3d': 'MaxPool3D',
+    'MaxUnpool1d': None,
+    'MaxUnpool2d': None,
+    'MaxUnpool3d': None,
+    'Module': None,
+    'ModuleDict': None,
+    'ModuleList': None,
+    'PairwiseDistance': None,
+    'Parameter': None,
+    'ParameterDict': None,
+    'ParameterList': None,
+    'PixelShuffle': None,
+    'RNN': 'RNN',
+    'RNNBase': None,
+    'RNNCell': None,
+    'RNNCellBase': None,
+    'ReflectionPad1d': None,
+    'ReflectionPad2d': None,
+    'ReplicationPad1d': None,
+    'ReplicationPad2d': None,
+    'ReplicationPad3d': None,
+    'Sequential': None,
+    'SyncBatchNorm': None,
+    'Transformer': None,
+    'TransformerDecoder': None,
+    'TransformerDecoderLayer': None,
+    'TransformerEncoder': None,
+    'TransformerEncoderLayer': None,
+    'Unfold': None,
+    'Upsample': 'UpSampling1D',
+    'UpsamplingBilinear2d': 'UpSampling2D',
+    'UpsamplingNearest2d': 'UpSampling2D',
+    'ZeroPad2d': 'ZeroPadding2D'}
+
+    keras_torch = {'AbstractRNNCell': None,
+    'Activation': None,
+    'ActivityRegularization': None,
+    'Add': None,
+    'AdditiveAttention': None,
+    'AlphaDropout': None,
+    'Attention': None,
+    'Average': None,
+    'AveragePooling1D': 'AvgPool1d',
+    'AveragePooling2D': 'AvgPool2d',
+    'AveragePooling3D': 'AvgPool3d',
+    'AvgPool1D': 'AvgPool1d',
+    'AvgPool2D': 'AvgPool2d',
+    'AvgPool3D': 'AvgPool3d',
+    'BatchNormalization': None,
+    'Bidirectional': None,
+    'Concatenate': None,
+    'Conv1D': 'Conv1d',
+    'Conv1DTranspose': 'ConvTranspose1d',
+    'Conv2D': 'Conv2d',
+    'Conv2DTranspose':  'ConvTranspose2d',
+    'Conv3D': 'Conv3d',
+    'Conv3DTranspose':  'ConvTranspose3d',
+    'ConvLSTM2D': None,
+    'Convolution1D': None,
+    'Convolution1DTranspose': None,
+    'Convolution2D': None,
+    'Convolution2DTranspose': None,
+    'Convolution3D': None,
+    'Convolution3DTranspose': None,
+    'Cropping1D': None,
+    'Cropping2D': None,
+    'Cropping3D': None,
+    'Dense': 'Linear',
+    'DenseFeatures': None,
+    'DepthwiseConv2D': None,
+    'Dot': None,
+    'Dropout': 'Dropout',
+    'Embedding': 'Embedding',
+    'Flatten': 'Flatten',
+    'GRU': 'GRU',
+    'GRUCell': 'GRUCell',
+    'GaussianDropout': None,
+    'GaussianNoise': None,
+    'GlobalAveragePooling1D': None,
+    'GlobalAveragePooling2D': None,
+    'GlobalAveragePooling3D': None,
+    'GlobalAvgPool1D': None,
+    'GlobalAvgPool2D': None,
+    'GlobalAvgPool3D': None,
+    'GlobalMaxPool1D': None,
+    'GlobalMaxPool2D': None,
+    'GlobalMaxPool3D': None,
+    'GlobalMaxPooling1D': None,
+    'GlobalMaxPooling2D': None,
+    'GlobalMaxPooling3D': None,
+    'Input': None,
+    'InputLayer': None,
+    'InputSpec': None,
+    'LSTM': 'LSTM',
+    'LSTMCell': 'LSTMCell',
+    'Lambda': None,
+    'Layer': None,
+    'LayerNormalization': None,
+    'LocallyConnected1D': None,
+    'LocallyConnected2D': None,
+    'Masking': None,
+    'MaxPool1D': 'MaxPool1d',
+    'MaxPool2D': 'MaxPool2d',
+    'MaxPool3D': 'MaxPool3d',
+    'MaxPooling1D': 'MaxPool1d',
+    'MaxPooling2D': 'MaxPool2d',
+    'MaxPooling3D': 'MaxPool3d',
+    'Maximum': None,
+    'Minimum': None,
+    'MultiHeadAttention': None,
+    'Multiply': None,
+    'Permute': None,
+    'RNN': 'RNN',
+    'RepeatVector': None,
+    'Reshape': None,
+    'SeparableConv1D': None,
+    'SeparableConv2D': None,
+    'SeparableConvolution1D': None,
+    'SeparableConvolution2D': None,
+    'SimpleRNN': None,
+    'SimpleRNNCell': None,
+    'SpatialDropout1D': None,
+    'SpatialDropout2D': None,
+    'SpatialDropout3D': None,
+    'StackedRNNCells': None,
+    'Subtract': None,
+    'TimeDistributed': None,
+    'UpSampling1D': 'Upsample',
+    'UpSampling2D': None,
+    'UpSampling3D': None,
+    'Wrapper': None,
+    'ZeroPadding1D': None,
+    'ZeroPadding2D': 'ZeroPad2d',
+    'ZeroPadding3D': None}
+
+    torch_keras_act = {
+    'AdaptiveLogSoftmaxWithLoss': None,
+    'CELU': None,
+    'ELU': 'elu',
+    'GELU': 'gelu',
+    'GLU': None,
+    'Hardshrink': None,
+    'Hardsigmoid': 'hard_sigmoid',
+    'Hardswish': None,
+    'Hardtanh': None,
+    'LeakyReLU': 'LeakyReLU',
+    'LogSigmoid': None,
+    'LogSoftmax': None,
+    'Mish': None,
+    'MultiheadAttention': None,
+    'PReLU': 'PReLU',
+    'RReLU': None,
+    'ReLU': 'relu',
+    'ReLU6': 'relu',
+    'SELU': 'selu',
+    'SiLU': 'swish',
+    'Sigmoid': 'sigmoid',
+    'Softmax': 'softmax',
+    'Softmax2d': None,
+    'Softmin': None,
+    'Softplus': 'softplus',
+    'Softshrink': None,
+    'Softsign': 'softsign',
+    'Tanh': 'tanh',
+    'Tanhshrink': None,
+    'Threshold': None}
+
+    keras_torch_act = {
+    'ELU': 'ELU',
+    'LeakyReLU': 'LeakyReLU',
+    'PReLU': 'PReLU',
+    'ReLU': 'ReLU',
+    'Softmax': 'Softmax',
+    'ThresholdedReLU': None,
+    'elu': 'ELU',
+    'exponential': None,
+    'gelu': 'GELU',
+    'hard_sigmoid': 'Hardsigmoid',
+    'relu': 'ReLU',
+    'selu': 'SELU',
+    'serialize': None,
+    'sigmoid': 'Sigmoid',
+    'softmax': 'Softmax',
+    'softplus': 'Softplus',
+    'softsign': 'Softsign',
+    'swish': 'SiLU',
+    'tanh': 'Tanh'}
+
+
+    if direction == 'torch_to_keras' and activation:
+
+        return torch_keras_act
+
+    elif direction == 'kreas_to_torch' and not activation:
+
+        return keras_torch_act
+
+    elif direction == 'torch_to_keras':
+
+        return torch_keras
+
+    elif direction == 'keras_to_torch': 
+
+        return keras_torch
+
+
+def rename_layers(in_layers, direction="torch_to_keras", activation=False):
+
+  mapping_dict = layer_mapping(direction=direction, activation=activation)
+
+  out_layers = []
+
+  for i in in_layers:
+
+    layer_name_temp = mapping_dict.get(i, None)
+
+    if layer_name_temp == None:
+      out_layers.append(i)
+    else:
+      out_layers.append(layer_name_temp)
+
+  return out_layers
+
+
+

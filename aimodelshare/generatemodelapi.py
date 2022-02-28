@@ -25,9 +25,10 @@ from aimodelshare.preprocessormodules import upload_preprocessor
 from aimodelshare.model import _get_predictionmodel_key, _extract_model_metadata
 from aimodelshare.data_sharing.share_data import share_data_codebuild
 from aimodelshare.containerization import clone_base_image
+from aimodelshare.aimsonnx import _get_metadata
 
 
-def take_user_info_and_generate_api(model_filepath, model_type, categorical,labels, preprocessor_filepath,custom_libraries, requirements, exampledata_json_filepath, repo_name, image_tag):
+def take_user_info_and_generate_api(model_filepath, model_type, categorical,labels, preprocessor_filepath,custom_libraries, requirements, exampledata_json_filepath, repo_name, image_tag, reproducibility_env_filepath, memory, timeout):
     """
     Generates an api using model parameters and user credentials, from the user
 
@@ -145,6 +146,13 @@ def take_user_info_and_generate_api(model_filepath, model_type, categorical,labe
             json_path, os.environ.get("BUCKET_NAME"), unique_model_id + "/runtime_data.json"
         )
         os.remove(json_path)
+
+        # upload model metadata
+        upload_model_metadata(model, s3, os.environ.get("BUCKET_NAME"), unique_model_id)
+
+        # upload reproducibility env
+        if reproducibility_env_filepath:
+            upload_reproducibility_env(reproducibility_env_filepath, s3, os.environ.get("BUCKET_NAME"), unique_model_id)
     except Exception as err:
         raise AWSUploadError(
             "There was a problem with model/preprocessor upload. "+str(err))
@@ -164,12 +172,51 @@ def take_user_info_and_generate_api(model_filepath, model_type, categorical,labe
     # }}}
     
     apiurl = create_prediction_api(model_filepath, unique_model_id,
-                                   model_type, categorical, labels,api_id,custom_libraries, requirements, repo_name, image_tag)
+                                   model_type, categorical, labels,api_id,custom_libraries, requirements, repo_name, image_tag, memory, timeout)
 
     finalresult = [apiurl["body"], apiurl["statusCode"],
                    now, unique_model_id, os.environ.get("BUCKET_NAME"), input_shape]
     return finalresult
 
+def upload_reproducibility_env(reproducibility_env_file, s3, bucket, model_id):
+    # Check the reproducibility_env {{{
+    with open(reproducibility_env_file) as json_file:
+      reproducibility_env = json.load(json_file)
+      if "global_seed_code" not in reproducibility_env \
+              or "local_seed_code" not in reproducibility_env \
+              or "gpu_cpu_parallelism_ops" not in reproducibility_env \
+              or "session_runtime_info" not in reproducibility_env:
+          raise Exception("reproducibility environment is not complete")
+
+    # Upload the json {{{
+    try:
+        s3["client"].upload_file(
+            reproducibility_env_file, bucket, model_id + "/runtime_reproducibility.json"
+        )
+    except Exception as err:
+        raise err
+    # }}}
+
+def upload_model_metadata(model, s3, bucket, model_id):
+    meta_dict = _get_metadata(model)
+    model_metadata = {
+        "model_config": meta_dict["model_config"],
+        "ml_framework": meta_dict["ml_framework"],
+        "model_type": meta_dict["model_type"]
+    }
+
+    temp = tempfile.mkdtemp()
+    model_metadata_path = temp + "/" + 'model_metadata.json'
+    with open(model_metadata_path, 'w') as outfile:
+        json.dump(model_metadata, outfile)
+
+    # Upload the json {{{
+    try:
+        s3["client"].upload_file(
+            model_metadata_path, bucket, model_id + "/runtime_metadata.json"
+        )
+    except Exception as err:
+        raise err
 
 def send_model_data_to_dyndb_and_return_api(api_info, private, categorical, preprocessor_filepath,
                                             aishare_modelname, aishare_modeldescription, aishare_modelevaluation, model_type,
@@ -272,7 +319,7 @@ def send_model_data_to_dyndb_and_return_api(api_info, private, categorical, prep
     return print("\n\n" + finalresult2 + "\n" + final_message + web_dashboard_url)
 
 
-def model_to_api(model_filepath, model_type, private, categorical, y_train, preprocessor_filepath, custom_libraries="FALSE", example_data=None, image="aimodelshare_base_image:v3", base_image_api_endpoint="https://vupwujn586.execute-api.us-east-1.amazonaws.com/dev/copybasetouseracct", update=False):
+def model_to_api(model_filepath, model_type, private, categorical, y_train, preprocessor_filepath, custom_libraries="FALSE", example_data=None, image="", base_image_api_endpoint="https://vupwujn586.execute-api.us-east-1.amazonaws.com/dev/copybasetouseracct", update=False, reproducibility_env_filepath=None, memory=None, timeout=None):
     """
       Launches a live prediction REST API for deploying ML models using model parameters and user credentials, provided by the user
       Inputs : 8
@@ -315,6 +362,11 @@ def model_to_api(model_filepath, model_type, private, categorical, y_train, prep
                      other data types - absolute path to folder containing example data
                                         (first five files with relevent file extensions will be accepted)
                      [REQUIRED] for tabular data
+      reproducibility_env_filepath: string
+                                value - absolute path to environment environment json file 
+                                [OPTIONAL] to be set by the user
+                                "./reproducibility.json" 
+                                file is generated using export_reproducibility_env function from the AI Modelshare library
       -----------
       Returns
       print_api_info : prints statements with generated live prediction API details
@@ -331,11 +383,18 @@ def model_to_api(model_filepath, model_type, private, categorical, y_train, prep
                                          aws_secret_access_key = os.environ.get("AWS_SECRET_ACCESS_KEY"), 
                                          region_name=os.environ.get("AWS_REGION"))
 
-    repo_name, image_tag = image.split(':')
-    if model_type=="tabular":
-        image_tag="tabular"
+    if(image!=""):
+        repo_name, image_tag = image.split(':')
+    elif model_type=="tabular":
+        repo_name, image_tag = "aimodelshare_base_image", "tabular"
+    elif model_type=="text":
+        repo_name, image_tag = "aimodelshare_base_image", "texttest"
+    elif model_type=="image":
+        repo_name, image_tag = "aimodelshare_base_image", "v3"
+    elif model_type=="video":
+        repo_name, image_tag = "aimodelshare_base_image", "v3"
     else:
-        pass
+        repo_name, image_tag = "aimodelshare_base_image", "v3"
     
     response = clone_base_image(user_session, repo_name, image_tag, "517169013426", base_image_api_endpoint, update)
     if(response["Status"]==0):
@@ -396,7 +455,7 @@ def model_to_api(model_filepath, model_type, private, categorical, y_train, prep
     # }}}
     
     api_info = take_user_info_and_generate_api( 
-        model_filepath, model_type, categorical, labels,preprocessor_filepath,custom_libraries, requirements, exampledata_json_filepath, repo_name, image_tag)
+        model_filepath, model_type, categorical, labels,preprocessor_filepath,custom_libraries, requirements, exampledata_json_filepath, repo_name, image_tag, reproducibility_env_filepath, memory, timeout)
 
     ### Progress Update #5/6 {{{
     sys.stdout.write('\r')
@@ -411,7 +470,7 @@ def model_to_api(model_filepath, model_type, private, categorical, y_train, prep
     
     return api_info[0]
 
-def create_competition(apiurl, data_directory, y_test,  email_list=[], public=False):
+def create_competition(apiurl, data_directory, y_test, eval_metric_filepath=None, email_list=[], public=False):
     """
     Creates a model competition for a deployed prediction REST API
     Inputs : 4
@@ -480,18 +539,42 @@ def create_competition(apiurl, data_directory, y_test,  email_list=[], public=Fa
     s3["client"].upload_file(ytest_path, os.environ.get("BUCKET_NAME"),  model_id + "/ytest.pkl")
 
 
+    if eval_metric_filepath is not None:
+    
+        if isinstance(eval_metric_filepath, list):
+
+            for i in eval_metric_filepath: 
+
+                eval_metric_name = i.split('/')[-1]
+
+                s3["client"].upload_file(i, os.environ.get("BUCKET_NAME"),  model_id + '/metrics_' + eval_metric_name)
+
+        else:
+
+            eval_metric_name = eval_metric_filepath.split('/')[-1]
+
+            print(eval_metric_name)
+
+            s3["client"].upload_file(eval_metric_filepath, os.environ.get("BUCKET_NAME"), model_id + '/metrics_' + eval_metric_name)
+
+
     # get api_id from apiurl, generate txt file name
     api_url_trim = apiurl.split('https://')[1]
     api_id = api_url_trim.split(".")[0]
 
-    #create and upload json file with list of authorized users who can submit to this competition.
-    _create_competitionuserauth_json(apiurl, email_list,public)
+    print("\n--INPUT COMPETITION DETAILS--\n")
 
     aishare_competitionname = input("Enter competition name:")
     aishare_competitiondescription = input("Enter competition description:")
+
+    print("\n--INPUT DATA DETAILS--\n")
+    print("Note: (optional) Save an optional LICENSE.txt file in your competition data directory to make users aware of any restrictions on data sharing/usage.\n")
+
     aishare_datadescription = input(
         "Enter data description (i.e.- filenames denoting training and test data, file types, and any subfolders where files are stored):")
     
+    aishare_datalicense = input(
+        "Enter optional data license descriptive name (e.g.- 'MIT, Apache 2.0, CC0, Other, etc.'):")    
     user_session = boto3.session.Session(aws_access_key_id=os.environ.get("AWS_ACCESS_KEY_ID"),
                                           aws_secret_access_key = os.environ.get("AWS_SECRET_ACCESS_KEY"), 
                                          region_name=os.environ.get("AWS_REGION"))
@@ -499,6 +582,9 @@ def create_competition(apiurl, data_directory, y_test,  email_list=[], public=Fa
         'sts').get_caller_identity().get('Account')
 
     datauri=share_data_codebuild(account_number,os.environ.get("AWS_REGION"),data_directory)
+    
+    #create and upload json file with list of authorized users who can submit to this competition.
+    _create_competitionuserauth_json(apiurl, email_list,public,datauri['ecr_uri'])
 
     bodydata = {"unique_model_id": model_id,
                 "bucket_name": api_bucket,
@@ -511,7 +597,8 @@ def create_competition(apiurl, data_directory, y_test,  email_list=[], public=Fa
                 "Private": "FALSE",
                 "delete": "FALSE",
                 'datadescription':aishare_datadescription,
-                'dataecruri':datauri['ecr_uri']}
+                'dataecruri':datauri['ecr_uri'],
+                 'datalicense': aishare_datalicense}
     
     # Get the response
     headers_with_authentication = {'Content-Type': 'application/json', 'authorizationToken': os.environ.get("JWT_AUTHORIZATION_TOKEN"), 'Access-Control-Allow-Headers':
@@ -524,7 +611,7 @@ def create_competition(apiurl, data_directory, y_test,  email_list=[], public=Fa
     final_message = ("\n Success! Model competition created. \n\n"
                 "You may now update your prediction API runtime model and verify evaluation metrics with the update_runtime_model() function.\n\n"
                 "To upload new models and/or preprocessors to this API, team members should use \n"
-                "the following credentials:\n\napiurl='" + apiurl+"'"+"\nai.set_credentials(apiurl=apiurl)\n\n"
+                "the following credentials:\n\napiurl='" + apiurl+"'"+"\nfrom aimodelshare.aws import set_credentials\nset_credentials(apiurl=apiurl)\n\n"
                 "They can then submit models to your competition by using the following code: \n\ncompetition= ai.Competition(apiurl)\n"
                 "download_data('"+datauri['ecr_uri']+"') \n"
                  "# Use this data to preprocess data and train model. Write and save preprocessor fxn, save model to onnx file, generate predicted y values\n using X test data, then submit a model below.\n\n"
@@ -532,7 +619,7 @@ def create_competition(apiurl, data_directory, y_test,  email_list=[], public=Fa
   
     return print(final_message)
 
-def _create_competitionuserauth_json(apiurl, email_list=[],public=False): 
+def _create_competitionuserauth_json(apiurl, email_list=[],public=False, datauri=None): 
       import json
       if all(["AWS_ACCESS_KEY_ID" in os.environ, 
             "AWS_SECRET_ACCESS_KEY" in os.environ,
@@ -569,7 +656,7 @@ def _create_competitionuserauth_json(apiurl, email_list=[],public=False):
       import tempfile
       tempdir = tempfile.TemporaryDirectory()
       with open(tempdir.name+'/competitionuserdata.json', 'w', encoding='utf-8') as f:
-          json.dump({"emaillist": email_list, "public":str(public).upper()}, f, ensure_ascii=False, indent=4)
+          json.dump({"emaillist": email_list, "public":str(public).upper(),"datauri":str(datauri)}, f, ensure_ascii=False, indent=4)
 
       aws_client['client'].upload_file(
             tempdir.name+"/competitionuserdata.json", api_bucket, model_id + "/competitionuserdata.json"
@@ -650,7 +737,7 @@ def update_access_list(apiurl, email_list=[],update_type="Add"):
       elif update_type=="Add":
           import json  
           import tempfile
-          
+          tempdir = tempfile.TemporaryDirectory()
           content_object = aws_client['resource'].Object(bucket_name=api_bucket, key=model_id + "/competitionuserdata.json")
           file_content = content_object.get()['Body'].read().decode('utf-8')
           json_content = json.loads(file_content)
@@ -658,19 +745,21 @@ def update_access_list(apiurl, email_list=[],update_type="Add"):
           email_list_old=json_content["emaillist"]
           email_list_new=email_list_old+email_list
           print(email_list_new)
-
-          tempdir = tempfile.TemporaryDirectory()
+            
+          json_content["emaillist"]=email_list_new
           with open(tempdir.name+'/competitionuserdata.json', 'w', encoding='utf-8') as f:
-              json.dump({"emaillist": email_list_new, "public":json_content["public"]}, f, ensure_ascii=False, indent=4)
+              json.dump(json_content, f, ensure_ascii=False, indent=4)
 
           aws_client['client'].upload_file(
                 tempdir.name+"/competitionuserdata.json", api_bucket, model_id + "/competitionuserdata.json"
             )
+     
           return "Success: Your competition participant access list is now updated."
       elif update_type=="Remove":
           import json  
           import tempfile
-          
+          tempdir = tempfile.TemporaryDirectory()
+    
           aws_client['resource']
           content_object = aws_client['resource'].Object(bucket_name=api_bucket, key=model_id + "/competitionuserdata.json")
           file_content = content_object.get()['Body'].read().decode('utf-8')
@@ -679,10 +768,10 @@ def update_access_list(apiurl, email_list=[],update_type="Add"):
           email_list_old=json_content["emaillist"]
           email_list_new=list(set(list(email_list_old)) - set(email_list))
           print(email_list_new)
-        
-          tempdir = tempfile.TemporaryDirectory()
+            
+          json_content["emaillist"]=email_list_new
           with open(tempdir.name+'/competitionuserdata.json', 'w', encoding='utf-8') as f:
-              json.dump({"emaillist": email_list_new, "public":json_content["public"]}, f, ensure_ascii=False, indent=4)
+              json.dump(json_content, f, ensure_ascii=False, indent=4)
 
           aws_client['client'].upload_file(
                 tempdir.name+"/competitionuserdata.json", api_bucket, model_id + "/competitionuserdata.json"
@@ -691,7 +780,8 @@ def update_access_list(apiurl, email_list=[],update_type="Add"):
       elif update_type=="Get":
           import json  
           import tempfile
-          
+          tempdir = tempfile.TemporaryDirectory()
+
           aws_client['resource']
           content_object = aws_client['resource'].Object(bucket_name=api_bucket, key=model_id + "/competitionuserdata.json")
           file_content = content_object.get()['Body'].read().decode('utf-8')

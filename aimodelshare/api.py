@@ -12,9 +12,32 @@ import requests
 import sys
 from zipfile import ZipFile, ZIP_STORED, ZipInfo
 import shutil
+import shortuuid
 from aimodelshare.containerization import create_lambda_using_base_image
+from aimodelshare.containerisation import deploy_container
 
-def create_prediction_api(model_filepath, unique_model_id, model_type, categorical, labels, apiid, custom_libraries, requirements, repo_name="", image_tag=""):
+def get_role_details(iam_client, role_name):
+    try:
+        response = iam_client.get_role(RoleName=role_name)
+        role_details = response['Role']
+    except:
+        role_details = {}
+    return role_details
+
+def create_prediction_api(model_filepath, unique_model_id, model_type, categorical, labels, apiid, custom_libraries, requirements, repo_name="", image_tag="", memory=None, timeout=None):
+
+    if(memory == None):
+        if model_type=="tabular":
+            memory=1024
+        elif model_type=="text":
+            memory = 1024
+        elif model_type=="image":
+            memory=1024
+        else:
+            memory = 1024
+
+    if(timeout == None):
+        timeout = 90
 
     from zipfile import ZipFile
     import zipfile
@@ -57,34 +80,34 @@ def create_prediction_api(model_filepath, unique_model_id, model_type, categoric
                                           aws_secret_access_key = os.environ.get("AWS_SECRET_ACCESS_KEY"), 
                                           region_name=os.environ.get("AWS_REGION"))
     if(model_type=="neural style transfer"):
-            model_layer ="arn:aws:lambda:us-east-1:517169013426:layer:keras_image:1"
-            eval_layer ="arn:aws:lambda:us-east-1:517169013426:layer:eval_layer_test:6"
-            auth_layer ="arn:aws:lambda:us-east-1:517169013426:layer:aimsauth_layer:2"
+            model_layer ="arn:aws:lambda:" + str(os.environ.get("AWS_REGION")) + ":517169013426:layer:keras_image:1"
+            eval_layer ="arn:aws:lambda:" + str(os.environ.get("AWS_REGION")) + ":517169013426:layer:eval_layer_test:6"
+            auth_layer ="arn:aws:lambda:" + str(os.environ.get("AWS_REGION")) + ":517169013426:layer:aimsauth_layer:2"
     elif model_type=='image' :
-            model_layer ="arn:aws:lambda:us-east-1:517169013426:layer:keras_image:1"
-            eval_layer ="arn:aws:lambda:us-east-1:517169013426:layer:eval_layer_test:6"
-            auth_layer ="arn:aws:lambda:us-east-1:517169013426:layer:aimsauth_layer:2"
+            model_layer ="arn:aws:lambda:" + str(os.environ.get("AWS_REGION")) + ":517169013426:layer:keras_image:1"
+            eval_layer ="arn:aws:lambda:" + str(os.environ.get("AWS_REGION")) + ":517169013426:layer:eval_layer_test:6"
+            auth_layer ="arn:aws:lambda:" + str(os.environ.get("AWS_REGION")) + ":517169013426:layer:aimsauth_layer:2"
     elif model_type=='text':
-            model_layer ="arn:aws:lambda:us-east-1:517169013426:layer:tabular_layer:2"
-            keras_layer ='arn:aws:lambda:us-east-1:517169013426:layer:keras_preprocesor:1'
-            eval_layer ="arn:aws:lambda:us-east-1:517169013426:layer:eval_layer_test:6"
-            auth_layer ="arn:aws:lambda:us-east-1:517169013426:layer:aimsauth_layer:2"
+            model_layer ="arn:aws:lambda:" + str(os.environ.get("AWS_REGION")) + ":517169013426:layer:tabular_layer:2"
+            keras_layer ="arn:aws:lambda:" + str(os.environ.get("AWS_REGION")) + ":517169013426:layer:keras_preprocesor:1"
+            eval_layer ="arn:aws:lambda:" + str(os.environ.get("AWS_REGION")) + ":517169013426:layer:eval_layer_test:6"
+            auth_layer ="arn:aws:lambda:" + str(os.environ.get("AWS_REGION")) + ":517169013426:layer:aimsauth_layer:2"
     elif model_type == 'tabular' or model_type =='timeseries':
-            model_layer ="arn:aws:lambda:us-east-1:517169013426:layer:tabular_cloudpicklelayer:1"
-            eval_layer ="arn:aws:lambda:us-east-1:517169013426:layer:eval_layer_test:6"
-            auth_layer ="arn:aws:lambda:us-east-1:517169013426:layer:aimsauth_layer:2"
+            model_layer ="arn:aws:lambda:" + str(os.environ.get("AWS_REGION")) + ":517169013426:layer:tabular_cloudpicklelayer:1"
+            eval_layer ="arn:aws:lambda:" + str(os.environ.get("AWS_REGION")) + ":517169013426:layer:eval_layer_test:6"
+            auth_layer ="arn:aws:lambda:" + str(os.environ.get("AWS_REGION")) + ":517169013426:layer:aimsauth_layer:2"
     elif model_type.lower() == 'audio':
-            model_layer = "arn:aws:lambda:us-east-1:517169013426:layer:librosa_nosklearn:9"
-            eval_layer ="arn:aws:lambda:us-east-1:517169013426:layer:eval_layer_test:6"
-            auth_layer ="arn:aws:lambda:us-east-1:517169013426:layer:aimsauth_layer:2"
+            model_layer = "arn:aws:lambda:" + str(os.environ.get("AWS_REGION")) + ":517169013426:layer:librosa_nosklearn:9"
+            eval_layer ="arn:aws:lambda:" + str(os.environ.get("AWS_REGION")) + ":517169013426:layer:eval_layer_test:6"
+            auth_layer ="arn:aws:lambda:" + str(os.environ.get("AWS_REGION")) + ":517169013426:layer:aimsauth_layer:2"
     elif model_type.lower() == 'video':
-            model_layer = "arn:aws:lambda:us-east-1:517169013426:layer:videolayer:3"
-            eval_layer ="arn:aws:lambda:us-east-1:517169013426:layer:eval_layer_test:6"
-            auth_layer ="arn:aws:lambda:us-east-1:517169013426:layer:aimsauth_layer:2"
+            model_layer = "arn:aws:lambda:" + str(os.environ.get("AWS_REGION")) + ":517169013426:layer:videolayer:3"
+            eval_layer ="arn:aws:lambda:" + str(os.environ.get("AWS_REGION")) + ":517169013426:layer:eval_layer_test:6"
+            auth_layer ="arn:aws:lambda:" + str(os.environ.get("AWS_REGION")) + ":517169013426:layer:aimsauth_layer:2"
     elif model_type.lower() == 'custom':
-            model_layer = "arn:aws:lambda:us-east-1:517169013426:layer:videolayer:3"
-            eval_layer ="arn:aws:lambda:us-east-1:517169013426:layer:eval_layer_test:6"
-            auth_layer ="arn:aws:lambda:us-east-1:517169013426:layer:aimsauth_layer:2"
+            model_layer = "arn:aws:lambda:" + str(os.environ.get("AWS_REGION")) + ":517169013426:layer:videolayer:3"
+            eval_layer ="arn:aws:lambda:" + str(os.environ.get("AWS_REGION")) + ":517169013426:layer:eval_layer_test:6"
+            auth_layer ="arn:aws:lambda:" + str(os.environ.get("AWS_REGION")) + ":517169013426:layer:aimsauth_layer:2"
     else :
         print("no matching model data type to load correct python package zip file (lambda layer)")
 
@@ -328,10 +351,10 @@ def create_prediction_api(model_filepath, unique_model_id, model_type, categoric
 
     roles = user_session.client('iam').list_roles()
     
-    lambdarolename = 'myService-dev-us-east-1-lambdaRole'+str(random.randint(1, 1000000))
-    lambdafxnname = 'modfunction'+str(random.randint(1, 1000000))
-    lambdaauthfxnname = 'redisAccess'+str(random.randint(1, 1000000))
-    lambdaevalfxnname = 'evalfunction'+str(random.randint(1, 1000000))
+    lambdarolename = 'myService-dev-us-east-1-lambdaRole'+str(shortuuid.uuid())
+    lambdafxnname = 'modfunction'+str(shortuuid.uuid())
+    lambdaauthfxnname = 'redisAccess'+str(shortuuid.uuid())
+    lambdaevalfxnname = 'evalfunction'+str(shortuuid.uuid())
 
     response6 = user_session.resource('iam').create_role(
             AssumeRolePolicyDocument=json.dumps(lambdarole1),
@@ -344,7 +367,7 @@ def create_prediction_api(model_filepath, unique_model_id, model_type, categoric
             lambdafxnname +
             ':*:*"],"Effect": "Allow"},{"Action": ["s3:GetObject"],"Resource": ["arn:aws:s3:::' +
             os.environ.get("BUCKET_NAME")+'/*"],"Effect": "Allow"}]}',
-            PolicyName='S3AccessandcloudwatchlogPolicy'+str(random.randint(1, 1000000)),
+            PolicyName='S3AccessandcloudwatchlogPolicy'+str(shortuuid.uuid()),
             RoleName=lambdarolename,
         )
 
@@ -354,7 +377,7 @@ def create_prediction_api(model_filepath, unique_model_id, model_type, categoric
             lambdaauthfxnname +
             ':*:*"],"Effect": "Allow"},{"Action": ["s3:GetObject"],"Resource": ["arn:aws:s3:::' +
             os.environ.get("BUCKET_NAME")+'/*"],"Effect": "Allow"}]}',
-            PolicyName='S3AccessandcloudwatchlogPolicy'+str(random.randint(1, 1000000)),
+            PolicyName='S3AccessandcloudwatchlogPolicy'+str(shortuuid.uuid()),
             RoleName=lambdarolename,
         )
 
@@ -366,7 +389,7 @@ def create_prediction_api(model_filepath, unique_model_id, model_type, categoric
             os.environ.get("BUCKET_NAME")+'"],"Effect": "Allow"},{"Action": ["s3:GetObject"],"Resource": ["arn:aws:s3:::' +
             os.environ.get("BUCKET_NAME")+'/*"],"Effect": "Allow"},{"Action": ["s3:PutObject"],"Resource": ["arn:aws:s3:::' +
             os.environ.get("BUCKET_NAME")+'/*"],"Effect": "Allow"}]}',
-            PolicyName='S3AccessandcloudwatchlogPolicy'+str(random.randint(1, 1000000)),
+            PolicyName='S3AccessandcloudwatchlogPolicy'+str(shortuuid.uuid()),
             RoleName=lambdarolename,
         )
 
@@ -396,7 +419,7 @@ def create_prediction_api(model_filepath, unique_model_id, model_type, categoric
     # }}}
     
     if(any([custom_libraries=='FALSE',custom_libraries=='false'])):
-        response6 = create_lambda_using_base_image(user_session, os.getenv("BUCKET_NAME"), file_objects_folder_path, lambdafxnname, apiid, repo_name, image_tag, 3072, 90)
+        response6 = create_lambda_using_base_image(user_session, os.getenv("BUCKET_NAME"), file_objects_folder_path, lambdafxnname, apiid, repo_name, image_tag, memory, timeout)
     elif(any([custom_libraries=='TRUE',custom_libraries=='true'])):
 
         requirements = requirements.split(",")
@@ -409,9 +432,23 @@ def create_prediction_api(model_filepath, unique_model_id, model_type, categoric
         
         requirements_file_path = os.path.join(file_objects_folder_path, 'requirements.txt')
 
-        from aimodelshare import deploy_container
+
         #response6 = deploy_lambda_using_sam(user_session, os.getenv("BUCKET_NAME"), requirements, file_objects_folder_path, lambdafxnname, apiid, 1024, 90, "3.7")
         response6 = deploy_container(account_number, os.environ.get("AWS_REGION"), user_session, lambdafxnname, file_objects_folder_path,requirements_file_path,apiid)
+
+    # if model_type=="audio":
+    #     lambda_client = user_session.client("lambda")
+    #     lambda_client.update_function_configuration(
+    #         FunctionName=response6['FunctionName'],
+    #         Environment={
+    #             'Variables': {
+    #                 'bucket': os.getenv("BUCKET_NAME"),     # bucket where zip file is located
+    #                 'api_id': apiid,     # api_id in the bucket in which zip file is stored
+    #                 'function_name': response6['FunctionName'],
+    #                 'NUMBA_CACHE_DIR': '/tmp'
+    #             }
+    #         }
+    #     )
 
     response6evalfxn = lambdaclient.create_function(FunctionName=lambdaevalfxnname, Runtime='python3.7', Role='arn:aws:iam::'+account_number+':role/'+lambdarolename, Handler='main.handler',
                                           Code={
@@ -434,7 +471,7 @@ def create_prediction_api(model_filepath, unique_model_id, model_type, categoric
 
     #add create api about here
     #TODO: 
-    api_name = 'modapi'+str(random.randint(1, 1000000))	
+    api_name = 'modapi'+str(shortuuid.uuid())	
 
     # Update note:  change apiname in apijson from modapi890799 to randomly generated apiname?  or aimodelshare generic name?
 
@@ -471,7 +508,7 @@ def create_prediction_api(model_filepath, unique_model_id, model_type, categoric
 
     fxn_list = lambdaclient.list_functions()
 
-    stmt_id = 'apigateway-prod-'+str(random.randint(1, 1000000))
+    stmt_id = 'apigateway-prod-'+str(shortuuid.uuid())
     # upload authfxn code first
 
     response7_1 = lambdaclient.add_permission(
@@ -529,7 +566,9 @@ def create_prediction_api(model_filepath, unique_model_id, model_type, categoric
     lambdarole2 = {u'Version': u'2012-10-17', u'Statement': [{u'Action': u'sts:AssumeRole', u'Principal': {
         u'Service': [u'lambda.amazonaws.com', u'apigateway.amazonaws.com']}, u'Effect': u'Allow', u'Sid': u''}]}
 
-    if str(roles['Roles']).find("lambda_invoke_function_assume_apigw_role") > 0:
+    iam_client = user_session.client("iam")
+    
+    if get_role_details(iam_client, "lambda_invoke_function_assume_apigw_role") != {}:
         None
     else:
         response10 = user_session.resource('iam').create_role(
@@ -672,7 +711,7 @@ def create_prediction_api(model_filepath, unique_model_id, model_type, categoric
 
     authorizerid=responseauthfxnapigateway['items'][0]['id']
 
-    stmt_idauth = 'apigateway-prod-'+str(random.randint(1, 1000000))
+    stmt_idauth = 'apigateway-prod-'+str(shortuuid.uuid())
     response70 = user_session.client('lambda').add_permission(
         FunctionName=lambdaauthfxnname,
         StatementId=stmt_idauth,
@@ -721,6 +760,13 @@ def create_prediction_api(model_filepath, unique_model_id, model_type, categoric
 
 
     result = 'https://'+api_id + '.execute-api.'+os.environ.get("AWS_REGION")+'.amazonaws.com/prod/m'
+
+    if model_type=='custom':
+        ### Progress Update #6/6 {{{
+        sys.stdout.write('\r')
+        sys.stdout.write("[=====================================] Progress: 100% - API deployment completed!                          ")
+        sys.stdout.flush()
+        # }}}
 
     return {"statusCode": 200,
             "headers": {
@@ -902,7 +948,8 @@ def delete_deployment(apiurl):
     WARNING: User must supply high-level credentials in order to delete an API. 
     """
     from aimodelshare.aws import run_function_on_lambda
-    
+    import json  
+
     # Provide Warning & Have user confirm deletion 
     print("Running this function will permanently delete all resources tied to this deployment, \n including the eval lambda and all models submitted to the model competition.\n")
     confirmation = input(prompt="To confirm, type 'permanently delete':")
@@ -950,9 +997,6 @@ def delete_deployment(apiurl):
         print("Permission denied. Please provide credentials that allow administrator access to this api.")
         return
 
-    # delete s3 folder
-    bucket = s3.Bucket(api_bucket)
-    bucket.objects.filter(Prefix= model_id+'/').delete() 
 
     # get api resources
     api = user_sess.client('apigateway')
@@ -1022,7 +1066,44 @@ def delete_deployment(apiurl):
     requests.post("https://o35jwfakca.execute-api.us-east-1.amazonaws.com/dev/modeldata",
                   json=bodydata, headers=headers_with_authentication)
 
-    return "API deleted successfully."
+    # Delete competition data container image
+    try:
+            content_object = s3.Object(bucket_name=api_bucket, key=model_id + "/competitionuserdata.json")
+            file_content = content_object.get()['Body'].read().decode('utf-8')
+            json_content = json.loads(file_content)
+            ecr_uri=json_content['datauri']      
+
+            ecr_client = user_sess.client('ecr-public')
+
+            repository_image = ecr_uri.split('/')[2]
+
+            repository = repository_image.split(':')[0]
+            image = repository_image.split(':')[1]
+
+            response = ecr_client.batch_delete_image(
+                repositoryName=repository,
+                imageIds=[
+                    {
+                        'imageTag': image
+                    }
+                ]
+            )
+
+            image_details = ecr_client.describe_images(
+                repositoryName=repository
+            )
+
+            if len(image_details['imageDetails'])==0:
+                response = ecr_client.delete_repository(
+                    repositoryName=repository
+                )
+    except:
+        pass
+    # delete s3 folder
+    bucket = s3.Bucket(api_bucket)
+    bucket.objects.filter(Prefix= model_id+'/').delete() 
+
+    return "Deployment deleted successfully."
 
 
 __all__ = [

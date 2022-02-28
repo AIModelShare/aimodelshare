@@ -18,6 +18,7 @@ from . import containerization_templates
 
 time_delay=10
 
+
 # abstraction to return list of strings of paths of all files present in a given directory
 def get_all_file_paths_in_directory(directory):
     file_paths = []
@@ -176,7 +177,7 @@ def attach_policy_to_role(user_session, role_name, policy_name):
     #print("Attached IAM policy \"" + policy_name +"\" to IAM role \"" + role_name + "\" successfully.")
 
 # build image using CodeBuild from files in zip file
-def build_image(user_session, bucket_name, zip_file, image_name):
+def build_image(user_session, bucket_name, zip_file, image_name, image):
 
     # upload zip file to S3 bucket
     upload_file_to_s3(user_session, zip_file, bucket_name, image_name+'.zip')
@@ -256,6 +257,7 @@ def build_image(user_session, bucket_name, zip_file, image_name):
             )
             print("Image successfully built.")
             print("CodeBuild finished with status " + build_status)
+            print("\nNew Base Image URI: " + image)
             break
         elif build_status == 'FAILED' or build_status == 'FAULT' or build_status == 'STOPPED' or build_status == 'TIMED_OUT':
             response = codebuild_client.delete_project(     # delete CodeBuild project after process completes
@@ -349,10 +351,12 @@ def build_new_base_image(libraries, repository, image_tag, python_version):
         for file in file_paths:
             zip.write(file, file.replace(temp_dir, ""))      # ignore temporary file path when copying to zip file
 
-    build_image(user_session, bucket_name, temp_dir + ".zip", unique_name + "_base_image")
+    build_image(user_session, bucket_name, temp_dir + ".zip", unique_name + "_base_image", repository+":"+image_tag)
 
     if(os.path.isdir(temp_dir)):
         shutil.rmtree(temp_dir)
+
+    return
 
 # create lambda function using a base image from a specific repository having a specific tag
 def create_lambda_using_base_image(user_session, bucket_name, directory, lambda_name, api_id, repository, image_tag, memory_size, timeout):
@@ -395,12 +399,13 @@ def create_lambda_using_base_image(user_session, bucket_name, directory, lambda_
     attach_policy_to_role(user_session, role_name, policy_name)
 
     #print("Creating Lambda function \"" + lambda_name + "\".")
+
     lambda_client = user_session.client("lambda")
     counter=1
     while(counter<=3):
         try:
             #print("Attempt " + str(counter) + " to create Lambda function.")
-            response = lambda_client.create_function(
+            response_lambda = lambda_client.create_function(
                 FunctionName=lambda_name,
                 Role = 'arn:aws:iam::' + account_id + ':role/' + role_name,
                 Code = {
@@ -413,7 +418,8 @@ def create_lambda_using_base_image(user_session, bucket_name, directory, lambda_
                     'Variables': {
                         'bucket': bucket_name,     # bucket where zip file is located
                         'api_id': api_id,     # api_id in the bucket in which zip file is stored
-                        'function_name': lambda_name        # Lambda function name
+                        'function_name': lambda_name,        # Lambda function name
+                        'NUMBA_CACHE_DIR': '/tmp'
                     }
                 }
             )
@@ -448,6 +454,8 @@ def create_lambda_using_base_image(user_session, bucket_name, directory, lambda_
     if(os.path.isdir(temp_dir)):    # delete the temporary folder created in tmp directory
         shutil.rmtree(temp_dir)
 
+    return response_lambda
+
 # check if the image exists in the specified repository with specified image tag
 def check_if_image_exists(user_session, repo_name, image_tag):
     #print("Checking if image \"" + repo_name + ":" + image_tag +"\" exists.")
@@ -458,10 +466,10 @@ def check_if_image_exists(user_session, repo_name, image_tag):
             repositoryName=repo_name,
             imageIds=[{'imageTag': image_tag}]
         )
-        
+        result = True
         #adding date check of last image updates for any image tags.
         #if user has old image then we update it using this approach
-        result=image_details['imageDetails'][0]['imagePushedAt'].date()<=datetime.date(2021, 10, 6)
+        #result=image_details['imageDetails'][0]['imagePushedAt'].date()<=datetime.date(2021, 10, 6)
 
         #print("The image " + "\"" + repo_name + ":" + image_tag + "\"" + " exists.")
         # print details of image
