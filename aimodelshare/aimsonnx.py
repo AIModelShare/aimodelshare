@@ -779,8 +779,6 @@ def _get_leaderboard_data(onnx_model, eval_metrics=None):
         
     metadata_raw = _get_metadata(onnx_model)
 
-    print(metadata_raw)
-
     # get list of current layer types 
     layer_list_keras, activation_list_keras = _get_layer_names()
     layer_list_pytorch, activation_list_pytorch = _get_layer_names_pytorch()
