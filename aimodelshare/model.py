@@ -269,8 +269,6 @@ def _update_leaderboard_public(
         import pandas as pd
         leaderboard=pd.read_csv(temp+"/"+mastertable_path, sep="\t")
 
-        print(leaderboardfilename)
-
         columns = leaderboard.columns
         
     except:
@@ -309,8 +307,6 @@ def _update_leaderboard_public(
 
       with open(temp+"/"+mastertable_path, 'rb') as f:
         files = {'file': (temp+"/"+mastertable_path, f)}
-
-        print(files)
 
         if private:
 
@@ -585,8 +581,6 @@ def submit_model(
 
         eval_metrics_private = {"eval": eval_metrics['eval'][1]}
         eval_metrics["eval"] = eval_metrics['eval'][0] 
-        print("eval metrics public", eval_metrics)
-        print("eval metrics private", eval_metrics_private)
 
     except Exception as e:
         
@@ -605,7 +599,6 @@ def submit_model(
         return print("Failed to calculate evaluation metrics. Please check the format of the submitted predictions.")
 
     s3_presigned_dict = {key:val for key, val in eval_metrics.items() if key != 'eval'}
-    print('presigned dict', s3_presigned_dict)
 
     idempotentmodel_version=s3_presigned_dict['idempotentmodel_version']
     s3_presigned_dict.pop('idempotentmodel_version')
@@ -705,8 +698,6 @@ def submit_model(
     modelleaderboarddata_private = _update_leaderboard_public(
         model_filepath, eval_metrics_private, s3_presigned_dict, custom_metadata, private=True)
 
-    print("leaderboard private", modelleaderboarddata_private)
-
 
     model_versions = [os.path.splitext(f)[0].split("_")[-1][1:] for f in s3_presigned_dict['put'].keys()]
 
@@ -750,8 +741,6 @@ def submit_model(
       dict_str = json.dumps(modelleaderboarddata_private)
     #convert None type values to string
       modelleaderboarddata_private_cleaned = json.loads(dict_str, object_pairs_hook=dict_clean)
-
-    print("leaderbaord private cleaned", modelleaderboarddata_private_cleaned)
 
     # Update model version and sample data {{{
     #data_types = None
@@ -877,9 +866,6 @@ def submit_model(
     bodydatamodels.update(modelleaderboarddata_private_cleaned)
 
     d = bodydatamodels
-
-    print("bodydatamodels", d)
-
 
     keys_values = d.items()
 
