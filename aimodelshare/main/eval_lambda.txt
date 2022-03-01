@@ -61,11 +61,13 @@ def handler(event, context):
     if any([email in authorized_competitionusers['emaillist'],public=="TRUE"]):
     
         if body.get("return_eval","ALL")  == "True":
+        
             idempotentmodel_version=json.loads(event['requestContext']['authorizer']['uniquemodversion'])
 
             ytestdata=get_ytestdata(ytest_s3_filename="ytest.pkl")
       
             eval_result = evaluate_model(body, ytestdata)
+
             bucket="$bucket_name"
             model_id="$unique_model_id"
             
@@ -120,6 +122,7 @@ def handler(event, context):
             
             if "model_eval_data_mastertable.csv" not in model_files:
                 finalfiles.append("model_eval_data_mastertable.csv")
+                finalfiles.append("model_eval_data_mastertable_private.csv")
                 finalfiles.append("onnx_model_mostrecent.onnx")
                 finalfiles.append("onnx_model_v1.onnx")
                 finalfiles.append("predictionmodel_1.onnx")
@@ -128,6 +131,7 @@ def handler(event, context):
                 finalfiles.append("model_metadata_v1.json")
             else:
                 finalfiles.append("model_eval_data_mastertable_v"+str(idempotentmodel_version)+".csv")
+                finalfiles.append("model_eval_data_mastertable_private_v"+str(idempotentmodel_version)+".csv")
                 finalfiles.append("onnx_model_mostrecent.onnx")
                 finalfiles.append("onnx_model_v"+str(idempotentmodel_version)+".onnx")
                 finalfiles.append("preprocessor_v"+str(idempotentmodel_version)+".zip")
@@ -154,9 +158,12 @@ def handler(event, context):
             
             print(finalfilespost)            
             for i in finalfilesget:
-                if i.find("mastertable")>0:
+                if i.find("mastertable_v")>0:
                   indexvalue=finalfilesget.index(i)
-                  finalfilesget[indexvalue]="model_eval_data_mastertable.csv"
+                  finalfilesget[indexvalue]="model_eval_data_mastertable.csv"                
+                if i.find("mastertable_private_v")>0:
+                  indexvalue=finalfilesget.index(i)
+                  finalfilesget[indexvalue]="model_eval_data_mastertable_private.csv"
                   
             print(finalfilesget)
 
@@ -178,6 +185,8 @@ def handler(event, context):
             "body": json.dumps({"eval":eval_result,"get":getdict,"put": putdict,"idempotentmodel_version":idempotentmodel_version})
             }
             return eval_dict
+
+
             
         if body.get("return_y","ALL") == "True":
             
@@ -238,8 +247,13 @@ def handler(event, context):
             
             verbose=body["verbose"]
             columns=body["columns"]
+
+            if body.get("private", 'FALSE') == "TRUE":
+                private = True
+            else:
+                private = False
         
-            leaderboard = get_leaderboard("$task_type", verbose, columns)
+            leaderboard = get_leaderboard("$task_type", verbose, columns, private)
             
             leaderboard_dict = {"statusCode": 200,
                 "headers": {
@@ -304,7 +318,12 @@ def handler(event, context):
             
         if body.get("leaderboard","ALL") == "TRUE":  
 
-            leaderboard = get_leaderboard("$task_type")
+            if body.get("private", 'FALSE') == "TRUE":
+                private = True
+            else:
+                private = False
+
+            leaderboard = get_leaderboard("$task_type", private=private)
             
             leaderboard_dict = {"statusCode": 200,
                 "headers": {
@@ -320,7 +339,12 @@ def handler(event, context):
 
         if body.get("leaderboard","ALL") == "TRUE":  
 
-            leaderboard = get_leaderboard("$task_type")
+            if body.get("private", 'FALSE') == "TRUE":
+                private = True
+            else:
+                private = False
+
+            leaderboard = get_leaderboard("$task_type", private=private)
             
             leaderboard_dict = {"statusCode": 200,
                 "headers": {
@@ -377,6 +401,7 @@ from sklearn.metrics import roc_auc_score
 from sklearn.metrics import mean_squared_error
 from sklearn.metrics import r2_score
 from sklearn.metrics import mean_absolute_error
+from sklearn.model_selection import train_test_split
 from collections import Counter 
 from math import sqrt
 import json
@@ -420,7 +445,25 @@ def analyze_ytest(ytestdata, task_type="$task_type"):
     return y_stats
 
 
+
+def public_private_split(y_true, y_pred, task_type="$task_type"):
+
+    if task_type == "classification":
+        strat = y_true
+    elif task_type == "regression":
+        strat = None
+
+    y_true_private, y_true_public, y_pred_private, y_pred_public = train_test_split(y_true, y_pred, test_size=0.5, shuffle=True, stratify=strat, random_state=1)
+
+    eval_result_public = model_eval_metrics(y_true_public, y_pred_public, task_type=task_type)
+    eval_result_private = model_eval_metrics(y_true_private, y_pred_private, task_type=task_type)
+
+    return eval_result_public, eval_result_private
+
+
+
 def model_eval_metrics(y_true, y_pred, task_type="$task_type"):
+
 
     if task_type=="classification":
         try:
@@ -517,7 +560,8 @@ def evaluate_model(body, ytestdata):
     else:
         prediction_list = body["y_pred"]
 
-    result=model_eval_metrics(ytestdata,prediction_list,task_type="$task_type")
+    result=public_private_split(ytestdata, prediction_list, task_type="$task_type")
+
     return result
     
     
@@ -792,7 +836,14 @@ def model_from_string(model_type):
     model_class = getattr(importlib.import_module(module), model_type)
     return model_class
 
-def get_leaderboard(task_type="$task_type", verbose=3, columns=None):
+
+def get_leaderboard(task_type="classification", verbose=3, columns=None, private=False):
+    
+    if private==True:
+        mastertable_path = 'model_eval_data_mastertable_private'
+    else:
+        mastertable_path = 'model_eval_data_mastertable'
+
     bucket="$bucket_name"
     model_id="$unique_model_id"
     
@@ -802,17 +853,20 @@ def get_leaderboard(task_type="$task_type", verbose=3, columns=None):
     
     newleaderboarddata=[]
     for i in model_files:
-        if i.find("mastertable_v")>0:
+        if private and i.find("mastertable_private_v")>0:
             newleaderboarddata.append(i)
+        if (not private) and i.find("mastertable_v")>0:
+            newleaderboarddata.append(i)
+
 
     s3 = boto3.resource("s3")
     bucketres = s3.Bucket("$bucket_name")
-    with open("/tmp/"+"model_eval_data_mastertable.csv", "wb") as lbfo:
-      bucketres.download_fileobj("$unique_model_id/"+"model_eval_data_mastertable.csv", lbfo)              
+    with open("/tmp/"+mastertable_path+".csv", "wb") as lbfo:
+      bucketres.download_fileobj("$unique_model_id/"+mastertable_path+".csv", lbfo)              
       
       
       
-    leaderboard = pd.read_csv("/tmp/"+"model_eval_data_mastertable.csv", sep="\t")
+    leaderboard = pd.read_csv("/tmp/"+mastertable_path+".csv", sep="\t")
     currentversions=leaderboard['version']
     print("current versions:")
     print(list(currentversions))
@@ -825,26 +879,26 @@ def get_leaderboard(task_type="$task_type", verbose=3, columns=None):
     #TODO: check if items in leaderboard, if so, then do following
     if len(missingincurrent_leaderboard)>0:
         for i in missingincurrent_leaderboard:
-            with open("/tmp/"+"model_eval_data_mastertable_v"+str(i)+".csv", "wb") as lbfo:
-              bucketres.download_fileobj("$unique_model_id/"+"model_eval_data_mastertable_v"+str(i)+".csv", lbfo)
-            newleaderboard = pd.read_csv("/tmp/"+"model_eval_data_mastertable_v"+str(i)+".csv", sep="\t")
+            with open("/tmp/"+mastertable_path+"_v"+str(i)+".csv", "wb") as lbfo:
+              bucketres.download_fileobj("$unique_model_id/"+mastertable_path+"_v"+str(i)+".csv", lbfo)
+            newleaderboard = pd.read_csv("/tmp/"+mastertable_path+"_v"+str(i)+".csv", sep="\t")
             newleaderboard.drop(newleaderboard.filter(regex="Unname"),axis=1, inplace=True)
             
             leaderboard=leaderboard.append(newleaderboard).drop_duplicates()
             
         leaderboard.drop(leaderboard.filter(regex="Unname"),axis=1, inplace=True)
     #save new leaderboard here
-        leaderboard.to_csv("/tmp/"+"model_eval_data_mastertable.csv",sep="\t",index=False)
-        s3_client.upload_file("/tmp/"+"model_eval_data_mastertable.csv", bucket, model_id + "/model_eval_data_mastertable.csv")
+        leaderboard.to_csv("/tmp/"+mastertable_path+".csv",sep="\t",index=False)
+        s3_client.upload_file("/tmp/"+mastertable_path+".csv", bucket, model_id + "/"+mastertable_path+".csv")
     
     
     else:
         pass
     s3 = boto3.resource("s3")
     bucket = s3.Bucket("$bucket_name")
-    with open("/tmp/"+"model_eval_data_mastertable.csv", "wb") as lbfo:
-      bucket.download_fileobj("$unique_model_id/"+"model_eval_data_mastertable.csv", lbfo)
-    leaderboard = pd.read_csv("/tmp/"+"model_eval_data_mastertable.csv", sep="\t")
+    with open("/tmp/"+mastertable_path+".csv", "wb") as lbfo:
+      bucket.download_fileobj("$unique_model_id/"+mastertable_path+".csv", lbfo)
+    leaderboard = pd.read_csv("/tmp/"+mastertable_path+".csv", sep="\t")
 
 
     clf =["accuracy", "f1_score", "precision", "recall"]

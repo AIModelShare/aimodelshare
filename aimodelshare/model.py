@@ -208,7 +208,14 @@ def _update_leaderboard(
     # }}}
 
 def _update_leaderboard_public(
-    modelpath, eval_metrics, s3_presigned_dict, custom_metadata=None):
+    modelpath, eval_metrics, s3_presigned_dict, custom_metadata=None, private=False):
+
+    if private==True:
+        mastertable_path = 'model_eval_data_mastertable_private.csv'
+    else: 
+        mastertable_path = 'model_eval_data_mastertable.csv'
+
+
     # Loading the model and its metadata {{{
 
     if modelpath is not None:
@@ -258,9 +265,11 @@ def _update_leaderboard_public(
         import wget
 
         #Get leaderboard
-        leaderboardfilename = wget.download(s3_presigned_dict['get']['model_eval_data_mastertable.csv'], out=temp+"/"+'model_eval_data_mastertable.csv')
+        leaderboardfilename = wget.download(s3_presigned_dict['get'][mastertable_path], out=temp+"/"+mastertable_path)
         import pandas as pd
-        leaderboard=pd.read_csv(temp+"/"+'model_eval_data_mastertable.csv', sep="\t")
+        leaderboard=pd.read_csv(temp+"/"+mastertable_path, sep="\t")
+
+        print(leaderboardfilename)
 
         columns = leaderboard.columns
         
@@ -283,8 +292,9 @@ def _update_leaderboard_public(
     leaderboard['timestamp'] = leaderboard.pop("timestamp")
     leaderboard['version'] = leaderboard.pop("version")
         
-    leaderboard_csv = leaderboard.to_csv(temp+"/"+'model_eval_data_mastertable.csv',index=False, sep="\t")
+    leaderboard_csv = leaderboard.to_csv(temp+"/"+mastertable_path,index=False, sep="\t")
     metadata.pop("model_config", "pop worked")
+
 
     try:
 
@@ -293,15 +303,29 @@ def _update_leaderboard_public(
 
       fileputlistofdicts=[]
       for i in modelputfiles:
-        filedownload_dict=ast.literal_eval(s3_presigned_dict ['put'][i])
+        filedownload_dict=ast.literal_eval(s3_presigned_dict['put'][i])
         fileputlistofdicts.append(filedownload_dict)
 
-      with open(temp+"/"+'model_eval_data_mastertable.csv', 'rb') as f:
-        files = {'file': (temp+"/"+'model_eval_data_mastertable.csv', f)}
-        http_response = requests.post(fileputlistofdicts[0]['url'], data=fileputlistofdicts[0]['fields'], files=files)
+
+      with open(temp+"/"+mastertable_path, 'rb') as f:
+        files = {'file': (temp+"/"+mastertable_path, f)}
+
+        print(files)
+
+        if private:
+
+            http_response = requests.post(fileputlistofdicts[1]['url'], data=fileputlistofdicts[1]['fields'], files=files)
+
+        else:
+
+            http_response = requests.post(fileputlistofdicts[0]['url'], data=fileputlistofdicts[0]['fields'], files=files)
+
         return metadata
+
     except Exception as err:
+
         return err
+
  
 
 def upload_model_dict(modelpath, s3_presigned_dict, bucket, model_id, model_version, placeholder=False):
@@ -557,8 +581,16 @@ def submit_model(
         prediction = requests.post(apiurl_eval,headers=headers,data=json.dumps(post_dict)) 
 
         eval_metrics=json.loads(prediction.text)
-    except:
-        pass
+
+
+        eval_metrics_private = {"eval": eval_metrics['eval'][1]}
+        eval_metrics["eval"] = eval_metrics['eval'][0] 
+        print("eval metrics public", eval_metrics)
+        print("eval metrics private", eval_metrics_private)
+
+    except Exception as e:
+        
+        print(e)
 
     if all([isinstance(eval_metrics, dict),"message" not in eval_metrics]):
         pass        
@@ -573,14 +605,28 @@ def submit_model(
         return print("Failed to calculate evaluation metrics. Please check the format of the submitted predictions.")
 
     s3_presigned_dict = {key:val for key, val in eval_metrics.items() if key != 'eval'}
+    print('presigned dict', s3_presigned_dict)
+
     idempotentmodel_version=s3_presigned_dict['idempotentmodel_version']
     s3_presigned_dict.pop('idempotentmodel_version')
+
     eval_metrics = {key:val for key, val in eval_metrics.items() if key != 'get'}
     eval_metrics = {key:val for key, val in eval_metrics.items() if key != 'put'}
+
+    eval_metrics_private = {key:val for key, val in eval_metrics_private.items() if key != 'get'}
+    eval_metrics_private = {key:val for key, val in eval_metrics_private.items() if key != 'put'}
+
+
     if eval_metrics.get("eval","empty")=="empty":
       pass
     else:
       eval_metrics=eval_metrics['eval']
+
+
+    if eval_metrics_private.get("eval","empty")=="empty":
+      pass
+    else:
+      eval_metrics_private=eval_metrics_private['eval']
 
 
     #upload preprocessor (1s for small upload vs 21 for 306 mbs)
@@ -655,6 +701,12 @@ def submit_model(
     modelleaderboarddata = _update_leaderboard_public(
         model_filepath, eval_metrics, s3_presigned_dict, custom_metadata)
 
+    # Upload model metrics and metadata {{{
+    modelleaderboarddata_private = _update_leaderboard_public(
+        model_filepath, eval_metrics_private, s3_presigned_dict, custom_metadata, private=True)
+
+    print("leaderboard private", modelleaderboarddata_private)
+
 
     model_versions = [os.path.splitext(f)[0].split("_")[-1][1:] for f in s3_presigned_dict['put'].keys()]
 
@@ -685,10 +737,21 @@ def submit_model(
 
     if isinstance(modelleaderboarddata, Exception):
       raise err
+
     else:
       dict_str = json.dumps(modelleaderboarddata)
     #convert None type values to string
       modelleaderboarddata_cleaned = json.loads(dict_str, object_pairs_hook=dict_clean)
+
+
+    if isinstance(modelleaderboarddata_private, Exception):
+      raise err
+    else:
+      dict_str = json.dumps(modelleaderboarddata_private)
+    #convert None type values to string
+      modelleaderboarddata_private_cleaned = json.loads(dict_str, object_pairs_hook=dict_clean)
+
+    print("leaderbaord private cleaned", modelleaderboarddata_private_cleaned)
 
     # Update model version and sample data {{{
     #data_types = None
@@ -792,8 +855,10 @@ def submit_model(
     keys_to_extract = [ "accuracy", "f1_score", "precision", "recall", "mse", "rmse", "mae", "r2"]
 
     eval_metrics_subset = {key: eval_metrics[key] for key in keys_to_extract}
+    eval_metrics_private_subset = {key: eval_metrics_private[key] for key in keys_to_extract}
 
     eval_metrics_subset_nonulls = {key: value for key, value in eval_metrics_subset.items() if isinstance(value, float)}
+    eval_metrics_private_subset_nonulls = {key: value for key, value in eval_metrics_private_subset.items() if isinstance(value, float)}
 
                               
     #Update model architecture data
@@ -804,10 +869,16 @@ def submit_model(
                 "Private":"FALSE",
                 "modelsubmissiondescription": modelsubmissiondescription,
                 "modelsubmissiontags":modelsubmissiontags,
-                  "eval_metrics":json.dumps(eval_metrics_subset_nonulls)}
+                  "eval_metrics":json.dumps(eval_metrics_subset_nonulls),
+                  "eval_metrics_private":json.dumps(eval_metrics_private_subset_nonulls)
+                  }
 
     bodydatamodels.update(modelleaderboarddata_cleaned)
+    bodydatamodels.update(modelleaderboarddata_private_cleaned)
+
     d = bodydatamodels
+
+    print("bodydatamodels", d)
 
 
     keys_values = d.items()

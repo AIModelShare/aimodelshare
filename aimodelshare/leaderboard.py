@@ -39,7 +39,7 @@ def get_leaderboard_aws(apiurl, verbose=3, columns=None):
     # Get leaderboard {{{
     try:
         leaderboard = aws_client["client"].get_object(
-            Bucket=bucket, Key=model_id + "/model_eval_data_mastertable.csv"
+            Bucket=bucket, Key=model_id + "/model_eval_data_mastertable.csv" 
         )
         assert (
             leaderboard["ResponseMetadata"]["HTTPStatusCode"] == 200
