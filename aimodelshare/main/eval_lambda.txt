@@ -453,74 +453,94 @@ def public_private_split(y_true, y_pred, task_type="$task_type"):
     elif task_type == "regression":
         strat = None
 
-    y_true_private, y_true_public, y_pred_private, y_pred_public = train_test_split(y_true, y_pred, test_size=0.5, shuffle=True, stratify=strat, random_state=1)
-
-    eval_result_public = model_eval_metrics(y_true_public, y_pred_public, task_type=task_type)
-    eval_result_private = model_eval_metrics(y_true_private, y_pred_private, task_type=task_type)
+    private_size = get_public_private_split()
+    
+    if private_size == 1: 
+        
+        eval_result_public = model_eval_metrics(y_true, y_pred, task_type=task_type, void=True)
+        eval_result_private = model_eval_metrics(y_true, y_pred, task_type=task_type)
+        
+    elif private_size == 0: 
+        
+        eval_result_public = model_eval_metrics(y_true, y_pred, task_type=task_type)
+        eval_result_private = model_eval_metrics(y_true, y_pred, task_type=task_type, void=True)
+        
+    else:
+        
+        y_true_private, y_true_public, y_pred_private, y_pred_public = train_test_split(y_true, y_pred, test_size=1-private_size, shuffle=True, stratify=strat, random_state=1)
+    
+        eval_result_public = model_eval_metrics(y_true_public, y_pred_public, task_type=task_type)
+        eval_result_private = model_eval_metrics(y_true_private, y_pred_private, task_type=task_type)
 
     return eval_result_public, eval_result_private
 
 
+def model_eval_metrics(y_true, y_pred, task_type="$task_type", void = False):
+    
+    if void == True: 
+        
+        metricdata = {'accuracy': [None], 'f1_score': [None], 'precision': [None], 'recall': [None], 'mse': [None], 'rmse': [None], 'mae': [None], 'r2': [None]}
 
-def model_eval_metrics(y_true, y_pred, task_type="$task_type"):
-
-
-    if task_type=="classification":
-        try:
-            accuracy_eval = accuracy_score(y_true, y_pred)
-        except:
-            accuracy_eval = None
-
-        try:
-            f1_score_eval = f1_score(y_true, y_pred,average="macro",zero_division=0)
-        except:
-            f1_score_eval = None
+    else:     
             
-        try:    
-            precision_eval = precision_score(y_true, y_pred,average="macro",zero_division=0)
-        except: 
-            precision_eval = None
+        if task_type=="classification":
             
-        try:    
-            recall_eval = recall_score(y_true, y_pred,average="macro",zero_division=0)
-        except:
-            recall_eval = None
-        
-        mse_eval = None
-        rmse_eval = None
-        mae_eval = None
-        r2_eval = None
-        
-        metricdata = {'accuracy': [accuracy_eval], 'f1_score': [f1_score_eval], 'precision': [precision_eval], 'recall': [recall_eval], 'mse': [mse_eval], 'rmse': [rmse_eval], 'mae': [mae_eval], 'r2': [r2_eval]}
-        
-    else:
-        
-        try:
-            mse_eval = mean_squared_error(y_true, y_pred)
-        except:
+            try:
+                accuracy_eval = accuracy_score(y_true, y_pred)
+            except:
+                accuracy_eval = None
+    
+            try:
+                f1_score_eval = f1_score(y_true, y_pred,average="macro",zero_division=0)
+            except:
+                f1_score_eval = None
+                
+            try:    
+                precision_eval = precision_score(y_true, y_pred,average="macro",zero_division=0)
+            except: 
+                precision_eval = None
+                
+            try:    
+                recall_eval = recall_score(y_true, y_pred,average="macro",zero_division=0)
+            except:
+                recall_eval = None
+            
             mse_eval = None
-            
-        try:
-            rmse_eval = sqrt(mean_squared_error(y_true, y_pred))
-        except:
             rmse_eval = None
-        
-        try:
-            mae_eval = mean_absolute_error(y_true, y_pred)
-        except: 
             mae_eval = None
-            
-        try:
-            r2_eval = r2_score(y_true, y_pred)
-        except:
             r2_eval = None
-        
-        accuracy_eval = None
-        f1_score_eval = None
-        precision_eval = None
-        recall_eval = None
+            
+            metricdata = {'accuracy': [accuracy_eval], 'f1_score': [f1_score_eval], 'precision': [precision_eval], 'recall': [recall_eval], 'mse': [mse_eval], 'rmse': [rmse_eval], 'mae': [mae_eval], 'r2': [r2_eval]}
+            
+        else:
+            
+            try:
+                mse_eval = mean_squared_error(y_true, y_pred)
+            except:
+                mse_eval = None
+                
+            try:
+                rmse_eval = sqrt(mean_squared_error(y_true, y_pred))
+            except:
+                rmse_eval = None
+            
+            try:
+                mae_eval = mean_absolute_error(y_true, y_pred)
+            except: 
+                mae_eval = None
+                
+            try:
+                r2_eval = r2_score(y_true, y_pred)
+            except:
+                r2_eval = None
+            
+            accuracy_eval = None
+            f1_score_eval = None
+            precision_eval = None
+            recall_eval = None
+    
+            metricdata = {'accuracy': [accuracy_eval], 'f1_score': [f1_score_eval], 'precision': [precision_eval], 'recall': [recall_eval], 'mse': [mse_eval], 'rmse': [rmse_eval], 'mae': [mae_eval], 'r2': [r2_eval]}
 
-        metricdata = {'accuracy': [accuracy_eval], 'f1_score': [f1_score_eval], 'precision': [precision_eval], 'recall': [recall_eval], 'mse': [mse_eval], 'rmse': [rmse_eval], 'mae': [mae_eval], 'r2': [r2_eval]}
 
 
     s3 = boto3.resource("s3")
@@ -542,11 +562,23 @@ def model_eval_metrics(y_true, y_pred, task_type="$task_type"):
                 
                 for i in custom_eval.keys(): 
                     
-                    metricdata[i] = [custom_eval[i]]
+                    if void == True: 
+                        
+                        metricdata[i] = [None]
+                    
+                    else:
+                    
+                        metricdata[i] = [custom_eval[i]]
                     
             else:
             
-                metricdata[file.replace("metrics_","").replace(".zip", "")] = [custom_eval]
+                if void == True:
+                    
+                    metricdata[file.replace("metrics_","").replace(".zip", "")] = [None]
+                    
+                else:
+                    
+                    metricdata[file.replace("metrics_","").replace(".zip", "")] = [custom_eval]
         
     finalmetricdata = pd.DataFrame.from_dict(metricdata)
 
@@ -1432,6 +1464,15 @@ def get_authorizedcompetitionuserdata(example_data_filename = "competitionuserda
         bucket.download_fileobj("$unique_model_id/competitionuserdata.json",  exampledatapath)
     competitionuserdatajson = json.load(open("/tmp/competitionuserdata.json","rb") ) 
     return competitionuserdatajson
+
+def get_public_private_split():
+    s3 = boto3.resource("s3")
+    bucket = s3.Bucket("$bucket_name")
+
+    with open("/tmp/public_private_split.json", "wb") as exampledatapath:
+        bucket.download_fileobj("$unique_model_id/public_private_split.json",  exampledatapath)
+    public_private_split_dict = json.load(open("/tmp/public_private_split.json","rb")) 
+    return float(public_private_split_dict["public_private_split"])
 
 def get_reproducibility_env(version=None):
     s3 = boto3.resource("s3")

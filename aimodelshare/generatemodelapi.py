@@ -470,7 +470,7 @@ def model_to_api(model_filepath, model_type, private, categorical, y_train, prep
     
     return api_info[0]
 
-def create_competition(apiurl, data_directory, y_test, eval_metric_filepath=None, email_list=[], public=False):
+def create_competition(apiurl, data_directory, y_test, eval_metric_filepath=None, email_list=[], public=False, public_private_split=0.5):
     """
     Creates a model competition for a deployed prediction REST API
     Inputs : 4
@@ -585,6 +585,7 @@ def create_competition(apiurl, data_directory, y_test, eval_metric_filepath=None
     
     #create and upload json file with list of authorized users who can submit to this competition.
     _create_competitionuserauth_json(apiurl, email_list,public,datauri['ecr_uri'])
+    _create_public_private_split_json(apiurl, public_private_split)
 
     bodydata = {"unique_model_id": model_id,
                 "bucket_name": api_bucket,
@@ -618,6 +619,50 @@ def create_competition(apiurl, data_directory, y_test, eval_metric_filepath=None
                 "competition.submit_model(model_filepath, preprocessor_filepath, prediction_submission_list)")
   
     return print(final_message)
+
+def _create_public_private_split_json(apiurl, split=0.5): 
+      import json
+      if all(["AWS_ACCESS_KEY_ID" in os.environ, 
+            "AWS_SECRET_ACCESS_KEY" in os.environ,
+            "AWS_REGION" in os.environ,
+           "username" in os.environ, 
+           "password" in os.environ]):
+        pass
+      else:
+          return print("'Set public-private split' unsuccessful. Please provide credentials with set_credentials().")
+
+      # Create user session
+      aws_client=get_aws_client(aws_key=os.environ.get('AWS_ACCESS_KEY_ID'), 
+                                aws_secret=os.environ.get('AWS_SECRET_ACCESS_KEY'), 
+                                aws_region=os.environ.get('AWS_REGION'))
+      
+      user_sess = boto3.session.Session(aws_access_key_id=os.environ.get('AWS_ACCESS_KEY_ID'), 
+                                        aws_secret_access_key=os.environ.get('AWS_SECRET_ACCESS_KEY'), 
+                                        region_name=os.environ.get('AWS_REGION'))
+      
+      s3 = user_sess.resource('s3')
+
+      # Get bucket and model_id for user based on apiurl {{{
+      response, error = run_function_on_lambda(
+          apiurl, **{"delete": "FALSE", "versionupdateget": "TRUE"}
+      )
+      if error is not None:
+          raise error
+
+      _, api_bucket, model_id = json.loads(response.content.decode("utf-8"))
+      # }}}
+      
+      import json  
+      import tempfile
+      tempdir = tempfile.TemporaryDirectory()
+      with open(tempdir.name+'/public_private_split.json', 'w', encoding='utf-8') as f:
+          json.dump({"public_private_split": str(split)}, f, ensure_ascii=False, indent=4)
+
+      aws_client['client'].upload_file(
+            tempdir.name+"/public_private_split.json", api_bucket, model_id + "/public_private_split.json"
+        )
+      
+      return
 
 def _create_competitionuserauth_json(apiurl, email_list=[],public=False, datauri=None): 
       import json

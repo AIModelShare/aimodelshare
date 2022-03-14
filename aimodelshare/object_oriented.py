@@ -89,7 +89,7 @@ class ModelPlayground:
         #remove extra quotes
         self.playground_url = self.playground_url[1:-1]
     
-    def create_competition(self, data_directory, y_test, eval_metric_filepath=None, email_list = [], public=False):
+    def create_competition(self, data_directory, y_test, eval_metric_filepath=None, email_list = [], public=False, public_private_split=0.5):
         """
         Creates a model competition for a deployed prediction REST API
         Inputs : 4
@@ -111,13 +111,15 @@ class ModelPlayground:
         finalmessage : Information such as how to submit models to competition
         
         """
-        from aimodelshare.generatemodelapi import create_competition as to_competition
-        competition = to_competition(self.playground_url, 
+        from aimodelshare.generatemodelapi import create_competition
+
+        competition = create_competition(self.playground_url, 
                                     data_directory, 
                                     y_test, 
                                     eval_metric_filepath,
                                     email_list, 
-                                    public)
+                                    public,
+                                    public_private_split)
         return competition
         
     def submit_model(self, model_filepath, preprocessor_filepath, prediction_submission):
