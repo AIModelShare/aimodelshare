@@ -1,0 +1,14 @@
+{%- if builder != 'singlehtml' %}
+<div role="search">
+    <form class="search" action="{{ pathto('search') }}" method="get">
+        <div class="icon-input">
+            <input type="text" name="q" placeholder="Search" />
+            <span class="icon-search"></span>
+        </div>
+        <input type="submit" value="{{ _('Go') }}" class="d-hidden" />
+        <input type="hidden" name="check_keywords" value="yes" />
+        <input type="hidden" name="area" value="default" />
+    </form>
+</div>
+
+{%- endif %}
