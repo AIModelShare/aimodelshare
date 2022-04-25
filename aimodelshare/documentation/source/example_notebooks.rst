@@ -5,9 +5,9 @@ Example Notebooks
 
 After completing the AI Model Share Tutorial, you can deploy Model Playgrounds and submit models for a variety of live data classification & regression competitions. 
 
-Choose a dataset that you would like to work with, and find everything you need included below.
+Choose a dataset that you would like to work with, and find everything you need included below. Notebooks can be downloaded or opened directly in Google Colab.  
 
-Notebooks can be downloaded or opened directly in Google Colab.  
+(*Looking for PySpark?* Go :ref:`here. <tabular_class>`) 
 
 .. _tabular_class:
 
@@ -21,6 +21,7 @@ Titanic Dataset
 	*Dataset and description adapted from: Kaggle GettingStarted Prediction Competition. (2012, September). Titanic - Machine Learning from Disaster, Version 1. Retrieved September 7, 2021 from https://www.kaggle.com/c/titanic/data.* 
 
 	* `Quick Start Tutorial (Start here to Deploy) <https://www.modelshare.org/notebooks/notebook:304>`_
+	* `Quick Start Tutorial with PySpark <https://www.modelshare.org/notebooks/notebook:366>`_
 	* `Model Submission Guide: sklearn <https://www.modelshare.org/notebooks/notebook:305>`_
 	* `Model Submission Guide: Deep Learning <https://www.modelshare.org/notebooks/notebook:306>`_
 	* `Model Submission Guide: Predictions Only (no model metadata extracted) <https://www.modelshare.org/notebooks/notebook:319>`_

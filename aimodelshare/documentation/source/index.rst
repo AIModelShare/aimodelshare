@@ -42,6 +42,11 @@ AI Model Share Supporting Functions
 
    functions
 
+AI Model Share Advanced Features 
+--------------------------------
+.. toctree::
+
+   advanced_features
 
 About Us
 ---------
