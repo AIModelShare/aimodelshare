@@ -40,7 +40,36 @@ AI Model Share supports PySpark. Note that the current prediction API runtime ca
 Connecting Custom Web Apps
 **************************
 
-AI ModelShare supports connecting your custom web apps to the AI ModelShare infrastructure deployment process in AWS. Web Apps can be featured on the AI ModelShare website and connected to model competitions & experiments.  
+AI Model Share allows users to leverage the AI Model Share deployment infrastructure to power their own custom web apps. Web apps can be displayed through the AI Model Share website and be highlighted as part of a developer’s portfolio.
+
+**Users can connect their web apps in 3 easy steps:** 
+
+#. Deploy a Model Playground (See tutorials :ref:`HERE<example_notebooks>`).
+
+#. In the code for your web app, set the path for your Model Playground's prediction API (built for you by AI Model Share in the “deploy” step) as the endpoint for the API request. 
+
+	.. note::
+
+    		Owners can find their Model Playground's API URL on the “Predict” tab of their Model Playground.
+
+		AI Model Share API URLs follow this format: *"https://example.execute-api.us-east-1.amazonaws.com/prod/m"*
+
+		.. image:: images/predict_tab.png
+	
+
+#. Authorization tokens are generated for users when they log in to the AI Model Share website. Unpack the token parameter within your Streamlit code, then format the headers in your API call to expect a token as a query parameter.  
+
+	.. code-block::
+
+		auth_token = st.experimental_get_query_params()['token'][0]
+
+		headers = {
+	            "Content-Type": "application/json", 
+	            "authorizationToken": auth_token,
+	        }
+
+
+**Done!** Design your web-app to customize the AI Model Share infrastructure to your own needs. See examples below: 
 
 **Examples**
 

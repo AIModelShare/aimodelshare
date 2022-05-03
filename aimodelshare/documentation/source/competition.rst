@@ -66,6 +66,11 @@ Import a model previously submitted to the competition leaderboard to use in you
 
    :return: Model chosen from leaderboard
 
+Example: :: 
+
+	# Instantiate Model 1 from the leaderboard, pre-trained
+	mymodel = mycompetition.instantiate_model(version=1, trained=True, reproduce=False)
+
 .. note::
     If ``reproduce = True``, an untrained model will be instantiated, regardless of the ``trained`` parameter value.
 
