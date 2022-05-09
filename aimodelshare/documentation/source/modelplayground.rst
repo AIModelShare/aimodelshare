@@ -103,31 +103,6 @@ Example ::
 
 	myplayground.update_runtime_model(model_version=1)
 
-.. _instantiate_model:
-
-instantiate_model
------------------
-
-Import a model previously submitted to the competition leaderboard to use in your session.
-
-.. py:function:: ModelPlayground.instantiate_model(version=None, trained=False, reproduce=False)
-
-   :param version: Model version number from competition leaderboard
-   :type version: integer
-   :param trained: if True, a trained model is instantiated, if False, the untrained model is instantiated
-   :type trained: bool, default=False
-   :param reproduce: Set to True to instantiate a model with reproducibility environment setup
-   :type reproduce: bool, default=False
-
-   :return: Model chosen from leaderboard.
-
-Example: :: 
-
-	# Instantiate Model 1 from the leaderboard, pre-trained
-	mymodel = mycompetition.instantiate_model(version=1, trained=True, reproduce=False)
-
-.. note::
-    If ``reproduce = True``, an untrained model will be instantiated, regardless of the ``trained`` parameter value.
 
 delete_deployment
 -----------------
