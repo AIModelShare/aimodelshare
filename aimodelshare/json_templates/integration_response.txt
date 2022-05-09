@@ -1,0 +1,5 @@
+{
+    "method.response.header.Access-Control-Allow-Headers": "'Content-Type, X-Amz-Date, authorizationToken, Access-Control-Allow-Origin, X-Api-Key, X-Amz-Security-Token'",
+    "method.response.header.Access-Control-Allow-Methods": "'POST, OPTIONS'",
+    "method.response.header.Access-Control-Allow-Origin": "'*'"
+}
