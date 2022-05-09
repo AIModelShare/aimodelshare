@@ -1,0 +1,1441 @@
+import boto3
+import pandas as pd
+import os
+import json
+import pickle
+import six
+import onnx
+import json
+import argparse
+import logging
+from botocore.exceptions import ClientError
+import requests
+import jwt
+import sys
+
+logger = logging.getLogger(__name__)
+
+
+# from aimslambda import analyze_ytest, evaluate_model, inspect_model, compare_models
+# from s3connect import get_ytestdata, get_onnx_mem, get_onnx_temp
+
+
+####################################################################
+########################### main handler ###########################
+
+def handler(event, context):
+    
+    body = event["body"]
+    if isinstance(body, six.string_types):
+        body = json.loads(body)
+    
+    for key, value in body.items():
+        if value == "None":
+            body[key]=None
+
+    if body.get("exampledata", "ALL") == "True" or body.get("exampledata", "ALL") == "TRUE":
+
+        exampledata=get_exampledata(example_data_filename = "exampledata.json")
+        
+        exdata_dict = {"statusCode": 200,
+        "headers": {
+        "Access-Control-Allow-Origin" : "*",
+        "Access-Control-Allow-Credentials": True,
+        "Allow" : "GET, OPTIONS, POST",
+        "Access-Control-Allow-Methods" : "GET, OPTIONS, POST",
+        "Access-Control-Allow-Headers" : "*"},
+        "body": json.dumps(exampledata)
+        }
+        return exdata_dict 
+
+    idtoken=event['requestContext']['authorizer']['principalId']
+    decoded = jwt.decode(idtoken, options={"verify_signature": False})  # works in PyJWT < v2.0
+    email=decoded['email']
+    print(email)
+    authorized_competitionusers=get_authorizedcompetitionuserdata(example_data_filename = "competitionuserdata.json")
+    authorized_emails=authorized_competitionusers.get("emails","no data")
+    public=authorized_competitionusers.get("public","FALSE")
+    
+    #TODO: check email agains s3 list and resolve public to true or false from same file
+    #Or check if emails on list and if so, check against them, if not assume public project.
+    if any([email in authorized_competitionusers['emaillist'],public=="TRUE"]):
+    
+        if body.get("return_eval","ALL")  == "True":
+            idempotentmodel_version=json.loads(event['requestContext']['authorizer']['uniquemodversion'])
+
+            ytestdata=get_ytestdata(ytest_s3_filename="ytest.pkl")
+      
+            eval_result = evaluate_model(body, ytestdata)
+            bucket="$bucket_name"
+            model_id="$unique_model_id"
+            
+            s3_client=boto3.client("s3")
+            model_files, err = _get_file_list(s3_client, bucket, model_id)
+            print(model_files)
+
+            mversions=[]
+            musers=[]
+            mtimestamp=[]
+            print(idempotentmodel_version)
+            for i in idempotentmodel_version:
+                idemresult=i.split("||||")
+                mversions.append(idemresult[0])
+                musers.append(idemresult[1])
+                mtimestamp.append(idemresult[1])
+            print(mversions)    
+            mversions=[int(i) for i in mversions]
+
+            
+            newleaderboarddata=[]
+            for i in model_files:
+                if i.find("mastertable_v")>0:
+                    newleaderboarddata.append(i)
+        
+            try:
+                leaderboard = get_leaderboard("$task_type")  #task_type variable used here
+                currentversions=leaderboard['version']
+            except:
+                currentversions=[]
+            print("current versions:")
+            print(list(currentversions))
+            allversions = [sub.split('_v')[1].split('.')[0] for sub in newleaderboarddata]
+            print("Named versions in csv files:")
+            allversions=[int(i) for i in allversions]
+            missingincurrent_leaderboard=list(set(allversions)-set(currentversions)) 
+
+            missingingmodelversions=list(set(mversions)-set(currentversions)) 
+
+            print("missing model versions for idemp check")
+            print(missingingmodelversions)
+
+            if len(missingingmodelversions)>1:
+                idempotentmodel_version=min(missingingmodelversions)
+            elif len(missingingmodelversions)==1:
+                idempotentmodel_version=missingingmodelversions[0]
+            else:
+                idempotentmodel_version=0
+            
+
+            finalfiles=[]
+            
+            if "model_eval_data_mastertable.csv" not in model_files:
+                finalfiles.append("model_eval_data_mastertable.csv")
+                finalfiles.append("onnx_model_mostrecent.onnx")
+                finalfiles.append("onnx_model_v1.onnx")
+                finalfiles.append("predictionmodel_1.onnx")
+                finalfiles.append("preprocessor_v1.zip")
+                finalfiles.append("reproducibility_v1.json")
+                finalfiles.append("model_metadata_v1.json")
+            else:
+                finalfiles.append("model_eval_data_mastertable_v"+str(idempotentmodel_version)+".csv")
+                finalfiles.append("onnx_model_mostrecent.onnx")
+                finalfiles.append("onnx_model_v"+str(idempotentmodel_version)+".onnx")
+                finalfiles.append("preprocessor_v"+str(idempotentmodel_version)+".zip")
+                finalfiles.append("reproducibility_v"+str(idempotentmodel_version)+".json")
+                finalfiles.append("model_metadata_v"+str(idempotentmodel_version)+".json")
+        
+            finalfiles.append("inspect_pd_"+str(idempotentmodel_version)+".json")
+            finalfiles.append("model_graph_"+str(idempotentmodel_version)+".json")
+            print("finalfiles:"+str(finalfiles))
+
+            #TODO: Change method params with string template params in eval_lambda / also need to change bucket and prefix for file lists
+            expires_in = 6000
+            
+            getdict={}
+            putdict={}
+            
+            print("idempotentmodel_version: "+str(idempotentmodel_version))
+            finalfilesget=finalfiles
+            finalfilespost=finalfiles
+           
+            for i in finalfilespost:
+                putresult= create_presigned_post(bucket, model_id+"/"+i, expiration=expires_in)
+                putdict.update({str(i):str(putresult)})
+            
+            print(finalfilespost)            
+            for i in finalfilesget:
+                if i.find("mastertable")>0:
+                  indexvalue=finalfilesget.index(i)
+                  finalfilesget[indexvalue]="model_eval_data_mastertable.csv"
+                  
+            print(finalfilesget)
+
+            for i in finalfilesget:
+                method_parameters = {'Bucket': bucket, 'Key': model_id+"/"+i} #repeat for all necessary keys and return dict with nec. end user artifacts.
+                getresult= generate_presigned_url(s3_client, 'get_object', method_parameters, expires_in)
+                getdict.update({str(i):str(getresult)})
+            
+            print(finalfilesget)
+            
+
+            eval_dict = {"statusCode": 200,
+            "headers": {
+            "Access-Control-Allow-Origin" : "*",
+            "Access-Control-Allow-Credentials": True,
+            "Allow" : "GET, OPTIONS, POST",
+            "Access-Control-Allow-Methods" : "GET, OPTIONS, POST",
+            "Access-Control-Allow-Headers" : "*"},
+            "body": json.dumps({"eval":eval_result,"get":getdict,"put": putdict,"idempotentmodel_version":idempotentmodel_version})
+            }
+            return eval_dict
+            
+        if body.get("return_y","ALL") == "True":
+            
+            ytestdata=get_ytestdata(ytest_s3_filename="ytest.pkl")
+            y_stats = analyze_ytest(ytestdata)
+        
+            ytest_dict = {"statusCode": 200,
+            "headers": {
+            "Access-Control-Allow-Origin" : "*",
+            "Access-Control-Allow-Credentials": True,
+            "Allow" : "GET, OPTIONS, POST",
+            "Access-Control-Allow-Methods" : "GET, OPTIONS, POST",
+            "Access-Control-Allow-Headers" : "*"},
+            "body": json.dumps(y_stats)
+            }
+            return ytest_dict
+            
+        if body.get("inspect_model","ALL") == "True": 
+        
+            version = body["version"]
+
+            inspect_pd = inspect_model(version)
+            
+            inspect_dict = {"statusCode": 200,
+                "headers": {
+                "Access-Control-Allow-Origin" : "*",
+                "Access-Control-Allow-Credentials": True,
+                "Allow" : "GET, OPTIONS, POST",
+                "Access-Control-Allow-Methods" : "GET, OPTIONS, POST",
+                "Access-Control-Allow-Headers" : "*"},
+                "body": json.dumps(inspect_pd.to_dict())
+                }
+            return inspect_dict
+            
+            
+        if body.get("compare_models","ALL") == "True": 
+        
+            version_list = body["version_list"]
+            verbose = body.get("verbose", 1)
+            naming_convention = body.get("naming_convention", None)
+
+
+            comp_dict_out = compare_models(version_list, verbose=verbose, naming_convention=naming_convention)
+            
+            compare_dict = {"statusCode": 200,
+                "headers": {
+                "Access-Control-Allow-Origin" : "*",
+                "Access-Control-Allow-Credentials": True,
+                "Allow" : "GET, OPTIONS, POST",
+                "Access-Control-Allow-Methods" : "GET, OPTIONS, POST",
+                "Access-Control-Allow-Headers" : "*"},
+                "body": json.dumps(comp_dict_out)
+                }
+            return compare_dict
+
+
+        if body.get("get_leaderboard","ALL") == "True": 
+            
+            verbose=body["verbose"]
+            columns=body["columns"]
+        
+            leaderboard = get_leaderboard("$task_type", verbose, columns)
+            
+            leaderboard_dict = {"statusCode": 200,
+                "headers": {
+                "Access-Control-Allow-Origin" : "*",
+                "Access-Control-Allow-Credentials": True,
+                "Allow" : "GET, OPTIONS, POST",
+                "Access-Control-Allow-Methods" : "GET, OPTIONS, POST",
+                "Access-Control-Allow-Headers" : "*"},
+                "body": json.dumps(leaderboard.to_dict())
+                }
+            return leaderboard_dict  
+        
+        if body.get("instantiate_model","ALL") == "True":  
+            version = body["model_version"]
+            reproduce = body["reproduce"]
+            trained = body["trained"]
+
+            reproducibility_env_json = None
+            model_weight_url = None
+            model_metadata_json = get_model_metadata(version)
+
+            # the model version is found (users didn't only submit prediction for this version)
+            if model_metadata_json:
+                if reproduce:
+                    reproducibility_env_json = get_reproducibility_env(version=version)
+                elif trained:
+                    # Get the presigned url.
+                    s3_client=boto3.client("s3")
+                    
+                    bucket = "$bucket_name"
+                    model_id = "$unique_model_id"
+                    onnx_model_name = "onnx_model_v{}.onnx".format(version)
+        
+                    method_parameters = {
+                        "Bucket": bucket, 
+                        "Key": model_id + "/" + onnx_model_name,
+                    }
+
+                    expires_in = 900 # 15 mins
+
+                    presigned_url = generate_presigned_url(s3_client, "get_object", method_parameters, expires_in)
+                    model_weight_url = str(presigned_url)
+                    print("Presigned url: {}".format(str(presigned_url)))
+                
+            data = {
+                "model_weight_url": model_weight_url,
+                "model_metadata": model_metadata_json,
+                "reproducibility_env": reproducibility_env_json
+            }
+            model_dict = {
+                "statusCode": 200,
+                "headers": {
+                    "Access-Control-Allow-Origin" : "*",
+                    "Access-Control-Allow-Credentials": True,
+                    "Allow" : "GET, OPTIONS, POST",
+                    "Access-Control-Allow-Methods" : "GET, OPTIONS, POST",
+                    "Access-Control-Allow-Headers" : "*"
+                },
+                "body":  json.dumps(data)
+            }
+            return model_dict 
+            
+        if body.get("leaderboard","ALL") == "TRUE":  
+
+            leaderboard = get_leaderboard("$task_type")
+            
+            leaderboard_dict = {"statusCode": 200,
+                "headers": {
+                "Access-Control-Allow-Origin" : "*",
+                "Access-Control-Allow-Credentials": True,
+                "Allow" : "GET, OPTIONS, POST",
+                "Access-Control-Allow-Methods" : "GET, OPTIONS, POST",
+                "Access-Control-Allow-Headers" : "*"},
+                "body":  leaderboard.to_json(orient="table")
+                }
+            return leaderboard_dict 
+    else:
+
+        if body.get("leaderboard","ALL") == "TRUE":  
+
+            leaderboard = get_leaderboard("$task_type")
+            
+            leaderboard_dict = {"statusCode": 200,
+                "headers": {
+                "Access-Control-Allow-Origin" : "*",
+                "Access-Control-Allow-Credentials": True,
+                "Allow" : "GET, OPTIONS, POST",
+                "Access-Control-Allow-Methods" : "GET, OPTIONS, POST",
+                "Access-Control-Allow-Headers" : "*"},
+                "body":  leaderboard.to_json(orient="table")
+                }
+            return leaderboard_dict 
+
+        if body.get("compare_models","ALL") == "True": 
+        
+            version_list = body["version_list"]
+            verbose = body.get("verbose", 1)
+            naming_convention = body.get("naming_convention", None)
+
+            comp_dict_out = compare_models(version_list, verbose=verbose, naming_convention=naming_convention)
+            
+            compare_dict = {"statusCode": 200,
+                "headers": {
+                "Access-Control-Allow-Origin" : "*",
+                "Access-Control-Allow-Credentials": True,
+                "Allow" : "GET, OPTIONS, POST",
+                "Access-Control-Allow-Methods" : "GET, OPTIONS, POST",
+                "Access-Control-Allow-Headers" : "*"},
+                "body": json.dumps(comp_dict_out)
+                }
+            return compare_dict
+
+        else:
+            unauthorized_user_dict = {"statusCode": 200,
+                    "headers": {
+                    "Access-Control-Allow-Origin" : "*",
+                    "Access-Control-Allow-Credentials": True,
+                    "Allow" : "GET, OPTIONS, POST",
+                    "Access-Control-Allow-Methods" : "GET, OPTIONS, POST",
+                    "Access-Control-Allow-Headers" : "*"},
+                    "body":  ["Unauthorized user: You do not have access to submit models to, or request data from, this competition."]
+                    }
+            return unauthorized_user_dict    
+            
+####################################################################
+######################### aimsonnx lambda ##########################
+
+
+import sklearn
+from sklearn.metrics import accuracy_score
+from sklearn.metrics import f1_score
+from sklearn.metrics import precision_score
+from sklearn.metrics import recall_score
+from sklearn.metrics import roc_auc_score
+from sklearn.metrics import mean_squared_error
+from sklearn.metrics import r2_score
+from sklearn.metrics import mean_absolute_error
+from collections import Counter 
+from math import sqrt
+import json
+import pandas as pd
+import numpy as np
+import ast
+import six
+import gc
+import importlib
+import botocore
+
+#from s3connect import get_onnx_mem
+
+def analyze_ytest(ytestdata, task_type="$task_type"):
+    
+    if task_type=="classification":
+         
+        class_labels = list(set(ytestdata))
+        class_balance = Counter(ytestdata)
+        label_dtypes = Counter([str(type(i)) for i in ytestdata])
+     
+        y_stats = {"ytest_example": ytestdata[0:5],
+        "y_length": len(ytestdata),
+        "class_labels": class_labels,
+        "class_balance": class_balance,
+        "label_dtypes": label_dtypes}
+        
+    else:
+        y_mean = np.mean(ytestdata)
+        y_min = np.min(ytestdata)
+        y_max = np.max(ytestdata)
+        y_sd = np.std(ytestdata)
+     
+        y_stats = {"ytest_example": ytestdata[0:5],
+        "y_length": len(ytestdata),
+        "y_mean": y_mean,
+        "y_min": y_min,
+        "y_max": y_max,
+        "y_sd": y_sd}
+        
+    return y_stats
+
+
+def model_eval_metrics(y_true, y_pred, task_type="$task_type"):
+
+    if task_type=="classification":
+        try:
+            accuracy_eval = accuracy_score(y_true, y_pred)
+        except:
+            accuracy_eval = None
+
+        try:
+            f1_score_eval = f1_score(y_true, y_pred,average="macro",zero_division=0)
+        except:
+            f1_score_eval = None
+            
+        try:    
+            precision_eval = precision_score(y_true, y_pred,average="macro",zero_division=0)
+        except: 
+            precision_eval = None
+            
+        try:    
+            recall_eval = recall_score(y_true, y_pred,average="macro",zero_division=0)
+        except:
+            recall_eval = None
+        
+        mse_eval = None
+        rmse_eval = None
+        mae_eval = None
+        r2_eval = None
+        
+        metricdata = {'accuracy': [accuracy_eval], 'f1_score': [f1_score_eval], 'precision': [precision_eval], 'recall': [recall_eval], 'mse': [mse_eval], 'rmse': [rmse_eval], 'mae': [mae_eval], 'r2': [r2_eval]}
+        
+    else:
+        
+        try:
+            mse_eval = mean_squared_error(y_true, y_pred)
+        except:
+            mse_eval = None
+            
+        try:
+            rmse_eval = sqrt(mean_squared_error(y_true, y_pred))
+        except:
+            rmse_eval = None
+        
+        try:
+            mae_eval = mean_absolute_error(y_true, y_pred)
+        except: 
+            mae_eval = None
+            
+        try:
+            r2_eval = r2_score(y_true, y_pred)
+        except:
+            r2_eval = None
+        
+        accuracy_eval = None
+        f1_score_eval = None
+        precision_eval = None
+        recall_eval = None
+        
+        metricdata = {'accuracy': [accuracy_eval], 'f1_score': [f1_score_eval], 'precision': [precision_eval], 'recall': [recall_eval], 'mse': [mse_eval], 'rmse': [rmse_eval], 'mae': [mae_eval], 'r2': [r2_eval]}
+    
+    s3 = boto3.resource("s3")
+    bucket = s3.Bucket("$bucket_name")
+    
+    metrics_files = bucket.objects.filter(Prefix= "$unique_model_id"+"/metrics_")
+    
+
+    if metrics_files: 
+
+        for i in metrics_files:
+
+            file = i.key.split('/')[-1]
+            
+            eval_metric = get_eval_metric(eval_metric_s3_filename=file)
+            custom_eval = eval_metric(y_true, y_pred)
+
+            if isinstance(custom_eval, dict): 
+                
+                for i in custom_eval.keys(): 
+                    
+                    metricdata[i] = [custom_eval[i]]
+                    
+            else:
+            
+                metricdata[file.replace("metrics_","").replace(".zip", "")] = [custom_eval]
+        
+    finalmetricdata = pd.DataFrame.from_dict(metricdata)
+    
+    return finalmetricdata.to_dict('records')[0]
+
+
+def evaluate_model(body, ytestdata):
+
+    if isinstance(body["y_pred"], six.string_types):
+        prediction_list = json.loads(body["y_pred"])
+    else:
+        prediction_list = body["y_pred"]
+
+    result=model_eval_metrics(ytestdata,prediction_list,task_type="$task_type")
+    return result
+    
+    
+def inspect_model(version):
+    
+    s3 = boto3.resource('s3')
+    obj = s3.Object("$bucket_name", "$unique_model_id/"+"inspect_pd_"+str(version)+".json")
+    data = obj.get()['Body'].read()
+    model_dict = json.loads(data)
+
+    ml_framework = model_dict.get(str(version))['ml_framework']
+    model_type = model_dict.get(str(version))['model_type']
+    inspect_pd = pd.DataFrame(model_dict.get(str(version))['model_dict'])
+
+    return inspect_pd
+    
+    
+
+def _model_summary(meta_dict, from_onnx=False):
+    '''Creates model summary table from model metadata dict.'''
+    
+    assert(isinstance(meta_dict, dict)), \
+    "Please pass valid metadata dict."
+    
+    assert('model_architecture' in meta_dict.keys()), \
+    "Please make sure model architecture data is included."
+
+    if from_onnx == True:
+        architecture = meta_dict['metadata_onnx']["model_architecture"]
+    else:
+        architecture = meta_dict["model_architecture"] 
+       
+        
+    model_summary = pd.DataFrame({'Layer':architecture['layers_sequence'],
+                          #'Activation':architecture['activations_sequence'],
+                          'Shape':architecture['layers_shapes'],
+                          'Params':architecture['layers_n_params']})
+        
+    return model_summary
+    
+
+def _get_metadata(onnx_model):
+    '''Fetches previously extracted model metadata from ONNX object
+    and returns model metadata dict.'''
+    
+    # double check this 
+    #assert(isinstance(onnx_model, onnx.onnx_ml_pb2.ModelProto)), \
+     #"Please pass a onnx model object."
+    
+    try: 
+        onnx_meta = onnx_model.metadata_props
+
+        onnx_meta_dict = {'model_metadata': ''}
+
+        for i in onnx_meta:
+            onnx_meta_dict[i.key] = i.value
+
+        onnx_meta_dict = ast.literal_eval(onnx_meta_dict['model_metadata'])
+        
+        #if onnx_meta_dict['model_config'] != None and \
+        #onnx_meta_dict['ml_framework'] != 'pytorch':
+        #    onnx_meta_dict['model_config'] = ast.literal_eval(onnx_meta_dict['model_config'])
+        
+        if onnx_meta_dict['model_architecture'] != None:
+            onnx_meta_dict['model_architecture'] = ast.literal_eval(onnx_meta_dict['model_architecture'])
+            
+        if onnx_meta_dict['metadata_onnx'] != None:
+            onnx_meta_dict['metadata_onnx'] = ast.literal_eval(onnx_meta_dict['metadata_onnx'])
+        
+        # onnx_meta_dict['model_image'] = onnx_to_image(onnx_model) # didnt want to include image dependencies in lambda
+
+    except Exception as e:
+    
+        print(e)
+        
+        onnx_meta_dict = ast.literal_eval(onnx_meta_dict)
+        
+    return onnx_meta_dict
+    
+    
+def compare_models(version_list, by_model_type=None, best_model=None, verbose=1, naming_convention=None):
+
+    ml_framework_list = []
+    model_type_list = []
+    model_dict_list = []
+    model_dict = {}
+
+    for i in version_list: 
+        
+        s3 = boto3.resource('s3')
+        obj = s3.Object("$bucket_name", "$unique_model_id/"+"inspect_pd_"+str(i)+".json")
+        data = obj.get()['Body'].read()
+        model_dict_temp = json.loads(data)
+
+        ml_framework_list.append(model_dict_temp[str(i)]['ml_framework'])
+        model_type_list.append(model_dict_temp[str(i)]['model_type'])
+        model_dict_list.append(model_dict_temp[str(i)]['model_dict'])
+
+        model_dict[str(i)] = model_dict_temp[str(i)]
+
+
+    comp_dict_out = {}
+    comp_pd_nn = pd.DataFrame()
+
+
+    for i, j in zip(version_list, ml_framework_list): 
+
+        if j == "sklearn" or j == "pyspark":
+        
+            temp_pd = pd.DataFrame(model_dict[str(i)]['model_dict'])
+            temp_pd.columns = ['param_name', 'default_value', "model_version_"+str(i)]
+
+            if model_dict[str(i)]['model_type'] in comp_dict_out.keys():
+
+                comp_pd = pd.read_json(comp_dict_out[model_dict[str(i)]['model_type']])
+                comp_pd = comp_pd.merge(temp_pd.drop('default_value', axis=1), on='param_name')
+
+                comp_dict_out[model_dict[str(i)]['model_type']] = comp_pd.to_json()
+
+            else:
+                comp_dict_out[model_dict[str(i)]['model_type']] = temp_pd.to_json()
+
+
+        elif j == "keras" or j == 'pytorch':
+
+            temp_pd_nn = pd.DataFrame(model_dict[str(i)]['model_dict'])
+
+            temp_pd_nn.iloc[:,2] = temp_pd_nn.iloc[:,2].astype(str)
+
+            if verbose == 0: 
+                temp_pd_nn = temp_pd_nn[['Layer']]
+            elif verbose == 1: 
+                temp_pd_nn = temp_pd_nn[['Layer', 'Shape', 'Params']]
+            elif verbose == 2: 
+                temp_pd_nn = temp_pd_nn[['Name', 'Layer', 'Shape', 'Params', 'Connect']]
+            elif verbose == 3: 
+                temp_pd_nn = temp_pd_nn[['Name', 'Layer', 'Shape', 'Params', 'Connect', 'Activation']]
+
+            if naming_convention == 'pytorch': 
+                temp_pd_nn['Layer'] = rename_layers(temp_pd_nn['Layer'], direction="keras_to_torch", activation=False)
+
+            if naming_convention == 'keras': 
+                temp_pd_nn['Layer'] = rename_layers(temp_pd_nn['Layer'], direction="torch_to_keras", activation=False)
+
+            temp_pd_nn = temp_pd_nn.add_prefix('Model_'+str(i)+'_')    
+
+            comp_pd_nn = pd.concat([comp_pd_nn, temp_pd_nn], axis=1)
+
+            comp_dict_out["nn"] = comp_pd_nn.to_json()
+
+        elif j == "undefined": 
+            
+            comp_dict_out["undefined_"+str(i)] = pd.DataFrame({'param_name':[], 'default_value':[], 'model_version_'+str(i):[]}).to_json()
+
+    return comp_dict_out
+
+
+def model_from_string(model_type):
+    models_modules_dict = {'ABCMeta': 'sklearn.naive_bayes',
+        'ARDRegression': 'sklearn.linear_model',
+        'AdaBoostClassifier': 'sklearn.ensemble',
+        'AdaBoostRegressor': 'sklearn.ensemble',
+        'BaggingClassifier': 'sklearn.ensemble',
+        'BaggingRegressor': 'sklearn.ensemble',
+        'BallTree': 'sklearn.neighbors',
+        'BaseDecisionTree': 'sklearn.tree',
+        'BaseEnsemble': 'sklearn.ensemble',
+        'BaseEstimator': 'sklearn.naive_bayes',
+        'BayesianGaussianMixture': 'sklearn.mixture',
+        'BayesianRidge': 'sklearn.linear_model',
+        'BernoulliNB': 'sklearn.naive_bayes',
+        'BernoulliRBM': 'sklearn.neural_network',
+        'CategoricalNB': 'sklearn.naive_bayes',
+        'ClassifierMixin': 'sklearn.naive_bayes',
+        'ComplementNB': 'sklearn.naive_bayes',
+        'DecisionTreeClassifier': 'sklearn.tree',
+        'DecisionTreeRegressor': 'sklearn.tree',
+        'DistanceMetric': 'sklearn.neighbors',
+        'ElasticNet': 'sklearn.linear_model',
+        'ElasticNetCV': 'sklearn.linear_model',
+        'ExtraTreeClassifier': 'sklearn.tree',
+        'ExtraTreeRegressor': 'sklearn.tree',
+        'ExtraTreesClassifier': 'sklearn.ensemble',
+        'ExtraTreesRegressor': 'sklearn.ensemble',
+        'GammaRegressor': 'sklearn.linear_model',
+        'GaussianMixture': 'sklearn.mixture',
+        'GaussianNB': 'sklearn.naive_bayes',
+        'GaussianProcessClassifier': 'sklearn.gaussian_process',
+        'GaussianProcessRegressor': 'sklearn.gaussian_process',
+        'GradientBoostingClassifier': 'sklearn.ensemble',
+        'GradientBoostingRegressor': 'sklearn.ensemble',
+        'Hinge': 'sklearn.linear_model',
+        'Huber': 'sklearn.linear_model',
+        'HuberRegressor': 'sklearn.linear_model',
+        'IsolationForest': 'sklearn.ensemble',
+        'IsotonicRegression': 'sklearn.isotonic',
+        'KDTree': 'sklearn.neighbors',
+        'KNeighborsClassifier': 'sklearn.neighbors',
+        'KNeighborsRegressor': 'sklearn.neighbors',
+        'KNeighborsTransformer': 'sklearn.neighbors',
+        'KernelDensity': 'sklearn.neighbors',
+        'LabelBinarizer': 'sklearn.naive_bayes',
+        'Lars': 'sklearn.linear_model',
+        'LarsCV': 'sklearn.linear_model',
+        'Lasso': 'sklearn.linear_model',
+        'LassoCV': 'sklearn.linear_model',
+        'LassoLars': 'sklearn.linear_model',
+        'LassoLarsCV': 'sklearn.linear_model',
+        'LassoLarsIC': 'sklearn.linear_model',
+        'LinearRegression': 'sklearn.linear_model',
+        'LinearSVC': 'sklearn.svm',
+        'LinearSVR': 'sklearn.svm',
+        'LocalOutlierFactor': 'sklearn.neighbors',
+        'Log': 'sklearn.linear_model',
+        'LogisticRegression': 'sklearn.linear_model',
+        'LogisticRegressionCV': 'sklearn.linear_model',
+        'MLPClassifier': 'sklearn.neural_network',
+        'MLPRegressor': 'sklearn.neural_network',
+        'MetaEstimatorMixin': 'sklearn.multiclass',
+        'ModifiedHuber': 'sklearn.linear_model',
+        'MultiOutputMixin': 'sklearn.multiclass',
+        'MultiTaskElasticNet': 'sklearn.linear_model',
+        'MultiTaskElasticNetCV': 'sklearn.linear_model',
+        'MultiTaskLasso': 'sklearn.linear_model',
+        'MultiTaskLassoCV': 'sklearn.linear_model',
+        'MultinomialNB': 'sklearn.naive_bayes',
+        'NearestCentroid': 'sklearn.neighbors',
+        'NearestNeighbors': 'sklearn.neighbors',
+        'NeighborhoodComponentsAnalysis': 'sklearn.neighbors',
+        'NotFittedError': 'sklearn.multiclass',
+        'NuSVC': 'sklearn.svm',
+        'NuSVR': 'sklearn.svm',
+        'OneClassSVM': 'sklearn.svm',
+        'OneVsOneClassifier': 'sklearn.multiclass',
+        'OneVsRestClassifier': 'sklearn.multiclass',
+        'OrthogonalMatchingPursuit': 'sklearn.linear_model',
+        'OrthogonalMatchingPursuitCV': 'sklearn.linear_model',
+        'OutputCodeClassifier': 'sklearn.multiclass',
+        'Parallel': 'sklearn.multiclass',
+        'PassiveAggressiveClassifier': 'sklearn.linear_model',
+        'PassiveAggressiveRegressor': 'sklearn.linear_model',
+        'Perceptron': 'sklearn.linear_model',
+        'PoissonRegressor': 'sklearn.linear_model',
+        'RANSACRegressor': 'sklearn.linear_model',
+        'RadiusNeighborsClassifier': 'sklearn.neighbors',
+        'RadiusNeighborsRegressor': 'sklearn.neighbors',
+        'RadiusNeighborsTransformer': 'sklearn.neighbors',
+        'RandomForestClassifier': 'sklearn.ensemble',
+        'RandomForestRegressor': 'sklearn.ensemble',
+        'RandomTreesEmbedding': 'sklearn.ensemble',
+        'RegressorMixin': 'sklearn.isotonic',
+        'Ridge': 'sklearn.linear_model',
+        'RidgeCV': 'sklearn.linear_model',
+        'RidgeClassifier': 'sklearn.linear_model',
+        'RidgeClassifierCV': 'sklearn.linear_model',
+        'SGDClassifier': 'sklearn.linear_model',
+        'SGDRegressor': 'sklearn.linear_model',
+        'SVC': 'sklearn.svm',
+        'SVR': 'sklearn.svm',
+        'SquaredLoss': 'sklearn.linear_model',
+        'StackingClassifier': 'sklearn.ensemble',
+        'StackingRegressor': 'sklearn.ensemble',
+        'TheilSenRegressor': 'sklearn.linear_model',
+        'TransformerMixin': 'sklearn.isotonic',
+        'TweedieRegressor': 'sklearn.linear_model',
+        'VotingClassifier': 'sklearn.ensemble',
+        'VotingRegressor': 'sklearn.ensemble'}
+
+    module = models_modules_dict[model_type]
+    model_class = getattr(importlib.import_module(module), model_type)
+    return model_class
+
+def get_leaderboard(task_type="$task_type", verbose=3, columns=None):
+    bucket="$bucket_name"
+    model_id="$unique_model_id"
+    
+    s3_client=boto3.client("s3")
+    model_files, err = _get_file_list(s3_client, bucket, model_id)
+    print(model_files)
+    
+    newleaderboarddata=[]
+    for i in model_files:
+        if i.find("mastertable_v")>0:
+            newleaderboarddata.append(i)
+
+    s3 = boto3.resource("s3")
+    bucketres = s3.Bucket("$bucket_name")
+    with open("/tmp/"+"model_eval_data_mastertable.csv", "wb") as lbfo:
+      bucketres.download_fileobj("$unique_model_id/"+"model_eval_data_mastertable.csv", lbfo)              
+      
+      
+      
+    leaderboard = pd.read_csv("/tmp/"+"model_eval_data_mastertable.csv", sep="\t")
+    currentversions=leaderboard['version']
+    print("current versions:")
+    print(list(currentversions))
+    allversions = [sub.split('_v')[1].split('.')[0] for sub in newleaderboarddata]
+    print("Named versions in csv files:")
+    allversions=[int(i) for i in allversions]
+    missingincurrent_leaderboard=list(set(allversions)-set(currentversions)) 
+    print(missingincurrent_leaderboard)
+    
+    #TODO: check if items in leaderboard, if so, then do following
+    if len(missingincurrent_leaderboard)>0:
+        for i in missingincurrent_leaderboard:
+            with open("/tmp/"+"model_eval_data_mastertable_v"+str(i)+".csv", "wb") as lbfo:
+              bucketres.download_fileobj("$unique_model_id/"+"model_eval_data_mastertable_v"+str(i)+".csv", lbfo)
+            newleaderboard = pd.read_csv("/tmp/"+"model_eval_data_mastertable_v"+str(i)+".csv", sep="\t")
+            newleaderboard.drop(newleaderboard.filter(regex="Unname"),axis=1, inplace=True)
+            
+            leaderboard=leaderboard.append(newleaderboard).drop_duplicates()
+            
+        leaderboard.drop(leaderboard.filter(regex="Unname"),axis=1, inplace=True)
+    #save new leaderboard here
+        leaderboard.to_csv("/tmp/"+"model_eval_data_mastertable.csv",sep="\t",index=False)
+        s3_client.upload_file("/tmp/"+"model_eval_data_mastertable.csv", bucket, model_id + "/model_eval_data_mastertable.csv")
+    
+    
+    else:
+        pass
+    s3 = boto3.resource("s3")
+    bucket = s3.Bucket("$bucket_name")
+    with open("/tmp/"+"model_eval_data_mastertable.csv", "wb") as lbfo:
+      bucket.download_fileobj("$unique_model_id/"+"model_eval_data_mastertable.csv", lbfo)
+    leaderboard = pd.read_csv("/tmp/"+"model_eval_data_mastertable.csv", sep="\t")
+
+
+    clf =["accuracy", "f1_score", "precision", "recall"]
+    reg = ['mse', 'rmse', 'mae', 'r2']
+    other = ['timestamp']
+
+    if columns:
+        leaderboard = leaderboard.filter(clf+reg+columns+other)
+
+
+    if task_type == "classification":
+        leaderboard_eval_metrics = leaderboard[clf]
+    else:
+        leaderboard_eval_metrics = leaderboard[reg]
+
+    leaderboard_model_meta = leaderboard.drop(clf+reg, axis=1).replace(0,np.nan).dropna(axis=1,how="all")
+
+    leaderboard = pd.concat([leaderboard_eval_metrics, leaderboard_model_meta], axis=1, ignore_index=False)
+
+    if verbose == 1:
+        leaderboard = leaderboard.filter(regex=("^(?!.*(_layers|_act))"))
+    elif verbose == 2:
+        leaderboard = leaderboard.filter(regex=("^(?!.*_act)"))
+
+
+    if task_type == "classification":
+        sort_cols = ["accuracy", "f1_score", "precision", "recall"]
+        #leaderboard = leaderboard.drop(columns = ['mse', 'rmse', 'mae', 'r2'])
+
+    else:
+        sort_cols = ["-mae", "r2"]
+
+    ranks = []
+    for col in sort_cols:
+        ascending = False
+        if col[0] == "-":
+            col = col[1:]
+            ascending = True
+
+        ranks.append(leaderboard[col].rank(method="dense", ascending=ascending))
+
+    ranks = np.mean(ranks, axis=0)
+    order = np.argsort(ranks)
+
+    leaderboard = leaderboard.loc[order].reset_index().drop("index", axis=1).drop_duplicates(subset=['version', 'username'], keep='last')
+    leaderboard.drop(leaderboard.filter(regex="Unname"),axis=1, inplace=True)
+    # }}}
+
+    leaderboard['username']=leaderboard.pop("username")
+    leaderboard['timestamp'] = leaderboard.pop("timestamp")
+    leaderboard['version'] = leaderboard.pop("version")
+
+    return leaderboard
+
+
+
+def layer_mapping(direction='torch_to_keras', activation=False):
+
+    torch_keras = {'AdaptiveAvgPool1d': 'AvgPool1D',
+    'AdaptiveAvgPool2d': 'AvgPool2D',
+    'AdaptiveAvgPool3d': 'AvgPool3D',
+    'AdaptiveMaxPool1d': 'MaxPool1D',
+    'AdaptiveMaxPool2d': 'MaxPool2D',
+    'AdaptiveMaxPool3d': 'MaxPool3D',
+    'AlphaDropout': None,
+    'AvgPool1d': 'AvgPool1D',
+    'AvgPool2d': 'AvgPool2D',
+    'AvgPool3d': 'AvgPool3D',
+    'BatchNorm1d': 'BatchNormalization',
+    'BatchNorm2d': 'BatchNormalization',
+    'BatchNorm3d': 'BatchNormalization',
+    'Bilinear': None,
+    'ConstantPad1d': None,
+    'ConstantPad2d': None,
+    'ConstantPad3d': None,
+    'Container': None,
+    'Conv1d': 'Conv1D',
+    'Conv2d': 'Conv2D',
+    'Conv3d': 'Conv3D',
+    'ConvTranspose1d': 'Conv1DTranspose',
+    'ConvTranspose2d': 'Conv2DTranspose',
+    'ConvTranspose3d': 'Conv3DTranspose',
+    'CosineSimilarity': None,
+    'CrossMapLRN2d': None,
+    'DataParallel': None,
+    'Dropout': 'Dropout',
+    'Dropout2d': 'Dropout',
+    'Dropout3d': 'Dropout',
+    'Embedding': 'Embedding',
+    'EmbeddingBag': 'Embedding',
+    'FeatureAlphaDropout': None,
+    'Flatten': 'Flatten',
+    'Fold': None,
+    'FractionalMaxPool2d': "MaxPool2D",
+    'FractionalMaxPool3d': "MaxPool3D",
+    'GRU': 'GRU',
+    'GRUCell': 'GRUCell',
+    'GroupNorm': None,
+    'Identity': None,
+    'InstanceNorm1d': None,
+    'InstanceNorm2d': None,
+    'InstanceNorm3d': None,
+    'LPPool1d': None,
+    'LPPool2d': None,
+    'LSTM': 'LSTM',
+    'LSTMCell': 'LSTMCell',
+    'LayerNorm': None,
+    'Linear': 'Dense',
+    'LocalResponseNorm': None,
+    'MaxPool1d': 'MaxPool1D',
+    'MaxPool2d': 'MaxPool2D',
+    'MaxPool3d': 'MaxPool3D',
+    'MaxUnpool1d': None,
+    'MaxUnpool2d': None,
+    'MaxUnpool3d': None,
+    'Module': None,
+    'ModuleDict': None,
+    'ModuleList': None,
+    'PairwiseDistance': None,
+    'Parameter': None,
+    'ParameterDict': None,
+    'ParameterList': None,
+    'PixelShuffle': None,
+    'RNN': 'RNN',
+    'RNNBase': None,
+    'RNNCell': None,
+    'RNNCellBase': None,
+    'ReflectionPad1d': None,
+    'ReflectionPad2d': None,
+    'ReplicationPad1d': None,
+    'ReplicationPad2d': None,
+    'ReplicationPad3d': None,
+    'Sequential': None,
+    'SyncBatchNorm': None,
+    'Transformer': None,
+    'TransformerDecoder': None,
+    'TransformerDecoderLayer': None,
+    'TransformerEncoder': None,
+    'TransformerEncoderLayer': None,
+    'Unfold': None,
+    'Upsample': 'UpSampling1D',
+    'UpsamplingBilinear2d': 'UpSampling2D',
+    'UpsamplingNearest2d': 'UpSampling2D',
+    'ZeroPad2d': 'ZeroPadding2D'}
+
+    keras_torch = {'AbstractRNNCell': None,
+    'Activation': None,
+    'ActivityRegularization': None,
+    'Add': None,
+    'AdditiveAttention': None,
+    'AlphaDropout': None,
+    'Attention': None,
+    'Average': None,
+    'AveragePooling1D': 'AvgPool1d',
+    'AveragePooling2D': 'AvgPool2d',
+    'AveragePooling3D': 'AvgPool3d',
+    'AvgPool1D': 'AvgPool1d',
+    'AvgPool2D': 'AvgPool2d',
+    'AvgPool3D': 'AvgPool3d',
+    'BatchNormalization': None,
+    'Bidirectional': None,
+    'Concatenate': None,
+    'Conv1D': 'Conv1d',
+    'Conv1DTranspose': 'ConvTranspose1d',
+    'Conv2D': 'Conv2d',
+    'Conv2DTranspose':  'ConvTranspose2d',
+    'Conv3D': 'Conv3d',
+    'Conv3DTranspose':  'ConvTranspose3d',
+    'ConvLSTM2D': None,
+    'Convolution1D': None,
+    'Convolution1DTranspose': None,
+    'Convolution2D': None,
+    'Convolution2DTranspose': None,
+    'Convolution3D': None,
+    'Convolution3DTranspose': None,
+    'Cropping1D': None,
+    'Cropping2D': None,
+    'Cropping3D': None,
+    'Dense': 'Linear',
+    'DenseFeatures': None,
+    'DepthwiseConv2D': None,
+    'Dot': None,
+    'Dropout': 'Dropout',
+    'Embedding': 'Embedding',
+    'Flatten': 'Flatten',
+    'GRU': 'GRU',
+    'GRUCell': 'GRUCell',
+    'GaussianDropout': None,
+    'GaussianNoise': None,
+    'GlobalAveragePooling1D': None,
+    'GlobalAveragePooling2D': None,
+    'GlobalAveragePooling3D': None,
+    'GlobalAvgPool1D': None,
+    'GlobalAvgPool2D': None,
+    'GlobalAvgPool3D': None,
+    'GlobalMaxPool1D': None,
+    'GlobalMaxPool2D': None,
+    'GlobalMaxPool3D': None,
+    'GlobalMaxPooling1D': None,
+    'GlobalMaxPooling2D': None,
+    'GlobalMaxPooling3D': None,
+    'Input': None,
+    'InputLayer': None,
+    'InputSpec': None,
+    'LSTM': 'LSTM',
+    'LSTMCell': 'LSTMCell',
+    'Lambda': None,
+    'Layer': None,
+    'LayerNormalization': None,
+    'LocallyConnected1D': None,
+    'LocallyConnected2D': None,
+    'Masking': None,
+    'MaxPool1D': 'MaxPool1d',
+    'MaxPool2D': 'MaxPool2d',
+    'MaxPool3D': 'MaxPool3d',
+    'MaxPooling1D': 'MaxPool1d',
+    'MaxPooling2D': 'MaxPool2d',
+    'MaxPooling3D': 'MaxPool3d',
+    'Maximum': None,
+    'Minimum': None,
+    'MultiHeadAttention': None,
+    'Multiply': None,
+    'Permute': None,
+    'RNN': 'RNN',
+    'RepeatVector': None,
+    'Reshape': None,
+    'SeparableConv1D': None,
+    'SeparableConv2D': None,
+    'SeparableConvolution1D': None,
+    'SeparableConvolution2D': None,
+    'SimpleRNN': None,
+    'SimpleRNNCell': None,
+    'SpatialDropout1D': None,
+    'SpatialDropout2D': None,
+    'SpatialDropout3D': None,
+    'StackedRNNCells': None,
+    'Subtract': None,
+    'TimeDistributed': None,
+    'UpSampling1D': 'Upsample',
+    'UpSampling2D': None,
+    'UpSampling3D': None,
+    'Wrapper': None,
+    'ZeroPadding1D': None,
+    'ZeroPadding2D': 'ZeroPad2d',
+    'ZeroPadding3D': None}
+
+    torch_keras_act = {
+    'AdaptiveLogSoftmaxWithLoss': None,
+    'CELU': None,
+    'ELU': 'elu',
+    'GELU': 'gelu',
+    'GLU': None,
+    'Hardshrink': None,
+    'Hardsigmoid': 'hard_sigmoid',
+    'Hardswish': None,
+    'Hardtanh': None,
+    'LeakyReLU': 'LeakyReLU',
+    'LogSigmoid': None,
+    'LogSoftmax': None,
+    'Mish': None,
+    'MultiheadAttention': None,
+    'PReLU': 'PReLU',
+    'RReLU': None,
+    'ReLU': 'relu',
+    'ReLU6': 'relu',
+    'SELU': 'selu',
+    'SiLU': 'swish',
+    'Sigmoid': 'sigmoid',
+    'Softmax': 'softmax',
+    'Softmax2d': None,
+    'Softmin': None,
+    'Softplus': 'softplus',
+    'Softshrink': None,
+    'Softsign': 'softsign',
+    'Tanh': 'tanh',
+    'Tanhshrink': None,
+    'Threshold': None}
+
+    keras_torch_act = {
+    'ELU': 'ELU',
+    'LeakyReLU': 'LeakyReLU',
+    'PReLU': 'PReLU',
+    'ReLU': 'ReLU',
+    'Softmax': 'Softmax',
+    'ThresholdedReLU': None,
+    'elu': 'ELU',
+    'exponential': None,
+    'gelu': 'GELU',
+    'hard_sigmoid': 'Hardsigmoid',
+    'relu': 'ReLU',
+    'selu': 'SELU',
+    'serialize': None,
+    'sigmoid': 'Sigmoid',
+    'softmax': 'Softmax',
+    'softplus': 'Softplus',
+    'softsign': 'Softsign',
+    'swish': 'SiLU',
+    'tanh': 'Tanh'}
+
+
+    if direction == 'torch_to_keras' and activation:
+
+        return torch_keras_act
+
+    elif direction == 'kreas_to_torch' and not activation:
+
+        return keras_torch_act
+
+    elif direction == 'torch_to_keras':
+
+        return torch_keras
+
+    elif direction == 'keras_to_torch': 
+
+        return keras_torch
+
+
+def rename_layers(in_layers, direction="torch_to_keras", activation=False):
+
+  mapping_dict = layer_mapping(direction=direction, activation=activation)
+
+  out_layers = []
+
+  for i in in_layers:
+
+    layer_name_temp = mapping_dict.get(i, None)
+
+    if layer_name_temp == None:
+      out_layers.append(i)
+    else:
+      out_layers.append(layer_name_temp)
+
+  return out_layers
+
+
+
+
+####################################################################
+############################ S3 connect ############################
+
+
+import boto3
+import pandas as pd
+import os
+import json
+import pickle
+import six
+import onnx
+import logging
+from botocore.exceptions import ClientError
+
+def get_exampledata(example_data_filename = "exampledata.json"):
+    s3 = boto3.resource("s3")
+    bucket = s3.Bucket("$bucket_name")
+
+    with open("/tmp/exampledata.json", "wb") as exampledatapath:
+        bucket.download_fileobj("$unique_model_id/exampledata.json",  exampledatapath)
+    exampledatajson = json.load(open("/tmp/exampledata.json","rb") ) 
+    return exampledatajson
+
+def get_ytestdata(ytest_s3_filename="ytest.pkl"):
+    
+    s3 = boto3.resource("s3")
+    bucket = s3.Bucket("$bucket_name")
+
+    with open("/tmp/ytest.pkl", "wb") as ytestfo:
+        bucket.download_fileobj("$unique_model_id/ytest.pkl",  ytestfo)
+    ytestdata = pickle.load(open("/tmp/ytest.pkl", "rb" ) )
+    return ytestdata
+  
+
+def get_onnx_temp(version):
+  
+    onnx_model_name = "onnx_model_v{version}.onnx".format(version = version)
+    s3 = boto3.resource("s3")
+    bucket = s3.Bucket("$bucket_name")
+    with open("/tmp/"+onnx_model_name, "wb") as onnxfo:
+      bucket.download_fileobj("$unique_model_id/"+onnx_model_name, onnxfo)
+    onnx_model = onnx.load("/tmp/"+onnx_model_name)
+    return onnx_model
+
+def get_onnx_string(version):
+  
+    onnx_model_name = "onnx_model_v{version}.onnx".format(version = version)
+    s3 = boto3.resource('s3')
+    obj = s3.Object("$bucket_name", "$unique_model_id/"+onnx_model_name)
+    onnx_string = obj.get()['Body'].read()
+    
+    return onnx_string
+
+def get_model_metadata(version):
+    s3 = boto3.resource("s3")
+    bucket = s3.Bucket("$bucket_name")
+
+    try:
+        if version == None:
+            with open("/tmp/metadata.json", "wb") as temp_path:
+                bucket.download_fileobj("$unique_model_id/runtime_metadata.json",  temp_path)
+        else:
+            with open("/tmp/metadata.json", "wb") as temp_path:
+                bucket.download_fileobj("$unique_model_id/model_metadata_v{}.json".format(version),  temp_path)
+        
+        model_metadata_json = json.load(open("/tmp/metadata.json","rb"))
+    except botocore.exceptions.ClientError as e:
+        if e.response['Error']['Code'] == "404":
+            print("The object does not exist.")
+            return None
+        else:
+            raise
+    return model_metadata_json
+    
+def get_onnx_mem(version):
+  
+    onnx_string = get_onnx_string(version)
+    onnx_model = onnx.load_from_string(onnx_string)
+
+    return onnx_model
+
+
+def upload_file(file_name, bucket, object_name=None):
+    """Upload a file to an S3 bucket
+
+    :param file_name: File to upload
+    :param bucket: Bucket to upload to
+    :param object_name: S3 object name. If not specified then file_name is used
+    :return: True if file was uploaded, else False
+    """
+
+    # If S3 object_name was not specified, use file_name
+    if object_name is None:
+        object_name = file_name
+
+    # Upload the file
+    s3_client = boto3.client('s3')
+    try:
+        response = s3_client.upload_file(file_name, bucket, object_name)
+    except ClientError as e:
+        logging.error(e)
+        return False
+    return True
+        
+
+#Objective: for public competitions: allow all end users to submit to competition as long as they have
+#...an aimodelshare end username and password, (no aws key / password necessary)
+
+#TODOs: Use example starter code below plus any code necessary to get model version (i.e. leaderboard data)...
+#...to allow model submitters access to upload model onnx file + preprocessor (and eventually + post_processor.zip
+#...crucial thing is that all file uploads and any necessary downloads only allow end users to upload/download files with
+#...specific new name we desire.  
+
+def _get_file_list(client, bucket,keysubfolderid):
+    #  Reading file list {{{
+    try:
+        objects = client.list_objects(Bucket=bucket,Prefix=keysubfolderid)
+    except Exception as err:
+        return None, err
+
+    file_list = []
+    if "Contents" in objects:
+        for key in objects["Contents"]:
+            file_list.append(key["Key"].split("/")[1])
+    #  }}}
+
+    return file_list, None
+
+
+# STARTER CODE EXPLAINED: Starter code returns url to download (get_object) or upload (put_object) for a single file
+# need to repeat process for as many files as we allow uploads and downloads for.
+
+def generate_presigned_url(s3_client, client_method, method_parameters, expires_in):
+    """
+    Generate a presigned Amazon S3 URL that can be used to perform an action.
+
+    :param s3_client: A Boto3 Amazon S3 client.
+    :param client_method: The name of the client method that the URL performs.
+    :param method_parameters: The parameters of the specified client method.
+    :param expires_in: The number of seconds the presigned URL is valid for.
+    :return: The presigned URL.
+    """
+    try:
+        url = s3_client.generate_presigned_url(
+            ClientMethod=client_method,
+            Params=method_parameters,
+            ExpiresIn=expires_in
+        )
+        logger.info("Got presigned URL: %s", url)
+    except ClientError:
+        logger.exception(
+            "Couldn't get a presigned URL for client method '%s'.", client_method)
+        raise
+    return url
+    
+from botocore.exceptions import ClientError
+
+
+def create_presigned_post(bucket_name, object_name,
+                          fields=None, conditions=None, expiration=600):
+    """Generate a presigned URL S3 POST request to upload a file
+
+    :param bucket_name: string
+    :param object_name: string
+    :param fields: Dictionary of prefilled form fields
+    :param conditions: List of conditions to include in the policy
+    :param expiration: Time in seconds for the presigned URL to remain valid
+    :return: Dictionary with the following keys:
+        url: URL to post to
+        fields: Dictionary of form fields and values to submit with the POST
+    :return: None if error.
+    """
+
+    # Generate a presigned S3 POST URL
+    s3_client = boto3.client('s3')
+    try:
+        response = s3_client.generate_presigned_post(bucket_name,
+                                                     object_name,
+                                                     Fields=fields,
+                                                     Conditions=conditions,
+                                                     ExpiresIn=expiration)
+    except ClientError as e:
+        logging.error(e)
+        return None
+
+    # The response contains the presigned URL and required fields
+    return response
+    
+def get_authorizedcompetitionuserdata(example_data_filename = "competitionuserdata.json"):
+    s3 = boto3.resource("s3")
+    bucket = s3.Bucket("$bucket_name")
+
+    with open("/tmp/competitionuserdata.json", "wb") as exampledatapath:
+        bucket.download_fileobj("$unique_model_id/competitionuserdata.json",  exampledatapath)
+    competitionuserdatajson = json.load(open("/tmp/competitionuserdata.json","rb") ) 
+    return competitionuserdatajson
+
+def get_reproducibility_env(version=None):
+    s3 = boto3.resource("s3")
+    bucket = s3.Bucket("$bucket_name")
+
+    try:
+        if version == None:
+            with open("/tmp/reproducibility.json", "wb") as temp_path:
+                bucket.download_fileobj("$unique_model_id/runtime_reproducibility.json",  temp_path)
+        else:
+            with open("/tmp/reproducibility.json", "wb") as temp_path:
+                bucket.download_fileobj("$unique_model_id/reproducibility_v{}.json".format(version),  temp_path)
+        
+        reproducibility_env_json = json.load(open("/tmp/reproducibility.json","rb"))
+    except botocore.exceptions.ClientError as e:
+        if e.response['Error']['Code'] == "404":
+            print("The object does not exist.")
+            return None
+        else:
+            raise
+    return reproducibility_env_json
+
+def get_eval_metric(eval_metric_s3_filename):
+
+    import pickle
+    from zipfile import ZipFile
+    from io import BytesIO
+    import os
+
+    s3 = boto3.resource("s3")
+    bucket = s3.Bucket("$bucket_name")
+
+    zip_obj = s3.Object(bucket_name="$bucket_name",
+                        key="$unique_model_id/"+eval_metric_s3_filename)
+
+    buffer = BytesIO(zip_obj.get()["Body"].read())
+
+    z = ZipFile(buffer)
+    # Extract all the contents of zip file in current directory
+    z.extractall("/tmp/")
+
+    metric_py = eval_metric_s3_filename.split('.')[-2] + '.py'
+
+    folderpath = os.path.dirname(os.path.abspath("/tmp/"+metric_py))
+    file_name = os.path.basename("/tmp/"+metric_py)
+
+    pickle_file_list = []
+    for file in os.listdir(folderpath):
+        if file.endswith(".pkl"):
+            pickle_file_list.append(os.path.join(folderpath, file))
+
+    for i in pickle_file_list:
+        objectname = str(os.path.basename(i)).replace(".pkl", "")
+        objects = {objectname: ""}
+        globals()[objectname] = pickle.load(open(str(i), "rb"))
+
+    metric_py = metric_py.replace("metrics_", "")
+
+    exec(open(os.path.join(folderpath, metric_py)).read(), globals())
+
+    print(globals()['custom_eval_metric'])
+    eval_metric = globals()['custom_eval_metric']
+
+    return eval_metric
