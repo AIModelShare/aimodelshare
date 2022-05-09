@@ -15,7 +15,7 @@ setuptools.setup(
     url="https://www.modelshare.org",
     packages=setuptools.find_packages(),
     install_requires=["boto3==1.18.2", "botocore==1.21.2", "scikit-learn==0.24.2","onnx>=1.9.0","onnxconverter-common>=1.7.0", 
-    "keras2onnx>=1.7.0","tensorflow>=2.5.0","tf2onnx","skl2onnx>=1.8.0","onnxruntime>=1.7.0","urllib3==1.25.11","xgboost>=0.90","torch>=1.8.1",
+      "keras2onnx>=1.7.0","tensorflow>=2.5.0","tf2onnx","skl2onnx>=1.8.0","onnxruntime>=1.7.0","urllib3==1.25.11","xgboost>=0.90","torch>=1.8.1",
       "onnxmltools>=1.6.1","Pympler==0.9","docker==5.0.0","wget==3.2","PyJWT==2.2.0","seaborn>=0.11.2","astunparse==1.6.3","shortuuid>=1.0.8"],
     classifiers=[
         "Programming Language :: Python :: 3",
