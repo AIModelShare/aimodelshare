@@ -79,3 +79,59 @@ AI Model Share allows users to leverage the AI Model Share deployment infrastruc
 * `Tabular Classification: Github <https://github.com/raudipra/streamlit-tabular-classification>`_
 * `Image Classification: Webapp <https://share.streamlit.io/raudipra/streamlit-image-classification/main>`_
 * `Image Classification: Github <https://github.com/raudipra/streamlit-image-classification>`_
+
+
+.. _reproducibility:
+
+Model Reproducibility
+*********************
+
+AI Model Share encourages users to share, replicate, and build on each other’s work by offering full model reproducibility functionality. 
+Users can leverage Competitions & Experiments as a way to exchange trained & untrained models. 
+
+To **share** a reproducible model, take the following steps: 
+
+1. Export the model's reproducibility environment into a json file with the ``export_reproducibility_env`` function. This function captures all of the necessary information to exactly reproduce a machine learning model. 
+
+	Example: :: 
+
+		from aimodelshare import export_reproducibility_env
+
+		mode = "gpu" # or "cpu", depending on model type
+		seed = 2021
+
+		export_reproducibility_env(
+ 		 seed=seed,
+		  directory="", #use "" for current directory
+		  mode=mode,
+		)
+
+.. note::
+
+    	The captured reproducibility environment only applies for one training iteration (data prep, preprocessing, fit model, submit model), so it is recommended to only train one model per training iteration. 
+
+2. Build your model with your preferred ML library. 
+
+3. Submit model with the ``reproducibility_env_filepath`` argument set. 
+
+	Example: :: 
+
+		#Submit Reproducible Model: 
+		reproducibility_env_filepath="reproducibility.json"
+
+		# generate predicted y values (for keras models)
+		y_pred = model.predict(X_test).argmax(axis=1)
+		prediction_labels = [y_test.columns[i] for i in y_pred]
+
+		# Submit Model to Competition Leaderboard
+		mycompetition.submit_model(model_filepath = "model.onnx",
+                           preprocessor_filepath="preprocessor.zip",
+                           prediction_submission=prediction_labels,
+                           reproducibility_env_filepath=reproducibility_env_filepath)
+
+
+To **instantiate** a previously submitted reproducible model, use the ``Competition.instantiate_model`` method. 
+
+	Example: ::
+	
+		reproducible_model = mycompetition.instantiate_model(version=1, reproduce=True) 

@@ -33,6 +33,7 @@ release = '0.1'
 extensions = [
 #    'sphinx.ext.autodoc'
     "nbsphinx",
+   # "sphinxcontrib.fulltoc",
 ]
 
 # Add any paths that contain templates here, relative to this directory.
