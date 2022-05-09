@@ -1,0 +1,54 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+
+Resources:
+
+  Role:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - lambda.amazonaws.com
+            Action:
+              - 'sts:AssumeRole'
+      RoleName: $role_name
+
+  Policy:
+    Type: AWS::IAM::Policy
+    DependsOn: Role
+    Properties: 
+      PolicyDocument: {
+        "Version": "2012-10-17",
+        "Statement": [
+          {
+            "Effect": "Allow",
+            "Action": "s3:*",
+            "Resource": "*"
+          },
+          {
+            "Action": "logs:*",
+            "Resource": "*",
+            "Effect": "Allow"
+          }
+        ]
+      }
+      PolicyName: $policy_name
+      Roles: [$role_name]
+
+  Lambda:
+    Type: AWS::Serverless::Function
+    DependsOn: Role
+    Metadata:
+      Dockerfile: Dockerfile
+      DockerContext: ./app
+      DockerTag: $image_tag
+    Properties:
+      PackageType: Image
+      FunctionName: $function_name
+      MemorySize: $memory_size
+      Timeout: $timeout
+      Role: !GetAtt Role.Arn

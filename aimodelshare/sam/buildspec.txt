@@ -1,0 +1,11 @@
+version: 0.2
+
+phases:
+  pre_build:
+    commands:
+      - aws ecr get-login-password --region $region | docker login --username AWS --password-stdin $account_id.dkr.ecr.$region.amazonaws.com
+  build:
+    commands:
+      - sam build
+      - sam package --output-template-file packaged-template.yml --image-repository $account_id.dkr.ecr.$region.amazonaws.com/$repository_name
+      - sam deploy --template-file packaged-template.yml --stack-name $stack_name --capabilities CAPABILITY_IAM CAPABILITY_NAMED_IAM CAPABILITY_AUTO_EXPAND --region $region --image-repository $account_id.dkr.ecr.$region.amazonaws.com/$repository_name
