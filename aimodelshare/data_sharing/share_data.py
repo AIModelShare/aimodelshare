@@ -161,7 +161,7 @@ def create_docker_folder_codebuild(dataset_dir, dataset_name, template_folder, r
     # aws ecr-public get-login-password --region us-east-1 | docker login --username AWS --password-stdin public.ecr.aws
     # docker push public.ecr.aws/y2e2a1d6/aimodelshare-image-classification-public
 
-def share_data_codebuild(account_id, region, dataset_dir, dataset_tag='latest', python_version='3.8'):
+def share_data_codebuild(account_id, region, dataset_dir, dataset_tag='QST', python_version='3.8'):
 
     print('Uploading your data. Please wait for a confirmation message.')
     
