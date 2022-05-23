@@ -1010,9 +1010,10 @@ def update_runtime_model(apiurl, model_version=None, submission_type="competitio
         return print("'Update Runtime Model' unsuccessful. Please provide credentials with set_credentials().")
 
     # Create user session
-    aws_client=get_aws_client(aws_key=os.environ.get('AWS_ACCESS_KEY_ID'), 
+    aws_client_and_resource=get_aws_client(aws_key=os.environ.get('AWS_ACCESS_KEY_ID'), 
                               aws_secret=os.environ.get('AWS_SECRET_ACCESS_KEY'), 
                               aws_region=os.environ.get('AWS_REGION'))
+    aws_client = aws_client_and_resource['client']
     
     user_sess = boto3.session.Session(aws_access_key_id=os.environ.get('AWS_ACCESS_KEY_ID'), 
                                       aws_secret_access_key=os.environ.get('AWS_SECRET_ACCESS_KEY'), 
