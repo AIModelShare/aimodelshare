@@ -623,8 +623,11 @@ def _keras_to_onnx(model, transfer_learning=None,
     layers_n_params = []
     layers_shapes = []
     activations = []
-    
-    for i in model.layers: 
+
+
+    keras_layers = keras_unpack(model)
+
+    for i in keras_layers: 
         
         # get layer names 
         if i.__class__.__name__ in layer_list:
@@ -1663,8 +1666,9 @@ def model_summary_keras(model):
     layer_connect = []
     activations = []
 
+    keras_layers = keras_unpack(model)
 
-    for i in model.layers: 
+    for i in keras_layers: 
 
         try:
             layer_names.append(i.name)
@@ -1834,7 +1838,28 @@ def torch_unpack(model):
             keys.append(key)
             
     return layers, keys
+
     
+def keras_unpack(model):
+    
+    layers = []
+    
+    for module in model.layers:
+
+        print(module)
+                
+        if isinstance(module, (keras.engine.functional.Functional, keras.engine.sequential.Sequential)):
+            
+            layers_out = keras_unpack(module)
+            
+            layers = layers + layers_out
+            
+            
+        else:
+            
+            layers.append(module)
+            
+    return layers
 
 
 def torch_metadata(model):
