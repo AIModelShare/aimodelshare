@@ -620,6 +620,159 @@ def create_competition(apiurl, data_directory, y_test, eval_metric_filepath=None
   
     return print(final_message)
 
+
+
+
+def create_experiment(apiurl, data_directory, y_test, eval_metric_filepath=None, email_list=[], public=False, public_private_split=0):
+    """
+    Creates a model competition for a deployed prediction REST API
+    Inputs : 4
+    Output : Create ML model competition and allow authorized users to submit models to resulting leaderboard/competition
+    
+    ---------
+    Parameters
+    
+    apiurl: string
+            URL of deployed prediction API 
+    
+    y_test :  list of y values for test data used to generate metrics from predicted values from X test data submitted via the submit_model() function
+                [REQUIRED] to generate eval metrics in competition leaderboard
+            
+    data_directory : folder storing training data and test data (excluding Y test data)
+    email_list: [REQUIRED] list of comma separated emails for users who are allowed to submit models to competition.  Emails should be strings in a list.
+                                          
+    ---------
+    Returns
+    finalmessage : Information such as how to submit models to competition
+
+    """
+    if all([isinstance(email_list, list)]):
+        if any([len(email_list)>0, public=="True",public=="TRUE",public==True]):
+              import jwt
+              idtoken=get_aws_token()
+              decoded = jwt.decode(idtoken, options={"verify_signature": False})  # works in PyJWT < v2.0
+              email=decoded['email']
+              email_list.append(email)
+    else:
+        return print("email_list argument empty or incorrectly formatted.  Please provide a list of emails for authorized competition participants formatted as strings.")
+
+    # create temporary folder
+    temp_dir = tempfile.gettempdir()
+    
+    s3, iam, region = get_s3_iam_client(os.environ.get("AWS_ACCESS_KEY_ID"), os.environ.get("AWS_SECRET_ACCESS_KEY"), os.environ.get("AWS_REGION"))
+    
+    # Get bucket and model_id subfolder for user based on apiurl {{{
+    response, error = run_function_on_lambda(
+        apiurl, **{"delete": "FALSE", "versionupdateget": "TRUE"}
+    )
+    if error is not None:
+        raise error
+
+    _, api_bucket, model_id = json.loads(response.content.decode("utf-8"))
+    # }}} 
+    
+    # upload y_test data: 
+    ytest_path = os.path.join(temp_dir, "ytest.pkl")
+    import pickle
+    #ytest data to load to s3
+
+    if y_test is not None:
+        if type(y_test) is not list:
+            y_test=y_test.tolist()
+        else: 
+            pass
+
+        if all(isinstance(x, (np.float64)) for x in y_test):
+              y_test = [float(i) for i in y_test]
+        else: 
+            pass
+
+
+    pickle.dump(y_test,open(ytest_path,"wb"))
+    s3["client"].upload_file(ytest_path, os.environ.get("BUCKET_NAME"),  model_id + "/experiment/ytest.pkl")
+
+
+    if eval_metric_filepath is not None:
+    
+        if isinstance(eval_metric_filepath, list):
+
+            for i in eval_metric_filepath: 
+
+                eval_metric_name = i.split('/')[-1]
+
+                s3["client"].upload_file(i, os.environ.get("BUCKET_NAME"),  model_id + '/experiment/metrics_' + eval_metric_name)
+
+        else:
+
+            eval_metric_name = eval_metric_filepath.split('/')[-1]
+
+            print(eval_metric_name)
+
+            s3["client"].upload_file(eval_metric_filepath, os.environ.get("BUCKET_NAME"), model_id + '/experiment/metrics_' + eval_metric_name)
+
+
+    # get api_id from apiurl, generate txt file name
+    api_url_trim = apiurl.split('https://')[1]
+    api_id = api_url_trim.split(".")[0]
+
+    print("\n--INPUT COMPETITION DETAILS--\n")
+
+    aishare_competitionname = input("Enter competition name:")
+    aishare_competitiondescription = input("Enter competition description:")
+
+    print("\n--INPUT DATA DETAILS--\n")
+    print("Note: (optional) Save an optional LICENSE.txt file in your competition data directory to make users aware of any restrictions on data sharing/usage.\n")
+
+    aishare_datadescription = input(
+        "Enter data description (i.e.- filenames denoting training and test data, file types, and any subfolders where files are stored):")
+    
+    aishare_datalicense = input(
+        "Enter optional data license descriptive name (e.g.- 'MIT, Apache 2.0, CC0, Other, etc.'):")    
+    user_session = boto3.session.Session(aws_access_key_id=os.environ.get("AWS_ACCESS_KEY_ID"),
+                                          aws_secret_access_key = os.environ.get("AWS_SECRET_ACCESS_KEY"), 
+                                         region_name=os.environ.get("AWS_REGION"))
+    account_number = user_session.client(
+        'sts').get_caller_identity().get('Account')
+
+    datauri=share_data_codebuild(account_number,os.environ.get("AWS_REGION"),data_directory)
+    
+    #create and upload json file with list of authorized users who can submit to this competition.
+    _create_competitionuserauth_json(apiurl, email_list,public,datauri['ecr_uri'])
+    _create_public_private_split_json(apiurl, public_private_split)
+
+    bodydata = {"unique_model_id": model_id,
+                "bucket_name": api_bucket,
+                "apideveloper": os.environ.get("username"),  # change this to first and last name
+                "competitionname":aishare_competitionname,                
+                "competitiondescription": aishare_competitiondescription,
+                # getting rid of extra quotes that screw up dynamodb string search on apiurls
+                "apiurl": apiurl,
+                "version": 0,
+                "Private": "FALSE",
+                "delete": "FALSE",
+                'datadescription':aishare_datadescription,
+                'dataecruri':datauri['ecr_uri'],
+                 'datalicense': aishare_datalicense}
+    
+    # Get the response
+    headers_with_authentication = {'Content-Type': 'application/json', 'authorizationToken': os.environ.get("JWT_AUTHORIZATION_TOKEN"), 'Access-Control-Allow-Headers':
+                                   'Content-Type,X-Amz-Date,authorizationToken,Access-Control-Allow-Origin,X-Api-Key,X-Amz-Security-Token,Authorization', 'Access-Control-Allow-Origin': '*'}
+    # modeltoapi lambda function invoked through below url to return new prediction api in response
+    requests.post("https://o35jwfakca.execute-api.us-east-1.amazonaws.com/dev/modeldata",
+                  json=bodydata, headers=headers_with_authentication)
+
+      
+    final_message = ("\n Success! Model competition created. \n\n"
+                "You may now update your prediction API runtime model and verify evaluation metrics with the update_runtime_model() function.\n\n"
+                "To upload new models and/or preprocessors to this API, team members should use \n"
+                "the following credentials:\n\napiurl='" + apiurl+"'"+"\nfrom aimodelshare.aws import set_credentials\nset_credentials(apiurl=apiurl)\n\n"
+                "They can then submit models to your competition by using the following code: \n\ncompetition= ai.Competition(apiurl)\n"
+                "download_data('"+datauri['ecr_uri']+"') \n"
+                 "# Use this data to preprocess data and train model. Write and save preprocessor fxn, save model to onnx file, generate predicted y values\n using X test data, then submit a model below.\n\n"
+                "competition.submit_model(model_filepath, preprocessor_filepath, prediction_submission_list)")
+  
+    return print(final_message)
+
 def _create_public_private_split_json(apiurl, split=0.5): 
       import json
       if all(["AWS_ACCESS_KEY_ID" in os.environ, 

@@ -8,6 +8,7 @@ from sklearn.model_selection import GridSearchCV, RandomizedSearchCV
 import torch
 import xgboost
 import tensorflow as tf
+import keras
 
 
 # onnx modules
@@ -464,8 +465,10 @@ def _keras_to_onnx(model, transfer_learning=None,
     layers_n_params = []
     layers_shapes = []
     activations = []
+
+    keras_layers = keras_unpack(model)
     
-    for i in model.layers: 
+    for i in keras_layers: 
         
         # get layer names 
         if i.__class__.__name__ in layer_list:
@@ -1947,6 +1950,25 @@ def torch_unpack(model):
             
     return layers, keys
     
+
+def keras_unpack(model):
+    
+    layers = []
+    
+    for module in model.layers:
+                
+        if isinstance(module, (keras.engine.functional.Functional, keras.engine.sequential.Sequential)):
+            
+            layers_out = keras_unpack(module)
+            
+            layers = layers + layers_out
+            
+            
+        else:
+            
+            layers.append(module)
+            
+    return layers
 
 
 def torch_metadata(model):
