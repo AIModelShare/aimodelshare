@@ -1,5 +1,5 @@
 {% set name = "aimodelshare" %}
-{% set version = "0.0.94" %}
+{% set version = "0.0.101" %}
 
 package:
   name: {{ name|lower }}
