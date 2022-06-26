@@ -39,11 +39,12 @@ from pathlib import Path
 from zipfile import ZipFile
 import wget            
 from copy import copy
-
+import psutil
 from pympler import asizeof
 from IPython.core.display import display, HTML, SVG
 import absl.logging
 import networkx as nx
+import warnings
 
 absl.logging.set_verbosity(absl.logging.ERROR)
 
@@ -513,7 +514,6 @@ def _keras_to_onnx(model, transfer_learning=None,
     # check whether this is a fitted keras model
     # isinstance...
 
-
     # handle keras models in sklearn wrapper
     if isinstance(model, (GridSearchCV, RandomizedSearchCV)):
         model = model.best_estimator_
@@ -608,10 +608,18 @@ def _keras_to_onnx(model, transfer_learning=None,
     metadata['model_config'] = str(model.get_config())
 
     # get model weights from keras object 
-    def to_list(x):
-        return x.tolist()
+    model_size = asizeof.asizeof(model.get_weights())
+    mem = psutil.virtual_memory()
 
-    metadata['model_weights'] = str(list(map(to_list, model.get_weights())))
+    if model_size > mem.available: 
+
+        warnings.warn(f"Model size ({model_size/1e6} MB) exceeds available memory ({mem.available/1e6} MB). Skipping extraction of model weights.")
+
+        metadata['model_weights'] = None
+
+    else: 
+        
+        metadata['model_weights'] = pickle.dumps(model.get_weights())
 
     # get model state from pytorch model object
     metadata['model_state'] = None
@@ -668,9 +676,10 @@ def _keras_to_onnx(model, transfer_learning=None,
 
     metadata['model_architecture'] = str(model_architecture)
 
+
     metadata['model_summary'] = model_summary_pd.to_json()
 
-    metadata['memory_size'] = asizeof.asizeof(model)
+    metadata['memory_size'] = model_size
 
     metadata['epochs'] = epochs
 
@@ -1512,14 +1521,9 @@ def instantiate_model(apiurl, version=None, trained=False, reproduce=False, subm
             # Get leaderboard
             status = wget.download(model_weight_url, out=temp_path)
             onnx_model = onnx.load(temp_path)
-            model_weights = json.loads(_get_metadata(onnx_model)['model_weights'])
+            model_weights = pickle.loads(_get_metadata(onnx_model)['model_weights'])
             
             model = tf.keras.Sequential().from_config(model_config)
-            
-            def to_array(x):
-                return np.array(x, dtype="float32")
-
-            model_weights = list(map(to_array, model_weights))
 
             model.set_weights(model_weights)
 
