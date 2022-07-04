@@ -8,6 +8,7 @@ __all__ = [
     # Object Oriented
     ModelPlayground,
     Competition,
+    Experiment,
     Data,
     # Preprocessor
     upload_preprocessor,
