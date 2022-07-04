@@ -14,6 +14,7 @@ def deploy_container(account_id, region, session, project_name, model_dir, requi
                                                         # Why? AWS limits users to 100 total buckets!  Our old code only creates one per user per acct.
 
     repository=project_name+'-repository' # repository name to create
+    print("Repository Name: " + repository) ##Debugging 
 
     template_folder=tempfile.gettempdir()+'/'+project_name # folder to create for sam
 
