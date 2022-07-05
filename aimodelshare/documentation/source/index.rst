@@ -22,6 +22,12 @@ AI Model Share Tutorial
 
    gettingstarted
 
+Generating Credentials
+----------------------
+.. toctree::
+
+   create_credentials
+
 AI Model Share Example Notebooks
 --------------------------------
 .. toctree::
