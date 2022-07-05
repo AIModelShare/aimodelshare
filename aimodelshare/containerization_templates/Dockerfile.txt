@@ -3,6 +3,6 @@ FROM public.ecr.aws/lambda/python:$python_version
 COPY lambda_function.py ./
 COPY requirements.txt ./
 
-RUN pip install -r ./requirements.txt
+RUN pip install -r ./requirements.txt --no-cache-dir
 
 CMD ["lambda_function.lambda_handler"]

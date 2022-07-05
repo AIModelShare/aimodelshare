@@ -15,7 +15,6 @@ def deploy_container(account_id, region, session, project_name, model_dir, requi
 
     repository=project_name+'-repository' # repository name to create
     repository = repository.lower() #necessary to pass AWS Regex contraints 
-    print("Repository Name: " + repository) ##Debugging 
 
     template_folder=tempfile.gettempdir()+'/'+project_name # folder to create for sam
 
