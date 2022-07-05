@@ -52,7 +52,8 @@ def handler(event, context):
     decoded = jwt.decode(idtoken, options={"verify_signature": False})  # works in PyJWT < v2.0
     email=decoded['email']
     print(email)
-    authorized_competitionusers=get_authorizedcompetitionuserdata(example_data_filename = "competitionuserdata.json")
+    submission_type = body.get("submission_type", None)
+    authorized_competitionusers=get_authorizedcompetitionuserdata(example_data_filename = submission_type+"/competitionuserdata.json")
     authorized_emails=authorized_competitionusers.get("emails","no data")
     public=authorized_competitionusers.get("public","FALSE")
     
@@ -61,17 +62,26 @@ def handler(event, context):
     if any([email in authorized_competitionusers['emaillist'],public=="TRUE"]):
     
         if body.get("return_eval","ALL")  == "True":
+        
+            submission_type = body.get("submission_type","competition")
+            print(submission_type)
+
             idempotentmodel_version=json.loads(event['requestContext']['authorizer']['uniquemodversion'])
 
-            ytestdata=get_ytestdata(ytest_s3_filename="ytest.pkl")
-      
-            eval_result = evaluate_model(body, ytestdata)
+            ytestdata=get_ytestdata(ytest_s3_filename=submission_type+"/"+"ytest.pkl")
+            
+            eval_result = evaluate_model(body, ytestdata, submission_type=submission_type)
+
             bucket="$bucket_name"
             model_id="$unique_model_id"
             
             s3_client=boto3.client("s3")
-            model_files, err = _get_file_list(s3_client, bucket, model_id)
+            model_files, err = _get_file_list(s3_client, bucket, model_id+"/"+submission_type+"/model_eval_data_mastertable")
+
             print(model_files)
+            if model_files==None:
+                model_files, err = _get_file_list(s3_client, bucket, model_id+"/"+submission_type)
+  
 
             mversions=[]
             musers=[]
@@ -92,7 +102,7 @@ def handler(event, context):
                     newleaderboarddata.append(i)
         
             try:
-                leaderboard = get_leaderboard("$task_type")  #task_type variable used here
+                leaderboard = get_leaderboard("classification", submission_type=submission_type)  #task_type variable used here
                 currentversions=leaderboard['version']
             except:
                 currentversions=[]
@@ -120,6 +130,7 @@ def handler(event, context):
             
             if "model_eval_data_mastertable.csv" not in model_files:
                 finalfiles.append("model_eval_data_mastertable.csv")
+                finalfiles.append("model_eval_data_mastertable_private.csv")
                 finalfiles.append("onnx_model_mostrecent.onnx")
                 finalfiles.append("onnx_model_v1.onnx")
                 finalfiles.append("predictionmodel_1.onnx")
@@ -128,6 +139,7 @@ def handler(event, context):
                 finalfiles.append("model_metadata_v1.json")
             else:
                 finalfiles.append("model_eval_data_mastertable_v"+str(idempotentmodel_version)+".csv")
+                finalfiles.append("model_eval_data_mastertable_private_v"+str(idempotentmodel_version)+".csv")
                 finalfiles.append("onnx_model_mostrecent.onnx")
                 finalfiles.append("onnx_model_v"+str(idempotentmodel_version)+".onnx")
                 finalfiles.append("preprocessor_v"+str(idempotentmodel_version)+".zip")
@@ -149,19 +161,22 @@ def handler(event, context):
             finalfilespost=finalfiles
            
             for i in finalfilespost:
-                putresult= create_presigned_post(bucket, model_id+"/"+i, expiration=expires_in)
+                putresult= create_presigned_post(bucket, model_id+"/"+submission_type+"/"+i, expiration=expires_in)
                 putdict.update({str(i):str(putresult)})
             
             print(finalfilespost)            
             for i in finalfilesget:
-                if i.find("mastertable")>0:
+                if i.find("mastertable_v")>0:
                   indexvalue=finalfilesget.index(i)
-                  finalfilesget[indexvalue]="model_eval_data_mastertable.csv"
+                  finalfilesget[indexvalue]="model_eval_data_mastertable.csv"                
+                if i.find("mastertable_private_v")>0:
+                  indexvalue=finalfilesget.index(i)
+                  finalfilesget[indexvalue]="model_eval_data_mastertable_private.csv"
                   
             print(finalfilesget)
 
             for i in finalfilesget:
-                method_parameters = {'Bucket': bucket, 'Key': model_id+"/"+i} #repeat for all necessary keys and return dict with nec. end user artifacts.
+                method_parameters = {'Bucket': bucket, 'Key': model_id+"/"+submission_type+"/"+i} #repeat for all necessary keys and return dict with nec. end user artifacts.
                 getresult= generate_presigned_url(s3_client, 'get_object', method_parameters, expires_in)
                 getdict.update({str(i):str(getresult)})
             
@@ -178,10 +193,14 @@ def handler(event, context):
             "body": json.dumps({"eval":eval_result,"get":getdict,"put": putdict,"idempotentmodel_version":idempotentmodel_version})
             }
             return eval_dict
+
+
             
         if body.get("return_y","ALL") == "True":
-            
-            ytestdata=get_ytestdata(ytest_s3_filename="ytest.pkl")
+
+            submission_type = body.get("submission_type")
+
+            ytestdata=get_ytestdata(ytest_s3_filename=submission_type+"/ytest.pkl")
             y_stats = analyze_ytest(ytestdata)
         
             ytest_dict = {"statusCode": 200,
@@ -198,8 +217,9 @@ def handler(event, context):
         if body.get("inspect_model","ALL") == "True": 
         
             version = body["version"]
+            submission_type = body.get("submission_type", None)
 
-            inspect_pd = inspect_model(version)
+            inspect_pd = inspect_model(version, submission_type=submission_type)
             
             inspect_dict = {"statusCode": 200,
                 "headers": {
@@ -218,10 +238,10 @@ def handler(event, context):
             version_list = body["version_list"]
             verbose = body.get("verbose", 1)
             naming_convention = body.get("naming_convention", None)
+            submission_type = body.get("submission_type", None)
 
-
-            comp_dict_out = compare_models(version_list, verbose=verbose, naming_convention=naming_convention)
-            
+            comp_dict_out = compare_models(version_list, verbose=verbose, naming_convention=naming_convention, submission_type=submission_type)
+                        
             compare_dict = {"statusCode": 200,
                 "headers": {
                 "Access-Control-Allow-Origin" : "*",
@@ -235,11 +255,19 @@ def handler(event, context):
 
 
         if body.get("get_leaderboard","ALL") == "True": 
+
+            submission_type = body.get("submission_type","ALL")
+            print("submission_type ", submission_type)
             
             verbose=body["verbose"]
             columns=body["columns"]
+
+            if body.get("private", 'FALSE') == "TRUE":
+                private = True
+            else:
+                private = False
         
-            leaderboard = get_leaderboard("$task_type", verbose, columns)
+            leaderboard = get_leaderboard("$task_type", verbose, columns, private, submission_type)
             
             leaderboard_dict = {"statusCode": 200,
                 "headers": {
@@ -256,10 +284,11 @@ def handler(event, context):
             version = body["model_version"]
             reproduce = body["reproduce"]
             trained = body["trained"]
+            submission_type = body.get("submission_type")
 
             reproducibility_env_json = None
             model_weight_url = None
-            model_metadata_json = get_model_metadata(version)
+            model_metadata_json = get_model_metadata(version, submission_type)
 
             # the model version is found (users didn't only submit prediction for this version)
             if model_metadata_json:
@@ -304,7 +333,12 @@ def handler(event, context):
             
         if body.get("leaderboard","ALL") == "TRUE":  
 
-            leaderboard = get_leaderboard("$task_type")
+            if body.get("private", 'FALSE') == "TRUE":
+                private = True
+            else:
+                private = False
+
+            leaderboard = get_leaderboard("$task_type", private=private)
             
             leaderboard_dict = {"statusCode": 200,
                 "headers": {
@@ -320,7 +354,12 @@ def handler(event, context):
 
         if body.get("leaderboard","ALL") == "TRUE":  
 
-            leaderboard = get_leaderboard("$task_type")
+            if body.get("private", 'FALSE') == "TRUE":
+                private = True
+            else:
+                private = False
+
+            leaderboard = get_leaderboard("$task_type", private=private)
             
             leaderboard_dict = {"statusCode": 200,
                 "headers": {
@@ -338,9 +377,10 @@ def handler(event, context):
             version_list = body["version_list"]
             verbose = body.get("verbose", 1)
             naming_convention = body.get("naming_convention", None)
+            submission_type = body.get("submission_type", None)
 
-            comp_dict_out = compare_models(version_list, verbose=verbose, naming_convention=naming_convention)
-            
+            comp_dict_out = compare_models(version_list, verbose=verbose, naming_convention=naming_convention, submission_type=submission_type)
+                        
             compare_dict = {"statusCode": 200,
                 "headers": {
                 "Access-Control-Allow-Origin" : "*",
@@ -377,6 +417,7 @@ from sklearn.metrics import roc_auc_score
 from sklearn.metrics import mean_squared_error
 from sklearn.metrics import r2_score
 from sklearn.metrics import mean_absolute_error
+from sklearn.model_selection import train_test_split
 from collections import Counter 
 from math import sqrt
 import json
@@ -420,70 +461,108 @@ def analyze_ytest(ytestdata, task_type="$task_type"):
     return y_stats
 
 
-def model_eval_metrics(y_true, y_pred, task_type="$task_type"):
 
-    if task_type=="classification":
-        try:
-            accuracy_eval = accuracy_score(y_true, y_pred)
-        except:
-            accuracy_eval = None
+def public_private_split(y_true, y_pred, task_type="$task_type", submission_type="competition"):
 
-        try:
-            f1_score_eval = f1_score(y_true, y_pred,average="macro",zero_division=0)
-        except:
-            f1_score_eval = None
-            
-        try:    
-            precision_eval = precision_score(y_true, y_pred,average="macro",zero_division=0)
-        except: 
-            precision_eval = None
-            
-        try:    
-            recall_eval = recall_score(y_true, y_pred,average="macro",zero_division=0)
-        except:
-            recall_eval = None
+    if task_type == "classification":
+        strat = y_true
+    elif task_type == "regression":
+        strat = None
+
+    private_size = get_public_private_split(submission_type=submission_type)
+    
+    if private_size == 1: 
         
-        mse_eval = None
-        rmse_eval = None
-        mae_eval = None
-        r2_eval = None
+        eval_result_public = model_eval_metrics(y_true, y_pred, task_type=task_type, void=True, submission_type=submission_type)
+        eval_result_private = model_eval_metrics(y_true, y_pred, task_type=task_type, submission_type=submission_type)
         
-        metricdata = {'accuracy': [accuracy_eval], 'f1_score': [f1_score_eval], 'precision': [precision_eval], 'recall': [recall_eval], 'mse': [mse_eval], 'rmse': [rmse_eval], 'mae': [mae_eval], 'r2': [r2_eval]}
+    elif private_size == 0: 
+        
+        eval_result_public = model_eval_metrics(y_true, y_pred, task_type=task_type, submission_type=submission_type)
+        eval_result_private = model_eval_metrics(y_true, y_pred, task_type=task_type, void=True, submission_type=submission_type)
         
     else:
         
-        try:
-            mse_eval = mean_squared_error(y_true, y_pred)
-        except:
-            mse_eval = None
-            
-        try:
-            rmse_eval = sqrt(mean_squared_error(y_true, y_pred))
-        except:
-            rmse_eval = None
-        
-        try:
-            mae_eval = mean_absolute_error(y_true, y_pred)
-        except: 
-            mae_eval = None
-            
-        try:
-            r2_eval = r2_score(y_true, y_pred)
-        except:
-            r2_eval = None
-        
-        accuracy_eval = None
-        f1_score_eval = None
-        precision_eval = None
-        recall_eval = None
+        y_true_private, y_true_public, y_pred_private, y_pred_public = train_test_split(y_true, y_pred, test_size=1-private_size, shuffle=True, stratify=strat, random_state=1)
+    
+        eval_result_public = model_eval_metrics(y_true_public, y_pred_public, task_type=task_type, submission_type=submission_type)
+        eval_result_private = model_eval_metrics(y_true_private, y_pred_private, task_type=task_type, submission_type=submission_type)
 
-        metricdata = {'accuracy': [accuracy_eval], 'f1_score': [f1_score_eval], 'precision': [precision_eval], 'recall': [recall_eval], 'mse': [mse_eval], 'rmse': [rmse_eval], 'mae': [mae_eval], 'r2': [r2_eval]}
+    return eval_result_public, eval_result_private
+
+
+def model_eval_metrics(y_true, y_pred, task_type="$task_type", void = False, submission_type="competition"):
+    
+    if void == True: 
+        
+        metricdata = {'accuracy': [None], 'f1_score': [None], 'precision': [None], 'recall': [None], 'mse': [None], 'rmse': [None], 'mae': [None], 'r2': [None]}
+
+    else:     
+            
+        if task_type=="classification":
+            
+            try:
+                accuracy_eval = accuracy_score(y_true, y_pred)
+            except:
+                accuracy_eval = None
+    
+            try:
+                f1_score_eval = f1_score(y_true, y_pred,average="macro",zero_division=0)
+            except:
+                f1_score_eval = None
+                
+            try:    
+                precision_eval = precision_score(y_true, y_pred,average="macro",zero_division=0)
+            except: 
+                precision_eval = None
+                
+            try:    
+                recall_eval = recall_score(y_true, y_pred,average="macro",zero_division=0)
+            except:
+                recall_eval = None
+            
+            mse_eval = None
+            rmse_eval = None
+            mae_eval = None
+            r2_eval = None
+            
+            metricdata = {'accuracy': [accuracy_eval], 'f1_score': [f1_score_eval], 'precision': [precision_eval], 'recall': [recall_eval], 'mse': [mse_eval], 'rmse': [rmse_eval], 'mae': [mae_eval], 'r2': [r2_eval]}
+            
+        else:
+            
+            try:
+                mse_eval = mean_squared_error(y_true, y_pred)
+            except:
+                mse_eval = None
+                
+            try:
+                rmse_eval = sqrt(mean_squared_error(y_true, y_pred))
+            except:
+                rmse_eval = None
+            
+            try:
+                mae_eval = mean_absolute_error(y_true, y_pred)
+            except: 
+                mae_eval = None
+                
+            try:
+                r2_eval = r2_score(y_true, y_pred)
+            except:
+                r2_eval = None
+            
+            accuracy_eval = None
+            f1_score_eval = None
+            precision_eval = None
+            recall_eval = None
+    
+            metricdata = {'accuracy': [accuracy_eval], 'f1_score': [f1_score_eval], 'precision': [precision_eval], 'recall': [recall_eval], 'mse': [mse_eval], 'rmse': [rmse_eval], 'mae': [mae_eval], 'r2': [r2_eval]}
+
 
 
     s3 = boto3.resource("s3")
     bucket = s3.Bucket("$bucket_name")
     
-    metrics_files = bucket.objects.filter(Prefix= "$unique_model_id"+"/metrics_")
+    metrics_files = bucket.objects.filter(Prefix= "$unique_model_id/"+submission_type+"/metrics_")
     
 
     if metrics_files: 
@@ -492,39 +571,52 @@ def model_eval_metrics(y_true, y_pred, task_type="$task_type"):
 
             file = i.key.split('/')[-1]
             
-            eval_metric = get_eval_metric(eval_metric_s3_filename=file)
+            eval_metric = get_eval_metric(eval_metric_s3_filename=file, submission_type=submission_type)
             custom_eval = eval_metric(y_true, y_pred)
 
             if isinstance(custom_eval, dict): 
                 
                 for i in custom_eval.keys(): 
                     
-                    metricdata[i] = [custom_eval[i]]
+                    if void == True: 
+                        
+                        metricdata[i] = [None]
+                    
+                    else:
+                    
+                        metricdata[i] = [custom_eval[i]]
                     
             else:
             
-                metricdata[file.replace("metrics_","").replace(".zip", "")] = [custom_eval]
+                if void == True:
+                    
+                    metricdata[file.replace("metrics_","").replace(".zip", "")] = [None]
+                    
+                else:
+                    
+                    metricdata[file.replace("metrics_","").replace(".zip", "")] = [custom_eval]
         
     finalmetricdata = pd.DataFrame.from_dict(metricdata)
-
+    
     return finalmetricdata.to_dict('records')[0]
 
 
-def evaluate_model(body, ytestdata):
+def evaluate_model(body, ytestdata, submission_type="competition"):
 
     if isinstance(body["y_pred"], six.string_types):
         prediction_list = json.loads(body["y_pred"])
     else:
         prediction_list = body["y_pred"]
 
-    result=model_eval_metrics(ytestdata,prediction_list,task_type="$task_type")
+    result=public_private_split(ytestdata, prediction_list, task_type="$task_type", submission_type=submission_type)
+
     return result
     
     
-def inspect_model(version):
+def inspect_model(version, submission_type):
     
     s3 = boto3.resource('s3')
-    obj = s3.Object("$bucket_name", "$unique_model_id/"+"inspect_pd_"+str(version)+".json")
+    obj = s3.Object("$bucket_name", "$unique_model_id/"+submission_type+"/inspect_pd_"+str(version)+".json")
     data = obj.get()['Body'].read()
     model_dict = json.loads(data)
 
@@ -598,7 +690,7 @@ def _get_metadata(onnx_model):
     return onnx_meta_dict
     
     
-def compare_models(version_list, by_model_type=None, best_model=None, verbose=1, naming_convention=None):
+def compare_models(version_list, by_model_type=None, best_model=None, verbose=1, naming_convention=None, submission_type='competition'):
 
     ml_framework_list = []
     model_type_list = []
@@ -608,7 +700,7 @@ def compare_models(version_list, by_model_type=None, best_model=None, verbose=1,
     for i in version_list: 
         
         s3 = boto3.resource('s3')
-        obj = s3.Object("$bucket_name", "$unique_model_id/"+"inspect_pd_"+str(i)+".json")
+        obj = s3.Object("$bucket_name", "$unique_model_id/"+submission_type+"/inspect_pd_"+str(i)+".json")
         data = obj.get()['Body'].read()
         model_dict_temp = json.loads(data)
 
@@ -625,7 +717,7 @@ def compare_models(version_list, by_model_type=None, best_model=None, verbose=1,
 
     for i, j in zip(version_list, ml_framework_list): 
 
-        if j == "sklearn":
+        if j == "sklearn" or j == "pyspark":
         
             temp_pd = pd.DataFrame(model_dict[str(i)]['model_dict'])
             temp_pd.columns = ['param_name', 'default_value', "model_version_"+str(i)]
@@ -668,12 +760,10 @@ def compare_models(version_list, by_model_type=None, best_model=None, verbose=1,
 
             comp_dict_out["nn"] = comp_pd_nn.to_json()
 
-
         elif j == "undefined": 
             
             comp_dict_out["undefined_"+str(i)] = pd.DataFrame({'param_name':[], 'default_value':[], 'model_version_'+str(i):[]}).to_json()
 
-        
     return comp_dict_out
 
 
@@ -792,27 +882,37 @@ def model_from_string(model_type):
     model_class = getattr(importlib.import_module(module), model_type)
     return model_class
 
-def get_leaderboard(task_type="$task_type", verbose=3, columns=None):
+
+def get_leaderboard(task_type="classification", verbose=3, columns=None, private=False, submission_type='competition'):
+    
+    if private==True:
+        mastertable_path = submission_type+"/"+'model_eval_data_mastertable_private'
+    else:
+        mastertable_path = submission_type+"/"+'model_eval_data_mastertable'
+
     bucket="$bucket_name"
     model_id="$unique_model_id"
     
     s3_client=boto3.client("s3")
-    model_files, err = _get_file_list(s3_client, bucket, model_id)
+    model_files, err = _get_file_list(s3_client, bucket, model_id+"/"+submission_type)
     print(model_files)
     
     newleaderboarddata=[]
     for i in model_files:
-        if i.find("mastertable_v")>0:
+        if private and i.find("mastertable_private_v")>0:
             newleaderboarddata.append(i)
+        if (not private) and i.find("mastertable_v")>0:
+            newleaderboarddata.append(i)
+
 
     s3 = boto3.resource("s3")
     bucketres = s3.Bucket("$bucket_name")
-    with open("/tmp/"+"model_eval_data_mastertable.csv", "wb") as lbfo:
-      bucketres.download_fileobj("$unique_model_id/"+"model_eval_data_mastertable.csv", lbfo)              
+    with open("/tmp/"+mastertable_path.split("/")[-1]+".csv", "wb") as lbfo:
+      bucketres.download_fileobj("$unique_model_id/"+mastertable_path+".csv", lbfo)              
       
       
       
-    leaderboard = pd.read_csv("/tmp/"+"model_eval_data_mastertable.csv", sep="\t")
+    leaderboard = pd.read_csv("/tmp/"+mastertable_path.split("/")[-1]+".csv", sep="\t")
     currentversions=leaderboard['version']
     print("current versions:")
     print(list(currentversions))
@@ -825,26 +925,26 @@ def get_leaderboard(task_type="$task_type", verbose=3, columns=None):
     #TODO: check if items in leaderboard, if so, then do following
     if len(missingincurrent_leaderboard)>0:
         for i in missingincurrent_leaderboard:
-            with open("/tmp/"+"model_eval_data_mastertable_v"+str(i)+".csv", "wb") as lbfo:
-              bucketres.download_fileobj("$unique_model_id/"+"model_eval_data_mastertable_v"+str(i)+".csv", lbfo)
-            newleaderboard = pd.read_csv("/tmp/"+"model_eval_data_mastertable_v"+str(i)+".csv", sep="\t")
+            with open("/tmp/"+mastertable_path.split("/")[-1]+"_v"+str(i)+".csv", "wb") as lbfo:
+              bucketres.download_fileobj("$unique_model_id/"+mastertable_path+"_v"+str(i)+".csv", lbfo)
+            newleaderboard = pd.read_csv("/tmp/"+mastertable_path.split("/")[-1]+"_v"+str(i)+".csv", sep="\t")
             newleaderboard.drop(newleaderboard.filter(regex="Unname"),axis=1, inplace=True)
             
             leaderboard=leaderboard.append(newleaderboard).drop_duplicates()
             
         leaderboard.drop(leaderboard.filter(regex="Unname"),axis=1, inplace=True)
     #save new leaderboard here
-        leaderboard.to_csv("/tmp/"+"model_eval_data_mastertable.csv",sep="\t",index=False)
-        s3_client.upload_file("/tmp/"+"model_eval_data_mastertable.csv", bucket, model_id + "/model_eval_data_mastertable.csv")
+        leaderboard.to_csv("/tmp/"+mastertable_path.split("/")[-1]+".csv",sep="\t",index=False)
+        s3_client.upload_file("/tmp/"+mastertable_path.split("/")[-1]+".csv", bucket, model_id + "/"+mastertable_path+".csv")
     
     
     else:
         pass
     s3 = boto3.resource("s3")
     bucket = s3.Bucket("$bucket_name")
-    with open("/tmp/"+"model_eval_data_mastertable.csv", "wb") as lbfo:
-      bucket.download_fileobj("$unique_model_id/"+"model_eval_data_mastertable.csv", lbfo)
-    leaderboard = pd.read_csv("/tmp/"+"model_eval_data_mastertable.csv", sep="\t")
+    with open("/tmp/"+mastertable_path.split("/")[-1]+".csv", "wb") as lbfo:
+      bucket.download_fileobj("$unique_model_id/"+mastertable_path+".csv", lbfo)
+    leaderboard = pd.read_csv("/tmp/"+mastertable_path.split("/")[-1]+".csv", sep="\t")
 
 
     clf =["accuracy", "f1_score", "precision", "recall"]
@@ -896,6 +996,8 @@ def get_leaderboard(task_type="$task_type", verbose=3, columns=None):
     leaderboard['username']=leaderboard.pop("username")
     leaderboard['timestamp'] = leaderboard.pop("timestamp")
     leaderboard['version'] = leaderboard.pop("version")
+
+    leaderboard = leaderboard.drop(columns="model_config")
 
     return leaderboard
 
@@ -1211,7 +1313,7 @@ def get_ytestdata(ytest_s3_filename="ytest.pkl"):
     bucket = s3.Bucket("$bucket_name")
 
     with open("/tmp/ytest.pkl", "wb") as ytestfo:
-        bucket.download_fileobj("$unique_model_id/ytest.pkl",  ytestfo)
+        bucket.download_fileobj("$unique_model_id/"+ytest_s3_filename,  ytestfo)
     ytestdata = pickle.load(open("/tmp/ytest.pkl", "rb" ) )
     return ytestdata
   
@@ -1235,17 +1337,17 @@ def get_onnx_string(version):
     
     return onnx_string
 
-def get_model_metadata(version):
+def get_model_metadata(version, submission_type):
     s3 = boto3.resource("s3")
     bucket = s3.Bucket("$bucket_name")
 
     try:
         if version == None:
             with open("/tmp/metadata.json", "wb") as temp_path:
-                bucket.download_fileobj("$unique_model_id/runtime_metadata.json",  temp_path)
+                bucket.download_fileobj("$unique_model_id/"+submission_type+"/runtime_metadata.json",  temp_path)
         else:
             with open("/tmp/metadata.json", "wb") as temp_path:
-                bucket.download_fileobj("$unique_model_id/model_metadata_v{}.json".format(version),  temp_path)
+                bucket.download_fileobj("$unique_model_id/"+submission_type+"/model_metadata_v{}.json".format(version),  temp_path)
         
         model_metadata_json = json.load(open("/tmp/metadata.json","rb"))
     except botocore.exceptions.ClientError as e:
@@ -1298,14 +1400,20 @@ def upload_file(file_name, bucket, object_name=None):
 def _get_file_list(client, bucket,keysubfolderid):
     #  Reading file list {{{
     try:
-        objects = client.list_objects(Bucket=bucket,Prefix=keysubfolderid)
+        objectlist=[]
+        paginator = client.get_paginator('list_objects')
+        pages = paginator.paginate(Bucket=bucket, Prefix=keysubfolderid)
+
+        for page in pages:
+            for obj in page['Contents']:
+                objectlist.append(obj['Key'])
+
     except Exception as err:
         return None, err
 
     file_list = []
-    if "Contents" in objects:
-        for key in objects["Contents"]:
-            file_list.append(key["Key"].split("/")[1])
+    for key in objectlist:
+            file_list.append(key.split("/")[-1])
     #  }}}
 
     return file_list, None
@@ -1375,9 +1483,18 @@ def get_authorizedcompetitionuserdata(example_data_filename = "competitionuserda
     bucket = s3.Bucket("$bucket_name")
 
     with open("/tmp/competitionuserdata.json", "wb") as exampledatapath:
-        bucket.download_fileobj("$unique_model_id/competitionuserdata.json",  exampledatapath)
+        bucket.download_fileobj("$unique_model_id/"+example_data_filename,  exampledatapath)
     competitionuserdatajson = json.load(open("/tmp/competitionuserdata.json","rb") ) 
     return competitionuserdatajson
+
+def get_public_private_split(submission_type="competition"):
+    s3 = boto3.resource("s3")
+    bucket = s3.Bucket("$bucket_name")
+
+    with open("/tmp/public_private_split.json", "wb") as exampledatapath:
+        bucket.download_fileobj("$unique_model_id/"+submission_type+"/public_private_split.json",  exampledatapath)
+    public_private_split_dict = json.load(open("/tmp/public_private_split.json","rb")) 
+    return float(public_private_split_dict["public_private_split"])
 
 def get_reproducibility_env(version=None):
     s3 = boto3.resource("s3")
@@ -1400,8 +1517,7 @@ def get_reproducibility_env(version=None):
             raise
     return reproducibility_env_json
 
-
-def get_eval_metric(eval_metric_s3_filename):
+def get_eval_metric(eval_metric_s3_filename, submission_type):
 
     import pickle
     from zipfile import ZipFile
@@ -1412,7 +1528,7 @@ def get_eval_metric(eval_metric_s3_filename):
     bucket = s3.Bucket("$bucket_name")
 
     zip_obj = s3.Object(bucket_name="$bucket_name",
-                        key="$unique_model_id/"+eval_metric_s3_filename)
+                        key="$unique_model_id/"+submission_type+"/"+eval_metric_s3_filename)
 
     buffer = BytesIO(zip_obj.get()["Body"].read())
 
@@ -1438,7 +1554,7 @@ def get_eval_metric(eval_metric_s3_filename):
     metric_py = metric_py.replace("metrics_", "")
 
     exec(open(os.path.join(folderpath, metric_py)).read(), globals())
-    
+
     print(globals()['custom_eval_metric'])
     eval_metric = globals()['custom_eval_metric']
 

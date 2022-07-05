@@ -33,7 +33,8 @@ class ModelPlayground:
     def __str__(self):
         return f"ModelPlayground instance of model type: {self.model_type}, classification: {self.categorical},  private: {self.private}"
     
-    def deploy(self, model_filepath, preprocessor_filepath, y_train, example_data=None, custom_libraries = "FALSE", image="", reproducibility_env_filepath=None, memory=None, timeout=None):
+
+    def deploy(self, model_filepath, preprocessor_filepath, y_train, example_data=None, custom_libraries = "FALSE", image="", reproducibility_env_filepath=None, memory=None, timeout=None, email_list=[], pyspark_support=False):
 
         """
         Launches a live prediction REST API for deploying ML models using model parameters and user credentials, provided by the user
@@ -65,8 +66,12 @@ class ModelPlayground:
               tabular data - pandas DataFrame in same structure expected by preprocessor function
               other data types - absolute path to folder containing example data
                                 (first five files with relevent file extensions will be accepted)
+                     
               [REQUIRED] for tabular data
-        
+          `email_list`: ``list of string values``
+                values - list including all emails of users who have access the playground.
+                list should contain same emails that were used to sign up for modelshare.org account.
+                [OPTIONAL] set by the playground owner
         Returns:
         --------
         print_api_info : prints statements with generated live prediction API details
@@ -84,12 +89,13 @@ class ModelPlayground:
                                       image=image,
                                       reproducibility_env_filepath = reproducibility_env_filepath,
                                       memory=memory,
-                                      timeout=timeout)
-
+                                      timeout=timeout,
+                                      email_list=email_list,
+                                      pyspark_support=pyspark_support)
         #remove extra quotes
         self.playground_url = self.playground_url[1:-1]
     
-    def create_competition(self, data_directory, y_test, eval_metric_filepath=None, email_list = [], public=False):
+    def create_competition(self, data_directory, y_test, eval_metric_filepath=None, email_list = [], public=False, public_private_split=0.5):
         """
         Creates a model competition for a deployed prediction REST API
         Inputs : 4
@@ -111,18 +117,53 @@ class ModelPlayground:
         finalmessage : Information such as how to submit models to competition
         
         """
-        from aimodelshare.generatemodelapi import create_competition as to_competition
-        competition = to_competition(self.playground_url, 
+        from aimodelshare.generatemodelapi import create_competition
+
+        competition = create_competition(self.playground_url, 
                                     data_directory, 
                                     y_test, 
                                     eval_metric_filepath,
                                     email_list, 
-                                    public)
+                                    public,
+                                    public_private_split)
         return competition
         
+    def create_experiment(self, data_directory, y_test, eval_metric_filepath=None, email_list = [], public=False, public_private_split=0.5):
+        """
+        Creates an experiment for a deployed prediction REST API
+        Inputs : 4
+        Output : Create ML model experiment and allows authorized users to submit models to resulting experiment tracking leaderboard
+        
+        Parameters:
+        -----------
+        `y_test` :  ``list`` of y values for test data used to generate metrics from predicted values from X test data submitted via the submit_model() function
+            [REQUIRED] to generate eval metrics in experiment leaderboard
+                                
+        `data_directory` : folder storing training data and test data (excluding Y test data)
+        `email_list`: [OPTIONAL] list of comma separated emails for users who are allowed to submit models to experiment leaderboard.  Emails should be strings in a list.
+        `public`: [REQUIRED] True/false. Defaults to False.  If True, experiment is public and ANY AIMODELSHARE USER CAN SUBMIT MODELS.  USE WITH CAUTION b/c one model and 
+            one preprocessor file will be be saved to your AWS S3 folder for each model submission.
+        
+        
+        Returns:
+        -----------
+        finalmessage : Information such as how to submit models to experiment
+        
+        """
+        from aimodelshare.generatemodelapi import create_experiment
+
+        experiment = create_experiment(self.playground_url, 
+                                    data_directory, 
+                                    y_test, 
+                                    eval_metric_filepath,
+                                    email_list, 
+                                    public,
+                                    public_private_split)
+        return experiment
+
     def submit_model(self, model_filepath, preprocessor_filepath, prediction_submission):
         """
-        Submits model/preprocessor to machine learning competition using live prediction API url generated by AI Modelshare library
+        Submits model/preprocessor to machine learning experiment leaderboard and model architecture database using live prediction API url generated by AI Modelshare library
         The submitted model gets evaluated and compared with all existing models and a leaderboard can be generated 
         
         Parameters:
@@ -157,7 +198,7 @@ class ModelPlayground:
         
 
     
-    def update_runtime_model(self, model_version=None):
+    def update_runtime_model(self, model_version=None, submission_type="competition"):
         """
         Updates the prediction API behind the Model Playground with a new model from the leaderboard and verifies Model Playground performance metrics.
 
@@ -172,17 +213,17 @@ class ModelPlayground:
         
         """
         from aimodelshare.model import update_runtime_model as update
-        update = update(apiurl = self.playground_url, model_version = model_version)
+        update = update(apiurl = self.playground_url, model_version = model_version, submission_type=submission_type)
         return update
         
-    def instantiate_model(self, version=None, trained=False, reproduce=False): 
+    def instantiate_model(self, version=None, trained=False, reproduce=False, submission_type="competition"): 
         """
-        Import a model previously submitted to the competition leaderboard to use in your session
+        Import a model previously submitted to a leaderboard to use in your session
 
         Parameters:
         -----------
         `version`: ``int``
-            Model version number from competition leaderboard
+            Model version number from competition or experiment leaderboard
         `trained`: ``bool, default=False``
             if True, a trained model is instantiated, if False, the untrained model is instantiated
 
@@ -191,7 +232,7 @@ class ModelPlayground:
         model: model chosen from leaderboard
         """
         from aimodelshare.aimsonnx import instantiate_model
-        model = instantiate_model(apiurl=self.playground_url, trained=trained, version=version, reproduce=reproduce)
+        model = instantiate_model(apiurl=self.playground_url, trained=trained, version=version, reproduce=reproduce, submission_type=submission_type)
         return model
     
     def delete_deployment(self, playground_url=None):
@@ -218,6 +259,27 @@ class ModelPlayground:
         from aimodelshare.reproducibility import import_reproducibility_env_from_model
         import_reproducibility_env_from_model(apiurl=self.playground_url)
 
+    def update_access_list(self, email_list=[], update_type="Replace_list"):
+        """
+        Updates list of authenticated participants who can submit new models to a competition.
+
+        Parameters:
+        -----------
+        `apiurl`: string
+                URL of deployed prediction API 
+          
+        `email_list`: [REQUIRED] list of comma separated emails for users who are allowed to submit models to competition.  Emails should be strings in a list.
+        `update_type`:[REQUIRED] options, ``string``: 'Add', 'Remove', 'Replace_list','Get. Add appends user emails to original list, Remove deletes users from list, 
+                  'Replace_list' overwrites the original list with the new list provided, and Get returns the current list.    
+
+        Returns:
+        --------
+        response:   "Success" upon successful request
+        """
+        from aimodelshare.generatemodelapi import update_access_list as update_list
+        update = update_list(apiurl = self.playground_url, email_list=email_list, update_type=update_type)
+        return update
+
 
 class Competition:
     """
@@ -226,6 +288,9 @@ class Competition:
     `playground_url`: playground_url attribute of ModelPlayground class or ``string``
         of existing ModelPlayground URL
     """
+
+    submission_type = "competition"
+
     def __init__(self, playground_url):
         self.playground_url = playground_url
     
@@ -266,9 +331,10 @@ class Competition:
                               prediction_submission = prediction_submission, 
                               preprocessor = preprocessor_filepath,
                               reproducibility_env_filepath = reproducibility_env_filepath,
-                              custom_metadata = custom_metadata)
+                              custom_metadata = custom_metadata, 
+                              submission_type = self.submission_type)
         return submission
-        
+
     def instantiate_model(self, version=None, trained=False, reproduce=False): 
         """
         Import a model previously submitted to the competition leaderboard to use in your session
@@ -285,7 +351,8 @@ class Competition:
         model: model chosen from leaderboard
         """
         from aimodelshare.aimsonnx import instantiate_model
-        model = instantiate_model(apiurl=self.playground_url, trained=trained, version=version, reproduce=reproduce)
+        model = instantiate_model(apiurl=self.playground_url, trained=trained, version=version, 
+            reproduce=reproduce, submission_type=self.submission_type)
         return model
 
     def inspect_model(self, version=None, naming_convention=None):
@@ -302,7 +369,10 @@ class Competition:
         inspect_pd : dictionary of model summary & metadata
         """
         from aimodelshare.aimsonnx import inspect_model
-        inspect_pd = inspect_model(apiurl=self.playground_url, version=version, naming_convention=naming_convention)
+
+        inspect_pd = inspect_model(apiurl=self.playground_url, version=version, 
+            naming_convention=naming_convention, submission_type = self.submission_type)
+
         return inspect_pd
 
     def compare_models(self, version_list="None", by_model_type=None, best_model=None, verbose=1, naming_convention=None):
@@ -327,7 +397,8 @@ class Competition:
                       by_model_type = by_model_type,
                       best_model = best_model, 
                       verbose = verbose,
-                      naming_convention=naming_convention)
+                      naming_convention=naming_convention,
+                      submission_type = self.submission_type)
         return data
 
     def stylize_compare(self, compare_dict, naming_convention=None):
@@ -358,9 +429,9 @@ class Competition:
         --------
         dictionary of a competition's y-test metadata
         """
-        from aimodelshare.aimsonnx import inspect_y_test as inspect
-        data = inspect(apiurl = self.playground_url)
-        return data 
+        from aimodelshare.aimsonnx import inspect_y_test
+        data = inspect_y_test(apiurl = self.playground_url, submission_type=self.submission_type)
+        return data
     
     def get_leaderboard(self, verbose=3, columns=None):
         """
@@ -379,10 +450,11 @@ class Competition:
         --------
         dictionary of leaderboard data 
         """
-        from aimodelshare.leaderboard import get_leaderboard as get_lead
-        data = get_lead(verbose=verbose,
+        from aimodelshare.leaderboard import get_leaderboard
+        data = get_leaderboard(verbose=verbose,
                  columns=columns, 
-                 apiurl = self.playground_url)
+                 apiurl = self.playground_url, 
+                 submission_type=self.submission_type)
         return data
     
     def stylize_leaderboard(self, leaderboard, naming_convention="keras"):
@@ -419,14 +491,30 @@ class Competition:
         response:   "Success" upon successful request
         """
         from aimodelshare.generatemodelapi import update_access_list as update_list
-        update = update_list(apiurl = self.playground_url, email_list=email_list,update_type=update_type)
+        update = update_list(apiurl = self.playground_url, 
+            email_list=email_list,update_type=update_type,
+            submission_type=self.submission_type)
         return update
 
 
 
+class Experiment(Competition):
+    """
+    Parameters:
+    ----------
+    `playground_url`: playground_url attribute of ModelPlayground class or ``string``
+        of existing ModelPlayground URL
+    """
 
+    submission_type = "experiment"
 
-
+    def __init__(self, playground_url):
+        self.playground_url = playground_url
+    
+    def __str__(self):
+        return f"Experiment class instance for playground: {self.playground_url}"
+        
+    
 
 class Data: 
     def __init__(self, data_type, playground_url=None):

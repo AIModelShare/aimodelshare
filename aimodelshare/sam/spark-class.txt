@@ -1,0 +1,2 @@
+#!/usr/bin/env bash
+exec /usr/lib/jvm/java-1.8.0-openjdk*/jre/bin/java -cp /var/lang/lib/python$python_version/site-packages/pyspark/conf/:/var/lang/lib/python$python_version/site-packages/pyspark/jars/* -Xmx1g "$var"

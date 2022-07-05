@@ -12,22 +12,30 @@ import tensorflow as tf
 
 from datetime import datetime
 
+from aimodelshare.leaderboard import get_leaderboard
+
 from aimodelshare.aws import run_function_on_lambda, get_token, get_aws_token, get_aws_client
 
-from aimodelshare.aimsonnx import _get_leaderboard_data, inspect_model, _get_metadata, _model_summary, model_from_string
+from aimodelshare.aimsonnx import _get_leaderboard_data, inspect_model, _get_metadata, _model_summary, model_from_string, pyspark_model_from_string
 
 
-def _get_file_list(client, bucket, model_id):
+def _get_file_list(client, bucket,keysubfolderid):
     #  Reading file list {{{
     try:
-        objects = client["client"].list_objects(Bucket=bucket, Prefix=model_id + "/")
+        objectlist=[]
+        paginator = client.get_paginator('list_objects')
+        pages = paginator.paginate(Bucket=bucket, Prefix=keysubfolderid)
+
+        for page in pages:
+            for obj in page['Contents']:
+                objectlist.append(obj['Key'])
+
     except Exception as err:
         return None, err
 
     file_list = []
-    if "Contents" in objects:
-        for key in objects["Contents"]:
-            file_list.append(key["Key"].split("/")[1])
+    for key in objectlist:
+            file_list.append(key.split("/")[-1])
     #  }}}
 
     return file_list, None
@@ -208,7 +216,14 @@ def _update_leaderboard(
     # }}}
 
 def _update_leaderboard_public(
-    modelpath, eval_metrics, s3_presigned_dict, custom_metadata=None):
+    modelpath, eval_metrics, s3_presigned_dict, custom_metadata=None, private=False, leaderboard_type = "competition"):
+
+    if private==True:
+        mastertable_path = 'model_eval_data_mastertable_private.csv'
+    else: 
+        mastertable_path = 'model_eval_data_mastertable.csv'
+
+
     # Loading the model and its metadata {{{
 
     if modelpath is not None:
@@ -258,9 +273,9 @@ def _update_leaderboard_public(
         import wget
 
         #Get leaderboard
-        leaderboardfilename = wget.download(s3_presigned_dict['get']['model_eval_data_mastertable.csv'], out=temp+"/"+'model_eval_data_mastertable.csv')
+        leaderboardfilename = wget.download(s3_presigned_dict['get'][mastertable_path], out=temp+"/"+mastertable_path)
         import pandas as pd
-        leaderboard=pd.read_csv(temp+"/"+'model_eval_data_mastertable.csv', sep="\t")
+        leaderboard=pd.read_csv(temp+"/"+mastertable_path, sep="\t")
 
         columns = leaderboard.columns
         
@@ -283,8 +298,9 @@ def _update_leaderboard_public(
     leaderboard['timestamp'] = leaderboard.pop("timestamp")
     leaderboard['version'] = leaderboard.pop("version")
         
-    leaderboard_csv = leaderboard.to_csv(temp+"/"+'model_eval_data_mastertable.csv',index=False, sep="\t")
+    leaderboard_csv = leaderboard.to_csv(temp+"/"+mastertable_path,index=False, sep="\t")
     metadata.pop("model_config", "pop worked")
+
 
     try:
 
@@ -293,15 +309,27 @@ def _update_leaderboard_public(
 
       fileputlistofdicts=[]
       for i in modelputfiles:
-        filedownload_dict=ast.literal_eval(s3_presigned_dict ['put'][i])
+        filedownload_dict=ast.literal_eval(s3_presigned_dict['put'][i])
         fileputlistofdicts.append(filedownload_dict)
 
-      with open(temp+"/"+'model_eval_data_mastertable.csv', 'rb') as f:
-        files = {'file': (temp+"/"+'model_eval_data_mastertable.csv', f)}
-        http_response = requests.post(fileputlistofdicts[0]['url'], data=fileputlistofdicts[0]['fields'], files=files)
+
+      with open(temp+"/"+mastertable_path, 'rb') as f:
+        files = {'file': (temp+"/"+mastertable_path, f)}
+
+        if private:
+
+            http_response = requests.post(fileputlistofdicts[1]['url'], data=fileputlistofdicts[1]['fields'], files=files)
+
+        else:
+
+            http_response = requests.post(fileputlistofdicts[0]['url'], data=fileputlistofdicts[0]['fields'], files=files)
+
         return metadata
+
     except Exception as err:
+
         return err
+
  
 
 def upload_model_dict(modelpath, s3_presigned_dict, bucket, model_id, model_version, placeholder=False):
@@ -357,6 +385,52 @@ def upload_model_dict(modelpath, s3_presigned_dict, bucket, model_id, model_vers
                                         'default_value': default_config,
                                         'param_value': model_configvalues})
 
+        elif meta_dict['ml_framework'] in ['pyspark']:
+            import ast
+            import astunparse
+
+            model_config = meta_dict["model_config"]
+            tree = ast.parse(model_config)
+
+            stringconfig=model_config
+
+            problemnodes=[]
+            for node in ast.walk(tree):
+                if isinstance(node, ast.Call):
+                    problemnodes.append(astunparse.unparse(node).replace("\n",""))
+
+            problemnodesunique=set(problemnodes)
+            for i in problemnodesunique:
+                stringconfig=stringconfig.replace(i,"'"+i+"'")
+
+            try:
+                model_config_temp = ast.literal_eval(stringconfig)
+                model_class = pyspark_model_from_string(meta_dict['model_type'])
+                default = model_class()
+
+                # get model config dict from pyspark model object
+                default_config_temp = {}
+                for key, value in default.extractParamMap().items():
+                    default_config_temp[key.name] = value
+                
+                # Sort the keys so default and model config key matches each other
+                model_config = dict(sorted(model_config_temp.items()))
+                default_config = dict(sorted(default_config_temp.items()))
+                
+                model_configkeys = model_config.keys()
+                model_configvalues = model_config.values()
+                default_config = default_config.values()
+            except:
+                model_class = str(pyspark_model_from_string(meta_dict['model_type']))
+                if model_class.find("Voting")>0:
+                      default_config = ["No data available"]
+                      model_configkeys=["No data available"]
+                      model_configvalues=["No data available"]
+
+            inspect_pd = pd.DataFrame({'param_name': model_configkeys,
+                                        'default_value': default_config,
+                                        'param_value': model_configvalues})
+
     else:
         meta_dict = {}
         meta_dict['ml_framework'] = "undefined"
@@ -364,8 +438,6 @@ def upload_model_dict(modelpath, s3_presigned_dict, bucket, model_id, model_vers
 
         #inspect_pd = pd.DataFrame({' ':["No metadata available for this model"]})
         inspect_pd = pd.DataFrame()
-
-
    
     try:
         #Get inspect json
@@ -419,7 +491,7 @@ def upload_model_graph(modelpath,  s3_presigned_dict, bucket, model_id, model_ve
 
         model_graph = ''
 
-    elif meta_dict['ml_framework'] in ['sklearn', 'xgboost']:
+    elif meta_dict['ml_framework'] in ['sklearn', 'xgboost', 'pyspark']:
 
         model_graph = ''
 
@@ -467,7 +539,8 @@ def submit_model(
     prediction_submission=None,
     preprocessor=None,
     reproducibility_env_filepath=None,
-    custom_metadata=None
+    custom_metadata=None,
+    submission_type="competition"
     ):
     """
     Submits model/preprocessor to machine learning competition using live prediction API url generated by AI Modelshare library
@@ -550,6 +623,7 @@ def submit_model(
 
         post_dict = {"y_pred": prediction_submission,
                 "return_eval": "True",
+                "submission_type": submission_type,
                 "return_y": "False"}
 
         headers = { 'Content-Type':'application/json', 'authorizationToken': json.dumps({"token":os.environ.get("AWS_TOKEN"),"eval":"TEST"}), } 
@@ -557,8 +631,14 @@ def submit_model(
         prediction = requests.post(apiurl_eval,headers=headers,data=json.dumps(post_dict)) 
 
         eval_metrics=json.loads(prediction.text)
-    except:
-        pass
+
+
+        eval_metrics_private = {"eval": eval_metrics['eval'][1]}
+        eval_metrics["eval"] = eval_metrics['eval'][0] 
+
+    except Exception as e:
+        
+        print(e)
 
     if all([isinstance(eval_metrics, dict),"message" not in eval_metrics]):
         pass        
@@ -573,14 +653,27 @@ def submit_model(
         return print("Failed to calculate evaluation metrics. Please check the format of the submitted predictions.")
 
     s3_presigned_dict = {key:val for key, val in eval_metrics.items() if key != 'eval'}
+
     idempotentmodel_version=s3_presigned_dict['idempotentmodel_version']
     s3_presigned_dict.pop('idempotentmodel_version')
+
     eval_metrics = {key:val for key, val in eval_metrics.items() if key != 'get'}
     eval_metrics = {key:val for key, val in eval_metrics.items() if key != 'put'}
+
+    eval_metrics_private = {key:val for key, val in eval_metrics_private.items() if key != 'get'}
+    eval_metrics_private = {key:val for key, val in eval_metrics_private.items() if key != 'put'}
+
+
     if eval_metrics.get("eval","empty")=="empty":
       pass
     else:
       eval_metrics=eval_metrics['eval']
+
+
+    if eval_metrics_private.get("eval","empty")=="empty":
+      pass
+    else:
+      eval_metrics_private=eval_metrics_private['eval']
 
 
     #upload preprocessor (1s for small upload vs 21 for 306 mbs)
@@ -655,6 +748,10 @@ def submit_model(
     modelleaderboarddata = _update_leaderboard_public(
         model_filepath, eval_metrics, s3_presigned_dict, custom_metadata)
 
+    # Upload model metrics and metadata {{{
+    modelleaderboarddata_private = _update_leaderboard_public(
+        model_filepath, eval_metrics_private, s3_presigned_dict, custom_metadata, private=True)
+
 
     model_versions = [os.path.splitext(f)[0].split("_")[-1][1:] for f in s3_presigned_dict['put'].keys()]
 
@@ -685,10 +782,19 @@ def submit_model(
 
     if isinstance(modelleaderboarddata, Exception):
       raise err
+
     else:
       dict_str = json.dumps(modelleaderboarddata)
     #convert None type values to string
       modelleaderboarddata_cleaned = json.loads(dict_str, object_pairs_hook=dict_clean)
+
+
+    if isinstance(modelleaderboarddata_private, Exception):
+      raise err
+    else:
+      dict_str = json.dumps(modelleaderboarddata_private)
+    #convert None type values to string
+      modelleaderboarddata_private_cleaned = json.loads(dict_str, object_pairs_hook=dict_clean)
 
     # Update model version and sample data {{{
     #data_types = None
@@ -711,12 +817,18 @@ def submit_model(
     # }}}
     modelsubmissiontags=input("Insert search tags to help users find your model (optional): ")
     modelsubmissiondescription=input("Provide any useful notes about your model (optional): ")
+    
+    if submission_type=="competition":
+        experimenttruefalse="FALSE"
+    else:
+        experimenttruefalse="TRUE"
 
-    #Update competition data
+    #Update competition or experiment data
     bodydata = {"apiurl": apiurl,
                 "submissions": model_version,
                   "contributoruniquenames":os.environ.get('username'),
-                "versionupdateputsubmit":"TRUE"
+                "versionupdateputsubmit":"TRUE",
+                 "experiment":experimenttruefalse
                                 }
 
     # Get the response
@@ -760,7 +872,6 @@ def submit_model(
             for i in problemnodesunique:
                 stringconfig=stringconfig.replace(i,"'"+i+"'")
 
-
             try:
                 model_config=ast.literal_eval(stringconfig)
                 model_class = model_from_string(meta_dict['model_type'])
@@ -781,19 +892,66 @@ def submit_model(
                                         'param_value': model_configvalues})
 
             model_graph = ''
-        
+
+        elif meta_dict['ml_framework'] in ['pyspark']:
+            import ast
+            import astunparse
+
+            model_config = meta_dict["model_config"]
+            tree = ast.parse(model_config)
+
+            stringconfig=model_config
+
+            problemnodes=[]
+            for node in ast.walk(tree):
+                if isinstance(node, ast.Call):
+                    problemnodes.append(astunparse.unparse(node).replace("\n",""))
+
+            problemnodesunique=set(problemnodes)
+            for i in problemnodesunique:
+                stringconfig=stringconfig.replace(i,"'"+i+"'")
+
+            try:
+                model_config_temp = ast.literal_eval(stringconfig)
+                model_class = pyspark_model_from_string(meta_dict['model_type'])
+                default = model_class()
+
+                # get model config dict from pyspark model object
+                default_config_temp = {}
+                for key, value in default.extractParamMap().items():
+                    default_config_temp[key.name] = value
+                
+                # Sort the keys so default and model config key matches each other
+                model_config = dict(sorted(model_config_temp.items()))
+                default_config = dict(sorted(default_config_temp.items()))
+                
+                model_configkeys = model_config.keys()
+                model_configvalues = model_config.values()
+                default_config = default_config.values()
+            except:
+                model_class = str(pyspark_model_from_string(meta_dict['model_type']))
+                if model_class.find("Voting")>0:
+                      default_config = ["No data available"]
+                      model_configkeys=["No data available"]
+                      model_configvalues=["No data available"]
+
+            inspect_pd = pd.DataFrame({'param_name': model_configkeys,
+                                    'default_value': default_config,
+                                    'param_value': model_configvalues})
+            model_graph = ""
     else: 
 
         inspect_pd = pd.DataFrame()
         model_graph = ''
-
         
-
+        
     keys_to_extract = [ "accuracy", "f1_score", "precision", "recall", "mse", "rmse", "mae", "r2"]
 
     eval_metrics_subset = {key: eval_metrics[key] for key in keys_to_extract}
+    eval_metrics_private_subset = {key: eval_metrics_private[key] for key in keys_to_extract}
 
     eval_metrics_subset_nonulls = {key: value for key, value in eval_metrics_subset.items() if isinstance(value, float)}
+    eval_metrics_private_subset_nonulls = {key: value for key, value in eval_metrics_private_subset.items() if isinstance(value, float)}
 
                               
     #Update model architecture data
@@ -804,11 +962,16 @@ def submit_model(
                 "Private":"FALSE",
                 "modelsubmissiondescription": modelsubmissiondescription,
                 "modelsubmissiontags":modelsubmissiontags,
-                  "eval_metrics":json.dumps(eval_metrics_subset_nonulls)}
+                  "eval_metrics":json.dumps(eval_metrics_subset_nonulls),
+                  "eval_metrics_private":json.dumps(eval_metrics_private_subset_nonulls),
+                  "submission_type": submission_type
+
+                  }
 
     bodydatamodels.update(modelleaderboarddata_cleaned)
-    d = bodydatamodels
+    bodydatamodels.update(modelleaderboarddata_private_cleaned)
 
+    d = bodydatamodels
 
     keys_values = d.items()
 
@@ -831,7 +994,7 @@ def submit_model(
 
     return print("\nYour model has been submitted as model version "+str(model_version)+ "\n\n"+code_comp_result)
 
-def update_runtime_model(apiurl, model_version=None):
+def update_runtime_model(apiurl, model_version=None, submission_type="competition"):
     """
     apiurl: string of API URL that the user wishes to edit
     new_model_version: string of model version number (from leaderboard) to replace original model 
@@ -847,9 +1010,10 @@ def update_runtime_model(apiurl, model_version=None):
         return print("'Update Runtime Model' unsuccessful. Please provide credentials with set_credentials().")
 
     # Create user session
-    aws_client=get_aws_client(aws_key=os.environ.get('AWS_ACCESS_KEY_ID'), 
+    aws_client_and_resource=get_aws_client(aws_key=os.environ.get('AWS_ACCESS_KEY_ID'), 
                               aws_secret=os.environ.get('AWS_SECRET_ACCESS_KEY'), 
                               aws_region=os.environ.get('AWS_REGION'))
+    aws_client = aws_client_and_resource['client']
     
     user_sess = boto3.session.Session(aws_access_key_id=os.environ.get('AWS_ACCESS_KEY_ID'), 
                                       aws_secret_access_key=os.environ.get('AWS_SECRET_ACCESS_KEY'), 
@@ -868,35 +1032,33 @@ def update_runtime_model(apiurl, model_version=None):
     # }}}
 
     try:
-        leaderboard = aws_client["client"].get_object(
-            Bucket=api_bucket, Key=model_id + "/model_eval_data_mastertable.csv"
+        leaderboard = get_leaderboard(apiurl=apiurl, submission_type=submission_type)
 
-
-
-        )
-        leaderboard = pd.read_csv(leaderboard["Body"], sep="\t")
         columns = leaderboard.columns
-        metric_names=["accuracy","f1_score","precision","recall","r2","mse","mae"]
         leaderboardversion=leaderboard[leaderboard['version']==int(model_version)]
         leaderboardversion=leaderboardversion.dropna(axis=1)
-        metric_names_subset=list(set(metric_names).intersection(leaderboardversion.columns))
+
+        metric_names_subset=list(columns[0:4])
+        print(metric_names_subset)
         leaderboardversiondict=leaderboardversion.loc[:,metric_names_subset].to_dict('records')[0]
+        print(leaderboardversiondict)
+
     except Exception as err:
         raise err
 
     # Get file list for current bucket {{{
-    model_files, err = _get_file_list(aws_client, api_bucket, model_id)
+    model_files, err = _get_file_list(aws_client, api_bucket, model_id+"/"+submission_type)
     if err is not None:
         raise err
     # }}}
 
     # extract subfolder objects specific to the model id
-    folder = s3.meta.client.list_objects(Bucket=api_bucket, Prefix=model_id+"/")
+    folder = s3.meta.client.list_objects(Bucket=api_bucket, Prefix=model_id+"/"+submission_type+"/")
     bucket = s3.Bucket(api_bucket)
     file_list = [file['Key'] for file in folder['Contents']]
     s3 = boto3.resource('s3')
-    model_source_key = model_id+"/onnx_model_v"+str(model_version)+".onnx"
-    preprocesor_source_key = model_id+"/preprocessor_v"+str(model_version)+".zip"
+    model_source_key = model_id+"/"+submission_type+"/onnx_model_v"+str(model_version)+".onnx"
+    preprocesor_source_key = model_id+"/"+submission_type+"/preprocessor_v"+str(model_version)+".zip"
     model_copy_source = {
           'Bucket': api_bucket,
           'Key': model_source_key
@@ -916,8 +1078,8 @@ def update_runtime_model(apiurl, model_version=None):
 
     # overwrite runtime_model.onnx file & runtime_preprocessor.zip files: 
     if (model_source_key in file_list) & (preprocesor_source_key in file_list):
-        response = bucket.copy(model_copy_source, model_id+"/"+'runtime_model.onnx')
-        response = bucket.copy(preprocessor_copy_source, model_id+"/"+'runtime_preprocessor.zip')
+        response = bucket.copy(model_copy_source, model_id+"/"+submission_type+"/"+'runtime_model.onnx')
+        response = bucket.copy(preprocessor_copy_source, model_id+"/"+submission_type+"/"+'runtime_preprocessor.zip')
         return print('Runtime model & preprocessor for api: '+apiurl+" updated to model version "+model_version+".\n\nModel metrics are now updated and verified for this model playground.")
     else:
         # the file resource to be the new runtime_model is not available

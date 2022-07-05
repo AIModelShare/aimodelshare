@@ -13,6 +13,42 @@ import tempfile
 import requests
 import uuid
 
+delay=3
+
+def create_bucket(s3_client, bucket_name, region):
+        try:
+            response=s3_client.head_bucket(Bucket=bucket_name)
+        except:
+            if(region=="us-east-1"):
+                response = s3_client.create_bucket(
+                    ACL="private",
+                    Bucket=bucket_name
+                )
+            else:
+                location={'LocationConstraint': region}
+                response=s3_client.create_bucket(
+                    ACL="private",
+                    Bucket=bucket_name,
+                    CreateBucketConfiguration=location
+                )
+        return response
+
+
+
+def create_iam_role(iam_client, role_name, trust_relationship):
+    response = iam_client.create_role(RoleName=role_name, AssumeRolePolicyDocument=json.dumps(trust_relationship))
+    time.sleep(delay)
+
+def create_iam_policy(iam_client, account_id, policy_name, policy):
+    policy_arn = "arn:aws:iam::" + account_id + ":policy/" + policy_name
+    response = iam_client.create_policy(PolicyName=policy_name, PolicyDocument=json.dumps(policy))
+    time.sleep(delay)
+
+def attach_policy_to_role(iam_client, account_id, role_name, policy_name):
+    policy_arn = "arn:aws:iam::" + account_id + ":policy/" + policy_name
+    response = iam_client.attach_role_policy(RoleName = role_name, PolicyArn = policy_arn)
+    time.sleep(delay)
+
 def create_docker_folder_local(dataset_dir, dataset_name, python_version):
 
     tmp_dataset_dir = tempfile.gettempdir() + '/' + '/'.join(['tmp_dataset_dir', dataset_name])
@@ -71,7 +107,7 @@ def create_docker_folder_codebuild(dataset_dir, dataset_name, template_folder, r
     newdata = template.substitute(
         aws_access_key_id=os.environ['AWS_ACCESS_KEY_ID'],
         aws_secret_access_key=os.environ['AWS_SECRET_ACCESS_KEY'],
-        region=region,
+        region='region',
         registry_uri=registry_uri,
         repository=repository,
         dataset_tag=dataset_tag)
@@ -129,9 +165,11 @@ def share_data_codebuild(account_id, region, dataset_dir, dataset_tag='latest', 
 
     print('Uploading your data. Please wait for a confirmation message.')
     
+    region = 'us-east-1'
+
     session = boto3.session.Session(aws_access_key_id=os.environ.get("AWS_ACCESS_KEY_ID"),
                                     aws_secret_access_key = os.environ.get("AWS_SECRET_ACCESS_KEY"), 
-                                    region_name=os.environ.get("AWS_REGION"))
+                                    region_name=region)
 
     flag = 0
 
@@ -146,21 +184,11 @@ def share_data_codebuild(account_id, region, dataset_dir, dataset_tag='latest', 
 
     codebuild_dataset_name=dataset_name+'-upload'
 
-    s3_client = session.resource('s3', region_name=region)
+    s3_client = session.client('s3', region_name=region)
 
     bucket_name = "aimodelshare"+str(account_id)+"sharedata"
     
-    try:
-        s3_client.create_bucket(
-            Bucket=bucket_name,
-            CreateBucketConfiguration = {
-                'LocationConstraint': region
-            }
-        )
-    except:
-        s3_client.create_bucket(
-            Bucket=bucket_name
-        )
+    create_bucket(s3_client, bucket_name, region)
     
     s3_resource = session.resource('s3', region_name=region)
 
@@ -183,45 +211,28 @@ def share_data_codebuild(account_id, region, dataset_dir, dataset_tag='latest', 
     create_docker_folder_codebuild(dataset_dir, dataset_name, template_folder, region, registry_uri, repository, dataset_tag, python_version)
 
     iam = session.client('iam')
-    
-    codebuild_trust_relationship = json.loads(pkg_resources.read_text(data_sharing_templates, 'codebuild_trust_relationship.txt'))
-    #with open(os.path.join('data_sharing_templates', 'codebuild_trust_relationship.txt'), 'r') as file:
-    #    codebuild_trust_relationship = json.load(file)
 
+    codebuild_trust_relationship = json.loads(pkg_resources.read_text(data_sharing_templates, 'codebuild_trust_relationship.txt'))
     try:
-        response = iam.create_role(
-            RoleName=codebuild_role_name,
-            AssumeRolePolicyDocument=json.dumps(codebuild_trust_relationship)
-        )
+        create_iam_role(iam, codebuild_role_name, codebuild_trust_relationship)
     except:
-        flag = 1
-        pass
+        None
 
     codebuild_policies = json.loads(pkg_resources.read_text(data_sharing_templates, 'codebuild_policies.txt'))
-    #with open(os.path.join('data_sharing_templates', 'codebuild_policies.txt'), 'r') as file:
-    #    codebuild_policies = json.load(file)
+    try:
+        create_iam_policy(iam, account_id, codebuild_policies_name, codebuild_policies)
+    except:
+        None
 
     try:
-        response = iam.create_policy(
-            PolicyName=codebuild_policies_name,
-            PolicyDocument=json.dumps(codebuild_policies),
-        )
+        attach_policy_to_role(iam, account_id, codebuild_role_name, codebuild_policies_name)
     except:
-        flag = 1
-        pass
-
-    response = iam.attach_role_policy(
-        RoleName=codebuild_role_name,
-        PolicyArn=''.join(['arn:aws:iam::', account_id, ':policy/', codebuild_policies_name])
-    )
+        None
 
     s3_client = session.client('s3')
     s3_client.upload_file(''.join([template_folder, '.zip']),
                           bucket_name,
                           ''.join([dataset_name+'_'+dataset_tag, '.zip']))
-
-    if(flag==0):
-        time.sleep(15)
 
     codebuild = session.client('codebuild')
     

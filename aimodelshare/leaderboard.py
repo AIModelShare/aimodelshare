@@ -4,108 +4,14 @@ import pandas as pd
 import os
 import requests
 
+import matplotlib.pyplot as plt
+
+from collections import Counter
 from aimodelshare.aws import run_function_on_lambda, get_aws_client
 from aimodelshare.aimsonnx import _get_layer_names, layer_mapping
 
 
-def get_leaderboard_aws(apiurl, verbose=3, columns=None):
-    # Confirm that creds are loaded, print warning if not
-    if all(["AWS_ACCESS_KEY_ID" in os.environ, 
-            "AWS_SECRET_ACCESS_KEY" in os.environ,
-            "AWS_REGION" in os.environ,
-           "username" in os.environ, 
-           "password" in os.environ]):
-        pass
-    else:
-        return print("Get Leaderboard unsuccessful. Please provide credentials with set_credentials().")
-
-    aws_client=get_aws_client(aws_key=os.environ.get('AWS_ACCESS_KEY_ID'), 
-                              aws_secret=os.environ.get('AWS_SECRET_ACCESS_KEY'), 
-                              aws_region=os.environ.get('AWS_REGION'))
-    
-    # Get bucket and model_id for user {{{
-    response, error = run_function_on_lambda(
-        apiurl, **{"delete": "FALSE", "versionupdateget": "TRUE"}
-    )
-    if error is not None:
-        raise error
-
-    _, bucket, model_id = json.loads(response.content.decode("utf-8"))
-    # }}}
-
-    # Get leaderboard {{{
-    try:
-        leaderboard = aws_client["client"].get_object(
-            Bucket=bucket, Key=model_id + "/model_eval_data_mastertable.csv"
-        )
-        assert (
-            leaderboard["ResponseMetadata"]["HTTPStatusCode"] == 200
-        ), "There was a problem in accessing the leaderboard file"
-
-        leaderboard = pd.read_csv(leaderboard["Body"], sep="\t")
-
-        clf =["accuracy", "f1_score", "precision", "recall"]
-        reg = ['mse', 'rmse', 'mae', 'r2']
-        other = ['timestamp']
-
-        if columns:
-            leaderboard = leaderboard.filter(clf+reg+columns+other)
-
-        # infer task type from leaderboard
-        if leaderboard[clf].sum().sum():
-            task_type = 'classification'
-        else:
-            task_type = 'regression'
-
-        if task_type == 'classification':
-            leaderboard_eval_metrics = leaderboard[clf]
-        else:
-            leaderboard_eval_metrics = leaderboard[reg]
-
-        leaderboard_model_meta = leaderboard.drop(clf+reg, axis=1).replace(0,np.nan).dropna(axis=1,how="all")
-
-        leaderboard = pd.concat([leaderboard_eval_metrics, leaderboard_model_meta], axis=1, ignore_index=False)
-
-        if verbose == 1:
-            leaderboard = leaderboard.filter(regex=("^(?!.*(_layers|_act))"))
-        elif verbose == 2:
-            leaderboard = leaderboard.filter(regex=("^(?!.*_act)"))
-
-    except Exception as err:
-        raise err
-    # }}}
-
-    # Specifying problem wise columns {{{
-    if task_type == "classification":
-        sort_cols = ["accuracy", "f1_score", "precision", "recall"]
-        #leaderboard = leaderboard.drop(columns = ['mse', 'rmse', 'mae', 'r2'])
-
-    else:
-        sort_cols = ["-mae", "r2"]
-        #leaderboard = leaderboard.drop(columns = ["accuracy", "f1_score", "precision", "recall"])
-
-    # }}}
-
-    # Sorting leaderboard {{{
-    ranks = []
-    for col in sort_cols:
-        ascending = False
-        if col[0] == "-":
-            col = col[1:]
-            ascending = True
-
-        ranks.append(leaderboard[col].rank(method="dense", ascending=ascending))
-
-    ranks = np.mean(ranks, axis=0)
-    order = np.argsort(ranks)
-
-    leaderboard = leaderboard.loc[order].reset_index().drop("index", axis=1)
-    # }}}
-
-    return leaderboard
-
-
-def get_leaderboard_lambda(apiurl, verbose=3, columns=None):
+def get_leaderboard(apiurl, verbose=3, columns=None, submission_type="competition"):
     if all(["username" in os.environ, 
            "password" in os.environ]):
         pass
@@ -123,6 +29,7 @@ def get_leaderboard_lambda(apiurl, verbose=3, columns=None):
                "compare_models": "False",
                "version_list": "None",
                "get_leaderboard": "True",
+               "submission_type": submission_type,
                "verbose": verbose,
                "columns": columns}
     
@@ -136,22 +43,6 @@ def get_leaderboard_lambda(apiurl, verbose=3, columns=None):
 
     return leaderboard_pd
 
-
-def get_leaderboard(apiurl, verbose=3, columns=None):
-
-    if all(["username" in os.environ, 
-           "password" in os.environ]):
-        pass
-    else:
-        return print("'get_leaderboard()' unsuccessful. Please provide credentials with set_credentials().")
-
-    
-    try: 
-        leaderboard_pd = get_leaderboard_lambda(apiurl, verbose, columns)
-    except: 
-        leaderboard_pd = get_leaderboard_aws(apiurl, verbose, columns)
-    
-    return leaderboard_pd
 
 
 def stylize_leaderboard(leaderboard, naming_convention="keras"):
@@ -273,7 +164,5 @@ def consolidate_leaderboard(data, naming_convention="keras"):
 
 
 
-__all__ = [
-    get_leaderboard,
-    stylize_leaderboard,
-]
+__all__ = [get_leaderboard,
+    stylize_leaderboard]

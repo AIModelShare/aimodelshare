@@ -8,7 +8,7 @@ from sklearn.model_selection import GridSearchCV, RandomizedSearchCV
 import torch
 import xgboost
 import tensorflow as tf
-
+import keras
 
 # onnx modules
 import onnx
@@ -20,7 +20,6 @@ from onnx.tools.net_drawer import GetPydotGraph, GetOpNodeProducer
 import importlib
 import onnxmltools
 import onnxruntime as rt
-
 
 # aims modules
 from aimodelshare.aws import run_function_on_lambda, get_aws_client
@@ -35,9 +34,11 @@ import re
 import pickle
 import requests
 import sys
-import tempfile
+import shutil
+from pathlib import Path
+from zipfile import ZipFile
 import wget            
-
+from copy import copy
 
 from pympler import asizeof
 from IPython.core.display import display, HTML, SVG
@@ -344,7 +345,166 @@ def _sklearn_to_onnx(model, initial_types, transfer_learning=None,
 
     return onx
 
+def get_pyspark_model_files_paths(directory):
+    # Get list of relative path of all model files
 
+    # initializing empty file paths list
+    file_paths = []
+  
+    for path in Path(directory).rglob('*'):
+        if not path.is_dir():
+            file_paths.append(path.relative_to(directory))
+
+    # returning all file paths
+    return file_paths
+
+def _pyspark_to_onnx(model, initial_types, spark_session, 
+                    transfer_learning=None, deep_learning=None, 
+                    task_type=None):
+    '''Extracts metadata from pyspark model object.'''
+
+    try:
+        if pyspark is None:
+            raise("Error: Please install pyspark to enable pyspark features")
+    except:
+        raise("Error: Please install pyspark to enable pyspark features")
+
+    # deal with pipelines and parameter search
+    if isinstance(model, (TrainValidationSplitModel, CrossValidatorModel)):
+        model = model.bestModel
+
+    whole_model = copy(model)
+    
+    # Look for the last model in the pipeline
+    if isinstance(model, PipelineModel):
+        for t in model.stages:
+            if isinstance(t, Model):
+                model = t
+
+    # convert to onnx
+    onx = convert_sparkml(whole_model, 'Pyspark model', initial_types, 
+                         spark_session=spark_session)
+            
+    # generate metadata dict 
+    metadata = {}
+    
+    # placeholders, need to be generated elsewhere
+    metadata['model_id'] = None
+    metadata['data_id'] = None
+    metadata['preprocessor_id'] = None
+    
+    # infer ml framework from function call
+    metadata['ml_framework'] = 'pyspark'
+    
+    # get model type from model object
+    model_type = str(model).split(':')[0]
+    metadata['model_type'] = model_type
+    
+    # get transfer learning bool from user input
+    metadata['transfer_learning'] = transfer_learning
+
+    # get deep learning bool from user input
+    metadata['deep_learning'] = deep_learning
+    
+    # get task type from user input
+    metadata['task_type'] = task_type
+    
+    # placeholders, need to be inferred from data 
+    metadata['target_distribution'] = None
+    metadata['input_type'] = None
+    metadata['input_shape'] = None
+    metadata['input_dtypes'] = None       
+    metadata['input_distribution'] = None
+    
+    # get model config dict from pyspark model object
+    model_config = {}
+    for key, value in model.extractParamMap().items():
+        model_config[key.name] = value
+    metadata['model_config'] = str(model_config)
+
+    # get weights for pretrained models 
+    temp_dir = tempfile.gettempdir()
+    temp_path = os.path.join(temp_dir, 'temp_pyspark_model')
+
+    model.write().overwrite().save(temp_path)
+
+    # calling function to get all file paths in the directory
+    file_paths = get_pyspark_model_files_paths(temp_path)
+
+    temp_path_zip = os.path.join(temp_dir, 'temp_pyspark_model.zip')
+    with ZipFile(temp_path_zip, 'w') as zip:
+        # writing each file one by one
+        for file in file_paths:
+            zip.write(os.path.join(temp_path, file), file)
+    
+    with open(temp_path_zip, "rb") as f:
+        pkl_str = f.read()
+
+    metadata['model_weights'] = pkl_str
+    
+    # clean up temp directory files for future runs
+    try:
+        shutil.rmtree(temp_path)
+        os.remove(temp_path_zip)
+    except:
+        pass
+
+    # get model state from sklearn model object
+    metadata['model_state'] = None
+
+    # get model architecture    
+    if model_type == 'MultilayerPerceptronClassificationModel':
+
+        #  https://spark.apache.org/docs/latest/ml-classification-regression.html#multilayer-perceptron-classifier
+        loss = 'log-loss'
+        hidden_layer_activation = 'sigmoid'
+        output_layer_activation = 'softmax'
+
+        n_params = []
+        layer_dims = model.getLayers()
+        hidden_layers = layer_dims[1:-1]
+        for i in range(len(layer_dims)-1):
+            n_params.append(layer_dims[i]*layer_dims[i+1] + layer_dims[i+1])
+
+        # insert data into model architecture dict 
+        model_architecture = {'layers_number': len(hidden_layers),
+                              'layers_sequence': ['Dense']*len(hidden_layers),
+                              'layers_summary': {'Dense': len(hidden_layers)},
+                              'layers_n_params': n_params, #double check 
+                              'layers_shapes': hidden_layers,
+                              'activations_sequence': [hidden_layer_activation]*len(hidden_layers) + [output_layer_activation],
+                              'activations_summary': {hidden_layer_activation: len(hidden_layers), output_layer_activation: 1},
+                              'loss': loss,
+                              'optimizer': model.getSolver()
+                             }
+
+        metadata['model_architecture'] = str(model_architecture)
+
+
+    else:
+        model_architecture = {}
+
+        if hasattr(model, 'coefficients'):
+            model_architecture['layers_n_params'] = [model.coefficients.size]
+        if hasattr(model, 'getSolver') and callable(model.getSolver):
+            model_architecture['optimizer'] = model.getSolver()
+
+        metadata['model_architecture'] = str(model_architecture)
+
+    metadata['memory_size'] = asizeof.asizeof(model)    
+
+    # placeholder, needs evaluation engine
+    metadata['eval_metrics'] = None  
+    
+    # add metadata from onnx object
+    # metadata['metadata_onnx'] = str(_extract_onnx_metadata(onx, framework='sklearn'))
+    metadata['metadata_onnx'] = None
+
+    meta = onx.metadata_props.add()
+    meta.key = 'model_metadata'
+    meta.value = str(metadata)
+
+    return onx
 
 def _keras_to_onnx(model, transfer_learning=None,
                   deep_learning=None, task_type=None, epochs=None):
@@ -464,8 +624,11 @@ def _keras_to_onnx(model, transfer_learning=None,
     layers_n_params = []
     layers_shapes = []
     activations = []
-    
-    for i in model.layers: 
+
+
+    keras_layers = keras_unpack(model)
+
+    for i in keras_layers: 
         
         # get layer names 
         if i.__class__.__name__ in layer_list:
@@ -545,6 +708,7 @@ def _pytorch_to_onnx(model, model_input, transfer_learning=None,
 
     # generate onnx file and save it to temporary path
     export(model, model_input, temp_path)
+        #operator_export_type=torch.onnx.OperatorExportTypes.ONNX_ATEN_FALLBACK)
 
     # load onnx file from temporary path
     onx = onnx.load(temp_path)
@@ -631,7 +795,7 @@ def _pytorch_to_onnx(model, model_input, transfer_learning=None,
 
 def model_to_onnx(model, framework, model_input=None, initial_types=None,
                   transfer_learning=None, deep_learning=None, task_type=None, 
-                  epochs=None):
+                  epochs=None, spark_session=None):
     
     '''Transforms sklearn, keras, or pytorch model object into ONNX format 
     and extracts model metadata dictionary. The model metadata dictionary 
@@ -664,9 +828,9 @@ def model_to_onnx(model, framework, model_input=None, initial_types=None,
     '''
 
     # assert that framework exists
-    frameworks = ['sklearn', 'keras', 'pytorch', 'xgboost']
+    frameworks = ['sklearn', 'keras', 'pytorch', 'xgboost', 'pyspark']
     assert framework in frameworks, \
-    'Please choose "sklearn", "keras", "pytorch", or "xgboost".'
+    'Please choose "sklearn", "keras", "pytorch", "pyspark" or "xgboost".'
     
     # assert model input type THIS IS A PLACEHOLDER
     if model_input is not None:
@@ -713,12 +877,26 @@ def model_to_onnx(model, framework, model_input=None, initial_types=None,
 
         
     elif framework == 'pytorch':
+        try:
+            import pyspark
+            from pyspark.sql import SparkSession
+            from pyspark.ml import PipelineModel, Model
+            from pyspark.ml.tuning import CrossValidatorModel, TrainValidationSplitModel
+            from onnxmltools import convert_sparkml
+        except:
+            print("Warning: Please install pyspark to enable pyspark features")
         onnx = _pytorch_to_onnx(model, model_input=model_input,
                                 transfer_learning=transfer_learning, 
                                 deep_learning=deep_learning, 
                                 task_type=task_type,
                                 epochs=epochs)
 
+    elif framework == 'pyspark':
+        onnx = _pyspark_to_onnx(model, initial_types=initial_types, 
+                                transfer_learning=transfer_learning, 
+                                deep_learning=deep_learning, 
+                                task_type=task_type,
+                                spark_session=spark_session)
 
     try: 
         rt.InferenceSession(onnx.SerializeToString())   
@@ -800,7 +978,7 @@ def _get_leaderboard_data(onnx_model, eval_metrics=None):
         for i in layer_list:
             if i in metadata_raw['model_architecture']['layers_summary']:
                 metadata[i.lower()+'_layers'] = metadata_raw['model_architecture']['layers_summary'][i]
-            else:
+            elif i.lower()+'_layers' not in metadata.keys():
                 metadata[i.lower()+'_layers'] = 0
 
         for i in activation_list:
@@ -819,8 +997,8 @@ def _get_leaderboard_data(onnx_model, eval_metrics=None):
         metadata['epochs'] = metadata_raw['epochs']
         metadata['memory_size'] = metadata_raw['memory_size']
 
-    # get sklearn model metrics
-    elif metadata_raw['ml_framework'] == 'sklearn' or metadata_raw['ml_framework'] == 'xgboost':
+    # get sklearn & pyspark model metrics
+    elif metadata_raw['ml_framework'] in ['sklearn', 'xgboost', 'pyspark']:
         metadata['depth'] = 0
 
         try:
@@ -890,34 +1068,9 @@ def onnx_to_image(model):
     
     return pydot_graph
 
-def inspect_model_aws(apiurl, version=None):
-    if all(["AWS_ACCESS_KEY_ID" in os.environ, 
-            "AWS_SECRET_ACCESS_KEY" in os.environ,
-            "AWS_REGION" in os.environ, 
-           "username" in os.environ, 
-           "password" in os.environ]):
-        pass
-    else:
-        return print("'Inspect Model' unsuccessful. Please provide credentials with set_credentials().")
 
-    aws_client = get_aws_client() 
 
-    onnx_model = _get_onnx_from_bucket(apiurl, aws_client, version=version)
-
-    meta_dict = _get_metadata(onnx_model)
-
-    if meta_dict['ml_framework'] == 'keras':
-        inspect_pd = _model_summary(meta_dict)
-        
-    elif meta_dict['ml_framework'] in ['sklearn', 'xgboost']:
-        model_config = meta_dict["model_config"]
-        model_config = ast.literal_eval(model_config)
-        inspect_pd = pd.DataFrame({'param_name': model_config.keys(),
-                                   'param_value': model_config.values()})
-    
-    return inspect_pd
-
-def inspect_model_lambda(apiurl, version=None, naming_convention = None):
+def inspect_model(apiurl, version=None, naming_convention = None, submission_type="competition"):
     if all(["username" in os.environ, 
            "password" in os.environ]):
         pass
@@ -928,7 +1081,9 @@ def inspect_model_lambda(apiurl, version=None, naming_convention = None):
                "return_eval": "False",
                "return_y": "False",
                "inspect_model": "True",
-               "version": version}
+               "version": version,
+               "submission_type": submission_type
+               }
     
     headers = { 'Content-Type':'application/json', 'authorizationToken': os.environ.get("AWS_TOKEN"),} 
 
@@ -940,184 +1095,6 @@ def inspect_model_lambda(apiurl, version=None, naming_convention = None):
 
     return inspect_pd
 
-
-def inspect_model_dict(apiurl, version=None, naming_convention = None):
-
-    if all(["AWS_ACCESS_KEY_ID" in os.environ, 
-            "AWS_SECRET_ACCESS_KEY" in os.environ,
-            "AWS_REGION" in os.environ, 
-           "username" in os.environ, 
-           "password" in os.environ]):
-        pass
-    else:
-        return print("'Inspect Model' unsuccessful. Please provide credentials with set_credentials().")
-
-    aws_client=get_aws_client(aws_key=os.environ.get('AWS_ACCESS_KEY_ID'), 
-                              aws_secret=os.environ.get('AWS_SECRET_ACCESS_KEY'), 
-                              aws_region=os.environ.get('AWS_REGION'))
-
-    # Get bucket and model_id for user
-    response, error = run_function_on_lambda(
-        apiurl, **{"delete": "FALSE", "versionupdateget": "TRUE"}
-    )
-    if error is not None:
-        raise error
-
-    _, bucket, model_id = json.loads(response.content.decode("utf-8"))
-
-    key = model_id+'/inspect_pd_'+str(version)+'.json'
-    
-    try:
-      resp = aws_client['client'].get_object(Bucket=bucket, Key=key)
-      data = resp.get('Body').read()
-      model_dict = json.loads(data)
-    except Exception as e:
-        print(e)
-
-    ml_framework = model_dict.get(str(version))['ml_framework']
-    model_type = model_dict.get(str(version))['model_type']
-    inspect_pd = pd.DataFrame(model_dict.get(str(version))['model_dict'])
-
-    if naming_convention == 'keras' and ml_framework=='pytorch': 
-        inspect_pd['Layer'] = rename_layers(inspect_pd['Layer'], direction="torch_to_keras", activation=False)
-
-    elif naming_convention == 'pytorch' and ml_framework=='keras': 
-        inspect_pd['Layer'] = rename_layers(inspect_pd['Layer'], direction="keras_to_torch", activation=False)
-    
-    return inspect_pd
-
-
-
-def inspect_model(apiurl, version=None, naming_convention=None):
-    if all(["username" in os.environ, 
-           "password" in os.environ]):
-        pass
-    else:
-        return print("'Inspect Model' unsuccessful. Please provide credentials with set_credentials().")
-
-    try:
-        inspect_pd = inspect_model_lambda(apiurl, version)
-    except:
-
-        try: 
-            inspect_pd = inspect_model_dict(apiurl, version)
-        except: 
-            inspect_pd = inspect_model_aws(apiurl, version)
-
-    if naming_convention == 'keras': 
-        inspect_pd['Layer'] = rename_layers(inspect_pd['Layer'], direction="torch_to_keras", activation=False)
-
-    elif naming_convention == 'pytorch': 
-        inspect_pd['Layer'] = rename_layers(inspect_pd['Layer'], direction="keras_to_torch", activation=False)
-
-    if inspect_pd.empty:
-        print("No metadata available for model "+ str(version)+".")
-    else:
-        return inspect_pd
-
-
-def compare_models_dict(apiurl, version_list=None, 
-    by_model_type=None, best_model=None, verbose=1, naming_convention=None):
-    
-    if not isinstance(version_list, list):
-        raise Exception("Argument 'version' must be a list.")
-    
-    if all(["AWS_ACCESS_KEY_ID" in os.environ, 
-            "AWS_SECRET_ACCESS_KEY" in os.environ,
-            "AWS_REGION" in os.environ, 
-           "username" in os.environ, 
-           "password" in os.environ]):
-        pass
-    else:
-        return print("'Compare Models' unsuccessful. Please provide credentials with set_credentials().")
-
-    aws_client=get_aws_client(aws_key=os.environ.get('AWS_ACCESS_KEY_ID'), 
-                              aws_secret=os.environ.get('AWS_SECRET_ACCESS_KEY'), 
-                              aws_region=os.environ.get('AWS_REGION'))
-
-    # Get bucket and model_id for user
-    response, error = run_function_on_lambda(
-        apiurl, **{"delete": "FALSE", "versionupdateget": "TRUE"}
-    )
-    if error is not None:
-        raise error
-
-    _, bucket, model_id = json.loads(response.content.decode("utf-8"))
-
-
-    ml_framework_list = []
-    model_type_list = []
-    model_dict_list = []
-    model_dict = {}
-
-    for i in version_list: 
-
-        key = model_id+'/inspect_pd_'+str(i)+'.json'
-        
-        try:
-          resp = aws_client['client'].get_object(Bucket=bucket, Key=key)
-          data = resp.get('Body').read()
-          model_dict_temp = json.loads(data)
-        except Exception as e:
-            print(e)
-
-        ml_framework_list.append(model_dict_temp[str(i)]['ml_framework'])
-        model_type_list.append(model_dict_temp[str(i)]['model_type'])
-        model_dict_list.append(model_dict_temp[str(i)]['model_dict'])
-
-        model_dict[str(i)] = model_dict_temp[str(i)]
-
-
-    comp_dict_out = {}
-    comp_pd_nn = pd.DataFrame()
-
-    
-    for i, j in zip(version_list, ml_framework_list): 
-
-        if j == "sklearn":
-        
-            temp_pd = pd.DataFrame(model_dict[str(i)]['model_dict'])
-            temp_pd.columns = ['param_name', 'default_value', "model_version_"+str(i)]
-
-            if model_dict[str(i)]['model_type'] in comp_dict_out.keys():
-
-                comp_pd = comp_dict_out[model_dict[str(i)]['model_type']]
-                comp_pd = comp_pd.merge(temp_pd.drop('default_value', axis=1), on='param_name')
-
-                comp_dict_out[model_dict[str(i)]['model_type']] = comp_pd
-
-            else:
-                comp_dict_out[model_dict[str(i)]['model_type']] = temp_pd
-
-
-        elif j == "keras" or j == 'pytorch':
-
-            temp_pd_nn = pd.DataFrame(model_dict[str(i)]['model_dict'])
-
-            temp_pd_nn.iloc[:,2] = temp_pd_nn.iloc[:,2].astype(str)
-
-            if verbose == 0: 
-                temp_pd_nn = temp_pd_nn[['Layer']]
-            elif verbose == 1: 
-                temp_pd_nn = temp_pd_nn[['Layer', 'Shape', 'Params']]
-            elif verbose == 2: 
-                temp_pd_nn = temp_pd_nn[['Name', 'Layer', 'Shape', 'Params', 'Connect']]
-            elif verbose == 3: 
-                temp_pd_nn = temp_pd_nn[['Name', 'Layer', 'Shape', 'Params', 'Connect', 'Activation']]
-
-            if naming_convention == 'pytorch': 
-                temp_pd_nn['Layer'] = rename_layers(temp_pd_nn['Layer'], direction="keras_to_torch", activation=False)
-
-            if naming_convention == 'keras': 
-                temp_pd_nn['Layer'] = rename_layers(temp_pd_nn['Layer'], direction="torch_to_keras", activation=False)
-
-            temp_pd_nn = temp_pd_nn.add_prefix('Model_'+str(i)+'_')    
-
-            comp_pd_nn = pd.concat([comp_pd_nn, temp_pd_nn], axis=1)
-
-            comp_dict_out["nn"] = comp_pd_nn
-        
-    return comp_dict_out
 
 
 def color_pal_assign(val, naming_convention=None):
@@ -1314,103 +1291,9 @@ def stylize_model_comparison(comp_dict_out, naming_convention=None):
             print('\n\n')
 
 
-def compare_models_aws(apiurl, version_list=None, 
-    by_model_type=None, best_model=None, verbose=3):
-    
-    if not isinstance(version_list, list):
-        raise Exception("Argument 'version' must be a list.")
-    
-    if all(["AWS_ACCESS_KEY_ID" in os.environ, 
-            "AWS_SECRET_ACCESS_KEY" in os.environ,
-            "AWS_REGION" in os.environ, 
-           "username" in os.environ, 
-           "password" in os.environ]):
-        pass
-    else:
-        return print("'Compare Models' unsuccessful. Please provide credentials with set_credentials().")
 
-    aws_client = get_aws_client()
-    
-    models_dict = {}
-    
-    for i in version_list: 
-        
-        onnx_model = _get_onnx_from_bucket(apiurl, aws_client, version=i)
-        meta_dict = _get_metadata(onnx_model)
-        
-        models_dict[i] = meta_dict
-        
-    ml_framework_list = [models_dict[i]['ml_framework'] for i in models_dict]
-    model_type_list = [models_dict[i]['model_type'] for i in models_dict]
-    
-    if not all(x==ml_framework_list[0] for x in ml_framework_list):
-        raise Exception("Incongruent frameworks. Please compare models from the same ML frameworks.")
-        
-    if not all(x==model_type_list[0] for x in model_type_list):
-        raise Exception("Incongruent model types. Please compare models of the same model type.")
-    
-    if ml_framework_list[0] == 'sklearn':
-        
-        model_type = model_type_list[0]
-        model_class = model_from_string(model_type)
-        default = model_class()
-        default_config = default.get_params()
-        
-        comp_pd = pd.DataFrame({'param_name': default_config.keys(),
-                           'param_value': default_config.values()})
-        
-        for i in version_list: 
-            
-            temp_pd = inspect_model(apiurl, version=i)
-            comp_pd = comp_pd.merge(temp_pd, on='param_name')
-        
-        comp_pd.columns = ['param_name', 'model_default'] + ["Model_"+str(i) for i in version_list]
-        
-        df_styled = comp_pd.style.apply(lambda x: ["background: tomato" if v != x.iloc[0] else "" for v in x], 
-                                        axis = 1, subset=comp_pd.columns[1:])
-
-        
-    if ml_framework_list[0] == 'keras':
-
-        comp_pd = pd.DataFrame()
-
-        for i in version_list: 
-
-            temp_pd = inspect_model(apiurl, version=i)
-
-            temp_pd = temp_pd.iloc[:,0:verbose]
-
-            temp_pd = temp_pd.add_prefix('Model_'+str(i)+'_')    
-            comp_pd = pd.concat([comp_pd, temp_pd], axis=1, ignore_index=True)
-
-        layer_names = _get_layer_names()
-
-        dense_layers = [i for i in layer_names[0] if 'Dense' in i]
-        df_styled = df_styled.style.apply(lambda x: ["background: #DFFF00" if v in dense_layers else "" for v in x], 
-                                axis = 1)
-        drop_layers = [i for i in layer_names[0] if 'Dropout' in i]
-        df_styled = df_styled.apply(lambda x: ["background: #FFBF00" if v in drop_layers else "" for v in x], 
-                                axis = 1)
-        conv_layers = [i for i in layer_names[0] if 'Conv' in i]
-        df_styled = df_styled.apply(lambda x: ["background: #FF7F50" if v in conv_layers else "" for v in x], 
-                                axis = 1)
-        seq_layers = [i for i in layer_names[0] if 'RNN' in i or 'LSTM' in i or 'GRU' in i] + ['Bidirectional']
-        df_styled = df_styled.apply(lambda x: ["background: #DE3163" if v in seq_layers else "" for v in x], 
-                                axis = 1)
-        pool_layers = [i for i in layer_names[0] if 'Pool' in i]
-        df_styled = df_styled.apply(lambda x: ["background: #9FE2BF" if v in pool_layers else "" for v in x], 
-                                axis = 1)
-        rest_layers = [i for i in layer_names[0] if i not in dense_layers+drop_layers+conv_layers+seq_layers+pool_layers]
-        df_styled = df_styled.apply(lambda x: ["background: lightgrey" if v in rest_layers else "" for v in x], 
-                            axis = 1)
-
-    df_styled = df_styled.style.set_properties(**{'color': 'lawngreen'})
-
-    return df_styled
-
-
-def compare_models_lambda(apiurl, version_list="None", 
-    by_model_type=None, best_model=None, verbose=1, naming_convention=None):
+def compare_models(apiurl, version_list="None", 
+    by_model_type=None, best_model=None, verbose=1, naming_convention=None, submission_type="competition"):
     if all(["username" in os.environ, 
            "password" in os.environ]):
         pass
@@ -1425,7 +1308,8 @@ def compare_models_lambda(apiurl, version_list="None",
                "compare_models": "True",
                "version_list": version_list,
                "verbose": verbose, 
-               "naming_convention": naming_convention}
+               "naming_convention": naming_convention,
+               "submission_type": submission_type}
     
     headers = { 'Content-Type':'application/json', 'authorizationToken': os.environ.get("AWS_TOKEN"),} 
 
@@ -1439,34 +1323,6 @@ def compare_models_lambda(apiurl, version_list="None",
 
     return comp_dict_out
 
-
-def compare_models(apiurl, version_list="None", 
-    by_model_type=None, best_model=None, verbose=1, naming_convention=None):
-
-    if all(["username" in os.environ, 
-           "password" in os.environ]):
-        pass
-    else:
-        return print("'Compare Model' unsuccessful. Please provide credentials with set_credentials().")
-
-    if len(version_list) != len(set(version_list)):
-        return print("Model comparison failed. Version list contains duplicates.")
-    
-    try: 
-        compare_pd = compare_models_lambda(apiurl, version_list, 
-            by_model_type, best_model, verbose, naming_convention)
-
-    except: 
-
-        try: 
-            compare_pd = compare_models_dict(apiurl, version_list, 
-            by_model_type, best_model, verbose, naming_convention)
-        except:
-
-            compare_pd = compare_models_aws(apiurl, version_list, 
-                by_model_type, best_model, verbose, naming_convention)
-    
-    return compare_pd
 
 def _get_onnx_from_string(onnx_string):
     # generate tempfile for onnx object 
@@ -1510,7 +1366,8 @@ def _get_onnx_from_bucket(apiurl, aws_client, version=None):
     return onx
 
 
-def instantiate_model(apiurl, version=None, trained=False, reproduce=False):
+
+def instantiate_model(apiurl, version=None, trained=False, reproduce=False, submission_type="competition"):
     # Confirm that creds are loaded, print warning if not
     if all(["username" in os.environ, 
           "password" in os.environ]):
@@ -1530,7 +1387,8 @@ def instantiate_model(apiurl, version=None, trained=False, reproduce=False):
         "instantiate_model": "True",
         "reproduce": reproduce,
         "trained": trained,
-        "model_version": version
+        "model_version": version,
+        "submission_type": submission_type
     }
 
     headers = { 'Content-Type':'application/json', 'authorizationToken': os.environ.get("AWS_TOKEN"),} 
@@ -1584,6 +1442,64 @@ def instantiate_model(apiurl, version=None, trained=False, reproduce=False):
             with open(temp_path, 'rb') as f:
                 model = pickle.load(f)
 
+    if ml_framework == 'pyspark':
+        try:
+            if pyspark is None:
+                raise("Error: Please install pyspark to enable pyspark features")
+        except:
+            raise("Error: Please install pyspark to enable pyspark features")
+
+        if not trained or reproduce:
+            print("Pyspark model can only be instantiated in trained mode.")
+            print("Please rerun the function with proper parameters.")
+            return None
+
+        # pyspark model object is always trained. The unfitted / untrained one 
+        # is the estimator and cannot be treated as model. 
+        # Model is transformer and created by estimator
+        model_pkl = None
+        temp = tempfile.mkdtemp()
+        temp_path = temp + "/" + "onnx_model_v{}.onnx".format(version)
+        
+        # Get leaderboard
+        status = wget.download(model_weight_url, out=temp_path)
+        onnx_model = onnx.load(temp_path)
+        model_pkl = _get_metadata(onnx_model)['model_weights']
+
+        temp_dir = tempfile.gettempdir()
+        temp_path_zip = os.path.join(temp_dir, 'temp_pyspark_model.zip')
+        temp_path = os.path.join(temp_dir, 'temp_pyspark_model')
+        
+        if not os.path.exists(temp_path):
+            os.mkdir(temp_path)
+
+        with open(temp_path_zip, "wb") as f:
+            f.write(model_pkl)
+        
+        dirname_idx = -1
+        with ZipFile(temp_path_zip, 'r') as zip_file:
+            zip_file.extractall(temp_path)
+        
+        model_type = model_metadata['model_type']
+        model_class = pyspark_model_from_string(model_type)
+        # model_config is for the Estimator not the Transformer / Model
+        model = model_class()
+
+        # Need spark session and context to instantiate model object
+        spark = SparkSession \
+            .builder \
+            .appName('Pyspark Model') \
+            .getOrCreate()
+
+        model = model.load(temp_path)
+
+        # clean up temp directory files for future runs
+        try:
+            shutil.rmtree(temp_path)
+            os.remove(temp_path_zip)
+        except:
+            pass
+
     if ml_framework == 'keras':
         if trained == False or reproduce == True:
             model = tf.keras.Sequential().from_config(model_config)
@@ -1609,63 +1525,6 @@ def instantiate_model(apiurl, version=None, trained=False, reproduce=False):
 
     print("Your model is successfully instantiated.")
     return model
-
-# def instantiate_model(apiurl, version=None, trained=False):
-#     if all(["AWS_ACCESS_KEY_ID" in os.environ, 
-#             "AWS_SECRET_ACCESS_KEY" in os.environ,
-#             "AWS_REGION" in os.environ, 
-#             "username" in os.environ, 
-#             "password" in os.environ]):
-#         pass
-#     else:
-#         return print("'Instantiate Model' unsuccessful. Please provide credentials with set_credentials().")
-
-#     aws_client = get_aws_client()   
-#     onnx_model = _get_onnx_from_bucket(apiurl, aws_client, version=version)
-#     meta_dict = _get_metadata(onnx_model)
-
-#     # get model config 
-#     model_config = ast.literal_eval(meta_dict['model_config'])
-#     ml_framework = meta_dict['ml_framework']
-    
-#     if ml_framework == 'sklearn':
-
-#         if trained == False:
-#             model_type = meta_dict['model_type']
-#             model_class = model_from_string(model_type)
-#             model = model_class(**model_config)
-
-#         if trained == True:
-            
-#             model_pkl = meta_dict['model_weights']
-
-#             temp_dir = tempfile.gettempdir()
-#             temp_path = os.path.join(temp_dir, 'temp_file_name')
-
-#             with open(temp_path, "wb") as f:
-#                 f.write(model_pkl)
-
-#             with open(temp_path, 'rb') as f:
-#                 model = pickle.load(f)
-
-
-#     if ml_framework == 'keras':
-
-#         if trained == False:
-#             model = tf.keras.Sequential().from_config(model_config)
-
-#         if trained == True: 
-#             model = tf.keras.Sequential().from_config(model_config)
-#             model_weights = json.loads(meta_dict['model_weights'])
-
-#             def to_array(x):
-#                 return np.array(x, dtype="float32")
-
-#             model_weights = list(map(to_array, model_weights))
-
-#             model.set_weights(model_weights)
-
-#     return model
 
 
 def _get_layer_names():
@@ -1728,6 +1587,39 @@ def model_from_string(model_type):
     model_class = getattr(importlib.import_module(module), model_type)
     return model_class
 
+def _get_pyspark_modules():
+    try:
+        if pyspark is None:
+            raise("Error: Please install pyspark to enable pyspark features")
+    except:
+        raise("Error: Please install pyspark to enable pyspark features")
+
+    pyspark_modules = ['ml', 'ml.feature', 'ml.classification', 'ml.clustering', 'ml.regression']
+
+    models_modules_dict = {}
+
+    for i in pyspark_modules:
+        models_list = [j for j in dir(eval('pyspark.'+i)) if callable(getattr(eval('pyspark.'+i), j))]
+        models_list = [j for j in models_list if re.match('^[A-Z]', j)]
+
+        for k in models_list: 
+            models_modules_dict[k] = 'pyspark.'+i
+    
+    return models_modules_dict
+
+
+def pyspark_model_from_string(model_type):
+    try:
+        if pyspark is None:
+            raise("Error: Please install pyspark to enable pyspark features")
+    except:
+        raise("Error: Please install pyspark to enable pyspark features")
+
+    models_modules_dict = _get_pyspark_modules()
+    module = models_modules_dict[model_type]
+    model_class = getattr(importlib.import_module(module), model_type)
+    return model_class
+
 
 def print_y_stats(y_stats): 
 
@@ -1737,7 +1629,7 @@ def print_y_stats(y_stats):
   print("y_test label dtypes", y_stats['label_dtypes'])
 
 
-def inspect_y_test(apiurl):
+def inspect_y_test(apiurl, submission_type):
 
   # Confirm that creds are loaded, print warning if not
   if all(["username" in os.environ, 
@@ -1748,7 +1640,8 @@ def inspect_y_test(apiurl):
 
   post_dict = {"y_pred": [],
                "return_eval": "False",
-               "return_y": "True"}
+               "return_y": "True",
+               "submission_type": submission_type}
     
   headers = { 'Content-Type':'application/json', 'authorizationToken': os.environ.get("AWS_TOKEN"),}
 
@@ -1774,8 +1667,9 @@ def model_summary_keras(model):
     layer_connect = []
     activations = []
 
+    keras_layers = keras_unpack(model)
 
-    for i in model.layers: 
+    for i in keras_layers: 
 
         try:
             layer_names.append(i.name)
@@ -1931,7 +1825,7 @@ def torch_unpack(model):
     
     for key, module in model._modules.items():
                 
-        if type(module) in [torch.nn.modules.container.Container, torch.nn.modules.container.Sequential]:
+        if len(module._modules):
             
             layers_out, keys_out = torch_unpack(module)
             
@@ -1945,7 +1839,26 @@ def torch_unpack(model):
             keys.append(key)
             
     return layers, keys
+
     
+def keras_unpack(model):
+    
+    layers = []
+    
+    for module in model.layers:
+                
+        if isinstance(module, (keras.engine.functional.Functional, keras.engine.sequential.Sequential)):
+            
+            layers_out = keras_unpack(module)
+            
+            layers = layers + layers_out
+            
+            
+        else:
+            
+            layers.append(module)
+            
+    return layers
 
 
 def torch_metadata(model):
