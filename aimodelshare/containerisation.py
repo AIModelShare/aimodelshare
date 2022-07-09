@@ -30,7 +30,7 @@ def deploy_container(account_id, region, session, project_name, model_dir, requi
 
     codebuild_project_name=project_name+'-project'
 
-    s3_client = session.resource('s3', region_name=region)
+    s3, iam, region = get_s3_iam_client(aws_access_key_id, aws_secret_access_key, region_name)
 
     def create_bucket(s3_client, bucket_name, region):
             try:
@@ -50,7 +50,7 @@ def deploy_container(account_id, region, session, project_name, model_dir, requi
                     )
             return response
 
-    create_bucket(s3_client, os.environ.get("BUCKET_NAME"), region)
+    create_bucket(s3['client'], os.environ.get("BUCKET_NAME"), region)
 
     s3_resource = session.resource('s3', region_name=region)
 
