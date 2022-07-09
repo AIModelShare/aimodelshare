@@ -45,6 +45,8 @@ from IPython.core.display import display, HTML, SVG
 import absl.logging
 import networkx as nx
 import warnings
+from pathlib import Path
+
 
 absl.logging.set_verbosity(absl.logging.ERROR)
 
@@ -1106,13 +1108,16 @@ def inspect_model(apiurl, version=None, naming_convention = None, submission_typ
 
 
 
-def color_pal_assign(val, naming_convention='keras'):
+def color_pal_assign(val, naming_convention=None):
 
+    # find path of color mapping
+    path =  Path(__file__).parent
     if naming_convention == "keras":
-        col_map = pd.read_csv("color_mapping_keras.csv")
+        col_map = pd.read_csv(path / "color_mappings/color_mapping_keras.csv")
     elif naming_convention == "pytorch":
-        col_map = pd.read_csv("color_mapping_pytorch.csv")
+        col_map = pd.read_csv(path / "color_mappings/color_mapping_pytorch.csv")
 
+    # get color for layer key
     try:
         color = col_map[col_map.iloc[:,1] == val].iloc[:,2].values[0]
         color = "#"+ color.lower()
