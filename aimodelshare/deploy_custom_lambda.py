@@ -123,10 +123,26 @@ def deploy_custom_lambda(input_json_exampledata, output_json_exampledata, lambda
     now = datetime.datetime.now()
     s3, iam, region = get_s3_iam_client(aws_access_key_id, aws_secret_access_key, region_name)
 
-    s3["client"].create_bucket(
-        Bucket=os.environ.get("BUCKET_NAME")
-    )
+    def create_bucket(s3_client, bucket_name, region):
+            try:
+                response=s3_client.head_bucket(Bucket=bucket_name)
+            except:
+                if(region=="us-east-1"):
+                    response = s3_client.create_bucket(
+                        ACL="private",
+                        Bucket=bucket_name
+                    )
+                else:
+                    location={'LocationConstraint': region}
+                    response=s3_client.create_bucket(
+                        ACL="private",
+                        Bucket=bucket_name,
+                        CreateBucketConfiguration=location
+                    )
+            return response
 
+    create_bucket(s3['client'], os.environ.get("BUCKET_NAME"), region)
+    
     apiurl = create_prediction_api(None, str(api_id), 'custom', 'FALSE', [], api_id, "TRUE", custom_libraries)
 
     print("\n\nWe need some information about your model before we can generate your API.\n")
