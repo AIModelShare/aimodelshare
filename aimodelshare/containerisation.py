@@ -32,17 +32,25 @@ def deploy_container(account_id, region, session, project_name, model_dir, requi
 
     s3_client = session.resource('s3', region_name=region)
 
-    try:
-      s3_client.create_bucket(
-          Bucket=codebuild_bucket_name,
-          CreateBucketConfiguration = {
-              'LocationConstraint': region
-          }
-      )
-    except:
-      s3_client.create_bucket(
-          Bucket=codebuild_bucket_name
-      )
+    def create_bucket(s3_client, bucket_name, region):
+            try:
+                response=s3_client.head_bucket(Bucket=bucket_name)
+            except:
+                if(region=="us-east-1"):
+                    response = s3_client.create_bucket(
+                        ACL="private",
+                        Bucket=bucket_name
+                    )
+                else:
+                    location={'LocationConstraint': region}
+                    response=s3_client.create_bucket(
+                        ACL="private",
+                        Bucket=bucket_name,
+                        CreateBucketConfiguration=location
+                    )
+            return response
+
+    create_bucket(s3_client, os.environ.get("BUCKET_NAME"), region)
 
     s3_resource = session.resource('s3', region_name=region)
 
