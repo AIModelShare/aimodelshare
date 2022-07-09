@@ -292,7 +292,7 @@ class create_prediction_api_class():
 
         auth_code_source = {'S3Bucket': self.bucket_name, 'S3Key':  self.unique_model_id + "/" + "archiveauth.zip"}
         auth_layers = [self.auth_layer]
-        create_lambda_function(lambdaauthfxnname, self.python_runtime, role_arn, handler, auth_code_source, 10, 512, auth_layers)
+        create_lambda_function(lambdaauthfxnname, self.python_runtime, role_arn, handler, auth_code_source, 90, 512, auth_layers)
 
         sys.stdout.write('\r')
         sys.stdout.write("[==========================           ] Progress: 75% - Deploying prediction API...                          ")

@@ -6,18 +6,28 @@ Supporting Functions
 configure_credentials()
 -----------------------
 
-To build a credentials file
-you can use the ``aimodelshare.aws.configure_credentials()`` function:
-
 .. py:function:: aimodelshare.aws.configure_credentials()
 
    Return a formatted credentials file built with user inputs.
 
-Example :: 
+Combine your AI Model Share & AWS credentials into a single ‘credentials.txt' file with the `configure_credentials` function. You only have to make the file once, then you can use it whenever you use the aimodelshare library. 
+
+Credentials files must follow this format: 
+	
+	.. image:: images/creds_file_example.png
+   			:width: 600
+
+The following code will prompt you to provide your credentials one at a time and pre-format a txt file for you to use in the future: 
+
+
+Example ::
+
+	#install aimodelshare library
+	! pip install aimodelshare
 
 	# Generate credentials file
+	import aimodelshare as ai 
 	from aimodelshare.aws import configure_credentials 
-
 	configure_credentials()
 	
 

@@ -1,3 +1,4 @@
+.. _aimodelshare_tutorial: 
 
 AI Model Share Tutorial
 #######################
@@ -8,7 +9,7 @@ This tutorial is applicable for all new users, especially those that are interes
 
 If you have been invited to participate in an existing competition (or would like to submit a model to any of our ongoing public competitions), you may wish to skip to one of the Model Submission Guides included in the :ref:`example_notebooks`. 
 
-The only materials to need to complete the tutorial are: a computer with an internet connection, an AI Model Share account `(create one here) <https://www.modelshare.org/login>`_ , and an Amazon Web Services account `(create one here). <https://aws.amazon.com/free>`_
+The only thing to need to complete the tutorial is a computer with an internet connection.
 
 
 .. _getting_started:
@@ -21,21 +22,7 @@ Getting Started
 Credential Configuration
 ========================
 
-In order to deploy an AI Model Share Model Playground, you will need to use your AI Model Share & AWS credentials to create a credentials text file.
-
-You only need to generate your credentials file once. After running the configure function, save the outputted file for all your future Model Playground deployments and competition submissions.
-
-.. warning::
-	Handle your credentials file with the same level of security you handle your passwords. Do not share your file with anyone, send via email, or upload to Github.
-
-.. code-block::
-
-	#install aimodelshare library
-	! pip install aimodelshare
-
-	# Generate credentials file
-	import aimodelshare as ai 
-	from aimodelshare.aws import configure_credentials 
+To complete this tutorial, you will need to have a pre-formatted credentials file. Follow the directions :ref:`HERE <create_credentials>` to create one. 
 
 .. _set_environment:
 

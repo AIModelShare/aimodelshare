@@ -46,10 +46,21 @@ Launches a live prediction REST API for deploying ML models using model paramete
 Example ::
 
 	from aimodelshare import ModelPlayground
-	#Instantiate ModelPlayground() Class
-	myplayground=ModelPlayground(model_type="tabular", classification=True, private=True)
+
+	#Instantiate ModelPlayground() Class as placeholder 
+	myplayground=ModelPlayground(model_type="image", classification=True, private=True)
+
 	# Create Model Playground (generates live rest api and web-app for your model/preprocessor)
 	myplayground.deploy(model_filepath = "model.onnx", preprocessor_filepath = "preprocessor.zip", y_train_labels, exampledata) 
+
+
+Example :: 
+
+	# To instantiate a Model Playground that already exists: 
+	
+	myplayground=ModelPlayground(playground_url = "https://exampleapiurl.execute-api.us-east-1.amazonaws.com/prod/m")
+	
+	#You can find your Model Playground url under the "Programmatic" sub tab of the "Predict" page
 
 
 .. _create_competition:
