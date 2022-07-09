@@ -12,7 +12,7 @@ Step 1: Create an AI Model Share Account
 
 Create an AI Model Share account by going `HERE <https://www.modelshare.org/login>`_ and following the prompts.
 
-*Are you just using your credentials to submit models to a pre-existing competition? You're done!* 
+*Are you just using your credentials to submit models to a pre-existing playground competition or experiment? You're done!* 
 Get started with any of the :ref:`Model Submission notebooks <example_notebooks>`.  
 
 
@@ -63,7 +63,7 @@ Credentials files must follow this format:
 	.. image:: images/creds_file_example.png
    			:width: 600
 
-The following code will prompt you to provide your credentials one at a time and pre-format a txt file for you to use in the future: 
+You can create this txt file manually or you can automatically create this file by inputting your credentials in response to simple prompts from the configure_credentials() function.  The following code will prompt you to provide your credentials one at a time and pre-format a txt file for you to use in the future: 
 
 .. code-block::
 
