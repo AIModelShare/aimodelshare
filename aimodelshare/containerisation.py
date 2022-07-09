@@ -7,6 +7,7 @@ import time
 
 import importlib.resources as pkg_resources
 from string import Template
+from aimodelshare.aws import get_s3_iam_client
 
 def deploy_container(account_id, region, session, project_name, model_dir, requirements_file_path, apiid, memory_size='1024', timeout='120', python_version='3.7', pyspark_support=False):
 
