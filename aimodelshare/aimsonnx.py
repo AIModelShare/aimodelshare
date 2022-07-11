@@ -39,11 +39,14 @@ from pathlib import Path
 from zipfile import ZipFile
 import wget            
 from copy import copy
-
+import psutil
 from pympler import asizeof
 from IPython.core.display import display, HTML, SVG
 import absl.logging
 import networkx as nx
+import warnings
+from pathlib import Path
+
 
 absl.logging.set_verbosity(absl.logging.ERROR)
 
@@ -513,7 +516,6 @@ def _keras_to_onnx(model, transfer_learning=None,
     # check whether this is a fitted keras model
     # isinstance...
 
-
     # handle keras models in sklearn wrapper
     if isinstance(model, (GridSearchCV, RandomizedSearchCV)):
         model = model.best_estimator_
@@ -541,7 +543,7 @@ def _keras_to_onnx(model, transfer_learning=None,
     
     model.save(temp_dir)
 
-    # Convert the model
+    # # Convert the model
     try:
             modelstringtest="python -m tf2onnx.convert --saved-model  "+temp_dir+" --output "+output_path+" --opset 13"
             resultonnx=os.system(modelstringtest)
@@ -608,10 +610,18 @@ def _keras_to_onnx(model, transfer_learning=None,
     metadata['model_config'] = str(model.get_config())
 
     # get model weights from keras object 
-    def to_list(x):
-        return x.tolist()
+    model_size = asizeof.asizeof(model.get_weights())
+    mem = psutil.virtual_memory()
 
-    metadata['model_weights'] = str(list(map(to_list, model.get_weights())))
+    if model_size > mem.available: 
+
+        warnings.warn(f"Model size ({model_size/1e6} MB) exceeds available memory ({mem.available/1e6} MB). Skipping extraction of model weights.")
+
+        metadata['model_weights'] = None
+
+    else: 
+        
+        metadata['model_weights'] = pickle.dumps(model.get_weights())
 
     # get model state from pytorch model object
     metadata['model_state'] = None
@@ -668,9 +678,10 @@ def _keras_to_onnx(model, transfer_learning=None,
 
     metadata['model_architecture'] = str(model_architecture)
 
+
     metadata['model_summary'] = model_summary_pd.to_json()
 
-    metadata['memory_size'] = asizeof.asizeof(model)
+    metadata['memory_size'] = model_size
 
     metadata['epochs'] = epochs
 
@@ -1098,152 +1109,23 @@ def inspect_model(apiurl, version=None, naming_convention = None, submission_typ
 
 
 def color_pal_assign(val, naming_convention=None):
-  import pandas as pd
-  
-  # create Pandas Series with default index values
-  # default index ranges is from 0 to len(list) - 1
-  layer_name_df =  pd.DataFrame(['AbstractRNNCell',
-  'Activation',
-  'ActivityRegularization',
-  'Add',
-  'AdditiveAttention',
-  'AlphaDropout',
-  'Attention',
-  'Average',
-  'AveragePooling1D',
-  'AveragePooling2D',
-  'AveragePooling3D',
-  'AvgPool1D',
-  'AvgPool2D',
-  'AvgPool3D',
-  'BatchNormalization',
-  'Bidirectional',
-  'CategoryEncoding',
-  'CenterCrop',
-  'Concatenate',
-  'Conv1D',
-  'Conv1DTranspose',
-  'Conv2D',
-  'Conv2DTranspose',
-  'Conv3D',
-  'Conv3DTranspose',
-  'ConvLSTM1D',
-  'ConvLSTM2D',
-  'ConvLSTM3D',
-  'Convolution1D',
-  'Convolution1DTranspose',
-  'Convolution2D',
-  'Convolution2DTranspose',
-  'Convolution3D',
-  'Convolution3DTranspose',
-  'Cropping1D',
-  'Cropping2D',
-  'Cropping3D',
-  'Dense',
-  'DenseFeatures',
-  'DepthwiseConv2D',
-  'Discretization',
-  'Dot',
-  'Dropout',
-  'Embedding',
-  'Flatten',
-  'GRU',
-  'GRUCell',
-  'GaussianDropout',
-  'GaussianNoise',
-  'GlobalAveragePooling1D',
-  'GlobalAveragePooling2D',
-  'GlobalAveragePooling3D',
-  'GlobalAvgPool1D',
-  'GlobalAvgPool2D',
-  'GlobalAvgPool3D',
-  'GlobalMaxPool1D',
-  'GlobalMaxPool2D',
-  'GlobalMaxPool3D',
-  'GlobalMaxPooling1D',
-  'GlobalMaxPooling2D',
-  'GlobalMaxPooling3D',
-  'Hashing',
-  'Input',
-  'InputLayer',
-  'InputSpec',
-  'IntegerLookup',
-  'LSTM',
-  'LSTMCell',
-  'Lambda',
-  'Layer',
-  'LayerNormalization',
-  'LocallyConnected1D',
-  'LocallyConnected2D',
-  'Masking',
-  'MaxPool1D',
-  'MaxPool2D',
-  'MaxPool3D',
-  'MaxPooling1D',
-  'MaxPooling2D',
-  'MaxPooling3D',
-  'Maximum',
-  'Minimum',
-  'MultiHeadAttention',
-  'Multiply',
-  'Normalization',
-  'Permute',
-  'RNN',
-  'RandomContrast',
-  'RandomCrop',
-  'RandomFlip',
-  'RandomHeight',
-  'RandomRotation',
-  'RandomTranslation',
-  'RandomWidth',
-  'RandomZoom',
-  'RepeatVector',
-  'Rescaling',
-  'Reshape',
-  'Resizing',
-  'SeparableConv1D',
-  'SeparableConv2D',
-  'SeparableConvolution1D',
-  'SeparableConvolution2D',
-  'SimpleRNN',
-  'SimpleRNNCell',
-  'SpatialDropout1D',
-  'SpatialDropout2D',
-  'SpatialDropout3D',
-  'StackedRNNCells',
-  'StringLookup',
-  'Subtract',
-  'TextVectorization',
-  'TimeDistributed',
-  'UpSampling1D',
-  'UpSampling2D',
-  'UpSampling3D',
-  'Wrapper',
-  'ZeroPadding1D',
-  'ZeroPadding2D',
-  'ZeroPadding3D'])
 
-  layernamelist=list(layer_name_df[0])
+    # find path of color mapping
+    path =  Path(__file__).parent
+    if naming_convention == "keras":
+        col_map = pd.read_csv(path / "color_mappings/color_mapping_keras.csv")
+    elif naming_convention == "pytorch":
+        col_map = pd.read_csv(path / "color_mappings/color_mapping_pytorch.csv")
 
-  if naming_convention == "pytorch":
+    # get color for layer key
+    try:
+        color = col_map[col_map.iloc[:,1] == val].iloc[:,2].values[0]
+        color = "#"+ color.lower()
+    except:
+        color = "white"   
 
-    layernamelist = rename_layers(layernamelist, direction="keras_to_torch", activation=False)
+    return 'background: %s' % color
 
-
-  import seaborn as sns
-  paldata=sns.color_palette("Pastel2", len(layernamelist)).as_hex()
-
-  if val in layernamelist: 
-      valindex=layernamelist.index(val)
-      if any([val=="Concatenate",val=="Conv2D", val=="Conv2d"]):
-        valindex=valindex+4
-      else:
-        pass
-      palvalue=paldata[valindex]
-  else:
-     pass
-  color = palvalue if val in layernamelist else 'white'
-  return 'background: %s' % color
 
 def stylize_model_comparison(comp_dict_out, naming_convention=None):
 
@@ -1512,14 +1394,9 @@ def instantiate_model(apiurl, version=None, trained=False, reproduce=False, subm
             # Get leaderboard
             status = wget.download(model_weight_url, out=temp_path)
             onnx_model = onnx.load(temp_path)
-            model_weights = json.loads(_get_metadata(onnx_model)['model_weights'])
+            model_weights = pickle.loads(_get_metadata(onnx_model)['model_weights'])
             
             model = tf.keras.Sequential().from_config(model_config)
-            
-            def to_array(x):
-                return np.array(x, dtype="float32")
-
-            model_weights = list(map(to_array, model_weights))
 
             model.set_weights(model_weights)
 

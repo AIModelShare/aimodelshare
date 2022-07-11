@@ -401,7 +401,7 @@ class Competition:
                       submission_type = self.submission_type)
         return data
 
-    def stylize_compare(self, compare_dict, naming_convention=None):
+    def stylize_compare(self, compare_dict, naming_convention="keras"):
         """
         Stylizes data received from compare_models to highlight similarities & differences.
 
