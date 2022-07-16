@@ -52,7 +52,7 @@ AI Model Share allows users to leverage the AI Model Share deployment infrastruc
 
     		Owners can find their Model Playground's API URL on the “Predict” tab of their Model Playground.
 
-		AI Model Share API URLs follow this format: *"https://example.execute-api.us-east-1.amazonaws.com/prod/m"*
+		AI Model Share API URLs follow this format: *"https://example.execute-api.us-east-1.amazonaws.com"* (Remove "/prod/m" from the end of the url string.) 
 
 		.. image:: images/predict_tab.png
 	
@@ -73,12 +73,12 @@ AI Model Share allows users to leverage the AI Model Share deployment infrastruc
 
 **Examples**
 
-* `Text Classification: Webapp <https://share.streamlit.io/raudipra/streamlit-text-classification/main>`_
-* `Text Classification: Github <https://github.com/raudipra/streamlit-text-classification>`_
-* `Tabular Classification: Webapp <https://share.streamlit.io/raudipra/streamlit-tabular-classification/main>`_
-* `Tabular Classification: Github <https://github.com/raudipra/streamlit-tabular-classification>`_
-* `Image Classification: Webapp <https://share.streamlit.io/raudipra/streamlit-image-classification/main>`_
-* `Image Classification: Github <https://github.com/raudipra/streamlit-image-classification>`_
+* `Text Classification: Webapp <https://share.streamlit.io/thestreett/streamlit-text-classification/main>`_
+* `Text Classification: Github <https://github.com/AIModelShare/aimodelshare_tutorials/tree/main/streamlit-text-classification>`_
+* `Tabular Classification: Webapp <https://share.streamlit.io/thestreett/streamlit-tabular-classification/main>`_
+* `Tabular Classification: Github <https://github.com/AIModelShare/aimodelshare_tutorials/tree/main/streamlit-tabular-classification>`_
+* `Image Classification: Webapp <https://share.streamlit.io/thestreett/streamlit-image-classification/main>`_
+* `Image Classification: Github <https://github.com/AIModelShare/aimodelshare_tutorials/tree/main/streamlit-image-classification>`_
 
 
 .. _reproducibility:
