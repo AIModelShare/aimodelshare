@@ -11,20 +11,23 @@ Installing the Library
 
 To download the AIModelShare library from PyPI: :: 
 
-	#install aimodelshare library
+	# Install aimodelshare library
 	! pip install aimodelshare
 
 To download the AIModelShare library with Conda: :: 
 
-	#Make sure you have conda >=4.9.
+	# Make sure you have conda >=4.9.
 	conda --version
 	conda update conda
 	
 	# Add conda-forge as the highest priority channel.
 	conda config --add channels conda-forge
 
-	#Activate strict channel priority (strict will be activated by default in conda 5.0).
+	# Activate strict channel priority (strict will be activated by default in conda 5.0).
 	conda config --set channel_priority strict
+
+	# Install AIModelShare
+	conda install aimodelshare
 
 To fully utilize the library functionality, you will need to set up credentials with the `AI Model Share website <https://www.modelshare.org/login>`_ and/or with `Amazon Web Services. <https://aws.amazon.com/free>`_ See the credentials user guide :ref:`HERE. <create_credentials>`
 
