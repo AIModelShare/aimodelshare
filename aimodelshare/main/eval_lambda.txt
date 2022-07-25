@@ -333,12 +333,15 @@ def handler(event, context):
             
         if body.get("leaderboard","ALL") == "TRUE":  
 
+            submission_type = body.get("submission_type","ALL")
+
+
             if body.get("private", 'FALSE') == "TRUE":
                 private = True
             else:
                 private = False
 
-            leaderboard = get_leaderboard("$task_type", private=private)
+            leaderboard = get_leaderboard("$task_type", private=private, submission_type=submission_type)
             
             leaderboard_dict = {"statusCode": 200,
                 "headers": {
@@ -352,14 +355,16 @@ def handler(event, context):
             return leaderboard_dict 
     else:
 
-        if body.get("leaderboard","ALL") == "TRUE":  
+        if body.get("leaderboard","ALL") == "TRUE": 
+
+            submission_type = body.get("submission_type","ALL") 
 
             if body.get("private", 'FALSE') == "TRUE":
                 private = True
             else:
                 private = False
 
-            leaderboard = get_leaderboard("$task_type", private=private)
+            leaderboard = get_leaderboard("$task_type", private=private, submission_type=submission_type)
             
             leaderboard_dict = {"statusCode": 200,
                 "headers": {
@@ -471,12 +476,12 @@ def public_private_split(y_true, y_pred, task_type="$task_type", submission_type
 
     private_size = get_public_private_split(submission_type=submission_type)
     
-    if private_size == 1: 
+    if private_size == 1:
         
         eval_result_public = model_eval_metrics(y_true, y_pred, task_type=task_type, void=True, submission_type=submission_type)
         eval_result_private = model_eval_metrics(y_true, y_pred, task_type=task_type, submission_type=submission_type)
         
-    elif private_size == 0: 
+    elif private_size == 0:
         
         eval_result_public = model_eval_metrics(y_true, y_pred, task_type=task_type, submission_type=submission_type)
         eval_result_private = model_eval_metrics(y_true, y_pred, task_type=task_type, void=True, submission_type=submission_type)
