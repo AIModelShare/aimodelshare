@@ -143,7 +143,7 @@ class ModelPlayground:
         `email_list`: [OPTIONAL] list of comma separated emails for users who are allowed to submit models to experiment leaderboard.  Emails should be strings in a list.
         `public`: [REQUIRED] True/false. Defaults to False.  If True, experiment is public and ANY AIMODELSHARE USER CAN SUBMIT MODELS.  USE WITH CAUTION b/c one model and 
             one preprocessor file will be be saved to your AWS S3 folder for each model submission.
-        `public_private_split`: [REQUIRED] Float between 0 and 1. Defaults to 0.5. Porportion of test data that is allocated to private hold-out set.
+        `public_private_split`: [REQUIRED] Float between 0 and 1. Defaults to 0. Porportion of test data that is allocated to private hold-out set.
         
         
         Returns:
