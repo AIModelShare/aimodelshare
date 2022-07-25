@@ -1120,7 +1120,6 @@ def color_pal_assign(val, naming_convention=None):
     # get color for layer key
     try:
         color = col_map[col_map.iloc[:,1] == val].iloc[:,2].values[0]
-        color = "#"+ color.lower()
     except:
         color = "white"   
 
