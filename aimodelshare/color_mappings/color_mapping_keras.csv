@@ -14,7 +14,7 @@
 12,AvgPool2D,#e6f5c9,
 13,AvgPool3D,#e6f5c9,
 14,BatchNormalization,#cbd5e8,
-15,Bidirectional,,
+15,Bidirectional,#f1e2cc,
 16,CategoryEncoding,,
 17,CenterCrop,,
 18,Concatenate,,
