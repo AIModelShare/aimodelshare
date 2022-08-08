@@ -236,6 +236,25 @@ class ModelPlayground:
         model = instantiate_model(apiurl=self.playground_url, trained=trained, version=version, reproduce=reproduce, submission_type=submission_type)
         return model
     
+    def replicate_model(self,version=None, submission_type="competition"): 
+        """
+        Instantiate an untrained model with reproducibility environment setup. 
+        
+        Parameters: 
+        -----------
+        `version`: ``int``
+            Model version number from competition or experiment leaderboard
+          
+        Returns:
+        --------
+        model:  model chosen from leaderboard     
+        """
+        
+        model = self.instantiate_model(version=version,trained = False,reproduce=True,submission_type=submission_type)
+        
+        return model
+    
+   
     def delete_deployment(self, playground_url=None):
         """
         Delete all components of a Model Playground, including: AWS s3 bucket & contents,
@@ -356,6 +375,23 @@ class Competition:
             reproduce=reproduce, submission_type=self.submission_type)
         return model
 
+    def replicate_model(self,version=None): 
+        """
+        Instantiate an untrained model previously submitted to the competition leaderboard with its reproducibility environment setup. 
+        
+        Parameters: 
+        -----------
+        `version`: ``int``
+            Model version number from competition or experiment leaderboard
+          
+        Returns:
+        --------
+        model:  model chosen from leaderboard     
+        """
+        
+        model = self.instantiate_model(version=version,trained = False,reproduce=True) 
+        return model 
+                        
     def inspect_model(self, version=None, naming_convention=None):
         """
         Examine structure of model submitted to a competition leaderboard
