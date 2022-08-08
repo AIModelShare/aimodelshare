@@ -20,13 +20,13 @@
 
 # Installation
 
-Use the following code to install aimodelshare from PyPi 
+## Install using PyPi 
 
 ```
 pip install aimodelshare
 ```
 
-### How to Install AIModelshare on Anaconda
+## Install on Anaconda
 
 
 #### Conda/Mamba Install ( For Mac and Linux Users Only , Windows Users should use pip method ) : 
