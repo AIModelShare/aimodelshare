@@ -8,7 +8,6 @@ from sklearn.model_selection import GridSearchCV, RandomizedSearchCV
 import torch
 import xgboost
 import tensorflow as tf
-import keras
 
 # onnx modules
 import onnx
@@ -39,14 +38,11 @@ from pathlib import Path
 from zipfile import ZipFile
 import wget            
 from copy import copy
-import psutil
+
 from pympler import asizeof
 from IPython.core.display import display, HTML, SVG
 import absl.logging
 import networkx as nx
-import warnings
-from pathlib import Path
-
 
 absl.logging.set_verbosity(absl.logging.ERROR)
 
@@ -509,12 +505,24 @@ def _pyspark_to_onnx(model, initial_types, spark_session,
 
     return onx
 
+def _parse_tf_saved_model_layer(layer):
+    model_weights_raw_string = str(layer)
+    model_weights_wo_weights = model_weights_raw_string.split(", numpy", 1)[0]
+    shape = model_weights_wo_weights.split(" shape=")[1].split(" dtype=")[0]
+    params = [int(x) for x in shape[1:-1].split(",") if x != ""]
+    n_params = 1
+    for x in params:
+        n_params *= x
+    name = layer.name
+    return name, shape, n_params
+
 def _keras_to_onnx(model, transfer_learning=None,
                   deep_learning=None, task_type=None, epochs=None):
     '''Extracts metadata from keras model object.'''
 
     # check whether this is a fitted keras model
     # isinstance...
+
 
     # handle keras models in sklearn wrapper
     if isinstance(model, (GridSearchCV, RandomizedSearchCV)):
@@ -540,10 +548,15 @@ def _keras_to_onnx(model, transfer_learning=None,
     tf.get_logger().setLevel('ERROR') # probably not good practice
     output_path = os.path.join(temp_dir, 'temp.onnx')
     
-    
-    model.save(temp_dir)
-
-    # # Convert the model
+    try:
+        model.save(temp_dir)
+    except:
+        # a SavedModel class
+        tf.saved_model.save(
+            model, temp_dir
+        )
+        
+    # Convert the model
     try:
             modelstringtest="python -m tf2onnx.convert --saved-model  "+temp_dir+" --output "+output_path+" --opset 13"
             resultonnx=os.system(modelstringtest)
@@ -607,21 +620,19 @@ def _keras_to_onnx(model, transfer_learning=None,
     metadata['input_distribution'] = None
 
     # get model config dict from keras model object
-    metadata['model_config'] = str(model.get_config())
+    if hasattr(model, "get_config"):
+        metadata['model_config'] = str(model.get_config())
+    else:
+        metadata['model_config'] = str({})
 
     # get model weights from keras object 
-    model_size = asizeof.asizeof(model.get_weights())
-    mem = psutil.virtual_memory()
+    def to_list(x):
+        return x.tolist()
 
-    if model_size > mem.available: 
-
-        warnings.warn(f"Model size ({model_size/1e6} MB) exceeds available memory ({mem.available/1e6} MB). Skipping extraction of model weights.")
-
-        metadata['model_weights'] = None
-
-    else: 
-        
-        metadata['model_weights'] = pickle.dumps(model.get_weights())
+    if hasattr(model, "get_weights"):
+        metadata['model_weights'] = str(list(map(to_list, model.get_weights())))
+    else:
+        metadata['model_weights'] = str([])
 
     # get model state from pytorch model object
     metadata['model_state'] = None
@@ -634,23 +645,51 @@ def _keras_to_onnx(model, transfer_learning=None,
     layers_n_params = []
     layers_shapes = []
     activations = []
-
-
-    keras_layers = keras_unpack(model)
-
-    for i in keras_layers: 
-        
-        # get layer names 
-        if i.__class__.__name__ in layer_list:
-            layers.append(i.__class__.__name__)
-            layers_n_params.append(i.count_params())
-            layers_shapes.append(i.output_shape)
-        
-        # get activation names
-        if i.__class__.__name__ in activation_list: 
-            activations.append(i.__class__.__name__.lower())
-        if hasattr(i, 'activation') and i.activation.__name__ in activation_list:
-            activations.append(i.activation.__name__)
+    
+    if model.__class__.__name__ == 'KerasLayer':
+        for i in range(len(model.weights)):
+            name, shape, n_params = _parse_tf_saved_model_layer(model.weights[i])
+            layers.append(name)
+            layers_n_params.append(n_params)
+            layers_shapes.append(shape) # not output shape
+    elif model.__class__.__name__ == 'AutoTrackable':
+        for i in range(len(model.variables)):
+            name, shape, n_params = _parse_tf_saved_model_layer(model.variables[i])
+            layers.append(name)
+            layers_n_params.append(n_params)
+            layers_shapes.append(shape) # not output shape
+    # only has tf.function and signatures method.
+    elif model.__class__.__name__ == '_UserObject': 
+        if hasattr(model.signatures['serving_default'], 'weights'):
+            for i in range(len(model.signatures['serving_default'].weights)):
+                name, shape, n_params = _parse_tf_saved_model_layer(
+                    model.signatures['serving_default'].weights[i]
+                )
+                layers.append(name)
+                layers_n_params.append(n_params)
+                layers_shapes.append(shape) # not output shape
+        elif hasattr(model.signatures['serving_default'], 'variables'):
+            for i in range(len(model.signatures['serving_default'].variables)):
+                name, shape, n_params = _parse_tf_saved_model_layer(
+                    model.signatures['serving_default'].variables[i]
+                )
+                layers.append(name)
+                layers_n_params.append(n_params)
+                layers_shapes.append(shape) # not output shape
+    else:
+        for i in model.layers: 
+            
+            # get layer names 
+            if i.__class__.__name__ in layer_list:
+                layers.append(i.__class__.__name__)
+                layers_n_params.append(i.count_params())
+                layers_shapes.append(i.output_shape)
+            
+            # get activation names
+            if i.__class__.__name__ in activation_list: 
+                activations.append(i.__class__.__name__.lower())
+            if hasattr(i, 'activation') and i.activation.__name__ in activation_list:
+                activations.append(i.activation.__name__)
 
     if hasattr(model, 'loss'):
         loss = model.loss.__class__.__name__
@@ -678,16 +717,18 @@ def _keras_to_onnx(model, transfer_learning=None,
 
     metadata['model_architecture'] = str(model_architecture)
 
-
     metadata['model_summary'] = model_summary_pd.to_json()
 
-    metadata['memory_size'] = model_size
+    metadata['memory_size'] = asizeof.asizeof(model)
 
     metadata['epochs'] = epochs
 
     # model graph 
-    G = model_graph_keras(model)
-    metadata['model_graph'] = G.create_dot().decode('utf-8')
+    if model.__class__.__name__ not in ['KerasLayer', 'AutoTrackable', '_UserObject']:
+        G = model_graph_keras(model)
+        metadata['model_graph'] = G.create_dot().decode('utf-8')
+    else:
+        metadata['model_graph'] = None
 
     # placeholder, needs evaluation engine
     metadata['eval_metrics'] = None
@@ -1109,22 +1150,152 @@ def inspect_model(apiurl, version=None, naming_convention = None, submission_typ
 
 
 def color_pal_assign(val, naming_convention=None):
+  import pandas as pd
+  
+  # create Pandas Series with default index values
+  # default index ranges is from 0 to len(list) - 1
+  layer_name_df =  pd.DataFrame(['AbstractRNNCell',
+  'Activation',
+  'ActivityRegularization',
+  'Add',
+  'AdditiveAttention',
+  'AlphaDropout',
+  'Attention',
+  'Average',
+  'AveragePooling1D',
+  'AveragePooling2D',
+  'AveragePooling3D',
+  'AvgPool1D',
+  'AvgPool2D',
+  'AvgPool3D',
+  'BatchNormalization',
+  'Bidirectional',
+  'CategoryEncoding',
+  'CenterCrop',
+  'Concatenate',
+  'Conv1D',
+  'Conv1DTranspose',
+  'Conv2D',
+  'Conv2DTranspose',
+  'Conv3D',
+  'Conv3DTranspose',
+  'ConvLSTM1D',
+  'ConvLSTM2D',
+  'ConvLSTM3D',
+  'Convolution1D',
+  'Convolution1DTranspose',
+  'Convolution2D',
+  'Convolution2DTranspose',
+  'Convolution3D',
+  'Convolution3DTranspose',
+  'Cropping1D',
+  'Cropping2D',
+  'Cropping3D',
+  'Dense',
+  'DenseFeatures',
+  'DepthwiseConv2D',
+  'Discretization',
+  'Dot',
+  'Dropout',
+  'Embedding',
+  'Flatten',
+  'GRU',
+  'GRUCell',
+  'GaussianDropout',
+  'GaussianNoise',
+  'GlobalAveragePooling1D',
+  'GlobalAveragePooling2D',
+  'GlobalAveragePooling3D',
+  'GlobalAvgPool1D',
+  'GlobalAvgPool2D',
+  'GlobalAvgPool3D',
+  'GlobalMaxPool1D',
+  'GlobalMaxPool2D',
+  'GlobalMaxPool3D',
+  'GlobalMaxPooling1D',
+  'GlobalMaxPooling2D',
+  'GlobalMaxPooling3D',
+  'Hashing',
+  'Input',
+  'InputLayer',
+  'InputSpec',
+  'IntegerLookup',
+  'LSTM',
+  'LSTMCell',
+  'Lambda',
+  'Layer',
+  'LayerNormalization',
+  'LocallyConnected1D',
+  'LocallyConnected2D',
+  'Masking',
+  'MaxPool1D',
+  'MaxPool2D',
+  'MaxPool3D',
+  'MaxPooling1D',
+  'MaxPooling2D',
+  'MaxPooling3D',
+  'Maximum',
+  'Minimum',
+  'MultiHeadAttention',
+  'Multiply',
+  'Normalization',
+  'Permute',
+  'RNN',
+  'RandomContrast',
+  'RandomCrop',
+  'RandomFlip',
+  'RandomHeight',
+  'RandomRotation',
+  'RandomTranslation',
+  'RandomWidth',
+  'RandomZoom',
+  'RepeatVector',
+  'Rescaling',
+  'Reshape',
+  'Resizing',
+  'SeparableConv1D',
+  'SeparableConv2D',
+  'SeparableConvolution1D',
+  'SeparableConvolution2D',
+  'SimpleRNN',
+  'SimpleRNNCell',
+  'SpatialDropout1D',
+  'SpatialDropout2D',
+  'SpatialDropout3D',
+  'StackedRNNCells',
+  'StringLookup',
+  'Subtract',
+  'TextVectorization',
+  'TimeDistributed',
+  'UpSampling1D',
+  'UpSampling2D',
+  'UpSampling3D',
+  'Wrapper',
+  'ZeroPadding1D',
+  'ZeroPadding2D',
+  'ZeroPadding3D'])
 
-    # find path of color mapping
-    path =  Path(__file__).parent
-    if naming_convention == "keras":
-        col_map = pd.read_csv(path / "color_mappings/color_mapping_keras.csv")
-    elif naming_convention == "pytorch":
-        col_map = pd.read_csv(path / "color_mappings/color_mapping_pytorch.csv")
+  layernamelist=list(layer_name_df[0])
 
-    # get color for layer key
-    try:
-        color = col_map[col_map.iloc[:,1] == val].iloc[:,2].values[0]
-    except:
-        color = "white"   
+  if naming_convention == "pytorch":
 
-    return 'background: %s' % color
+    layernamelist = rename_layers(layernamelist, direction="keras_to_torch", activation=False)
 
+
+  import seaborn as sns
+  paldata=sns.color_palette("Pastel2", len(layernamelist)).as_hex()
+
+  if val in layernamelist: 
+      valindex=layernamelist.index(val)
+      if any([val=="Concatenate",val=="Conv2D", val=="Conv2d"]):
+        valindex=valindex+4
+      else:
+        pass
+      palvalue=paldata[valindex]
+  else:
+     pass
+  color = palvalue if val in layernamelist else 'white'
+  return 'background: %s' % color
 
 def stylize_model_comparison(comp_dict_out, naming_convention=None):
 
@@ -1393,9 +1564,14 @@ def instantiate_model(apiurl, version=None, trained=False, reproduce=False, subm
             # Get leaderboard
             status = wget.download(model_weight_url, out=temp_path)
             onnx_model = onnx.load(temp_path)
-            model_weights = pickle.loads(_get_metadata(onnx_model)['model_weights'])
+            model_weights = json.loads(_get_metadata(onnx_model)['model_weights'])
             
             model = tf.keras.Sequential().from_config(model_config)
+            
+            def to_array(x):
+                return np.array(x, dtype="float32")
+
+            model_weights = list(map(to_array, model_weights))
 
             model.set_weights(model_weights)
 
@@ -1543,42 +1719,83 @@ def model_summary_keras(model):
     layer_connect = []
     activations = []
 
-    keras_layers = keras_unpack(model)
-
-    for i in keras_layers: 
-
-        try:
-            layer_names.append(i.name)
-        except:
-            layer_names.append(None)
-
-        try:
-            layer_types.append(i.__class__.__name__)
-        except:
+    if model.__class__.__name__ == 'KerasLayer':
+        for i in range(len(model.weights)):
+            name, shape, n_params = _parse_tf_saved_model_layer(model.weights[i])
+            layer_names.append(name)
+            layer_n_params.append(n_params)
+            layer_shapes.append(shape) # not output shape
             layer_types.append(None)
-
-        try:
-            layer_shapes.append(i.output_shape)
-        except:
-            layer_shapes.append(None)
-
-        try:
-            layer_n_params.append(i.count_params())
-        except:
-            layer_n_params.append(None)
-
-        try:
-            if isinstance(i.inbound_nodes[0].inbound_layers, list):
-              layer_connect.append([x.name for x in i.inbound_nodes[0].inbound_layers])
-            else: 
-              layer_connect.append(i.inbound_nodes[0].inbound_layers.name)
-        except:
             layer_connect.append(None)
-
-        try: 
-            activations.append(i.activation.__name__)
-        except:
             activations.append(None)
+    elif model.__class__.__name__ == 'AutoTrackable':
+        for i in range(len(model.variables)):
+            name, shape, n_params = _parse_tf_saved_model_layer(model.variables[i])
+            layer_names.append(name)
+            layer_n_params.append(n_params)
+            layer_shapes.append(shape) # not output shape
+            layer_types.append(None)
+            layer_connect.append(None)
+            activations.append(None)
+    # only has tf.function and signatures method.
+    elif model.__class__.__name__ == '_UserObject': 
+        if hasattr(model.signatures['serving_default'], 'weights'):
+            for i in range(len(model.signatures['serving_default'].weights)):
+                name, shape, n_params = _parse_tf_saved_model_layer(
+                    model.signatures['serving_default'].weights[i]
+                )
+                layer_names.append(name)
+                layer_n_params.append(n_params)
+                layer_shapes.append(shape) # not output shape
+                layer_types.append(None)
+                layer_connect.append(None)
+                activations.append(None)
+        elif hasattr(model.signatures['serving_default'], 'variables'):
+            for i in range(len(model.signatures['serving_default'].variables)):
+                name, shape, n_params = _parse_tf_saved_model_layer(
+                    model.signatures['serving_default'].variables[i]
+                )
+                layer_names.append(name)
+                layer_n_params.append(n_params)
+                layer_shapes.append(shape) # not output shape
+                layer_types.append(None)
+                layer_connect.append(None)
+                activations.append(None)
+    else:
+        for i in model.layers: 
+
+            try:
+                layer_names.append(i.name)
+            except:
+                layer_names.append(None)
+
+            try:
+                layer_types.append(i.__class__.__name__)
+            except:
+                layer_types.append(None)
+
+            try:
+                layer_shapes.append(i.output_shape)
+            except:
+                layer_shapes.append(None)
+
+            try:
+                layer_n_params.append(i.count_params())
+            except:
+                layer_n_params.append(None)
+
+            try:
+                if isinstance(i.inbound_nodes[0].inbound_layers, list):
+                    layer_connect.append([x.name for x in i.inbound_nodes[0].inbound_layers])
+                else: 
+                    layer_connect.append(i.inbound_nodes[0].inbound_layers.name)
+            except:
+                layer_connect.append(None)
+
+            try: 
+                activations.append(i.activation.__name__)
+            except:
+                activations.append(None)
 
 
     model_summary = pd.DataFrame({"Name": layer_names,
@@ -1715,26 +1932,7 @@ def torch_unpack(model):
             keys.append(key)
             
     return layers, keys
-
     
-def keras_unpack(model):
-    
-    layers = []
-    
-    for module in model.layers:
-                
-        if isinstance(module, (keras.engine.functional.Functional, keras.engine.sequential.Sequential)):
-            
-            layers_out = keras_unpack(module)
-            
-            layers = layers + layers_out
-            
-            
-        else:
-            
-            layers.append(module)
-            
-    return layers
 
 
 def torch_metadata(model):

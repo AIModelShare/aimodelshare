@@ -1,8 +1,6 @@
-import email
 import boto3
 import botocore
 import os
-import jwt
 from numpy.core.fromnumeric import var
 import requests
 import uuid
@@ -30,7 +28,8 @@ from aimodelshare.aimsonnx import _get_metadata
 
 def take_user_info_and_generate_api(model_filepath, model_type, categorical,labels, preprocessor_filepath,
                                     custom_libraries, requirements, exampledata_json_filepath, repo_name, 
-                                    image_tag, reproducibility_env_filepath, memory, timeout, pyspark_support=False):
+                                    image_tag, reproducibility_env_filepath, memory, timeout, task_type="", 
+                                    pyspark_support=False):
     """
     Generates an api using model parameters and user credentials, from the user
 
@@ -60,6 +59,8 @@ def take_user_info_and_generate_api(model_filepath, model_type, categorical,labe
     custom_libraries:   string
                   "TRUE" if user wants to load custom Python libraries to their prediction runtime
                   "FALSE" if user wishes to use AI Model Share base libraries including latest versions of most common ML libs.
+    task_type: string
+              values - [ 'classification', 'regression', 'object_detection' ]
      
 
     -----------
@@ -195,7 +196,7 @@ def take_user_info_and_generate_api(model_filepath, model_type, categorical,labe
     from aimodelshare.api import create_prediction_api
     apiurl = create_prediction_api(model_filepath, unique_model_id,
                                    model_type, categorical, labels,api_id,
-                                   custom_libraries, requirements, repo_name, 
+                                   custom_libraries, requirements, task_type, repo_name, 
                                    image_tag, memory, timeout, pyspark_support=pyspark_support)
 
     finalresult = [apiurl["body"], apiurl["statusCode"],
@@ -244,8 +245,7 @@ def upload_model_metadata(model, s3, bucket, model_id):
 
 def send_model_data_to_dyndb_and_return_api(api_info, private, categorical, preprocessor_filepath,
                                             aishare_modelname, aishare_modeldescription, aishare_modelevaluation, model_type,
-                                            aishare_tags, aishare_apicalls, exampledata_json_filepath,
-                                            variablename_and_type_data="default", email_list=[]):
+                                            aishare_tags, aishare_apicalls, exampledata_json_filepath,variablename_and_type_data="default"):
     """
     Updates dynamodb with model data taken as input from user along with already generated api info
     -----------
@@ -268,10 +268,7 @@ def send_model_data_to_dyndb_and_return_api(api_info, private, categorical, prep
                                 value- extracted from example_data
                                 [variable types,variable columns]
                                 'default' when training data info is not available to extract columns
-    email_list: list of strings
-                values - list including all emails of users who have access the playground.
-                list should contain same emails used to sign up for modelshare.org account.
-                [OPTIONAL] to be set by the playground owner
+    
     -----------
     Results
     print (api_info) : statements with the generated live prediction API information for the user
@@ -292,29 +289,27 @@ def send_model_data_to_dyndb_and_return_api(api_info, private, categorical, prep
         exampledata_addtodatabase={"exampledata":"TRUE"}
     else:
         exampledata_addtodatabase={"exampledata":"FALSE"}
-    bodydata = {
-        "id": int(math.log(1/((time.time()*1000000)))*100000000000000),
-        "unique_model_id": unique_model_id,
-        "apideveloper": os.environ.get("username"),  # change this to first and last name
-        "apimodeldescription": aishare_modeldescription,
-        "apimodelevaluation": aishare_modelevaluation,
-        "apimodeltype": model_type,
-        # getting rid of extra quotes that screw up dynamodb string search on apiurls
-        "apiurl": api_info[0].strip('\"'),
-        "bucket_name": bucket_name,
-        "version": 1,
-        "modelname": aishare_modelname,
-        "tags": aishare_tags,
-        "Private": private,
-        "Categorical": categorical,
-        "delete": "FALSE",
-        "input_feature_dtypes": variablename_and_type_data[0],
-        "input_feature_names": variablename_and_type_data[1],
-        "preprocessor": preprocessor_filepath,
-        "preprocessor_fileextension": preprocessor_file_extension,
-        "input_shape": input_shape,
-        "email_list": email_list,
-    }
+    bodydata = {"id": int(math.log(1/((time.time()*1000000)))*100000000000000),
+                "unique_model_id": unique_model_id,
+                "apideveloper": os.environ.get("username"),  # change this to first and last name
+                "apimodeldescription": aishare_modeldescription,
+                "apimodelevaluation": aishare_modelevaluation,
+                "apimodeltype": model_type,
+                # getting rid of extra quotes that screw up dynamodb string search on apiurls
+                "apiurl": api_info[0].strip('\"'),
+                "bucket_name": bucket_name,
+                "version": 1,
+                "modelname": aishare_modelname,
+                "tags": aishare_tags,
+                "Private": private,
+                "Categorical": categorical,
+                "delete": "FALSE",
+                "input_feature_dtypes": variablename_and_type_data[0],
+                "input_feature_names": variablename_and_type_data[1],
+                "preprocessor": preprocessor_filepath,
+                "preprocessor_fileextension": preprocessor_file_extension,
+                "input_shape": input_shape
+                }
     bodydata.update(exampledata_addtodatabase)
     # Get the response
     headers_with_authentication = {'Content-Type': 'application/json', 'authorizationToken': os.environ.get("JWT_AUTHORIZATION_TOKEN"), 'Access-Control-Allow-Headers':
@@ -350,9 +345,9 @@ def send_model_data_to_dyndb_and_return_api(api_info, private, categorical, prep
 
 
 def model_to_api(model_filepath, model_type, private, categorical, y_train, preprocessor_filepath, 
-                custom_libraries="FALSE", example_data=None, image="", 
+                custom_libraries="FALSE", example_data=None, image="", labels=None, task_type="",
                 base_image_api_endpoint="https://vupwujn586.execute-api.us-east-1.amazonaws.com/dev/copybasetouseracct", 
-                update=False, reproducibility_env_filepath=None, memory=None, timeout=None, email_list=[],pyspark_support=False):
+                update=False, reproducibility_env_filepath=None, memory=None, timeout=None, pyspark_support=False):
     """
       Launches a live prediction REST API for deploying ML models using model parameters and user credentials, provided by the user
       Inputs : 8
@@ -400,10 +395,6 @@ def model_to_api(model_filepath, model_type, private, categorical, y_train, prep
                                 [OPTIONAL] to be set by the user
                                 "./reproducibility.json" 
                                 file is generated using export_reproducibility_env function from the AI Modelshare library
-      email_list: list of strings
-                values - list including all emails of users who have access the playground.
-                list should contain same emails used to sign up for modelshare.org account.
-                [OPTIONAL] to be set by the playground owner
       -----------
       Returns
       print_api_info : prints statements with generated live prediction API details
@@ -419,15 +410,6 @@ def model_to_api(model_filepath, model_type, private, categorical, y_train, prep
     user_session = boto3.session.Session(aws_access_key_id=os.environ.get("AWS_ACCESS_KEY_ID"),
                                          aws_secret_access_key = os.environ.get("AWS_SECRET_ACCESS_KEY"), 
                                          region_name=os.environ.get("AWS_REGION"))
-
-    if all([isinstance(email_list, list)]):
-        idtoken = get_aws_token()
-        decoded = jwt.decode(idtoken, options={"verify_signature": False})  # works in PyJWT < v2.0
-        email = decoded['email']
-        # Owner has to be the first on the list
-        email_list.insert(0, email)
-    else:
-        return print("email_list argument empty or incorrectly formatted. Please provide a list of emails for authorized competition participants formatted as strings.")
 
     if(image!=""):
         repo_name, image_tag = image.split(':')
@@ -485,14 +467,17 @@ def model_to_api(model_filepath, model_type, private, categorical, y_train, prep
     if model_type == "tabular" or "keras_tabular" or 'Tabular':
         variablename_and_type_data = extract_varnames_fromtrainingdata(
             example_data)
-    if categorical == "TRUE":
-        try:
-            labels = y_train.columns.tolist()
-        except:
-            #labels = list(set(y_train.to_frame()['tags'].tolist()))
-            labels = list(set(y_train))
-    else:
-        labels = "no data"
+
+    # custom labels
+    if not labels:
+        if categorical == "TRUE":
+            try:
+                labels = y_train.columns.tolist()
+            except:
+                #labels = list(set(y_train.to_frame()['tags'].tolist()))
+                labels = list(set(y_train))
+        else:
+            labels = "no data"
 
     # Create Example Data JSON
     exampledata_json_filepath = ""
@@ -509,7 +494,8 @@ def model_to_api(model_filepath, model_type, private, categorical, y_train, prep
         model_filepath, model_type, categorical, labels, 
         preprocessor_filepath, custom_libraries, requirements, 
         exampledata_json_filepath, repo_name, image_tag, 
-        reproducibility_env_filepath, memory, timeout, pyspark_support=pyspark_support)
+        reproducibility_env_filepath, memory, timeout, task_type=task_type,
+        pyspark_support=pyspark_support)
 
     ### Progress Update #5/6 {{{
     sys.stdout.write('\r')
@@ -520,8 +506,7 @@ def model_to_api(model_filepath, model_type, private, categorical, y_train, prep
     print_api_info = send_model_data_to_dyndb_and_return_api(
         api_info, private, categorical,preprocessor_filepath, aishare_modelname,
         aishare_modeldescription, aishare_modelevaluation, model_type,
-        aishare_tags, aishare_apicalls, exampledata_json_filepath,
-        variablename_and_type_data, email_list)
+        aishare_tags, aishare_apicalls, exampledata_json_filepath,variablename_and_type_data)
     
     return api_info[0]
 
@@ -579,16 +564,25 @@ def create_competition(apiurl, data_directory, y_test, eval_metric_filepath=None
     #ytest data to load to s3
 
     if y_test is not None:
-        if type(y_test) is not list:
-            y_test=y_test.tolist()
-        else: 
-            pass
+        # object detection
+        if type(y_test) is dict:
+            for i in y_test.keys():
+                if type(y_test[i]) is not list:
+                    y_test[i] = y_test[i].tolist()
+                
+                if all(isinstance(x, (np.float64)) for x in y_test[i]):
+                    y_test[i] = [float(x) for x in y_test[i]]
 
-        if all(isinstance(x, (np.float64)) for x in y_test):
-              y_test = [float(i) for i in y_test]
         else: 
-            pass
+            if type(y_test) is not list:
+                y_test=y_test.tolist()
+            else: 
+                pass
 
+            if all(isinstance(x, (np.float64)) for x in y_test):
+                y_test = [float(i) for i in y_test]
+            else: 
+                pass
 
     pickle.dump(y_test,open(ytest_path,"wb"))
     s3["client"].upload_file(ytest_path, os.environ.get("BUCKET_NAME"),  model_id + "/competition/ytest.pkl")
@@ -640,7 +634,7 @@ def create_competition(apiurl, data_directory, y_test, eval_metric_filepath=None
     
     #create and upload json file with list of authorized users who can submit to this competition.
     _create_competitionuserauth_json(apiurl, email_list,public,datauri['ecr_uri'], submission_type="competition")
-    _create_public_private_split_json(apiurl, public_private_split, "competition")
+    _create_public_private_split_json(apiurl, public_private_split)
 
     bodydata = {"unique_model_id": model_id,
                 "bucket_name": api_bucket,
@@ -678,7 +672,7 @@ def create_competition(apiurl, data_directory, y_test, eval_metric_filepath=None
 
 
 
-def create_experiment(apiurl, data_directory, y_test, eval_metric_filepath=None, email_list=[], public=False, public_private_split=0.5):
+def create_experiment(apiurl, data_directory, y_test, eval_metric_filepath=None, email_list=[], public=False, public_private_split=0):
     """
     Creates a model experiment for a deployed prediction REST API
     Inputs : 4
@@ -694,7 +688,7 @@ def create_experiment(apiurl, data_directory, y_test, eval_metric_filepath=None,
                 [REQUIRED] to generate eval metrics in competition leaderboard
             
     data_directory : folder storing training data and test data (excluding Y test data)
-    email_list: [REQUIRED] list of comma separated emails for users who are allowed to submit models to experiment.  Emails should be strings in a list.
+    email_list: [REQUIRED] list of comma separated emails for users who are allowed to submit models to competition.  Emails should be strings in a list.
                                           
     ---------
     Returns
@@ -793,7 +787,7 @@ def create_experiment(apiurl, data_directory, y_test, eval_metric_filepath=None,
     
     #create and upload json file with list of authorized users who can submit to this competition.
     _create_competitionuserauth_json(apiurl, email_list,public,datauri['ecr_uri'], submission_type="experiment")
-    _create_public_private_split_json(apiurl, public_private_split, "experiment")
+    _create_public_private_split_json(apiurl, public_private_split)
 
     bodydata = {"unique_model_id": model_id,
                 "bucket_name": api_bucket,
@@ -829,7 +823,7 @@ def create_experiment(apiurl, data_directory, y_test, eval_metric_filepath=None,
   
     return print(final_message)
 
-def _create_public_private_split_json(apiurl, split=0.5, submission_type='competition'): 
+def _create_public_private_split_json(apiurl, split=0.5): 
       import json
       if all(["AWS_ACCESS_KEY_ID" in os.environ, 
             "AWS_SECRET_ACCESS_KEY" in os.environ,
@@ -868,7 +862,7 @@ def _create_public_private_split_json(apiurl, split=0.5, submission_type='compet
           json.dump({"public_private_split": str(split)}, f, ensure_ascii=False, indent=4)
 
       aws_client['client'].upload_file(
-            tempdir.name+"/public_private_split.json", api_bucket, model_id +"/"+submission_type+"/public_private_split.json"
+            tempdir.name+"/public_private_split.json", api_bucket, model_id + "/public_private_split.json"
         )
       
       return
@@ -917,63 +911,6 @@ def _create_competitionuserauth_json(apiurl, email_list=[],public=False, datauri
         )
       
       return
-
-def update_playground_access_list(apiurl, email_list=[], update_type="Add"): 
-    """
-    Updates list of authenticated participants who can submit new models to a competition.
-    ---------------
-    Parameters:
-    apiurl: string
-            URL of deployed prediction API 
-    
-    email_list: [REQUIRED] list of comma separated emails for users who are allowed to access model playground.  Emails should be strings in a list.
-    update_type:[REQUIRED] options, string: 'Add', 'Remove', 'Replace'. Add appends user emails to original list, Remove deletes users from list, 
-                and 'Replace' overwrites the original list with the new list provided.    
-    -----------------
-    Returns
-    response:   "Success" upon successful request
-    """
-    if update_type not in ['Add', 'Remove', 'Replace']:
-        return "Error: update_type must be in the form of 'Add', 'Remove', or 'Replace'"
-    
-    bodydata = {
-        "modifyaccess": "TRUE",
-        "apideveloper": os.environ.get("username"),  # change this to first and last name
-        "apiurl": apiurl,
-        "operation": update_type,
-        "email_list": email_list,
-    }
-
-    # Get the response
-    headers_with_authentication = {'Content-Type': 'application/json', 'authorizationToken': os.environ.get("JWT_AUTHORIZATION_TOKEN"), 'Access-Control-Allow-Headers':
-                                'Content-Type,X-Amz-Date,authorizationToken,Access-Control-Allow-Origin,X-Api-Key,X-Amz-Security-Token,Authorization', 'Access-Control-Allow-Origin': '*'}
-    # modeltoapi lambda function invoked through below url to return new prediction api in response
-    response = requests.post("https://bhrdesksak.execute-api.us-east-1.amazonaws.com/dev/modeldata",
-                            json=bodydata, headers=headers_with_authentication)
-    response_string = response.text
-    response_string = response_string[1:-1]
-
-    # Build output {{{
-    finalresult = "Success! Your Model Playground email list has been updated. Playground Url: " + apiurl
-    return finalresult
-
-def get_playground_access_list(apiurl):
-    bodydata = {
-        "getaccess": "TRUE",
-        "apideveloper": os.environ.get("username"),  # change this to first and last name
-        "apiurl": apiurl,
-    }
-
-    # Get the response
-    headers_with_authentication = {'Content-Type': 'application/json', 'authorizationToken': os.environ.get("JWT_AUTHORIZATION_TOKEN"), 'Access-Control-Allow-Headers':
-                                'Content-Type,X-Amz-Date,authorizationToken,Access-Control-Allow-Origin,X-Api-Key,X-Amz-Security-Token,Authorization', 'Access-Control-Allow-Origin': '*'}
-    # modeltoapi lambda function invoked through below url to return new prediction api in response
-    response = requests.post("https://bhrdesksak.execute-api.us-east-1.amazonaws.com/dev/modeldata",
-                            json=bodydata, headers=headers_with_authentication)
-    response_string = response.text
-    response_string = response_string[1:-1]
-
-    return response_string.split(',')
 
 def update_access_list(apiurl, email_list=[],update_type="Add", submission_type="competition"):
       """

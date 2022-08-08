@@ -12,30 +12,22 @@ import tensorflow as tf
 
 from datetime import datetime
 
-from aimodelshare.leaderboard import get_leaderboard
-
 from aimodelshare.aws import run_function_on_lambda, get_token, get_aws_token, get_aws_client
 
 from aimodelshare.aimsonnx import _get_leaderboard_data, inspect_model, _get_metadata, _model_summary, model_from_string, pyspark_model_from_string
 
 
-def _get_file_list(client, bucket,keysubfolderid):
+def _get_file_list(client, bucket, model_id):
     #  Reading file list {{{
     try:
-        objectlist=[]
-        paginator = client.get_paginator('list_objects')
-        pages = paginator.paginate(Bucket=bucket, Prefix=keysubfolderid)
-
-        for page in pages:
-            for obj in page['Contents']:
-                objectlist.append(obj['Key'])
-
+        objects = client["client"].list_objects(Bucket=bucket, Prefix=model_id + "/")
     except Exception as err:
         return None, err
 
     file_list = []
-    for key in objectlist:
-            file_list.append(key.split("/")[-1])
+    if "Contents" in objects:
+        for key in objects["Contents"]:
+            file_list.append(key["Key"].split("/")[1])
     #  }}}
 
     return file_list, None
@@ -606,15 +598,25 @@ def submit_model(
     #begin replacing code here
     #add call to eval lambda here to retrieve presigned urls and eval metrics
     if prediction_submission is not None:
-        if type(prediction_submission) is not list:
-            prediction_submission=prediction_submission.tolist()
-        else: 
-            pass
+        # object detection
+        if type(prediction_submission) is dict:
+            for i in prediction_submission.keys():
+                if type(prediction_submission[i]) is not list:
+                    prediction_submission[i] = prediction_submission[i].tolist()
+                
+                if all(isinstance(x, (np.float64)) for x in prediction_submission[i]):
+                    prediction_submission[i] = [float(x) for x in prediction_submission[i]]
 
-        if all(isinstance(x, (np.float64)) for x in prediction_submission):
-              prediction_submission = [float(i) for i in prediction_submission]
         else: 
-            pass
+            if type(prediction_submission) is not list:
+                prediction_submission=prediction_submission.tolist()
+            else: 
+                pass
+
+            if all(isinstance(x, (np.float64)) for x in prediction_submission):
+                prediction_submission = [float(i) for i in prediction_submission]
+            else: 
+                pass
 
     ##---Step 3: Attempt to get eval metrics and file access dict for model leaderboard submission
     #includes checks if returned values a success and errors otherwise
@@ -817,18 +819,12 @@ def submit_model(
     # }}}
     modelsubmissiontags=input("Insert search tags to help users find your model (optional): ")
     modelsubmissiondescription=input("Provide any useful notes about your model (optional): ")
-    
-    if submission_type=="competition":
-        experimenttruefalse="FALSE"
-    else:
-        experimenttruefalse="TRUE"
 
-    #Update competition or experiment data
+    #Update competition data
     bodydata = {"apiurl": apiurl,
                 "submissions": model_version,
                   "contributoruniquenames":os.environ.get('username'),
-                "versionupdateputsubmit":"TRUE",
-                 "experiment":experimenttruefalse
+                "versionupdateputsubmit":"TRUE"
                                 }
 
     # Get the response
@@ -994,7 +990,7 @@ def submit_model(
 
     return print("\nYour model has been submitted as model version "+str(model_version)+ "\n\n"+code_comp_result)
 
-def update_runtime_model(apiurl, model_version=None, submission_type="competition"):
+def update_runtime_model(apiurl, model_version=None):
     """
     apiurl: string of API URL that the user wishes to edit
     new_model_version: string of model version number (from leaderboard) to replace original model 
@@ -1010,10 +1006,9 @@ def update_runtime_model(apiurl, model_version=None, submission_type="competitio
         return print("'Update Runtime Model' unsuccessful. Please provide credentials with set_credentials().")
 
     # Create user session
-    aws_client_and_resource=get_aws_client(aws_key=os.environ.get('AWS_ACCESS_KEY_ID'), 
+    aws_client=get_aws_client(aws_key=os.environ.get('AWS_ACCESS_KEY_ID'), 
                               aws_secret=os.environ.get('AWS_SECRET_ACCESS_KEY'), 
                               aws_region=os.environ.get('AWS_REGION'))
-    aws_client = aws_client_and_resource['client']
     
     user_sess = boto3.session.Session(aws_access_key_id=os.environ.get('AWS_ACCESS_KEY_ID'), 
                                       aws_secret_access_key=os.environ.get('AWS_SECRET_ACCESS_KEY'), 
@@ -1032,33 +1027,35 @@ def update_runtime_model(apiurl, model_version=None, submission_type="competitio
     # }}}
 
     try:
-        leaderboard = get_leaderboard(apiurl=apiurl, submission_type=submission_type)
+        leaderboard = aws_client["client"].get_object(
+            Bucket=api_bucket, Key=model_id + "/model_eval_data_mastertable.csv"
 
+
+
+        )
+        leaderboard = pd.read_csv(leaderboard["Body"], sep="\t")
         columns = leaderboard.columns
+        metric_names=["accuracy","f1_score","precision","recall","r2","mse","mae"]
         leaderboardversion=leaderboard[leaderboard['version']==int(model_version)]
         leaderboardversion=leaderboardversion.dropna(axis=1)
-
-        metric_names_subset=list(columns[0:4])
-        print(metric_names_subset)
+        metric_names_subset=list(set(metric_names).intersection(leaderboardversion.columns))
         leaderboardversiondict=leaderboardversion.loc[:,metric_names_subset].to_dict('records')[0]
-        print(leaderboardversiondict)
-
     except Exception as err:
         raise err
 
     # Get file list for current bucket {{{
-    model_files, err = _get_file_list(aws_client, api_bucket, model_id+"/"+submission_type)
+    model_files, err = _get_file_list(aws_client, api_bucket, model_id)
     if err is not None:
         raise err
     # }}}
 
     # extract subfolder objects specific to the model id
-    folder = s3.meta.client.list_objects(Bucket=api_bucket, Prefix=model_id+"/"+submission_type+"/")
+    folder = s3.meta.client.list_objects(Bucket=api_bucket, Prefix=model_id+"/")
     bucket = s3.Bucket(api_bucket)
     file_list = [file['Key'] for file in folder['Contents']]
     s3 = boto3.resource('s3')
-    model_source_key = model_id+"/"+submission_type+"/onnx_model_v"+str(model_version)+".onnx"
-    preprocesor_source_key = model_id+"/"+submission_type+"/preprocessor_v"+str(model_version)+".zip"
+    model_source_key = model_id+"/onnx_model_v"+str(model_version)+".onnx"
+    preprocesor_source_key = model_id+"/preprocessor_v"+str(model_version)+".zip"
     model_copy_source = {
           'Bucket': api_bucket,
           'Key': model_source_key
@@ -1078,8 +1075,8 @@ def update_runtime_model(apiurl, model_version=None, submission_type="competitio
 
     # overwrite runtime_model.onnx file & runtime_preprocessor.zip files: 
     if (model_source_key in file_list) & (preprocesor_source_key in file_list):
-        response = bucket.copy(model_copy_source, model_id+"/"+submission_type+"/"+'runtime_model.onnx')
-        response = bucket.copy(preprocessor_copy_source, model_id+"/"+submission_type+"/"+'runtime_preprocessor.zip')
+        response = bucket.copy(model_copy_source, model_id+"/"+'runtime_model.onnx')
+        response = bucket.copy(preprocessor_copy_source, model_id+"/"+'runtime_preprocessor.zip')
         return print('Runtime model & preprocessor for api: '+apiurl+" updated to model version "+model_version+".\n\nModel metrics are now updated and verified for this model playground.")
     else:
         # the file resource to be the new runtime_model is not available

@@ -3,6 +3,9 @@
 
 
 
+from asyncio.base_tasks import _task_get_stack
+
+
 class ModelPlayground:
     """
     Parameters:
@@ -33,8 +36,9 @@ class ModelPlayground:
     def __str__(self):
         return f"ModelPlayground instance of model type: {self.model_type}, classification: {self.categorical},  private: {self.private}"
     
-
-    def deploy(self, model_filepath, preprocessor_filepath, y_train, example_data=None, custom_libraries = "FALSE", image="", reproducibility_env_filepath=None, memory=None, timeout=None, email_list=[], pyspark_support=False):
+    def deploy(self, model_filepath, preprocessor_filepath, y_train, example_data=None, 
+               custom_libraries="FALSE", image="", reproducibility_env_filepath=None, 
+               memory=None, timeout=None, pyspark_support=False, labels=None, task_type=""):
 
         """
         Launches a live prediction REST API for deploying ML models using model parameters and user credentials, provided by the user
@@ -66,12 +70,8 @@ class ModelPlayground:
               tabular data - pandas DataFrame in same structure expected by preprocessor function
               other data types - absolute path to folder containing example data
                                 (first five files with relevent file extensions will be accepted)
-                     
               [REQUIRED] for tabular data
-          `email_list`: ``list of string values``
-                values - list including all emails of users who have access the playground.
-                list should contain same emails that were used to sign up for modelshare.org account.
-                [OPTIONAL] set by the playground owner
+        
         Returns:
         --------
         print_api_info : prints statements with generated live prediction API details
@@ -90,8 +90,10 @@ class ModelPlayground:
                                       reproducibility_env_filepath = reproducibility_env_filepath,
                                       memory=memory,
                                       timeout=timeout,
-                                      email_list=email_list,
-                                      pyspark_support=pyspark_support)
+                                      pyspark_support=pyspark_support,
+                                      labels=labels,
+                                      task_type=task_type)
+
         #remove extra quotes
         self.playground_url = self.playground_url[1:-1]
     
@@ -110,7 +112,7 @@ class ModelPlayground:
         `email_list`: [OPTIONAL] list of comma separated emails for users who are allowed to submit models to competition.  Emails should be strings in a list.
         `public`: [REQUIRED] True/false. Defaults to False.  If True, competition is public and ANY AIMODELSHARE USER CAN SUBMIT MODELS.  USE WITH CAUTION b/c one model and 
             one preprocessor file will be be saved to your AWS S3 folder for each model submission.
-        `public_private_split`: [REQUIRED] Float between 0 and 1. Defaults to 0.5. Porportion of test data that is allocated to private hold-out set.
+        
         
         Returns:
         -----------
@@ -128,7 +130,7 @@ class ModelPlayground:
                                     public_private_split)
         return competition
         
-    def create_experiment(self, data_directory, y_test, eval_metric_filepath=None, email_list = [], public=False, public_private_split=0):
+    def create_experiment(self, data_directory, y_test, eval_metric_filepath=None, email_list = [], public=False):
         """
         Creates an experiment for a deployed prediction REST API
         Inputs : 4
@@ -143,7 +145,6 @@ class ModelPlayground:
         `email_list`: [OPTIONAL] list of comma separated emails for users who are allowed to submit models to experiment leaderboard.  Emails should be strings in a list.
         `public`: [REQUIRED] True/false. Defaults to False.  If True, experiment is public and ANY AIMODELSHARE USER CAN SUBMIT MODELS.  USE WITH CAUTION b/c one model and 
             one preprocessor file will be be saved to your AWS S3 folder for each model submission.
-        `public_private_split`: [REQUIRED] Float between 0 and 1. Defaults to 0. Porportion of test data that is allocated to private hold-out set.
         
         
         Returns:
@@ -159,7 +160,7 @@ class ModelPlayground:
                                     eval_metric_filepath,
                                     email_list, 
                                     public,
-                                    public_private_split)
+                                    public_private_split=0)
         return experiment
 
     def submit_model(self, model_filepath, preprocessor_filepath, prediction_submission):
@@ -199,7 +200,7 @@ class ModelPlayground:
         
 
     
-    def update_runtime_model(self, model_version=None, submission_type="competition"):
+    def update_runtime_model(self, model_version=None):
         """
         Updates the prediction API behind the Model Playground with a new model from the leaderboard and verifies Model Playground performance metrics.
 
@@ -214,10 +215,10 @@ class ModelPlayground:
         
         """
         from aimodelshare.model import update_runtime_model as update
-        update = update(apiurl = self.playground_url, model_version = model_version, submission_type=submission_type)
+        update = update(apiurl = self.playground_url, model_version = model_version)
         return update
         
-    def instantiate_model(self, version=None, trained=False, reproduce=False, submission_type="competition"): 
+    def instantiate_model(self, version=None, trained=False, reproduce=False): 
         """
         Import a model previously submitted to a leaderboard to use in your session
 
@@ -233,7 +234,7 @@ class ModelPlayground:
         model: model chosen from leaderboard
         """
         from aimodelshare.aimsonnx import instantiate_model
-        model = instantiate_model(apiurl=self.playground_url, trained=trained, version=version, reproduce=reproduce, submission_type=submission_type)
+        model = instantiate_model(apiurl=self.playground_url, trained=trained, version=version, reproduce=reproduce)
         return model
     
     def delete_deployment(self, playground_url=None):
@@ -259,27 +260,6 @@ class ModelPlayground:
     def import_reproducibility_env(self):
         from aimodelshare.reproducibility import import_reproducibility_env_from_model
         import_reproducibility_env_from_model(apiurl=self.playground_url)
-
-    def update_access_list(self, email_list=[], update_type="Replace_list"):
-        """
-        Updates list of authenticated participants who can submit new models to a competition.
-
-        Parameters:
-        -----------
-        `apiurl`: string
-                URL of deployed prediction API 
-          
-        `email_list`: [REQUIRED] list of comma separated emails for users who are allowed to submit models to competition.  Emails should be strings in a list.
-        `update_type`:[REQUIRED] options, ``string``: 'Add', 'Remove', 'Replace_list','Get. Add appends user emails to original list, Remove deletes users from list, 
-                  'Replace_list' overwrites the original list with the new list provided, and Get returns the current list.    
-
-        Returns:
-        --------
-        response:   "Success" upon successful request
-        """
-        from aimodelshare.generatemodelapi import update_access_list as update_list
-        update = update_list(apiurl = self.playground_url, email_list=email_list, update_type=update_type)
-        return update
 
 
 class Competition:
@@ -402,7 +382,7 @@ class Competition:
                       submission_type = self.submission_type)
         return data
 
-    def stylize_compare(self, compare_dict, naming_convention="keras"):
+    def stylize_compare(self, compare_dict, naming_convention=None):
         """
         Stylizes data received from compare_models to highlight similarities & differences.
 
