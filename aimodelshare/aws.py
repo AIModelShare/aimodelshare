@@ -243,7 +243,7 @@ def get_s3_iam_client(aws_key=None,aws_password=None, aws_region=None):
         aws_access_key_id=key, aws_secret_access_key=password, region_name=region,
     )
 
-  s3_client = boto3.client('s3')
+  s3_client = boto3.client('s3' , region_name ="us-east-1")
   s3_resource = boto3.resource('s3')
   iam_client = boto3.client('iam')
   iam_resource = boto3.resource('iam')
