@@ -20,6 +20,7 @@ from onnx.tools.net_drawer import GetPydotGraph, GetOpNodeProducer
 import importlib
 import onnxmltools
 import onnxruntime as rt
+from onnx.defs import onnx_opset_version
 
 # aims modules
 from aimodelshare.aws import run_function_on_lambda, get_aws_client
@@ -221,7 +222,7 @@ def _sklearn_to_onnx(model, initial_types, transfer_learning=None,
       model.flatten_transform=False
     
     # convert to onnx
-    onx = convert_sklearn(model, initial_types=initial_types)
+    onx = convert_sklearn(model, initial_types=initial_types, target_opset={'': 15, 'ai.onnx.ml': 2})
     
     ## Dynamically set model ir_version to ensure sklearn opsets work properly
     from onnx.helper import VERSION_TABLE
