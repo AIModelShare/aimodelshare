@@ -1278,6 +1278,13 @@ def instantiate_model(apiurl, version=None, trained=False, reproduce=False, subm
 
     resp = requests.post(apiurl_eval,headers=headers,data=json.dumps(post_dict)) 
 
+    # Missing Check for response from Lambda. 
+    try :
+        resp.raise_for_status()
+    except requests.exceptions.HTTPError :
+        raise Exception(f"Error: Received {resp.status_code} from AWS, Please check if Model Version is correct.")
+
+
     resp_dict = json.loads(resp.text)
 
     if resp_dict['model_metadata'] == None:

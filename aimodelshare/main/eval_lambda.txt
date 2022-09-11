@@ -1511,7 +1511,7 @@ def get_reproducibility_env(version=None):
                 bucket.download_fileobj("$unique_model_id/runtime_reproducibility.json",  temp_path)
         else:
             with open("/tmp/reproducibility.json", "wb") as temp_path:
-                bucket.download_fileobj("$unique_model_id/reproducibility_v{}.json".format(version),  temp_path)
+                bucket.download_fileobj("$unique_model_id/competition/reproducibility_v{}.json".format(version),  temp_path)
         
         reproducibility_env_json = json.load(open("/tmp/reproducibility.json","rb"))
     except botocore.exceptions.ClientError as e:
