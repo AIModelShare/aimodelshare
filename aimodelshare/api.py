@@ -26,7 +26,7 @@ from .utils import *
 
 class create_prediction_api_class():
 
-    def __init__(self, model_filepath, unique_model_id, model_type, categorical, labels, apiid, custom_libraries, requirements, repo_name="", image_tag="", memory=None, timeout=None, pyspark_support=False):
+    def __init__(self, model_filepath, unique_model_id, model_type, categorical, labels, apiid, custom_libraries, requirements, repo_name="", image_tag="", memory=None, timeout=90, pyspark_support=False):
 
         #####
         self.user_session = boto3.session.Session(
