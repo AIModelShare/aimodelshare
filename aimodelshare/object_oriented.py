@@ -219,9 +219,6 @@ class ModelPlayground:
         
     def instantiate_model(self, version=None, trained=False, reproduce=False, submission_type="competition"): 
         """
-
-        DOES NOT WORK FOR MODELPLAYGROUND , ADD corresponding description.
-
         Import a model previously submitted to a leaderboard to use in your session
 
         Parameters:
