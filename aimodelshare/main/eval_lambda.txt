@@ -293,7 +293,7 @@ def handler(event, context):
             # the model version is found (users didn't only submit prediction for this version)
             if model_metadata_json:
                 if reproduce:
-                    reproducibility_env_json = get_reproducibility_env(version=version)
+                    reproducibility_env_json = get_reproducibility_env(version=version,submission_type)
                 elif trained:
                     # Get the presigned url.
                     s3_client=boto3.client("s3")
@@ -1501,7 +1501,7 @@ def get_public_private_split(submission_type="competition"):
     public_private_split_dict = json.load(open("/tmp/public_private_split.json","rb")) 
     return float(public_private_split_dict["public_private_split"])
 
-def get_reproducibility_env(version=None):
+def get_reproducibility_env(version=None,submission_type="competition"):
     s3 = boto3.resource("s3")
     bucket = s3.Bucket("$bucket_name")
 
@@ -1511,7 +1511,7 @@ def get_reproducibility_env(version=None):
                 bucket.download_fileobj("$unique_model_id/runtime_reproducibility.json",  temp_path)
         else:
             with open("/tmp/reproducibility.json", "wb") as temp_path:
-                bucket.download_fileobj("$unique_model_id/competition/reproducibility_v{}.json".format(version),  temp_path)
+                bucket.download_fileobj("$unique_model_id/" + submission_type + "/reproducibility_v{}.json".format(version),  temp_path)
         
         reproducibility_env_json = json.load(open("/tmp/reproducibility.json","rb"))
     except botocore.exceptions.ClientError as e:
