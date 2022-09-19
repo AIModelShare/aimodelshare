@@ -232,6 +232,7 @@ class ModelPlayground:
         --------
         model: model chosen from leaderboard
         """
+        raise AssertionError("You are trying to Instantiate model with ModelPlayground Object, Please use the competition object to Instantiate model")
         from aimodelshare.aimsonnx import instantiate_model
         model = instantiate_model(apiurl=self.playground_url, trained=trained, version=version, reproduce=reproduce, submission_type=submission_type)
         return model

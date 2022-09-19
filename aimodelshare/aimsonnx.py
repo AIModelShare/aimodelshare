@@ -1278,6 +1278,13 @@ def instantiate_model(apiurl, version=None, trained=False, reproduce=False, subm
 
     resp = requests.post(apiurl_eval,headers=headers,data=json.dumps(post_dict)) 
 
+    # Missing Check for response from Lambda. 
+    try :
+        resp.raise_for_status()
+    except requests.exceptions.HTTPError :
+        raise Exception(f"Error: Received {resp.status_code} from AWS, Please check if Model Version is correct.")
+
+
     resp_dict = json.loads(resp.text)
 
     if resp_dict['model_metadata'] == None:
@@ -1393,7 +1400,7 @@ def instantiate_model(apiurl, version=None, trained=False, reproduce=False, subm
             # Get leaderboard
             status = wget.download(model_weight_url, out=temp_path)
             onnx_model = onnx.load(temp_path)
-            model_weights = pickle.loads(_get_metadata(onnx_model)['model_weights'])
+            model_weights = np.array([np.array(weight) for weight in ast.literal_eval(_get_metadata(onnx_model)['model_weights'])])
             
             model = tf.keras.Sequential().from_config(model_config)
 
