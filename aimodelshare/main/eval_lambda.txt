@@ -293,7 +293,7 @@ def handler(event, context):
             # the model version is found (users didn't only submit prediction for this version)
             if model_metadata_json:
                 if reproduce:
-                    reproducibility_env_json = get_reproducibility_env(version=version,submission_type)
+                    reproducibility_env_json = get_reproducibility_env(version=version,submission_type = submission_type)
                 elif trained:
                     # Get the presigned url.
                     s3_client=boto3.client("s3")
