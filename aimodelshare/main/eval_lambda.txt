@@ -304,7 +304,7 @@ def handler(event, context):
         
                     method_parameters = {
                         "Bucket": bucket, 
-                        "Key": model_id + "/" + onnx_model_name,
+                        "Key": model_id + "/"  + submission_type + "/" + onnx_model_name,
                     }
 
                     expires_in = 900 # 15 mins
