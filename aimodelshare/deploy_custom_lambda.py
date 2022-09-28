@@ -14,7 +14,7 @@ import pickle
 import tempfile
 
 from aimodelshare.tools import extract_varnames_fromtrainingdata, _get_extension_from_filepath
-from aimodelshare.aws import get_s3_iam_client, run_function_on_lambda
+from aimodelshare.aws import get_s3_iam_client, run_function_on_lambda, get_token, get_aws_token, get_aws_client
 from aimodelshare.bucketpolicy import _custom_upload_policy
 from aimodelshare.exceptions import AuthorizationError, AWSAccessError, AWSUploadError
 from aimodelshare.api import create_prediction_api
@@ -29,6 +29,25 @@ from aimodelshare.model import _get_predictionmodel_key, _extract_model_metadata
 # output_list_exampledata list being accessed by which key in response?
 # create file_objects in temp_dir, abstract from user
 # convert example output from list to json, in frontend display value of key of result
+
+def create_bucket(s3_client, bucket_name, region):
+        try:
+            response=s3_client.head_bucket(Bucket=bucket_name)
+        except:
+            if(region=="us-east-1"):
+                response = s3_client.create_bucket(
+                    ACL="private",
+                    Bucket=bucket_name
+                )
+            else:
+                location={'LocationConstraint': region}
+                response=s3_client.create_bucket(
+                    ACL="private",
+                    Bucket=bucket_name,
+                    CreateBucketConfiguration=location
+                )
+        return response
+
 
 def deploy_custom_lambda(input_json_exampledata, output_json_exampledata, lambda_filepath, deployment_dir, private, custom_libraries):
 
@@ -122,10 +141,7 @@ def deploy_custom_lambda(input_json_exampledata, output_json_exampledata, lambda
     api_id = response2['id']
     now = datetime.datetime.now()
     s3, iam, region = get_s3_iam_client(aws_access_key_id, aws_secret_access_key, region_name)
-
-    s3["client"].create_bucket(
-        Bucket=os.environ.get("BUCKET_NAME")
-    )
+    create_bucket(s3['client'], os.environ.get("BUCKET_NAME"), region)
 
     apiurl = create_prediction_api(None, str(api_id), 'custom', 'FALSE', [], api_id, "TRUE", custom_libraries)
 
