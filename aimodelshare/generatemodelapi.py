@@ -314,7 +314,7 @@ def send_model_data_to_dyndb_and_return_api(api_info, private, categorical, prep
         "preprocessor_fileextension": preprocessor_file_extension,
         "input_shape": input_shape,
         "email_list": email_list,
-        "useremails": email_list,
+        "useremails": ','.join(email_list),
     }
     bodydata.update(exampledata_addtodatabase)
     # Get the response
