@@ -314,6 +314,7 @@ def send_model_data_to_dyndb_and_return_api(api_info, private, categorical, prep
         "preprocessor_fileextension": preprocessor_file_extension,
         "input_shape": input_shape,
         "email_list": email_list,
+        "useremails": email_list,
     }
     bodydata.update(exampledata_addtodatabase)
     # Get the response
@@ -426,8 +427,12 @@ def model_to_api(model_filepath, model_type, private, categorical, y_train, prep
         email = decoded['email']
         # Owner has to be the first on the list
         email_list.insert(0, email)
+        if any([private==False,private==None]):
+          email_list.append("publicaimsplayground")
+        else:
+          pass
     else:
-        return print("email_list argument empty or incorrectly formatted. Please provide a list of emails for authorized competition participants formatted as strings.")
+        return print("email_list argument empty or incorrectly formatted. Please provide a list of emails for authorized playground users formatted as strings.")
 
     if(image!=""):
         repo_name, image_tag = image.split(':')
