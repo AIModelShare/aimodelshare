@@ -80,10 +80,10 @@ class create_prediction_api_class():
         }
 
         self.timeout_model_mapping = {
-            "tabular": 30,
-            "text": 30,
-            "image": 30,
-            "video": 30
+            "tabular": 90,
+            "text": 90,
+            "image": 90,
+            "video": 90
         }
 
         self.eval_layer_map = {
