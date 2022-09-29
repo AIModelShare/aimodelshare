@@ -62,10 +62,10 @@ def deploy_container(account_id, region, session, project_name, model_dir, requi
 
     ecr = session.client('ecr')
     
-    print("repo name: "+repository)
-        
+    #check repo name for issues
+    os.environ["repository"] = repository.lower()
     response = ecr.create_repository(
-        repositoryName=repository
+        repositoryName=repository.lower()
     )
 
     iam = session.client('iam')
