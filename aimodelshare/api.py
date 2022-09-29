@@ -84,7 +84,8 @@ class create_prediction_api_class():
             "tabular": 90,
             "text": 90,
             "image": 90,
-            "video": 90
+            "video": 90,
+            "custom: 90
         }
 
         self.eval_layer_map = {
