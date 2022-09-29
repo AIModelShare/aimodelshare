@@ -61,7 +61,9 @@ def deploy_container(account_id, region, session, project_name, model_dir, requi
     response = bucket_versioning.enable()
 
     ecr = session.client('ecr')
-
+    
+    print("repo name: "+repository)
+        
     response = ecr.create_repository(
         repositoryName=repository
     )
