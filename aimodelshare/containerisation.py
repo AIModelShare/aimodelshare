@@ -48,6 +48,10 @@ def deploy_container(account_id, region, session, project_name, model_dir, requi
 
     codebuild_project_name=project_name+'-project'
 
+    aws_access_key_id = str(os.environ.get("AWS_ACCESS_KEY_ID"))
+    aws_secret_access_key = str(os.environ.get("AWS_SECRET_ACCESS_KEY"))
+    region_name = str(os.environ.get("AWS_REGION"))
+        
     s3, iam, region = get_s3_iam_client(aws_access_key_id, aws_secret_access_key, region_name)
     create_bucket(s3['client'], codebuild_bucket_name, region)
 
