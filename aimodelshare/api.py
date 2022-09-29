@@ -76,7 +76,8 @@ class create_prediction_api_class():
             "tabular": 1024,
             "text": 1024,
             "image": 1024,
-            "video": 1024
+            "video": 1024,
+            "custom":1024
         }
 
         self.timeout_model_mapping = {
