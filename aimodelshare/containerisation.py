@@ -32,7 +32,7 @@ def deploy_container(account_id, region, session, project_name, model_dir, requi
     codebuild_bucket_name=os.environ.get("BUCKET_NAME") # s3 bucket name to create  #TODO: use same bucket and subfolder we used previously to store this data
                                                         # Why? AWS limits users to 100 total buckets!  Our old code only creates one per user per acct.
 
-    repository=project_name+'-repository' # repository name to create
+    repository=project_name+'repository' # repository name to create
 
     template_folder=tempfile.gettempdir()+'/'+project_name # folder to create for sam
 
