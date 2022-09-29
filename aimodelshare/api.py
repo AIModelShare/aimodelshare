@@ -85,7 +85,7 @@ class create_prediction_api_class():
             "text": 90,
             "image": 90,
             "video": 90,
-            "custom: 90
+            "custom": 90
         }
 
         self.eval_layer_map = {
