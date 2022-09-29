@@ -76,7 +76,8 @@ class create_prediction_api_class():
             "tabular": 1024,
             "text": 1024,
             "image": 1024,
-            "video": 1024
+            "video": 1024,
+            "custom":1024
         }
 
         self.timeout_model_mapping = {
@@ -105,8 +106,11 @@ class create_prediction_api_class():
             "eu-west-2": "arn:aws:lambda:eu-west-2:517169013426:layer:aimsauth_layer:1",
             "eu-west-3": "arn:aws:lambda:eu-west-3:517169013426:layer:aimsauth_layer:1"
         }
-
-        onnx_size = math.ceil(os.path.getsize(model_filepath)/(1024*1024))
+        
+        try:
+            onnx_size = math.ceil(os.path.getsize(model_filepath)/(1024*1024))
+        except:
+            onxx_size = 500
 
         self.temp_dir_file_deletion_list = ['archive2.zip', 'archive3.zip', 'archive.zip', 'archivetest.zip', 'archiveeval.zip', 'archiveauth.zip', 'main.py', 'ytest.pkl']
         self.memory = self.memory_model_mapping[self.model_type] if self.memory==None else memory
