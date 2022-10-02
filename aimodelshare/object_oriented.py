@@ -392,7 +392,24 @@ class Competition:
         
         model = self.instantiate_model(version=version,trained = False,reproduce=True) 
         return model 
-                        
+    
+    def set_replicate_model_env(self,version=None): 
+        """
+        Set the reproducibility environment prior to instantiating an untrained model previously submitted to the competition leaderboard.
+        
+        Parameters: 
+        -----------
+        `version`: ``int``
+            Model version number from competition or experiment leaderboard
+          
+        Returns:
+        --------
+        Sets environment according to reproducibility.json from model if present.  
+        """    
+        from aimodelshare.reproducibility import import_reproducibility_env_from_competition_model
+        import_reproducibility_env_from_competition_model(apiurl=self.playground_url,version = version,submission_type=self.submission_type)
+
+
     def inspect_model(self, version=None, naming_convention=None):
         """
         Examine structure of model submitted to a competition leaderboard

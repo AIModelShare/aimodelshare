@@ -72,6 +72,60 @@ def import_reproducibility_env(reproducibility_env_file):
 
   print("Your reproducibility environment is successfully setup")
 
+def import_reproducibility_env_from_competition_model(apiurl,version,submission_type): 
+  # Confirm that creds are loaded, print warning if not
+  if all(["username" in os.environ, 
+        "password" in os.environ]):
+    pass
+  else:
+    return print("Credentials not found. Please provide credentials with set_credentials().")
+
+  post_dict = {
+      "y_pred": [],
+      "return_eval": "False",
+      "return_y": "False",
+      "inspect_model": "False",
+      "version": "None", 
+      "compare_models": "False",
+      "version_list": "None",
+      "get_leaderboard": "False",
+      "instantiate_model": "False",
+      "reproduce": "True",
+      "trained": "False",
+      "model_version": version,
+      "submission_type": submission_type
+  }
+
+  headers = { 'Content-Type':'application/json', 'authorizationToken': os.environ.get("AWS_TOKEN"),} 
+
+  apiurl_eval=apiurl[:-1]+"eval"
+
+  resp = requests.post(apiurl_eval,headers=headers,data=json.dumps(post_dict)) 
+
+  # Missing Check for response from Lambda. 
+  try :
+      resp.raise_for_status()
+  except requests.exceptions.HTTPError :
+      raise Exception(f"Error: Received {resp.status_code} from AWS, Please check if Model Version is correct.")
+
+
+  resp_dict = json.loads(resp.text)
+
+  if resp_dict['model_metadata'] == None:
+      print("Model for this version doesn't exist or is not submitted by the author")
+      return None
+
+
+  if resp_dict['reproducibility_env'] != None:
+      set_reproducibility_env(resp_dict['reproducibility_env'])
+      
+      # Store version of reproducibility_environment_set 
+      os.environ['reproducibility_environment_version'] = str(version)
+      print("Your reproducibility environment is successfully setup. Please setup data and then call `replicate_model` ")
+  else:
+      print("Reproducibility environment is not found")
+
+
 def import_reproducibility_env_from_model(apiurl):
     if all(["AWS_ACCESS_KEY_ID" in os.environ, 
             "AWS_SECRET_ACCESS_KEY" in os.environ,

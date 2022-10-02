@@ -279,6 +279,28 @@ def handler(event, context):
                 "body": json.dumps(leaderboard.to_dict())
                 }
             return leaderboard_dict  
+
+        if body.get("reproduce") == "True" and body.get("instantiate_model") == "False": 
+            submission_type = body.get("submission_type")
+            reproducibility_env_json = None
+            reproducibility_env_json = get_reproducibility_env(version=version,submission_type = submission_type)
+
+            data = {
+                "reproducibility_env": reproducibility_env_json
+            }
+
+            model_dict = {
+                "statusCode": 200,
+                "headers": {
+                    "Access-Control-Allow-Origin" : "*",
+                    "Access-Control-Allow-Credentials": True,
+                    "Allow" : "GET, OPTIONS, POST",
+                    "Access-Control-Allow-Methods" : "GET, OPTIONS, POST",
+                    "Access-Control-Allow-Headers" : "*"
+                },
+                "body":  json.dumps(data)
+            }
+            return model_dict
         
         if body.get("instantiate_model","ALL") == "True":  
             version = body["model_version"]
