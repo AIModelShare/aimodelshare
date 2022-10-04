@@ -4,6 +4,7 @@ import json
 import random
 import tempfile
 import pkg_resources
+import requests
 
 import numpy as np
 import tensorflow as tf
@@ -102,23 +103,18 @@ def import_reproducibility_env_from_competition_model(apiurl,version,submission_
 
   resp = requests.post(apiurl_eval,headers=headers,data=json.dumps(post_dict)) 
 
-  # Missing Check for response from Lambda. 
+  # Check for appropriate response from Lambda. 
   try :
       resp.raise_for_status()
   except requests.exceptions.HTTPError :
       raise Exception(f"Error: Received {resp.status_code} from AWS, Please check if Model Version is correct.")
 
-
+  # Load Dictionary
   resp_dict = json.loads(resp.text)
 
-  if resp_dict['model_metadata'] == None:
-      print("Model for this version doesn't exist or is not submitted by the author")
-      return None
-
-
+  # Check if key,value pair exists
   if resp_dict['reproducibility_env'] != None:
       set_reproducibility_env(resp_dict['reproducibility_env'])
-      
       # Store version of reproducibility_environment_set 
       os.environ['reproducibility_environment_version'] = str(version)
       print("Your reproducibility environment is successfully setup. Please setup data and then call `replicate_model` ")
