@@ -331,7 +331,7 @@ def send_model_data_to_dyndb_and_return_api(api_info, private, categorical, prep
     final_message = ("\nYou can now use your Model Playground.\n\n"
                      "Follow this link to explore your Model Playground's functionality\n"
                      "You can make predictions with the Dashboard and access example code from the Programmatic tab.\n")
-    web_dashboard_url = ("https://www.modelshare.org/detail/"+ response_string)
+    web_dashboard_url = ("https://www.modelshare.org/detail/"+ response_stringfinal)
     
     start = api_info[2]
     end = datetime.datetime.now()
