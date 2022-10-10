@@ -424,11 +424,12 @@ def model_to_api(model_filepath, model_type, private, categorical, y_train, prep
     if all([isinstance(email_list, list)]):
         idtoken = get_aws_token()
         decoded = jwt.decode(idtoken, options={"verify_signature": False})  # works in PyJWT < v2.0
+        email=None
         email = decoded['email']
         # Owner has to be the first on the list
         email_list.insert(0, email)
         if any([private==False,private==None]):
-          email_list.append("publicaimsplayground")
+          email_list=["publicaimsplayground"]
         else:
           pass
     else:
