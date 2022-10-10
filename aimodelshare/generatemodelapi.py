@@ -325,7 +325,8 @@ def send_model_data_to_dyndb_and_return_api(api_info, private, categorical, prep
                               json=bodydata, headers=headers_with_authentication)
     response_string = response.text
     response_string = response_string[1:-1]
-
+    import json
+    response_stringfinal = json.loads(response_string)["id"]
     # Build output {{{
     final_message = ("\nYou can now use your Model Playground.\n\n"
                      "Follow this link to explore your Model Playground's functionality\n"
