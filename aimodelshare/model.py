@@ -621,6 +621,7 @@ def submit_model(
 
     import os
     import tempfile
+    import pickle
     temp = tempfile.mkdtemp()
     predictions_path = temp + "/" + 'predictions.pkl'
 
