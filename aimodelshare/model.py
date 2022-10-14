@@ -620,7 +620,7 @@ def submit_model(
     #includes checks if returned values a success and errors otherwise
 
     import os
-
+    import tempfile
     temp = tempfile.mkdtemp()
     predictions_path = temp + "/" + 'predictions.pkl'
 
