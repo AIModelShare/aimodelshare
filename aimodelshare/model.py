@@ -632,14 +632,14 @@ def submit_model(
 
     if predfilesize>3555000:
 
-          post_dict = {"y_pred": [],
-                  "return_eval_files": "True",
-                  "submission_type": submission_type,
-                  "return_y": "False"}
+        post_dict = {"y_pred": [],
+              "return_eval_files": "True",
+              "submission_type": submission_type,
+              "return_y": "False"}
 
-          headers = { 'Content-Type':'application/json', 'authorizationToken': json.dumps({"token":os.environ.get("AWS_TOKEN"),"eval":"TEST"}), } 
-          apiurl_eval=apiurl[:-1]+"eval"
-          predictionfiles = requests.post(apiurl_eval,headers=headers,data=json.dumps(post_dict)) 
+        headers = { 'Content-Type':'application/json', 'authorizationToken': json.dumps({"token":os.environ.get("AWS_TOKEN"),"eval":"TEST"}), } 
+        apiurl_eval=apiurl[:-1]+"eval"
+        predictionfiles = requests.post(apiurl_eval,headers=headers,data=json.dumps(post_dict)) 
         eval_metrics=json.loads(predictionfiles.text)
 
         s3_presigned_dict = {key:val for key, val in eval_metrics.items() if key != 'eval'}
