@@ -620,15 +620,77 @@ def submit_model(
     #includes checks if returned values a success and errors otherwise
 
     try:
+        import os
 
-        post_dict = {"y_pred": prediction_submission,
-                "return_eval": "True",
-                "submission_type": submission_type,
-                "return_y": "False"}
+        temp = tempfile.mkdtemp()
+        predictions_path = temp + "/" + 'predictions.pkl'
 
-        headers = { 'Content-Type':'application/json', 'authorizationToken': json.dumps({"token":os.environ.get("AWS_TOKEN"),"eval":"TEST"}), } 
-        apiurl_eval=apiurl[:-1]+"eval"
-        prediction = requests.post(apiurl_eval,headers=headers,data=json.dumps(post_dict)) 
+        fileObject = open(predictions_path, 'wb')
+        pickle.dump(prediction_submission, fileObject)
+        predfilesize=os.path.getsize(predictions_path)
+
+        fileObject.close()
+
+        if predfilesize>3555000:
+
+              post_dict = {"y_pred": [],
+                      "return_eval_files": "True",
+                      "submission_type": submission_type,
+                      "return_y": "False"}
+
+              headers = { 'Content-Type':'application/json', 'authorizationToken': json.dumps({"token":os.environ.get("AWS_TOKEN"),"eval":"TEST"}), } 
+              apiurl_eval=apiurl[:-1]+"eval"
+              predictionfiles = requests.post(apiurl_eval,headers=headers,data=json.dumps(post_dict)) 
+            eval_metrics=json.loads(predictionfiles.text)
+
+            s3_presigned_dict = {key:val for key, val in eval_metrics.items() if key != 'eval'}
+
+            idempotentmodel_version=s3_presigned_dict['idempotentmodel_version']
+            s3_presigned_dict.pop('idempotentmodel_version')
+                #upload preprocessor (1s for small upload vs 21 for 306 mbs)
+            putfilekeys=list(s3_presigned_dict['put'].keys())
+            modelputfiles = [s for s in putfilekeys if str("pkl") in s]
+
+            fileputlistofdicts=[]
+            for i in modelputfiles:
+              filedownload_dict=ast.literal_eval(s3_presigned_dict ['put'][i])
+              fileputlistofdicts.append(filedownload_dict)
+
+            import tempfile
+            import pickle
+
+
+            temp = tempfile.mkdtemp()
+            predictions_path = temp + "/" + 'predictions.pkl'
+
+            fileObject = open(predictions_path, 'wb')
+            pickle.dump(prediction_submission, fileObject)
+            fileObject.close()
+
+            with open(predictions_path , 'rb') as f:
+                    files = {'file': (predictions_path , f)} 
+                    http_response = requests.post(fileputlistofdicts[0]['url'], data=fileputlistofdicts[0]['fields'], files=files)
+
+            post_dict = {"y_pred": [],
+                        "predictionpklname":fileputlistofdicts[0]['fields']['key'].split("/")[2],
+                    "submission_type": submission_type,
+                    "return_y": "False",
+                    "return_eval": "True"}
+
+            headers = { 'Content-Type':'application/json', 'authorizationToken': json.dumps({"token":os.environ.get("AWS_TOKEN"),"eval":"TEST"}), } 
+            apiurl_eval=apiurl[:-1]+"eval"
+            prediction = requests.post(apiurl_eval,headers=headers,data=json.dumps(post_dict))
+
+        else:
+
+            post_dict = {"y_pred": prediction_submission,
+                    "return_eval": "True",
+                    "submission_type": submission_type,
+                    "return_y": "False"}
+
+            headers = { 'Content-Type':'application/json', 'authorizationToken': json.dumps({"token":os.environ.get("AWS_TOKEN"),"eval":"TEST"}), } 
+            apiurl_eval=apiurl[:-1]+"eval"
+            prediction = requests.post(apiurl_eval,headers=headers,data=json.dumps(post_dict)) 
 
         eval_metrics=json.loads(prediction.text)
 
