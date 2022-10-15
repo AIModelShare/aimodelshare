@@ -656,20 +656,11 @@ def submit_model(
           filedownload_dict=ast.literal_eval(s3_presigned_dict ['put'][i])
           fileputlistofdicts.append(filedownload_dict)
 
-        import tempfile
-        import pickle
-
-
-        temp = tempfile.mkdtemp()
-        predictions_path = temp + "/" + 'predictions.pkl'
-
-        fileObject = open(predictions_path, 'wb')
-        pickle.dump(prediction_submission, fileObject)
-        fileObject.close()
 
         with open(predictions_path , 'rb') as f:
                 files = {'file': (predictions_path , f)} 
                 http_response = requests.post(fileputlistofdicts[0]['url'], data=fileputlistofdicts[0]['fields'], files=files)
+                f.close()
 
         post_dict = {"y_pred": [],
                     "predictionpklname":fileputlistofdicts[0]['fields']['key'].split("/")[2],
