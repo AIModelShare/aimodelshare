@@ -39,6 +39,87 @@ class ModelPlayground:
     
     def __str__(self):
         return f"ModelPlayground instance of model type: {self.model_type}, classification: {self.categorical},  private: {self.private}"
+
+
+    def activate(self, model_filepath=None, preprocessor_filepath=None, y_train=None, example_data=None, custom_libraries = "FALSE", image="", reproducibility_env_filepath=None, memory=None, timeout=None, pyspark_support=False): 
+
+        """
+        Launches a live model playground to the www.modelshare.org website. The playground can optionally include a live prediction REST API for deploying ML models using model parameters and user credentials, provided by the user.
+        Inputs : 7
+        Output : model launched to an API
+                detailed API info printed out
+
+        Parameters: 
+        ----------
+        `model_filepath` :  ``string`` ends with '.onnx'
+              value - Absolute path to model file 
+              .onnx is the only accepted model file extension
+              "example_model.onnx" filename for file in directory.
+              "/User/xyz/model/example_model.onnx" absolute path to model file from local directory
+              if no value is set the playground will be launched with only a placeholder prediction API.
+        `preprocessor_filepath`:  ``string``
+            value - absolute path to preprocessor file 
+            "./preprocessor.zip" 
+            searches for an exported zip preprocessor file in the current directory
+            file is generated using export_preprocessor function from the AI Modelshare library
+            if no value is set the playground will be launched with only a placeholder prediction API.
+        `y_train` : training labels for classification models.
+            expects pandas dataframe of one hot encoded y train data
+            if no value is set ... #TODO 
+        `custom_libraries`:   ``string``
+            "TRUE" if user wants to load custom Python libraries to their prediction runtime
+            "FALSE" if user wishes to use AI Model Share base libraries including latest versions of most common ML libs.
+         
+        Returns:
+        --------
+        print_api_info : prints statements with generated model playground page and live prediction API details
+                        also prints steps to update the model submissions by the user/team 
+        """
+
+        import pandas as pd
+        import pkg_resources
+
+        if model_filepath == None:
+            model_filepath = pkg_resources.resource_filename(__name__, "placeholders/model.onnx")
+
+        if preprocessor_filepath == None:
+            preprocessor_filepath = pkg_resources.resource_filename(__name__, "placeholders/preprocessor.zip")
+
+        if y_train == None:
+            y_train = []
+
+        if example_data == None:
+            example_data = pd.DataFrame()
+
+        track_arguments = {"model_filepath":model_filepath,
+                            "preprocessor_filepath":preprocessor_filepath, 
+                            "y_train":y_train,
+                            "example_data":example_data,
+                            "custom_libraries":custom_libraries,
+                            "image":image,
+                            "reproducibility_env_filepath":reproducibility_env_filepath,
+                            "memory":memory,
+                            "timeout":timeout,
+                            "pyspark_support":pyspark_support
+                            }
+
+        from aimodelshare.generatemodelapi import model_to_api
+        self.playground_url = model_to_api(model_filepath=model_filepath, 
+                                      model_type = self.model_type, 
+                                      private = self.private, 
+                                      categorical = self.categorical,
+                                      y_train = y_train, 
+                                      preprocessor_filepath = preprocessor_filepath, 
+                                      example_data = example_data,
+                                      custom_libraries = custom_libraries,
+                                      image=image,
+                                      reproducibility_env_filepath = reproducibility_env_filepath,
+                                      memory=memory,
+                                      timeout=timeout,
+                                      email_list=self.email_list,
+                                      pyspark_support=pyspark_support)
+        #remove extra quotes
+        self.playground_url = self.playground_url[1:-1]
     
 
     def deploy(self, model_filepath, preprocessor_filepath, y_train, example_data=None, custom_libraries = "FALSE", image="", reproducibility_env_filepath=None, memory=None, timeout=None, pyspark_support=False):
@@ -75,6 +156,7 @@ class ModelPlayground:
         print_api_info : prints statements with generated live prediction API details
                         also prints steps to update the model submissions by the user/team
         """
+
         from aimodelshare.generatemodelapi import model_to_api
         self.playground_url = model_to_api(model_filepath=model_filepath, 
                                       model_type = self.model_type, 
