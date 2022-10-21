@@ -1,5 +1,7 @@
 # import packages 
-
+import os
+import boto3
+from aimodelshare.api import get_api_json
 
 
 
@@ -76,9 +78,39 @@ class ModelPlayground:
                         also prints steps to update the model submissions by the user/team 
         """
 
+
+        # test whether playground is already active
+        if self.playground_url: 
+            print(self.playground_url)
+            # TODO implement GUI menu
+            def ask_user():
+                print("Playground is already active. Would you like to overwrite?")
+                response = ''
+                while response not in {"yes", "no"}:
+                    response = input("Please enter yes or no: ").lower()
+                return response != "yes"
+
+            r = ask_user()
+
+            if r: 
+                return
+
+        track_artifacts = {"model_filepath": bool(model_filepath),
+                            "preprocessor_filepath": bool(preprocessor_filepath), 
+                            "y_train": bool(y_train),
+                            "example_data": bool(example_data),
+                            "custom_libraries": bool(custom_libraries),
+                            "image": bool(image),
+                            "reproducibility_env_filepath": bool(reproducibility_env_filepath),
+                            "memory": bool(memory),
+                            "timeout": bool(timeout),
+                            "pyspark_support": bool(pyspark_support)
+                            }
+
         import pandas as pd
         import pkg_resources
 
+        # insert placeholders into empty arguments
         if model_filepath == None:
             model_filepath = pkg_resources.resource_filename(__name__, "placeholders/model.onnx")
 
@@ -91,17 +123,10 @@ class ModelPlayground:
         if example_data == None:
             example_data = pd.DataFrame()
 
-        track_arguments = {"model_filepath":model_filepath,
-                            "preprocessor_filepath":preprocessor_filepath, 
-                            "y_train":y_train,
-                            "example_data":example_data,
-                            "custom_libraries":custom_libraries,
-                            "image":image,
-                            "reproducibility_env_filepath":reproducibility_env_filepath,
-                            "memory":memory,
-                            "timeout":timeout,
-                            "pyspark_support":pyspark_support
-                            }
+        import json, tempfile
+        tfile = tempfile.NamedTemporaryFile(mode="w+")
+        json.dump(track_artifacts, tfile)
+        tfile.flush()
 
         from aimodelshare.generatemodelapi import model_to_api
         self.playground_url = model_to_api(model_filepath=model_filepath, 
@@ -120,7 +145,18 @@ class ModelPlayground:
                                       pyspark_support=pyspark_support)
         #remove extra quotes
         self.playground_url = self.playground_url[1:-1]
-    
+
+        # upload track artifacts
+        from aimodelshare.aws import get_s3_iam_client
+        s3, iam, region = get_s3_iam_client(os.environ.get("AWS_ACCESS_KEY_ID"), os.environ.get("AWS_SECRET_ACCESS_KEY"), os.environ.get("AWS_REGION"))
+
+
+        unique_model_id = self.playground_url.split(".")[0].split("//")[-1]
+
+        print(unique_model_id)
+
+        s3["client"].upload_file(tfile.name, os.environ.get("BUCKET_NAME"), unique_model_id + "/track_artifacts.json") 
+
 
     def deploy(self, model_filepath, preprocessor_filepath, y_train, example_data=None, custom_libraries = "FALSE", image="", reproducibility_env_filepath=None, memory=None, timeout=None, pyspark_support=False):
 
@@ -156,6 +192,14 @@ class ModelPlayground:
         print_api_info : prints statements with generated live prediction API details
                         also prints steps to update the model submissions by the user/team
         """
+
+        # TODO check whether playground url exists, if so ... replace placeholders, otherwise run full deployment routine
+        if self.playground_url: 
+            print(self.playground_url)
+            print("Trying to deploy to active playground. Would you like to overwrite prediction API?")
+            # TODO implement GUI menu
+
+        # return
 
         from aimodelshare.generatemodelapi import model_to_api
         self.playground_url = model_to_api(model_filepath=model_filepath, 
@@ -380,6 +424,13 @@ class ModelPlayground:
         from aimodelshare.generatemodelapi import update_access_list as update_list
         update = update_list(apiurl = self.playground_url, email_list=email_list, update_type=update_type)
         return update
+
+    def update_model(self): 
+        return
+
+
+    def update_preprocessor(self): 
+        return
 
 
 class Competition:
