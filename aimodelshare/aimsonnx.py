@@ -6,7 +6,10 @@ import numpy as np
 import sklearn
 from sklearn.model_selection import GridSearchCV, RandomizedSearchCV
 import torch
-import xgboost
+try:
+    import xgboost
+except:
+    pass
 import tensorflow as tf
 import keras
 
@@ -140,11 +143,13 @@ def _misc_to_onnx(model, initial_types, transfer_learning=None,
     metadata['model_id'] = None
     metadata['data_id'] = None
     metadata['preprocessor_id'] = None
-    
-    # infer ml framework from function call
-    if isinstance(model, (xgboost.XGBClassifier, xgboost.XGBRegressor)):
-        metadata['ml_framework'] = 'xgboost'
-        onx = onnxmltools.convert.convert_xgboost(model, initial_types=initial_types)
+    try:
+        # infer ml framework from function call
+        if isinstance(model, (xgboost.XGBClassifier, xgboost.XGBRegressor)):
+            metadata['ml_framework'] = 'xgboost'
+            onx = onnxmltools.convert.convert_xgboost(model, initial_types=initial_types)
+    except:
+        pass
 
     # also integrate lightGBM 
     
