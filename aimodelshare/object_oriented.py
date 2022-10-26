@@ -128,6 +128,11 @@ class ModelPlayground:
         json.dump(track_artifacts, tfile)
         tfile.flush()
 
+        input_dict = {"requirements": "",
+                      "aishare_modelname": "Default Model Playground",
+                      "aishare_modeldescription": "",
+                      "aishare_tags": ""}
+
         from aimodelshare.generatemodelapi import model_to_api
         self.playground_url = model_to_api(model_filepath=model_filepath, 
                                       model_type = self.model_type, 
@@ -142,7 +147,9 @@ class ModelPlayground:
                                       memory=memory,
                                       timeout=timeout,
                                       email_list=self.email_list,
-                                      pyspark_support=pyspark_support)
+                                      pyspark_support=pyspark_support,
+                                      input_dict=input_dict, 
+                                      print_output=False)
         #remove extra quotes
         self.playground_url = self.playground_url[1:-1]
 
@@ -152,8 +159,6 @@ class ModelPlayground:
 
 
         unique_model_id = self.playground_url.split(".")[0].split("//")[-1]
-
-        print(unique_model_id)
 
         s3["client"].upload_file(tfile.name, os.environ.get("BUCKET_NAME"), unique_model_id + "/track_artifacts.json") 
 

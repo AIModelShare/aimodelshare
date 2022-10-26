@@ -354,7 +354,8 @@ def send_model_data_to_dyndb_and_return_api(api_info, private, categorical, prep
 def model_to_api(model_filepath, model_type, private, categorical, y_train, preprocessor_filepath, 
                 custom_libraries="FALSE", example_data=None, image="", 
                 base_image_api_endpoint="https://vupwujn586.execute-api.us-east-1.amazonaws.com/dev/copybasetouseracct", 
-                update=False, reproducibility_env_filepath=None, memory=None, timeout=None, email_list=[],pyspark_support=False):
+                update=False, reproducibility_env_filepath=None, memory=None, timeout=None, email_list=[],pyspark_support=False,
+                input_dict=None, print_output=True):
     """
       Launches a live prediction REST API for deploying ML models using model parameters and user credentials, provided by the user
       Inputs : 8
@@ -459,23 +460,33 @@ def model_to_api(model_filepath, model_type, private, categorical, y_train, prep
         print(response["Success"])
         return
 
-    print("We need some information about your model before we can build your REST API and interactive Model Playground.")
-    print("   ")
+    if input_dict == None: 
+        print("We need some information about your model before we can build your REST API and interactive Model Playground.")
+        print("   ")
 
-    requirements = ""
-    if(any([custom_libraries=='TRUE',custom_libraries=='true'])):
-        requirements = input("Enter all required Python libraries you need at prediction runtime (separated with commas):")
-        #_confirm_libraries_exist(requirements)
-        
-    aishare_modelname = input("Model Name (for AI Model Share Website):")
-    aishare_modeldescription = input("Model Description (Explain what your model does and \n why end-users would find your model useful):")
+        requirements = ""
+        if(any([custom_libraries=='TRUE',custom_libraries=='true'])):
+            requirements = input("Enter all required Python libraries you need at prediction runtime (separated with commas):")
+            #_confirm_libraries_exist(requirements)
+            
+        aishare_modelname = input("Model Name (for AI Model Share Website):")
+        aishare_modeldescription = input("Model Description (Explain what your model does and \n why end-users would find your model useful):")
+
+        aishare_tags = input(
+            "Model Key Words (Search categories that describe your model, separated with commas):")
+        print("   ")
+        #  }}}
+    else: 
+        requirements = input_dict["requirements"]
+        aishare_modelname = input_dict["aishare_modelname"]
+        aishare_modeldescription = input_dict["aishare_modeldescription"]
+        aishare_tags = input_dict["aishare_tags"]
+
     aishare_modelevaluation = "unverified" # verified metrics added to playground once 1. a model is submitted to a competition leaderboard and 2. playground owner updates runtime
                                            #...model with update_runtime_model()
-    aishare_tags = input(
-        "Model Key Words (Search categories that describe your model, separated with commas):")
     aishare_apicalls = 0
-    print("   ")
-    #  }}}
+
+
 
     # Force user to provide example data for tabular models {{{
     if any([model_type.lower() == "tabular", model_type.lower() == "timeseries"]):
@@ -517,6 +528,9 @@ def model_to_api(model_filepath, model_type, private, categorical, y_train, prep
         preprocessor_filepath, custom_libraries, requirements, 
         exampledata_json_filepath, repo_name, image_tag, 
         reproducibility_env_filepath, memory, timeout, pyspark_support=pyspark_support)
+
+    if input_dict:
+        aishare_modelname = aishare_modelname+" "+str(api_info[3])
 
     ### Progress Update #5/6 {{{
     sys.stdout.write('\r')
