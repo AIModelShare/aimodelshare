@@ -478,9 +478,9 @@ def model_to_api(model_filepath, model_type, private, categorical, y_train, prep
         #  }}}
     else: 
         requirements = input_dict["requirements"]
-        aishare_modelname = input_dict["aishare_modelname"]
-        aishare_modeldescription = input_dict["aishare_modeldescription"]
-        aishare_tags = input_dict["aishare_tags"]
+        aishare_modelname = input_dict["model_name"]
+        aishare_modeldescription = input_dict["model_description"]
+        aishare_tags = input_dict["tags"]
 
     aishare_modelevaluation = "unverified" # verified metrics added to playground once 1. a model is submitted to a competition leaderboard and 2. playground owner updates runtime
                                            #...model with update_runtime_model()
@@ -546,7 +546,8 @@ def model_to_api(model_filepath, model_type, private, categorical, y_train, prep
     
     return api_info[0]
 
-def create_competition(apiurl, data_directory, y_test, eval_metric_filepath=None, email_list=[], public=False, public_private_split=0.5):
+def create_competition(apiurl, data_directory, y_test, eval_metric_filepath=None, email_list=[], public=False, public_private_split=0.5,
+                        input_dict=None, print_output=True):
     """
     Creates a model competition for a deployed prediction REST API
     Inputs : 4
@@ -638,19 +639,26 @@ def create_competition(apiurl, data_directory, y_test, eval_metric_filepath=None
     api_url_trim = apiurl.split('https://')[1]
     api_id = api_url_trim.split(".")[0]
 
-    print("\n--INPUT COMPETITION DETAILS--\n")
+    if input_dict == None:
+        print("\n--INPUT COMPETITION DETAILS--\n")
+        aishare_competitionname = input("Enter competition name:")
+        aishare_competitiondescription = input("Enter competition description:")
 
-    aishare_competitionname = input("Enter competition name:")
-    aishare_competitiondescription = input("Enter competition description:")
+        print("\n--INPUT DATA DETAILS--\n")
+        print("Note: (optional) Save an optional LICENSE.txt file in your competition data directory to make users aware of any restrictions on data sharing/usage.\n")
 
-    print("\n--INPUT DATA DETAILS--\n")
-    print("Note: (optional) Save an optional LICENSE.txt file in your competition data directory to make users aware of any restrictions on data sharing/usage.\n")
+        aishare_datadescription = input(
+            "Enter data description (i.e.- filenames denoting training and test data, file types, and any subfolders where files are stored):")
+        
+        aishare_datalicense = input(
+            "Enter optional data license descriptive name (e.g.- 'MIT, Apache 2.0, CC0, Other, etc.'):")
 
-    aishare_datadescription = input(
-        "Enter data description (i.e.- filenames denoting training and test data, file types, and any subfolders where files are stored):")
-    
-    aishare_datalicense = input(
-        "Enter optional data license descriptive name (e.g.- 'MIT, Apache 2.0, CC0, Other, etc.'):")    
+    else:
+        aishare_competitionname = input_dict["competition_name"]
+        aishare_competitiondescription = input_dict["competition_description"]
+        aishare_datadescription = input_dict["data_description"]
+        aishare_datalicense = input_dict["data_license"]
+
     user_session = boto3.session.Session(aws_access_key_id=os.environ.get("AWS_ACCESS_KEY_ID"),
                                           aws_secret_access_key = os.environ.get("AWS_SECRET_ACCESS_KEY"), 
                                          region_name=os.environ.get("AWS_REGION"))
@@ -694,12 +702,15 @@ def create_competition(apiurl, data_directory, y_test, eval_metric_filepath=None
                  "# Use this data to preprocess data and train model. Write and save preprocessor fxn, save model to onnx file, generate predicted y values\n using X test data, then submit a model below.\n\n"
                 "competition.submit_model(model_filepath, preprocessor_filepath, prediction_submission_list)")
   
-    return print(final_message)
+    if print_output:
+        return print(final_message)
+    else:
+        return
 
 
 
-
-def create_experiment(apiurl, data_directory, y_test, eval_metric_filepath=None, email_list=[], public=False, public_private_split=0.5):
+def create_experiment(apiurl, data_directory, y_test, eval_metric_filepath=None, email_list=[], public=False, public_private_split=0,
+                        input_dict=None, print_output=True):
     """
     Creates a model experiment for a deployed prediction REST API
     Inputs : 4
@@ -791,19 +802,26 @@ def create_experiment(apiurl, data_directory, y_test, eval_metric_filepath=None,
     api_url_trim = apiurl.split('https://')[1]
     api_id = api_url_trim.split(".")[0]
 
-    print("\n--INPUT COMPETITION DETAILS--\n")
+    if input_dict == None:
+        print("\n--INPUT COMPETITION DETAILS--\n")
+        aishare_competitionname = input("Enter competition name:")
+        aishare_competitiondescription = input("Enter competition description:")
 
-    aishare_competitionname = input("Enter experiment name:")
-    aishare_competitiondescription = input("Enter experiment description:")
+        print("\n--INPUT DATA DETAILS--\n")
+        print("Note: (optional) Save an optional LICENSE.txt file in your competition data directory to make users aware of any restrictions on data sharing/usage.\n")
 
-    print("\n--INPUT DATA DETAILS--\n")
-    print("Note: (optional) Save an optional LICENSE.txt file in your experiment data directory to make users aware of any restrictions on data sharing/usage.\n")
+        aishare_datadescription = input(
+            "Enter data description (i.e.- filenames denoting training and test data, file types, and any subfolders where files are stored):")
+        
+        aishare_datalicense = input(
+            "Enter optional data license descriptive name (e.g.- 'MIT, Apache 2.0, CC0, Other, etc.'):")
 
-    aishare_datadescription = input(
-        "Enter data description (i.e.- filenames denoting training and test data, file types, and any subfolders where files are stored):")
-    
-    aishare_datalicense = input(
-        "Enter optional data license descriptive name (e.g.- 'MIT, Apache 2.0, CC0, Other, etc.'):")    
+    else:
+        aishare_competitionname = input_dict["experiment_name"]
+        aishare_competitiondescription = input_dict["experiment_description"]
+        aishare_datadescription = input_dict["data_description"]
+        aishare_datalicense = input_dict["data_license"]
+
     user_session = boto3.session.Session(aws_access_key_id=os.environ.get("AWS_ACCESS_KEY_ID"),
                                           aws_secret_access_key = os.environ.get("AWS_SECRET_ACCESS_KEY"), 
                                          region_name=os.environ.get("AWS_REGION"))
@@ -848,7 +866,10 @@ def create_experiment(apiurl, data_directory, y_test, eval_metric_filepath=None,
                  "# Use this data to preprocess data and train model. Write and save preprocessor fxn, save model to onnx file, generate predicted y values\n using X test data, then submit a model below.\n\n"
                 "experiment.submit_model(model_filepath, preprocessor_filepath, prediction_submission_list)")
   
-    return print(final_message)
+    if print_output:
+        return print(final_message)
+    else:
+        return
 
 def _create_public_private_split_json(apiurl, split=0.5, submission_type='competition'): 
       import json
