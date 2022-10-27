@@ -866,7 +866,7 @@ def submit_model(
     #    raise error
     # }}}
 
-    if not input_dict == None:
+    if input_dict == None:
         modelsubmissiontags=input("Insert search tags to help users find your model (optional): ")
         modelsubmissiondescription=input("Provide any useful notes about your model (optional): ")
     else:
