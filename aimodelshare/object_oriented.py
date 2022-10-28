@@ -393,7 +393,7 @@ class Competition:
         model = self.instantiate_model(version=version,trained = False,reproduce=True) 
         return model 
     
-    def set_replicate_model_env(self,version=None): 
+    def set_model_reproducibility_env(self,version=None): 
         """
         Set the reproducibility environment prior to instantiating an untrained model previously submitted to the competition leaderboard.
         
