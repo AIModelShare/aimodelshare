@@ -1049,9 +1049,9 @@ def update_runtime_model(apiurl, model_version=None, submission_type="competitio
     new_model_version: string of model version number (from leaderboard) to replace original model 
     """
     # Confirm that creds are loaded, print warning if not
-    if all(["AWS_ACCESS_KEY_ID" in os.environ, 
-            "AWS_SECRET_ACCESS_KEY" in os.environ,
-            "AWS_REGION" in os.environ,
+    if all(["AWS_ACCESS_KEY_ID_AIMS" in os.environ, 
+            "AWS_SECRET_ACCESS_KEY_AIMS" in os.environ,
+            "AWS_REGION_AIMS" in os.environ,
            "username" in os.environ, 
            "password" in os.environ]):
         pass
@@ -1059,14 +1059,14 @@ def update_runtime_model(apiurl, model_version=None, submission_type="competitio
         return print("'Update Runtime Model' unsuccessful. Please provide credentials with set_credentials().")
 
     # Create user session
-    aws_client_and_resource=get_aws_client(aws_key=os.environ.get('AWS_ACCESS_KEY_ID'), 
-                              aws_secret=os.environ.get('AWS_SECRET_ACCESS_KEY'), 
-                              aws_region=os.environ.get('AWS_REGION'))
+    aws_client_and_resource=get_aws_client(aws_key=os.environ.get('AWS_ACCESS_KEY_ID_AIMS'), 
+                              aws_secret=os.environ.get('AWS_SECRET_ACCESS_KEY_AIMS'), 
+                              aws_region=os.environ.get('AWS_REGION_AIMS'))
     aws_client = aws_client_and_resource['client']
     
-    user_sess = boto3.session.Session(aws_access_key_id=os.environ.get('AWS_ACCESS_KEY_ID'), 
-                                      aws_secret_access_key=os.environ.get('AWS_SECRET_ACCESS_KEY'), 
-                                      region_name=os.environ.get('AWS_REGION'))
+    user_sess = boto3.session.Session(aws_access_key_id=os.environ.get('AWS_ACCESS_KEY_ID_AIMS'), 
+                                      aws_secret_access_key=os.environ.get('AWS_SECRET_ACCESS_KEY_AIMS'), 
+                                      region_name=os.environ.get('AWS_REGION_AIMS'))
     
     s3 = user_sess.resource('s3')
     model_version=str(model_version)
