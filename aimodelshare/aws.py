@@ -56,12 +56,15 @@ def set_credentials(credential_file=None, type="submit_model", apiurl="apiurl", 
         flag = True
         access_key = getpass.getpass(prompt="AWS_ACCESS_KEY_ID:")
         os.environ["AWS_ACCESS_KEY_ID"] = access_key
+        os.environ["AWS_ACCESS_KEY_ID_AIMS"] = access_key
 
         secret_key = getpass.getpass(prompt="AWS_SECRET_ACCESS_KEY:")
         os.environ["AWS_SECRET_ACCESS_KEY"] = secret_key
+        os.environ["AWS_SECRET_ACCESS_KEY_AIMS"] = secret_key
 
         region = getpass.getpass(prompt="AWS_REGION:")
         os.environ["AWS_REGION"] = region
+        os.environ["AWS_REGION_AIMS"] = region
 
       # Set AWS creds from file
       else:  
