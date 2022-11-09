@@ -83,7 +83,7 @@ def take_user_info_and_generate_api(model_filepath, model_type, categorical,labe
    
     api_json= get_api_json()
     user_client = boto3.client('apigateway', aws_access_key_id=str(
-    os.environ.get("AWS_ACCESS_KEY_ID")), aws_secret_access_key=str(os.environ.get("AWS_SECRET_ACCESS_KEY")), region_name=str(os.environ.get("AWS_REGION")))
+    os.environ.get("AWS_ACCESS_KEY_ID_AIMS")), aws_secret_access_key=str(os.environ.get("AWS_SECRET_ACCESS_KEY_AIMS")), region_name=str(os.environ.get("AWS_REGION_AIMS")))
 
     response2 = user_client.import_rest_api(
     failOnWarnings=True,
@@ -95,7 +95,7 @@ def take_user_info_and_generate_api(model_filepath, model_type, categorical,labe
 
     api_id = response2['id']
     now = datetime.datetime.now()
-    s3, iam, region = get_s3_iam_client(os.environ.get("AWS_ACCESS_KEY_ID"), os.environ.get("AWS_SECRET_ACCESS_KEY"), os.environ.get("AWS_REGION"))
+    s3, iam, region = get_s3_iam_client(os.environ.get("AWS_ACCESS_KEY_ID_AIMS"), os.environ.get("AWS_SECRET_ACCESS_KEY_AIMS"), os.environ.get("AWS_REGION_AIMS"))
     
     def create_bucket(s3_client, bucket_name, region):
         try:
@@ -418,9 +418,9 @@ def model_to_api(model_filepath, model_type, private, categorical, y_train, prep
     #  2. send_model_data_to_dyndb_and_return_api : to add new record to database with user data, model and api related information
 
     # Get user inputs, pass to other functions  {{{
-    user_session = boto3.session.Session(aws_access_key_id=os.environ.get("AWS_ACCESS_KEY_ID"),
-                                         aws_secret_access_key = os.environ.get("AWS_SECRET_ACCESS_KEY"), 
-                                         region_name=os.environ.get("AWS_REGION"))
+    user_session = boto3.session.Session(aws_access_key_id=os.environ.get("AWS_ACCESS_KEY_ID_AIMS"),
+                                         aws_secret_access_key = os.environ.get("AWS_SECRET_ACCESS_KEY_AIMS"), 
+                                         region_name=os.environ.get("AWS_REGION_AIMS"))
 
     if all([isinstance(email_list, list)]):
         idtoken = get_aws_token()
@@ -637,9 +637,9 @@ def create_competition(apiurl, data_directory, y_test, eval_metric_filepath=None
     
     aishare_datalicense = input(
         "Enter optional data license descriptive name (e.g.- 'MIT, Apache 2.0, CC0, Other, etc.'):")    
-    user_session = boto3.session.Session(aws_access_key_id=os.environ.get("AWS_ACCESS_KEY_ID"),
-                                          aws_secret_access_key = os.environ.get("AWS_SECRET_ACCESS_KEY"), 
-                                         region_name=os.environ.get("AWS_REGION"))
+    user_session = boto3.session.Session(aws_access_key_id=os.environ.get("AWS_ACCESS_KEY_ID_AIMS"),
+                                          aws_secret_access_key = os.environ.get("AWS_SECRET_ACCESS_KEY_AIMS"), 
+                                         region_name=os.environ.get("AWS_REGION_AIMS"))
     account_number = user_session.client(
         'sts').get_caller_identity().get('Account')
 
@@ -721,7 +721,7 @@ def create_experiment(apiurl, data_directory, y_test, eval_metric_filepath=None,
     # create temporary folder
     temp_dir = tempfile.gettempdir()
     
-    s3, iam, region = get_s3_iam_client(os.environ.get("AWS_ACCESS_KEY_ID"), os.environ.get("AWS_SECRET_ACCESS_KEY"), os.environ.get("AWS_REGION"))
+    s3, iam, region = get_s3_iam_client(os.environ.get("AWS_ACCESS_KEY_ID_AIMS"), os.environ.get("AWS_SECRET_ACCESS_KEY_AIMS"), os.environ.get("AWS_REGION_AIMS"))
     
     # Get bucket and model_id subfolder for user based on apiurl {{{
     response, error = run_function_on_lambda(
@@ -790,13 +790,13 @@ def create_experiment(apiurl, data_directory, y_test, eval_metric_filepath=None,
     
     aishare_datalicense = input(
         "Enter optional data license descriptive name (e.g.- 'MIT, Apache 2.0, CC0, Other, etc.'):")    
-    user_session = boto3.session.Session(aws_access_key_id=os.environ.get("AWS_ACCESS_KEY_ID"),
-                                          aws_secret_access_key = os.environ.get("AWS_SECRET_ACCESS_KEY"), 
-                                         region_name=os.environ.get("AWS_REGION"))
+    user_session = boto3.session.Session(aws_access_key_id=os.environ.get("AWS_ACCESS_KEY_ID_AIMS"),
+                                          aws_secret_access_key = os.environ.get("AWS_SECRET_ACCESS_KEY_AIMS"), 
+                                         region_name=os.environ.get("AWS_REGION_AIMS"))
     account_number = user_session.client(
         'sts').get_caller_identity().get('Account')
 
-    datauri=share_data_codebuild(account_number,os.environ.get("AWS_REGION"),data_directory)
+    datauri=share_data_codebuild(account_number,os.environ.get("AWS_REGION_AIMS"),data_directory)
     
     #create and upload json file with list of authorized users who can submit to this competition.
     _create_competitionuserauth_json(apiurl, email_list,public,datauri['ecr_uri'], submission_type="experiment")
@@ -838,9 +838,9 @@ def create_experiment(apiurl, data_directory, y_test, eval_metric_filepath=None,
 
 def _create_public_private_split_json(apiurl, split=0.5, submission_type='competition'): 
       import json
-      if all(["AWS_ACCESS_KEY_ID" in os.environ, 
-            "AWS_SECRET_ACCESS_KEY" in os.environ,
-            "AWS_REGION" in os.environ,
+      if all(["AWS_ACCESS_KEY_ID_AIMS" in os.environ, 
+            "AWS_SECRET_ACCESS_KEY_AIMS" in os.environ,
+            "AWS_REGION_AIMS" in os.environ,
            "username" in os.environ, 
            "password" in os.environ]):
         pass
@@ -848,13 +848,13 @@ def _create_public_private_split_json(apiurl, split=0.5, submission_type='compet
           return print("'Set public-private split' unsuccessful. Please provide credentials with set_credentials().")
 
       # Create user session
-      aws_client=get_aws_client(aws_key=os.environ.get('AWS_ACCESS_KEY_ID'), 
-                                aws_secret=os.environ.get('AWS_SECRET_ACCESS_KEY'), 
-                                aws_region=os.environ.get('AWS_REGION'))
+      aws_client=get_aws_client(aws_key=os.environ.get('AWS_ACCESS_KEY_ID_AIMS'), 
+                                aws_secret=os.environ.get('AWS_SECRET_ACCESS_KEY_AIMS'), 
+                                aws_region=os.environ.get('AWS_REGION_AIMS'))
       
-      user_sess = boto3.session.Session(aws_access_key_id=os.environ.get('AWS_ACCESS_KEY_ID'), 
-                                        aws_secret_access_key=os.environ.get('AWS_SECRET_ACCESS_KEY'), 
-                                        region_name=os.environ.get('AWS_REGION'))
+      user_sess = boto3.session.Session(aws_access_key_id=os.environ.get('AWS_ACCESS_KEY_ID_AIMS'), 
+                                        aws_secret_access_key=os.environ.get('AWS_SECRET_ACCESS_KEY_AIMS'), 
+                                        region_name=os.environ.get('AWS_REGION_AIMS'))
       
       s3 = user_sess.resource('s3')
 
@@ -882,9 +882,9 @@ def _create_public_private_split_json(apiurl, split=0.5, submission_type='compet
 
 def _create_competitionuserauth_json(apiurl, email_list=[],public=False, datauri=None, submission_type="competition"): 
       import json
-      if all(["AWS_ACCESS_KEY_ID" in os.environ, 
-            "AWS_SECRET_ACCESS_KEY" in os.environ,
-            "AWS_REGION" in os.environ,
+      if all(["AWS_ACCESS_KEY_ID_AIMS" in os.environ, 
+            "AWS_SECRET_ACCESS_KEY_AIMS" in os.environ,
+            "AWS_REGION_AIMS" in os.environ,
            "username" in os.environ, 
            "password" in os.environ]):
         pass
@@ -892,13 +892,13 @@ def _create_competitionuserauth_json(apiurl, email_list=[],public=False, datauri
           return print("'Update Runtime Model' unsuccessful. Please provide credentials with set_credentials().")
 
       # Create user session
-      aws_client=get_aws_client(aws_key=os.environ.get('AWS_ACCESS_KEY_ID'), 
-                                aws_secret=os.environ.get('AWS_SECRET_ACCESS_KEY'), 
-                                aws_region=os.environ.get('AWS_REGION'))
+      aws_client=get_aws_client(aws_key=os.environ.get('AWS_ACCESS_KEY_ID_AIMS'), 
+                                aws_secret=os.environ.get('AWS_SECRET_ACCESS_KEY_AIMS'), 
+                                aws_region=os.environ.get('AWS_REGION_AIMS'))
       
-      user_sess = boto3.session.Session(aws_access_key_id=os.environ.get('AWS_ACCESS_KEY_ID'), 
-                                        aws_secret_access_key=os.environ.get('AWS_SECRET_ACCESS_KEY'), 
-                                        region_name=os.environ.get('AWS_REGION'))
+      user_sess = boto3.session.Session(aws_access_key_id=os.environ.get('AWS_ACCESS_KEY_ID_AIMS'), 
+                                        aws_secret_access_key=os.environ.get('AWS_SECRET_ACCESS_KEY_AIMS'), 
+                                        region_name=os.environ.get('AWS_REGION_AIMS'))
       
       s3 = user_sess.resource('s3')
 
@@ -999,9 +999,9 @@ def update_access_list(apiurl, email_list=[],update_type="Add", submission_type=
       """
       import json
       import os
-      if all(["AWS_ACCESS_KEY_ID" in os.environ, 
-            "AWS_SECRET_ACCESS_KEY" in os.environ,
-            "AWS_REGION" in os.environ,
+      if all(["AWS_ACCESS_KEY_ID_AIMS" in os.environ, 
+            "AWS_SECRET_ACCESS_KEY_AIMS" in os.environ,
+            "AWS_REGION_AIMS" in os.environ,
            "username" in os.environ, 
            "password" in os.environ]):
         pass
@@ -1015,13 +1015,13 @@ def update_access_list(apiurl, email_list=[],update_type="Add", submission_type=
           return print("email_list argument empty or incorrectly formatted.  Please provide a list of emails for authorized competition participants formatted as strings.")
 
       # Create user session
-      aws_client=get_aws_client(aws_key=os.environ.get('AWS_ACCESS_KEY_ID'), 
-                                aws_secret=os.environ.get('AWS_SECRET_ACCESS_KEY'), 
-                                aws_region=os.environ.get('AWS_REGION'))
+      aws_client=get_aws_client(aws_key=os.environ.get('AWS_ACCESS_KEY_ID_AIMS'), 
+                                aws_secret=os.environ.get('AWS_SECRET_ACCESS_KEY_AIMS'), 
+                                aws_region=os.environ.get('AWS_REGION_AIMS'))
       
-      user_sess = boto3.session.Session(aws_access_key_id=os.environ.get('AWS_ACCESS_KEY_ID'), 
-                                        aws_secret_access_key=os.environ.get('AWS_SECRET_ACCESS_KEY'), 
-                                        region_name=os.environ.get('AWS_REGION'))
+      user_sess = boto3.session.Session(aws_access_key_id=os.environ.get('AWS_ACCESS_KEY_ID_AIMS'), 
+                                        aws_secret_access_key=os.environ.get('AWS_SECRET_ACCESS_KEY_AIMS'), 
+                                        region_name=os.environ.get('AWS_REGION_AIMS'))
       
       s3 = user_sess.resource('s3')
 
