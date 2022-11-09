@@ -167,8 +167,8 @@ def share_data_codebuild(account_id, region, dataset_dir, dataset_tag='latest', 
     
     region = 'us-east-1'
 
-    session = boto3.session.Session(aws_access_key_id=os.environ.get("AWS_ACCESS_KEY_ID"),
-                                    aws_secret_access_key = os.environ.get("AWS_SECRET_ACCESS_KEY"), 
+    session = boto3.session.Session(aws_access_key_id=os.environ.get("AWS_ACCESS_KEY_ID_AIMS"),
+                                    aws_secret_access_key = os.environ.get("AWS_SECRET_ACCESS_KEY_AIMS"), 
                                     region_name=region)
 
     flag = 0
@@ -300,9 +300,9 @@ def share_dataset(data_directory="folder_file_path",classification="default", pr
     problemdomainfinal=optiondict.get(problemdomain,"Other")
 
 
-    user_session = boto3.session.Session(aws_access_key_id=os.environ.get("AWS_ACCESS_KEY_ID"),
-                                          aws_secret_access_key = os.environ.get("AWS_SECRET_ACCESS_KEY"), 
-                                         region_name=os.environ.get("AWS_REGION"))
+    user_session = boto3.session.Session(aws_access_key_id=os.environ.get("AWS_ACCESS_KEY_ID_AIMS"),
+                                          aws_secret_access_key = os.environ.get("AWS_SECRET_ACCESS_KEY_AIMS"), 
+                                         region_name=os.environ.get("AWS_REGION_AIMS"))
     account_number = user_session.client(
         'sts').get_caller_identity().get('Account')
 
@@ -334,9 +334,9 @@ def share_dataset(data_directory="folder_file_path",classification="default", pr
 
 def delete_dataset(ecr_uri):
 
-    session = boto3.session.Session(aws_access_key_id=os.environ.get("AWS_ACCESS_KEY_ID"),
-                                    aws_secret_access_key = os.environ.get("AWS_SECRET_ACCESS_KEY"), 
-                                    region_name=os.environ.get("AWS_REGION"))
+    session = boto3.session.Session(aws_access_key_id=os.environ.get("AWS_ACCESS_KEY_ID_AIMS"),
+                                    aws_secret_access_key = os.environ.get("AWS_SECRET_ACCESS_KEY_AIMS"), 
+                                    region_name=os.environ.get("AWS_REGION_AIMS"))
 
     ecr_client = session.client('ecr-public')
 
