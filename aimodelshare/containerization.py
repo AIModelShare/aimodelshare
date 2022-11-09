@@ -279,9 +279,9 @@ def build_new_base_image(libraries, repository, image_tag, python_version):
 
     from . import containerization_templates
 
-    user_session = boto3.session.Session(aws_access_key_id=os.environ.get("AWS_ACCESS_KEY_ID"),
-                                         aws_secret_access_key = os.environ.get("AWS_SECRET_ACCESS_KEY"),
-                                         region_name=os.environ.get("AWS_REGION"))
+    user_session = boto3.session.Session(aws_access_key_id=os.environ.get("AWS_ACCESS_KEY_ID_AIMS"),
+                                         aws_secret_access_key = os.environ.get("AWS_SECRET_ACCESS_KEY_AIMS"),
+                                         region_name=os.environ.get("AWS_REGION_AIMS"))
 
     bucket_name = os.environ.get("BUCKET_NAME")
 
