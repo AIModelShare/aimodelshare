@@ -117,9 +117,9 @@ def deploy_custom_lambda(input_json_exampledata, output_json_exampledata, lambda
     with open(os.path.join(temp_dir, 'exampledata.json'), 'w') as f:
         json.dump(json_exampledata, f)
 
-    aws_access_key_id = str(os.environ.get("AWS_ACCESS_KEY_ID"))
-    aws_secret_access_key = str(os.environ.get("AWS_SECRET_ACCESS_KEY"))
-    region_name = str(os.environ.get("AWS_REGION"))
+    aws_access_key_id = str(os.environ.get("AWS_ACCESS_KEY_ID_AIMS"))
+    aws_secret_access_key = str(os.environ.get("AWS_SECRET_ACCESS_KEY_AIMS"))
+    region_name = str(os.environ.get("AWS_REGION_AIMS"))
 
     ### COMMENTS - TO DO
     api_json= get_api_json()        # why is this required
@@ -222,9 +222,7 @@ def deploy_custom_lambda(input_json_exampledata, output_json_exampledata, lambda
     response = user.attach_policy(
         PolicyArn=s3uploadpolicy_response['Policy']['Arn']
     )
-    finalresultteams3info = "Your team members can submit improved models to your prediction api using the update_model_version() function. \nTo upload new models and/or preprocessors to this model team members should use the following awskey/password/region:\n\n aws_key = " + \
-        os.environ.get("AI_MODELSHARE_ACCESS_KEY_ID") + ", aws_password = " + os.environ.get("AI_MODELSHARE_SECRET_ACCESS_KEY") + " region = " + \
-        os.environ.get("AWS_REGION") +".  \n\nThis aws key/password combination limits team members to file upload access only."
+    finalresultteams3info = "Your team members can submit improved models to your prediction api using the update_model_version() function."
     api_info = finalresult2+"\n"
 
     # Build output {{{
