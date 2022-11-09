@@ -30,9 +30,9 @@ class create_prediction_api_class():
 
         #####
         self.user_session = boto3.session.Session(
-            aws_access_key_id=os.environ.get("AWS_ACCESS_KEY_ID"),
-            aws_secret_access_key = os.environ.get("AWS_SECRET_ACCESS_KEY"), 
-            region_name=os.environ.get("AWS_REGION")
+            aws_access_key_id=os.environ.get("AWS_ACCESS_KEY_ID_AIMS"),
+            aws_secret_access_key = os.environ.get("AWS_SECRET_ACCESS_KEY_AIMS"), 
+            region_name=os.environ.get("AWS_REGION_AIMS")
         )
         self.sts_client = self.user_session.client("sts")
         self.account_id = self.sts_client.get_caller_identity()["Account"]
@@ -629,9 +629,9 @@ def delete_deployment(apiurl):
         return print("'Delete Deployment' unsuccessful: operation cancelled by user.")
 
     # Confirm that creds are loaded, print warning if not
-    if all(["AWS_ACCESS_KEY_ID" in os.environ, 
-            "AWS_SECRET_ACCESS_KEY" in os.environ,
-            "AWS_REGION" in os.environ,
+    if all(["AWS_ACCESS_KEY_ID_AIMS" in os.environ, 
+            "AWS_SECRET_ACCESS_KEY_AIMS" in os.environ,
+            "AWS_REGION_AIMS" in os.environ,
            "username" in os.environ, 
            "password" in os.environ]):
         pass
@@ -643,9 +643,9 @@ def delete_deployment(apiurl):
     api_id = api_url_trim.split(".")[0]
 
     # Create User Session
-    user_sess = boto3.session.Session(aws_access_key_id=os.environ.get('AWS_ACCESS_KEY_ID'), 
-                                      aws_secret_access_key=os.environ.get('AWS_SECRET_ACCESS_KEY'), 
-                                      region_name=os.environ.get('AWS_REGION'))
+    user_sess = boto3.session.Session(aws_access_key_id=os.environ.get('AWS_ACCESS_KEY_ID_AIMS'), 
+                                      aws_secret_access_key=os.environ.get('AWS_SECRET_ACCESS_KEY_AIMS'), 
+                                      region_name=os.environ.get('AWS_REGION_AIMS'))
     
     s3 = user_sess.resource('s3')
 
