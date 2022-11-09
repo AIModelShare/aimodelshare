@@ -73,9 +73,9 @@ def import_reproducibility_env(reproducibility_env_file):
   print("Your reproducibility environment is successfully setup")
 
 def import_reproducibility_env_from_model(apiurl):
-    if all(["AWS_ACCESS_KEY_ID" in os.environ, 
-            "AWS_SECRET_ACCESS_KEY" in os.environ,
-            "AWS_REGION" in os.environ, 
+    if all(["AWS_ACCESS_KEY_ID_AIMS" in os.environ, 
+            "AWS_SECRET_ACCESS_KEY_AIMS" in os.environ,
+            "AWS_REGION_AIMS" in os.environ, 
             "username" in os.environ, 
             "password" in os.environ]):
         pass
