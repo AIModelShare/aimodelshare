@@ -6,14 +6,6 @@ import json
 from aimodelshare.exceptions import AuthorizationError, AWSAccessError
 
 
-import os
-import boto3
-import botocore
-import requests
-import json
-from aimodelshare.exceptions import AuthorizationError, AWSAccessError
-
-
 def set_credentials(credential_file=None, type="submit_model", apiurl="apiurl", manual = True):
   import os
   import getpass
