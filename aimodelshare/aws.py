@@ -6,6 +6,14 @@ import json
 from aimodelshare.exceptions import AuthorizationError, AWSAccessError
 
 
+import os
+import boto3
+import botocore
+import requests
+import json
+from aimodelshare.exceptions import AuthorizationError, AWSAccessError
+
+
 def set_credentials(credential_file=None, type="submit_model", apiurl="apiurl", manual = True):
   import os
   import getpass
@@ -98,10 +106,23 @@ def set_credentials(credential_file=None, type="submit_model", apiurl="apiurl", 
                   print(* "Warning: Review format of", credential_file, ". Format should be variablename = 'variable_value'.")
                   break
 
+      if "AWS_ACCESS_KEY_ID_AIMS" in os.environ:
+        pass
+      elif "AWS_ACCESS_KEY_ID" in os.environ:
+          os.environ['AWS_ACCESS_KEY_ID_AIMS']=os.environ.get("AWS_ACCESS_KEY_ID")
+      if "AWS_SECRET_ACCESS_KEY_AIMS" in os.environ:
+        pass
+      elif "AWS_SECRET_ACCESS_KEY" in os.environ:
+          os.environ['AWS_SECRET_ACCESS_KEY_AIMS']=os.environ.get("AWS_SECRET_ACCESS_KEY")
+
+      if 'AWS_REGION_AIMS' in os.environ:
+        pass
+      elif "AWS_REGION" in os.environ:
+          os.environ['AWS_REGION_AIMS']=os.environ.get("AWS_REGION")
       # Validate AWS Creds 
       import boto3
       try: 
-        client = boto3.client('sts', aws_access_key_id=os.environ.get("AWS_ACCESS_KEY_ID"), aws_secret_access_key=os.environ.get("AWS_SECRET_ACCESS_KEY"))
+        client = boto3.client('sts', aws_access_key_id=os.environ.get("AWS_ACCESS_KEY_ID"), aws_secret_access_key=os.environ.get("AWS_SECRET_ACCESS_KEY_AIMS"))
         details = client.get_caller_identity()
         print("AWS credentials set successfully.")
       except: 
@@ -156,7 +177,19 @@ def set_credentials_public(credential_file=None, type="submit_model", apiurl="ap
           except LookupError: 
             print(* "Warning: Review format of", credential_file, ". Format should be variablename = 'variable_value'")
             break
-  
+    if "AWS_ACCESS_KEY_ID_AIMS" in os.environ:
+      pass
+    elif "AWS_ACCESS_KEY_ID" in os.environ:
+        os.environ['AWS_ACCESS_KEY_ID_AIMS']=os.environ.get("AWS_ACCESS_KEY_ID")
+    if "AWS_SECRET_ACCESS_KEY_AIMS" in os.environ:
+      pass
+    elif "AWS_SECRET_ACCESS_KEY" in os.environ:
+        os.environ['AWS_SECRET_ACCESS_KEY_AIMS']=os.environ.get("AWS_SECRET_ACCESS_KEY")
+
+    if 'AWS_REGION_AIMS' in os.environ:
+      pass
+    elif "AWS_REGION" in os.environ:
+        os.environ['AWS_REGION_AIMS']=os.environ.get("AWS_REGION")
   #Validate Username & Password
   try: 
     os.environ["AWS_TOKEN"]=get_aws_token()
@@ -203,14 +236,14 @@ def get_aws_session(aws_key=None, aws_secret=None, aws_region=None):
     )
 
 def get_aws_client(aws_key=None, aws_secret=None, aws_region=None):
-    key = aws_key if aws_key is not None else os.environ.get("AWS_ACCESS_KEY_ID")
+    key = aws_key if aws_key is not None else os.environ.get("AWS_ACCESS_KEY_ID_AIMS")
     secret = (
         aws_secret
         if aws_secret is not None
-        else os.environ.get("AWS_SECRET_ACCESS_KEY")
+        else os.environ.get("AWS_SECRET_ACCESS_KEY_AIMS")
     )
     region = (
-        aws_region if aws_region is not None else os.environ.get("AWS_REGION") #changed
+        aws_region if aws_region is not None else os.environ.get("AWS_REGION_AIMS") #changed
     )
 
     if any([key is None, secret is None, region is None]):
@@ -228,13 +261,13 @@ def get_aws_client(aws_key=None, aws_secret=None, aws_region=None):
 
 def get_s3_iam_client(aws_key=None,aws_password=None, aws_region=None):
 
-  key = aws_key if aws_key is not None else os.environ.get("AWS_ACCESS_KEY_ID")
+  key = aws_key if aws_key is not None else os.environ.get("AWS_ACCESS_KEY_ID_AIMS")
   password = (
         aws_password
         if aws_password is not None
-        else os.environ.get("AWS_SECRET_ACCESS_KEY"))
+        else os.environ.get("AWS_SECRET_ACCESS_KEY_AIMS"))
   region = (
-        aws_region if aws_region is not None else os.environ.get("AWS_REGION")) #changed
+        aws_region if aws_region is not None else os.environ.get("AWS_REGION_AIMS")) #changed
 
   if any([key is None, password is None, region is None]):
         raise AuthorizationError("Please set your aws credentials before creating your prediction API.")
