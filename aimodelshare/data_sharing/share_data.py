@@ -105,8 +105,8 @@ def create_docker_folder_codebuild(dataset_dir, dataset_name, template_folder, r
 
     template = Template(data)
     newdata = template.substitute(
-        aws_access_key_id=os.environ['AWS_ACCESS_KEY_ID'],
-        aws_secret_access_key=os.environ['AWS_SECRET_ACCESS_KEY'],
+        aws_access_key_id=os.environ['AWS_ACCESS_KEY_ID_AIMS'],
+        aws_secret_access_key=os.environ['AWS_SECRET_ACCESS_KEY_AIMS'],
         region='region',
         registry_uri=registry_uri,
         repository=repository,
