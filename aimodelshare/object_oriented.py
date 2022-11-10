@@ -368,6 +368,15 @@ class ModelPlayground:
                 print("Please instantiate a new playground and try again.")
                 return
 
+        if not (model_filepath == None or isinstance(model_filepath, str)): 
+
+            from aimodelshare.aimsonnx import model_to_onnx
+            onnx_model = model_to_onnx(model_filepath)
+            temp = tempfile.NamedTemporaryFile()
+            temp.write(onnx_model.SerializeToString())
+            model_filepath = temp.name
+
+
 
         # get model id from playground url
         unique_model_id = self.playground_url.split(".")[0].split("//")[-1]
@@ -388,7 +397,6 @@ class ModelPlayground:
                                 input_dict=comp_input_dict,
                                 print_output=False)
 
-        competition = Competition(self.playground_url)
 
         
         exp_input_dict = {"experiment_name": "Default Experiment "+unique_model_id,
@@ -406,6 +414,9 @@ class ModelPlayground:
                                 public_private_split=public_private_split,
                                 input_dict=exp_input_dict,
                                 print_output=False)
+
+
+        competition = Competition(self.playground_url)
 
         experiment = Experiment(self.playground_url)
 
@@ -425,7 +436,10 @@ class ModelPlayground:
                                  input_dict={"tags":"", "description":""},
                                  print_output=False)
 
-
+        try:    
+            temp.close()
+        except:
+            pass
 
 
     

@@ -1002,8 +1002,11 @@ def get_leaderboard(task_type="classification", verbose=3, columns=None, private
     leaderboard['timestamp'] = leaderboard.pop("timestamp")
     leaderboard['version'] = leaderboard.pop("version")
 
-    leaderboard = leaderboard.drop(columns="model_config")
-
+    try:
+        leaderboard = leaderboard.drop(columns="model_config")
+    except:
+        pass
+        
     return leaderboard
 
 

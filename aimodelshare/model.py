@@ -16,7 +16,7 @@ from aimodelshare.leaderboard import get_leaderboard
 
 from aimodelshare.aws import run_function_on_lambda, get_token, get_aws_token, get_aws_client
 
-from aimodelshare.aimsonnx import _get_leaderboard_data, inspect_model, _get_metadata, _model_summary, model_from_string, pyspark_model_from_string
+from aimodelshare.aimsonnx import _get_leaderboard_data, inspect_model, _get_metadata, _model_summary, model_from_string, pyspark_model_from_string, _get_layer_names, _get_layer_names_pytorch
 
 
 def _get_file_list(client, bucket,keysubfolderid):
@@ -136,10 +136,13 @@ def _upload_preprocessor(preprocessor, client, bucket, model_id, model_version):
 
 
 def _update_leaderboard(
-    modelpath, eval_metrics, client, bucket, model_id, model_version
+    modelpath, eval_metrics, client, bucket, model_id, model_version, onnx_model=None
 ):
     # Loading the model and its metadata {{{
-    if modelpath is not None:
+    if onnx_model==None:
+        metadata = _get_leaderboard_data(onnx_model, eval_metrics)
+
+    elif modelpath is not None:
         if not os.path.exists(modelpath):
             raise FileNotFoundError(f"The model file at {modelpath} does not exist")
 
@@ -147,9 +150,7 @@ def _update_leaderboard(
         metadata = _get_leaderboard_data(model, eval_metrics)
 
     else: 
-
         metadata = eval_metrics
-
         # get general model info
         metadata['ml_framework'] = 'unknown'
         metadata['transfer_learning'] = None
@@ -216,7 +217,8 @@ def _update_leaderboard(
     # }}}
 
 def _update_leaderboard_public(
-    modelpath, eval_metrics, s3_presigned_dict, custom_metadata=None, private=False, leaderboard_type = "competition"):
+    modelpath, eval_metrics, s3_presigned_dict, custom_metadata=None, 
+    private=False, leaderboard_type = "competition", onnx_model=None):
 
     if private==True:
         mastertable_path = 'model_eval_data_mastertable_private.csv'
@@ -236,7 +238,12 @@ def _update_leaderboard_public(
     model_versions = list(map(int, model_versions))
     model_version=model_versions[0]
     
-    if modelpath is not None:
+
+    # Loading the model and its metadata {{{
+    if onnx_model==None:
+        metadata = _get_leaderboard_data(onnx_model, eval_metrics)
+
+    elif modelpath is not None:
 
         model = onnx.load(modelpath)
         metadata = _get_leaderboard_data(model, eval_metrics)
@@ -251,6 +258,7 @@ def _update_leaderboard_public(
         metadata['deep_learning'] = None
         metadata['model_type'] = 'unknown'
         metadata['model_config'] = None
+
 
     if custom_metadata is not None: 
 
@@ -332,7 +340,7 @@ def _update_leaderboard_public(
 
  
 
-def upload_model_dict(modelpath, s3_presigned_dict, bucket, model_id, model_version, placeholder=False):
+def upload_model_dict(modelpath, s3_presigned_dict, bucket, model_id, model_version, placeholder=False, onnx_model=None):
     import wget
     import json
     import tempfile
@@ -343,7 +351,9 @@ def upload_model_dict(modelpath, s3_presigned_dict, bucket, model_id, model_vers
     import astunparse
 
     if placeholder==False: 
-        onnx_model = onnx.load(modelpath)
+
+        if onnx_model==None:
+            onnx_model = onnx.load(modelpath)
         meta_dict = _get_metadata(onnx_model)
 
         if meta_dict['ml_framework'] in ['keras', 'pytorch']:
@@ -473,14 +483,17 @@ def upload_model_dict(modelpath, s3_presigned_dict, bucket, model_id, model_vers
     return 1
 
 
-def upload_model_graph(modelpath,  s3_presigned_dict, bucket, model_id, model_version):
+def upload_model_graph(modelpath, s3_presigned_dict, bucket, model_id, model_version, onnx_model=None):
     import wget
     import json
     import tempfile
     import ast
     temp=tempfile.mkdtemp()
     # get model summary from onnx
-    onnx_model = onnx.load(modelpath)
+
+    if onnx_model==None:
+        onnx_model = onnx.load(modelpath)
+
     meta_dict = _get_metadata(onnx_model)
 
     if meta_dict['ml_framework'] == 'keras':
@@ -749,6 +762,21 @@ def submit_model(
       filedownload_dict=ast.literal_eval(s3_presigned_dict ['put'][i])
       fileputlistofdicts.append(filedownload_dict)
 
+
+    if not (model_filepath == None or isinstance(model_filepath, str)): 
+
+        print("Transform model object to onnx.")
+        from aimodelshare.aimsonnx import model_to_onnx
+        import tempfile as tmp
+        onnx_model = model_to_onnx(model_filepath)
+        temp = tmp.NamedTemporaryFile()
+        temp.write(onnx_model.SerializeToString())
+        model_filepath = temp.name
+        load_onnx_from_path = False
+    else:
+        load_onnx_from_path = True
+
+
     if model_filepath is not None:
         with open(model_filepath, 'rb') as f:
           files = {'file': (model_filepath, f)}
@@ -778,7 +806,9 @@ def submit_model(
             filedownload_dict=ast.literal_eval(s3_presigned_dict ['put'][i])
             fileputlistofdicts.append(filedownload_dict)
 
-        onnx_model = onnx.load(model_filepath)
+        if load_onnx_from_path:
+            onnx_model = onnx.load(model_filepath)
+
         meta_dict = _get_metadata(onnx_model)
         model_metadata = {
             "model_config": meta_dict["model_config"],
@@ -795,13 +825,23 @@ def submit_model(
             files = {'file': (model_metadata_path, f)}
             http_response = requests.post(fileputlistofdicts[0]['url'], data=fileputlistofdicts[0]['fields'], files=files)
 
-    # Upload model metrics and metadata {{{
-    modelleaderboarddata = _update_leaderboard_public(
-        model_filepath, eval_metrics, s3_presigned_dict, custom_metadata)
+    print(model_metadata)
 
     # Upload model metrics and metadata {{{
-    modelleaderboarddata_private = _update_leaderboard_public(
-        model_filepath, eval_metrics_private, s3_presigned_dict, custom_metadata, private=True)
+    if load_onnx_from_path:
+        modelleaderboarddata = _update_leaderboard_public(
+            model_filepath, eval_metrics, s3_presigned_dict, custom_metadata)
+
+        # Upload model metrics and metadata {{{
+        modelleaderboarddata_private = _update_leaderboard_public(
+            model_filepath, eval_metrics_private, s3_presigned_dict, custom_metadata, private=True)
+    else:
+        modelleaderboarddata = _update_leaderboard_public(
+            None, eval_metrics, s3_presigned_dict, custom_metadata, onnx_model=onnx_model)
+
+        # Upload model metrics and metadata {{{
+        modelleaderboarddata_private = _update_leaderboard_public(
+            None, eval_metrics_private, s3_presigned_dict, custom_metadata, private=True, onnx_model=onnx_model)
 
 
     model_versions = [os.path.splitext(f)[0].split("_")[-1][1:] for f in s3_presigned_dict['put'].keys()]
@@ -810,16 +850,22 @@ def submit_model(
     model_versions = list(map(int, model_versions))
     model_version=model_versions[0]
 
-    if model_filepath is not None:
 
-        upload_model_dict(model_filepath, s3_presigned_dict, bucket, model_id, model_version)
+    if load_onnx_from_path:
+        if model_filepath is not None:
 
-        upload_model_graph(model_filepath, s3_presigned_dict, bucket, model_id, model_version)
+            upload_model_dict(model_filepath, s3_presigned_dict, bucket, model_id, model_version)
 
+            upload_model_graph(model_filepath, s3_presigned_dict, bucket, model_id, model_version)
+
+        else:
+
+            upload_model_dict(model_filepath, s3_presigned_dict, bucket, model_id, model_version, placeholder=True) 
     else:
 
-        upload_model_dict(model_filepath, s3_presigned_dict, bucket, model_id, model_version, placeholder=True)
+            upload_model_dict(None, s3_presigned_dict, bucket, model_id, model_version, onnx_model=onnx_model)
 
+            upload_model_graph(None, s3_presigned_dict, bucket, model_id, model_version, onnx_model=onnx_model)
 
     modelpath=model_filepath
 
@@ -899,7 +945,8 @@ def submit_model(
     if modelpath is not None:
 
         # get model summary from onnx
-        onnx_model = onnx.load(modelpath)
+        if load_onnx_from_path:
+            onnx_model = onnx.load(modelpath)
         meta_dict = _get_metadata(onnx_model)
 
         if meta_dict['ml_framework'] == 'keras':
