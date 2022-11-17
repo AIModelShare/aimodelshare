@@ -239,14 +239,12 @@ def _update_leaderboard_public(
     model_version=model_versions[0]
     
 
-    # Loading the model and its metadata {{{
-    if onnx_model==None:
+    if modelpath == None and onnx_model:
         metadata = _get_leaderboard_data(onnx_model, eval_metrics)
 
     elif modelpath is not None:
-
-        model = onnx.load(modelpath)
-        metadata = _get_leaderboard_data(model, eval_metrics)
+        onnx_model = onnx.load(modelpath)
+        metadata = _get_leaderboard_data(onnx_model, eval_metrics)
 
     else: 
 
@@ -825,7 +823,6 @@ def submit_model(
             files = {'file': (model_metadata_path, f)}
             http_response = requests.post(fileputlistofdicts[0]['url'], data=fileputlistofdicts[0]['fields'], files=files)
 
-    print(model_metadata)
 
     # Upload model metrics and metadata {{{
     if load_onnx_from_path:

@@ -847,6 +847,8 @@ def model_to_onnx(model, framework=None, model_input=None, initial_types=None,
     if model and framework==None:
         framework = model.__module__.split(".")[0]
 
+        if isinstance(model, torch.nn.Module):
+            framework = "pytorch"
 
     # assert that framework exists
     frameworks = ['sklearn', 'keras', 'pytorch', 'xgboost', 'pyspark']

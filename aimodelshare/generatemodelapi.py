@@ -1170,10 +1170,11 @@ def _create_exampledata_json(model_type, exampledata_folder_filepath):
                         '.jfi', 'psd', '.raw', '.arw', '.cr2', '.nrw', '.k25', '.eps']
     video_extensions = ['.avchd', '.avi', '.flv', '.mov', '.mkv', '.mp4', '.wmv']
     audio_extensions = ['.m4a', '.flac', '.mp3', '.mp4', '.wav', '.wma', '.aac']
+
+    import pandas as pd
      
     if any([model_type.lower() == "tabular", model_type.lower() == "timeseries", model_type.lower() == "text"]):
         #confirm data type is data frame, try to convert if not [necessary for front end]
-        import pandas as pd
         if isinstance(exampledata_folder_filepath, pd.DataFrame):
             pass
         else:
@@ -1188,41 +1189,48 @@ def _create_exampledata_json(model_type, exampledata_folder_filepath):
             return
         
     else:
-        #Check file types & make list to convert 
-        data = ""
-        file_list = os.listdir(exampledata_folder_filepath)
-        files_to_convert = []
-        for i in range(len(file_list)):
-            file_list[i] = exampledata_folder_filepath + "/" + file_list[i]
-            root, ext = os.path.splitext(file_list[i])
-            
-            if not ext:
-                ext = mimetypes.guess_extension(file_list[i])
+
+        if isinstance(exampledata_folder_filepath, pd.DataFrame):
+
+            tabularjson = exampledata_folder_filepath.to_json(orient='split', index=False)
+            with open('exampledata.json', 'w', encoding='utf-8') as f:
+                json.dump({"exampledata": tabularjson, "totalfiles":1}, f, ensure_ascii=False, indent=4)
+        else:
+            #Check file types & make list to convert 
+            data = ""
+            file_list = os.listdir(exampledata_folder_filepath)
+            files_to_convert = []
+            for i in range(len(file_list)):
+                file_list[i] = exampledata_folder_filepath + "/" + file_list[i]
+                root, ext = os.path.splitext(file_list[i])
                 
-            if model_type.lower() == "image" and ext in image_extensions:
-                files_to_convert.append(file_list[i])
+                if not ext:
+                    ext = mimetypes.guess_extension(file_list[i])
                     
-            if model_type.lower() == "video" and ext in video_extensions:
-                files_to_convert.append(file_list[i])
-                
-            if model_type.lower() == "audio" and ext in audio_extensions: 
-                files_to_convert.append(file_list[i])     
+                if model_type.lower() == "image" and ext in image_extensions:
+                    files_to_convert.append(file_list[i])
+                        
+                if model_type.lower() == "video" and ext in video_extensions:
+                    files_to_convert.append(file_list[i])
+                    
+                if model_type.lower() == "audio" and ext in audio_extensions: 
+                    files_to_convert.append(file_list[i])     
+            
+                i += 1 
+                if len(files_to_convert) == 5:
+                    break
         
-            i += 1 
-            if len(files_to_convert) == 5:
-                break
-    
-        #base64 encode confirmed file list 
-        for i in range(len(files_to_convert)):
-            with open(files_to_convert[i], "rb") as current_file: 
-                encoded_string = base64.b64encode(current_file.read())
-                data = data + encoded_string.decode('utf-8') + ", "
-                i += 1
-    
-        #build json
-        with open('exampledata.json', 'w', encoding='utf-8') as f:
-            json.dump({"exampledata": data[:-2], "totalfiles": len(files_to_convert)}, f, ensure_ascii=False, indent=4)
+            #base64 encode confirmed file list 
+            for i in range(len(files_to_convert)):
+                with open(files_to_convert[i], "rb") as current_file: 
+                    encoded_string = base64.b64encode(current_file.read())
+                    data = data + encoded_string.decode('utf-8') + ", "
+                    i += 1
         
+            #build json
+            with open('exampledata.json', 'w', encoding='utf-8') as f:
+                json.dump({"exampledata": data[:-2], "totalfiles": len(files_to_convert)}, f, ensure_ascii=False, indent=4)
+            
         return
 
 __all__ = [
