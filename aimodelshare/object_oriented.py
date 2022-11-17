@@ -69,12 +69,42 @@ class ModelPlayground:
         `custom_libraries`:   ``string``
             "TRUE" if user wants to load custom Python libraries to their prediction runtime
             "FALSE" if user wishes to use AI Model Share base libraries including latest versions of most common ML libs.
+        `input_dict`:   ``dictionary``
+             Use to bypass text input boxes Example: {"model_name": "My Model Playground",
+                      "model_description": "My Model Description",
+                      "tags": "model, classification, awesome"}
+            
+            
          
         Returns:
         --------
         print_api_info : prints statements with generated live prediction API details
                         also prints steps to update the model submissions by the user/team
         """
+        
+        #default input_dict
+        input_dict = {"requirements": "",
+                      "model_name": "Default Model Playground",
+                      "model_description": "",
+                      "tags": ""}
+
+        from aimodelshare.generatemodelapi import model_to_api
+        self.playground_url = model_to_api(model_filepath=model_filepath, 
+                                      model_type = self.model_type, 
+                                      private = self.private, 
+                                      categorical = self.categorical,
+                                      y_train = y_train, 
+                                      preprocessor_filepath = preprocessor_filepath, 
+                                      example_data = example_data,
+                                      custom_libraries = custom_libraries,
+                                      image=image,
+                                      reproducibility_env_filepath = reproducibility_env_filepath,
+                                      memory=memory,
+                                      timeout=timeout,
+                                      email_list=self.email_list,
+                                      pyspark_support=pyspark_support,
+                                      input_dict=input_dict, 
+                                      print_output=False)
         from aimodelshare.generatemodelapi import model_to_api
         self.playground_url = model_to_api(model_filepath=model_filepath, 
                                       model_type = self.model_type, 
