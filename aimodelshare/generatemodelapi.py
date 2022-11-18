@@ -509,12 +509,12 @@ def model_to_api(model_filepath, model_type, private, categorical, y_train, prep
             labels = list(set(y_train))
     else:
         labels = "no data"
-
+    temp_dir = tempfile.gettempdir()
     # Create Example Data JSON
     exampledata_json_filepath = ""
     if example_data is not None:
         _create_exampledata_json(model_type, example_data)
-        exampledata_json_filepath = os.getcwd() + "/exampledata.json"
+        exampledata_json_filepath = temp_dir+ "/exampledata.json"
 
     ### Progress Update #1/6 {{{
     sys.stdout.write("[===                                  ] Progress: 5% - Accessing Amazon Web Services, uploading resources...")
