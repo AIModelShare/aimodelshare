@@ -1192,9 +1192,11 @@ def _create_exampledata_json(model_type, exampledata_folder_filepath):
                 encoded_string = base64.b64encode(current_file.read())
                 data = data + encoded_string.decode('utf-8') + ", "
                 i += 1
-    
+        import tempfile
+        # create temporary folder
+        temp_dir = tempfile.gettempdir()
         #build json
-        with open('exampledata.json', 'w', encoding='utf-8') as f:
+        with open(temp_dir+'/exampledata.json', 'w', encoding='utf-8') as f:
             json.dump({"exampledata": data[:-2], "totalfiles": len(files_to_convert)}, f, ensure_ascii=False, indent=4)
         
         return
