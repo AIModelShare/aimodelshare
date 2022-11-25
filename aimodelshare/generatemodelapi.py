@@ -477,10 +477,10 @@ def model_to_api(model_filepath, model_type, private, categorical, y_train, prep
         print("   ")
         #  }}}
     else: 
-        requirements = input_dict["requirements"]
-        aishare_modelname = input_dict["model_name"]
-        aishare_modeldescription = input_dict["model_description"]
-        aishare_tags = input_dict["tags"]
+        requirements = input_dict.get("requirements","")
+        aishare_modelname = input_dict.get("model_name","")
+        aishare_modeldescription = input_dict.get("model_description","")
+        aishare_tags = input_dict.get("tags","")
 
     aishare_modelevaluation = "unverified" # verified metrics added to playground once 1. a model is submitted to a competition leaderboard and 2. playground owner updates runtime
                                            #...model with update_runtime_model()
