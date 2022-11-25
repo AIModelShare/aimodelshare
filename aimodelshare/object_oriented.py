@@ -82,11 +82,6 @@ class ModelPlayground:
                         also prints steps to update the model submissions by the user/team
         """
         
-        #default input_dict
-        input_dict = {"requirements": "",
-                      "model_name": "Default Model Playground",
-                      "model_description": "",
-                      "tags": ""}
 
         from aimodelshare.generatemodelapi import model_to_api
         self.playground_url = model_to_api(model_filepath=model_filepath, 
@@ -105,21 +100,6 @@ class ModelPlayground:
                                       pyspark_support=pyspark_support,
                                       input_dict=input_dict, 
                                       print_output=False)
-        from aimodelshare.generatemodelapi import model_to_api
-        self.playground_url = model_to_api(model_filepath=model_filepath, 
-                                      model_type = self.model_type, 
-                                      private = self.private, 
-                                      categorical = self.categorical,
-                                      y_train = y_train, 
-                                      preprocessor_filepath = preprocessor_filepath, 
-                                      example_data = example_data,
-                                      custom_libraries = custom_libraries,
-                                      image=image,
-                                      reproducibility_env_filepath = reproducibility_env_filepath,
-                                      memory=memory,
-                                      timeout=timeout,
-                                      email_list=self.email_list,
-                                      pyspark_support=pyspark_support)
         #remove extra quotes
         self.playground_url = self.playground_url[1:-1]
     
