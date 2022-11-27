@@ -7,6 +7,16 @@ import numpy as np
 import onnxruntime as rt
 import json
 
+class NpEncoder(json.JSONEncoder):
+    def default(self, obj):
+        if isinstance(obj, np.integer):
+            return int(obj)
+        if isinstance(obj, np.floating):
+            return float(obj)
+        if isinstance(obj, np.ndarray):
+            return obj.tolist()
+        return super(NpEncoder, self).default(obj)
+
 def get_model_onnx(runtimemodel_s3_filename="runtime_model.onnx"):
     s3 = boto3.resource('s3')
     obj = s3.Object("$bucket_name", "$unique_model_id" +
@@ -107,4 +117,4 @@ def handler(event, context):
         "Access-Control-Allow-Methods" : "GET, OPTIONS, POST",
         "Access-Control-Allow-Headers" : "*"
         },
-        "body": json.dumps(result)}
+        "body": json.dumps(result, cls=NpEncoder)}
