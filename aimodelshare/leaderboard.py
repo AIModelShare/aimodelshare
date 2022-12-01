@@ -39,6 +39,8 @@ def get_leaderboard(apiurl, verbose=3, columns=None, submission_type="competitio
 
     leaderboard_json = requests.post(apiurl_eval,headers=headers,data=json.dumps(post_dict)) 
 
+    print(leaderboard_json)
+
     leaderboard_pd = pd.DataFrame(json.loads(leaderboard_json.text))
 
     return leaderboard_pd

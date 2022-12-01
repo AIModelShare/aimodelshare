@@ -23,6 +23,7 @@ from onnx.tools.net_drawer import GetPydotGraph, GetOpNodeProducer
 import importlib
 import onnxmltools
 import onnxruntime as rt
+from skl2onnx.common.data_types import FloatTensorType
 
 # aims modules
 from aimodelshare.aws import run_function_on_lambda, get_aws_client
@@ -207,7 +208,7 @@ def _misc_to_onnx(model, initial_types, transfer_learning=None,
 
 
 
-def _sklearn_to_onnx(model, initial_types, transfer_learning=None,
+def _sklearn_to_onnx(model, initial_types=None, transfer_learning=None,
                     deep_learning=None, task_type=None):
     '''Extracts metadata from sklearn model object.'''
     
@@ -226,6 +227,10 @@ def _sklearn_to_onnx(model, initial_types, transfer_learning=None,
       model.flatten_transform=False
     
     # convert to onnx
+    if initial_types == None: 
+        feature_count=model.n_features_in_
+        initial_types = [('float_input', FloatTensorType([None, feature_count]))]
+
     onx = convert_sklearn(model, initial_types=initial_types,target_opset={'': 15, 'ai.onnx.ml': 2})
     
     ## Dynamically set model ir_version to ensure sklearn opsets work properly
@@ -809,7 +814,7 @@ def _pytorch_to_onnx(model, model_input, transfer_learning=None,
     return onx
 
 
-def model_to_onnx(model, framework, model_input=None, initial_types=None,
+def model_to_onnx(model, framework=None, model_input=None, initial_types=None,
                   transfer_learning=None, deep_learning=None, task_type=None, 
                   epochs=None, spark_session=None):
     
@@ -842,6 +847,13 @@ def model_to_onnx(model, framework, model_input=None, initial_types=None,
     Returns:
     ONNX object with model metadata saved in metadata props
     '''
+
+    # if no framework was passed, extract framework 
+    if model and framework==None:
+        framework = model.__module__.split(".")[0]
+
+        if isinstance(model, torch.nn.Module):
+            framework = "pytorch"
 
     # assert that framework exists
     frameworks = ['sklearn', 'keras', 'pytorch', 'xgboost', 'pyspark']

@@ -1,6 +1,11 @@
 # import packages 
-
-
+import os
+import contextlib
+import boto3
+from aimodelshare.api import get_api_json
+import tempfile
+import torch
+import onnx
 
 
 class ModelPlayground:
@@ -39,7 +44,126 @@ class ModelPlayground:
     
     def __str__(self):
         return f"ModelPlayground instance of model type: {self.model_type}, classification: {self.categorical},  private: {self.private}"
-    
+
+
+    def activate(self, model_filepath=None, preprocessor_filepath=None, y_train=None, example_data=None, custom_libraries = "FALSE", image="", reproducibility_env_filepath=None, memory=None, timeout=None, pyspark_support=False): 
+
+        """
+        Launches a live model playground to the www.modelshare.org website. The playground can optionally include a live prediction REST API for deploying ML models using model parameters and user credentials, provided by the user.
+        Inputs : 7
+        Output : model launched to an API
+                detailed API info printed out
+
+        Parameters: 
+        ----------
+        `model_filepath` :  ``string`` ends with '.onnx'
+              value - Absolute path to model file 
+              .onnx is the only accepted model file extension
+              "example_model.onnx" filename for file in directory.
+              "/User/xyz/model/example_model.onnx" absolute path to model file from local directory
+              if no value is set the playground will be launched with only a placeholder prediction API.
+        `preprocessor_filepath`:  ``string``
+            value - absolute path to preprocessor file 
+            "./preprocessor.zip" 
+            searches for an exported zip preprocessor file in the current directory
+            file is generated using export_preprocessor function from the AI Modelshare library
+            if no value is set the playground will be launched with only a placeholder prediction API.
+        `y_train` : training labels for classification models.
+            expects pandas dataframe of one hot encoded y train data
+            if no value is set ... #TODO 
+        `custom_libraries`:   ``string``
+            "TRUE" if user wants to load custom Python libraries to their prediction runtime
+            "FALSE" if user wishes to use AI Model Share base libraries including latest versions of most common ML libs.
+         
+        Returns:
+        --------
+        print_api_info : prints statements with generated model playground page and live prediction API details
+                        also prints steps to update the model submissions by the user/team 
+        """
+
+
+        # test whether playground is already active
+        if self.playground_url: 
+            print(self.playground_url)
+            def ask_user():
+                print("Playground is already active. Would you like to overwrite?")
+                response = ''
+                while response not in {"yes", "no"}:
+                    response = input("Please enter yes or no: ").lower()
+                return response != "yes"
+
+            r = ask_user()
+
+            if r: 
+                return
+
+        track_artifacts = {"model_filepath": bool(model_filepath),
+                            "preprocessor_filepath": bool(preprocessor_filepath), 
+                            "y_train": bool(y_train),
+                            "example_data": bool(example_data),
+                            "custom_libraries": bool(custom_libraries),
+                            "image": bool(image),
+                            "reproducibility_env_filepath": bool(reproducibility_env_filepath),
+                            "memory": bool(memory),
+                            "timeout": bool(timeout),
+                            "pyspark_support": bool(pyspark_support)
+                            }
+
+        import pandas as pd
+        import pkg_resources
+
+        # insert placeholders into empty arguments
+        if model_filepath == None:
+            model_filepath = pkg_resources.resource_filename(__name__, "placeholders/model.onnx")
+
+        if preprocessor_filepath == None:
+            preprocessor_filepath = pkg_resources.resource_filename(__name__, "placeholders/preprocessor.zip")
+
+        if y_train == None:
+            y_train = []
+
+        if example_data == None:
+            example_data = pd.DataFrame()
+
+        import json, tempfile
+        tfile = tempfile.NamedTemporaryFile(mode="w+")
+        json.dump(track_artifacts, tfile)
+        tfile.flush()
+
+        input_dict = {"requirements": "",
+                      "model_name": "Default Model Playground",
+                      "model_description": "",
+                      "tags": ""}
+
+        from aimodelshare.generatemodelapi import model_to_api
+        self.playground_url = model_to_api(model_filepath=model_filepath, 
+                                      model_type = self.model_type, 
+                                      private = self.private, 
+                                      categorical = self.categorical,
+                                      y_train = y_train, 
+                                      preprocessor_filepath = preprocessor_filepath, 
+                                      example_data = example_data,
+                                      custom_libraries = custom_libraries,
+                                      image=image,
+                                      reproducibility_env_filepath = reproducibility_env_filepath,
+                                      memory=memory,
+                                      timeout=timeout,
+                                      email_list=self.email_list,
+                                      pyspark_support=pyspark_support,
+                                      input_dict=input_dict, 
+                                      print_output=False)
+        #remove extra quotes
+        self.playground_url = self.playground_url[1:-1]
+
+        # upload track artifacts
+        from aimodelshare.aws import get_s3_iam_client
+        s3, iam, region = get_s3_iam_client(os.environ.get("AWS_ACCESS_KEY_ID"), os.environ.get("AWS_SECRET_ACCESS_KEY"), os.environ.get("AWS_REGION"))
+
+
+        unique_model_id = self.playground_url.split(".")[0].split("//")[-1]
+
+        s3["client"].upload_file(tfile.name, os.environ.get("BUCKET_NAME"), unique_model_id + "/track_artifacts.json") 
+
 
     def deploy(self, model_filepath, preprocessor_filepath, y_train, example_data=None, custom_libraries = "FALSE", image="", reproducibility_env_filepath=None, memory=None, timeout=None, pyspark_support=False,input_dict=None):
 
@@ -81,7 +205,20 @@ class ModelPlayground:
         print_api_info : prints statements with generated live prediction API details
                         also prints steps to update the model submissions by the user/team
         """
-        
+
+        # check whether playground url exists
+        if self.playground_url: 
+            print(self.playground_url)
+            print("Trying to deploy to active playground. Would you like to overwrite prediction API?")
+            response = ''
+            while response not in {"yes", "no"}:
+                response = input("Please enter yes or no: ").lower()
+
+            if response == "no":
+
+                print("Please instantiate a new playground and try again.")
+                return
+
 
         from aimodelshare.generatemodelapi import model_to_api
         self.playground_url = model_to_api(model_filepath=model_filepath, 
@@ -103,6 +240,7 @@ class ModelPlayground:
         #remove extra quotes
         self.playground_url = self.playground_url[1:-1]
     
+
     def create_competition(self, data_directory, y_test, eval_metric_filepath=None, email_list = [], public=False, public_private_split=0.5):
         """
         Creates a model competition for a deployed prediction REST API
@@ -125,6 +263,12 @@ class ModelPlayground:
         finalmessage : Information such as how to submit models to competition
         
         """
+
+        # catch email list error
+        if public==False and email_list == []:
+            raise ValueError("Please submit valid email list for private competition.")
+
+
         from aimodelshare.generatemodelapi import create_competition
 
         competition = create_competition(self.playground_url, 
@@ -159,6 +303,12 @@ class ModelPlayground:
         finalmessage : Information such as how to submit models to experiment
         
         """
+
+        # catch email list error
+        if public==False and email_list == []:
+            raise ValueError("Please submit valid email list for private experiment.")
+
+
         from aimodelshare.generatemodelapi import create_experiment
 
         experiment = create_experiment(self.playground_url, 
@@ -170,7 +320,9 @@ class ModelPlayground:
                                     public_private_split)
         return experiment
 
-    def submit_model(self, model_filepath, preprocessor_filepath, prediction_submission):
+    def quick_submit(self, model_filepath, preprocessor_filepath, prediction_submission, y_test, 
+        data_directory=None, eval_metric_filepath=None, email_list = [], public=True, public_private_split=0.5,
+        model_input=None):
         """
         Submits model/preprocessor to machine learning experiment leaderboard and model architecture database using live prediction API url generated by AI Modelshare library
         The submitted model gets evaluated and compared with all existing models and a leaderboard can be generated 
@@ -190,21 +342,130 @@ class ModelPlayground:
             file is generated from preprocessor module using export_preprocessor function from the AI Modelshare library 
         `prediction_submission`: [REQUIRED] list of predictions from X test data that will be used to evaluate model prediction error against y test data.
             Use mycompetition.inspect_y_test() to view example of list expected by competition.
+        `y_test` :  ``list`` of y values for test data used to generate metrics from predicted values from X test data submitted via the submit_model() function
+            [REQUIRED] to generate eval metrics in experiment leaderboard                        
+        `data_directory` : folder storing training data and test data (excluding Y test data)
+        `email_list`: [OPTIONAL] list of comma separated emails for users who are allowed to submit models to experiment leaderboard.  Emails should be strings in a list.
+        `public`: [REQUIRED] True/false. Defaults to False.  If True, experiment is public and ANY AIMODELSHARE USER CAN SUBMIT MODELS.  USE WITH CAUTION b/c one model and 
+            one preprocessor file will be be saved to your AWS S3 folder for each model submission.
+        `public_private_split`: [REQUIRED] Float between 0 and 1. Defaults to 0. Porportion of test data that is allocated to private hold-out set.
+        
         
         Returns:
         -------
         response:   Model version if the model is submitted sucessfully
                     error  if there is any error while submitting models
-        
         """
 
-        from aimodelshare.model import submit_model as submit
-        submission = submit(model = model_filepath, 
-                            apiurl = self.playground_url,
-                            prediction_submission = prediction_submission, 
-                            preprocessor = preprocessor_filepath)
-        return submission
+        # catch email list error
+        if public==False and email_list == []:
+            raise ValueError("Please submit valid email list for private competition/experiment.")
+
+        # catch missing model_input for pytorch 
+        if isinstance(model_filepath, torch.nn.Module) and model_input==None:
+            raise ValueError("Please submit valid model_input for pytorch model.")
+
+
+        # test whether playground is active, activate if that is not the case
+        if not self.playground_url:
+            self.activate()
+
+        # if playground is active, ask whether user wants to overwrite 
+        else:
+
+            print("The Model Playground is already active. Do you want to overwrite existing competitions and experiments?")
+            response = ''
+            while response not in {"yes", "no"}:
+                response = input("Please enter yes or no: ").lower()
+
+            if response == "no":
+
+                print("Please instantiate a new playground and try again.")
+                return
+
+        if isinstance(model_filepath, onnx.ModelProto): 
+            temp = tempfile.NamedTemporaryFile()
+            temp.write(model_filepath.SerializeToString())
+            model_filepath = temp.name
+
+        elif not (model_filepath == None or isinstance(model_filepath, str)): 
+
+            from aimodelshare.aimsonnx import model_to_onnx
+
+            if isinstance(model_filepath, torch.nn.Module):
+                onnx_model = model_to_onnx(model_filepath, model_input=model_input)
+            else:
+                onnx_model = model_to_onnx(model_filepath)
+
+            temp = tempfile.NamedTemporaryFile()
+            temp.write(onnx_model.SerializeToString())
+            model_filepath = temp.name
+
+
+
+        # get model id from playground url
+        unique_model_id = self.playground_url.split(".")[0].split("//")[-1]
+
+        comp_input_dict = {"competition_name": "Default Competition "+unique_model_id,
+                            "competition_description": "",
+                            "data_description": "",
+                            "data_license": ""}
+
+        from aimodelshare.generatemodelapi import create_competition
+        create_competition(apiurl=self.playground_url,
+                                data_directory=data_directory, 
+                                y_test = y_test,
+                                eval_metric_filepath = eval_metric_filepath,
+                                email_list=email_list,
+                                public=public,
+                                public_private_split=public_private_split,
+                                input_dict=comp_input_dict,
+                                print_output=False)
+
+
         
+        exp_input_dict = {"experiment_name": "Default Experiment "+unique_model_id,
+                            "experiment_description": "",
+                            "data_description": "",
+                            "data_license": ""}
+
+        from aimodelshare.generatemodelapi import create_experiment
+        create_experiment(apiurl=self.playground_url,
+                                data_directory=data_directory, 
+                                y_test = y_test,
+                                eval_metric_filepath = eval_metric_filepath,
+                                email_list=email_list,
+                                public=public,
+                                public_private_split=public_private_split,
+                                input_dict=exp_input_dict,
+                                print_output=False)
+
+
+        competition = Competition(self.playground_url)
+
+        experiment = Experiment(self.playground_url)
+
+
+        print("")
+        with open(os.devnull, "w") as f, contextlib.redirect_stdout(f):
+
+            competition.submit_model(model_filepath = model_filepath,
+                                    preprocessor_filepath=preprocessor_filepath,
+                                    prediction_submission=prediction_submission,
+                                    input_dict={"tags":"", "description":""},
+                                    print_output=False)
+
+            experiment.submit_model(model_filepath = model_filepath,
+                                 preprocessor_filepath=preprocessor_filepath,
+                                 prediction_submission=prediction_submission,
+                                 input_dict={"tags":"", "description":""},
+                                 print_output=False)
+
+        try:    
+            temp.close()
+        except:
+            pass
+
 
     
     def update_runtime_model(self, model_version=None, submission_type="competition"):
@@ -309,6 +570,13 @@ class ModelPlayground:
         update = update_list(apiurl = self.playground_url, email_list=email_list, update_type=update_type)
         return update
 
+    def update_model(self): 
+        return
+
+
+    def update_preprocessor(self): 
+        return
+
 
 class Competition:
     """
@@ -327,7 +595,7 @@ class Competition:
         return f"Competition class instance for playground: {self.playground_url}"
         
     def submit_model(self, model_filepath, preprocessor_filepath, prediction_submission, 
-        sample_data=None, reproducibility_env_filepath=None, custom_metadata=None):
+        sample_data=None, reproducibility_env_filepath=None, custom_metadata=None, input_dict=None, print_output=True):
         """
         Submits model/preprocessor to machine learning competition using live prediction API url generated by AI Modelshare library
         The submitted model gets evaluated and compared with all existing models and a leaderboard can be generated
@@ -354,14 +622,16 @@ class Competition:
         response:   Model version if the model is submitted sucessfully
         """
 
-        from aimodelshare.model import submit_model as submit
-        submission = submit(model_filepath = model_filepath, 
+        from aimodelshare.model import submit_model
+        submission = submit_model(model_filepath = model_filepath, 
                               apiurl = self.playground_url,
                               prediction_submission = prediction_submission, 
                               preprocessor = preprocessor_filepath,
                               reproducibility_env_filepath = reproducibility_env_filepath,
                               custom_metadata = custom_metadata, 
-                              submission_type = self.submission_type)
+                              submission_type = self.submission_type,
+                              input_dict=input_dict,
+                              print_output=print_output)
         return submission
 
     def instantiate_model(self, version=None, trained=False, reproduce=False): 
