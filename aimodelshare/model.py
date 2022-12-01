@@ -7,16 +7,15 @@ import pandas as pd
 import requests 
 import json
 import ast
-import tempfile
 import tensorflow as tf
-
+import tempfile as tmp
 from datetime import datetime
+import torch
 
 from aimodelshare.leaderboard import get_leaderboard
-
 from aimodelshare.aws import run_function_on_lambda, get_token, get_aws_token, get_aws_client
-
 from aimodelshare.aimsonnx import _get_leaderboard_data, inspect_model, _get_metadata, _model_summary, model_from_string, pyspark_model_from_string, _get_layer_names, _get_layer_names_pytorch
+from aimodelshare.aimsonnx import model_to_onnx
 
 
 def _get_file_list(client, bucket,keysubfolderid):
@@ -270,8 +269,7 @@ def _update_leaderboard_public(
     metadata["version"] = model_version
 
     # }}}
-    import tempfile
-    temp=tempfile.mkdtemp()
+    temp=tmp.mkdtemp()
     #TODO: send above data in post call to /eval and update master table on back end rather than downloading locally.
     #Either way something is breaking and the s3 version should still work right??
     # Read existing table {{{
@@ -341,11 +339,9 @@ def _update_leaderboard_public(
 def upload_model_dict(modelpath, s3_presigned_dict, bucket, model_id, model_version, placeholder=False, onnx_model=None):
     import wget
     import json
-    import tempfile
     import ast
-    temp=tempfile.mkdtemp()
+    temp=tmp.mkdtemp()
     # get model summary from onnx
-    import ast
     import astunparse
 
     if placeholder==False: 
@@ -484,9 +480,8 @@ def upload_model_dict(modelpath, s3_presigned_dict, bucket, model_id, model_vers
 def upload_model_graph(modelpath, s3_presigned_dict, bucket, model_id, model_version, onnx_model=None):
     import wget
     import json
-    import tempfile
     import ast
-    temp=tempfile.mkdtemp()
+    temp=tmp.mkdtemp()
     # get model summary from onnx
 
     if onnx_model==None:
@@ -589,6 +584,20 @@ def submit_model(
     
     """
 
+    # catch missing model_input for pytorch 
+    if isinstance(model_filepath, torch.nn.Module) and model_input==None:
+        raise ValueError("Please submit valid model_input for pytorch model.")
+
+    # check whether preprocessor is function
+    import types
+    if isinstance(preprocessor, types.FunctionType): 
+        from aimodelshare.preprocessormodules import export_preprocessor
+        temp_prep=tmp.mkdtemp()
+        export_preprocessor(preprocessor,temp_prep)
+        preprocessor = temp_prep+"/preprocessor.zip"
+
+
+
     import os
     from aimodelshare.aws import get_aws_token
     from aimodelshare.modeluser import get_jwt_token, create_user_getkeyandpassword
@@ -633,9 +642,8 @@ def submit_model(
     #includes checks if returned values a success and errors otherwise
 
     import os
-    import tempfile
     import pickle
-    temp = tempfile.mkdtemp()
+    temp = tmp.mkdtemp()
     predictions_path = temp + "/" + 'predictions.pkl'
 
     fileObject = open(predictions_path, 'wb')
@@ -763,10 +771,14 @@ def submit_model(
 
     if not (model_filepath == None or isinstance(model_filepath, str)): 
 
-        print("Transform model object to onnx.")
-        from aimodelshare.aimsonnx import model_to_onnx
-        import tempfile as tmp
-        onnx_model = model_to_onnx(model_filepath)
+        if isinstance(model_filepath, onnx.ModelProto):
+            onnx_model = model_filepath
+        else:
+            print("Transform model object to onnx.")
+            if isinstance(model_filepath, torch.nn.Module) and model_input==None:
+                onnx_model = model_to_onnx(model_filepath, model_input=model_input)
+            else:
+                onnx_model = model_to_onnx(model_filepath)
         temp = tmp.NamedTemporaryFile()
         temp.write(onnx_model.SerializeToString())
         model_filepath = temp.name
@@ -814,7 +826,7 @@ def submit_model(
             "model_type": meta_dict["model_type"]
         }
 
-        temp = tempfile.mkdtemp()
+        temp = tmp.mkdtemp()
         model_metadata_path = temp + "/" + 'model_metadata.json'
         with open(model_metadata_path, 'w') as outfile:
             json.dump(model_metadata, outfile)
