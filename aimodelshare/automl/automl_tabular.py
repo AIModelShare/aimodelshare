@@ -29,7 +29,6 @@ def data_preprocessing(*datasets):
     datasets_processed = []
     for dataset in datasets:
         preprocessor = dabl.EasyPreprocessor()
-        dataset = dabl.clean(dataset)
         preprocessor.fit(dataset)
         datasets_processed.append(preprocessor.transform(dataset))
     return datasets_processed
@@ -196,6 +195,8 @@ if __name__ == "__main__":
     else:
         X_train, X_test, y_train, y_test = data_preparation(dataset_name, keyword=args.keyword)
 
+    X_train = dabl.clean(X_train)
+    X_test = dabl.clean(X_test)
     # X_train, X_test = data_preprocessing(X_train, X_test)
     if y_train.dtype != int or y_test.dtype != int:
         y_train, y_test = label_preprocessing(y_train, y_test)
