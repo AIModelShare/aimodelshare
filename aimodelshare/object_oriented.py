@@ -39,11 +39,16 @@ class ModelPlayground:
         self.private = private
         self.playground_url = playground_url
         self.email_list = email_list
-
+        def codestring(self):
+            if self.playground_url==None:
+              return   "ModelPlayground(model_type="+"'"+str(self.model_type)+"'"+",categorical="+str(self.categorical)+",private="+str(self.private)+",playground_url="+str(self.playground_url)+",email_list="+str(self.email_list)+")"
+            else:
+              return   "ModelPlayground(model_type="+"'"+str(self.model_type)+"'"+",categorical="+str(self.categorical)+",private="+str(self.private)+",playground_url="+"'"+str(self.playground_url)+"'"+",email_list="+str(self.email_list)+")"
+        self.class_string=codestring(self)
     
     
     def __str__(self):
-        return f"ModelPlayground instance of model type: {self.model_type}, classification: {self.categorical},  private: {self.private}"
+        return f"ModelPlayground(self.model_type,self.categorical,self.private = private,self.playground_url,self.email_list)"
 
 
     def activate(self, model_filepath=None, preprocessor_filepath=None, y_train=None, example_data=None, custom_libraries = "FALSE", image="", reproducibility_env_filepath=None, memory=None, timeout=None, pyspark_support=False): 
