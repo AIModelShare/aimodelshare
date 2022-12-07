@@ -1,4 +1,4 @@
-import os
+import os, sys
 import shutil
 import tempfile
 
@@ -15,3 +15,12 @@ def delete_folder(folder_path):
 
 def make_folder(folder_path):
     os.makedirs(folder_path, exist_ok=True)
+
+class HiddenPrints:
+    def __enter__(self):
+        self._original_stdout = sys.stdout
+        sys.stdout = open(os.devnull, 'w')
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        sys.stdout.close()
+        sys.stdout = self._original_stdout

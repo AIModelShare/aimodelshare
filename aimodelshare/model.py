@@ -1108,7 +1108,7 @@ def submit_model(
     if print_output:
         return print("\nYour model has been submitted as model version "+str(model_version)+ "\n\n"+code_comp_result)
     else:
-        return
+        return str(model_version)
 
 def update_runtime_model(apiurl, model_version=None, submission_type="competition"):
     """

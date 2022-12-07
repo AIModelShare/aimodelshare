@@ -50,6 +50,8 @@ import absl.logging
 import networkx as nx
 import warnings
 from pathlib import Path
+import time
+import signal
 
 
 absl.logging.set_verbosity(absl.logging.ERROR)
@@ -934,6 +936,55 @@ def model_to_onnx(model, framework=None, model_input=None, initial_types=None,
     return onnx
 
 
+
+def model_to_onnx_timed(model_filepath, force_onnx=False, timeout=60): 
+
+    if not (model_filepath == None or isinstance(model_filepath, str) or isinstance(model_filepath, onnx.ModelProto)): 
+
+        if force_onnx:
+            if isinstance(model_filepath, torch.nn.Module):
+                onnx_model = model_to_onnx(model_filepath, model_input=model_input)
+            else:
+                onnx_model = model_to_onnx(model_filepath)
+            model_filepath = onnx_model
+
+        else:
+
+            # interrupt if onnx conversion is taking too long
+            def timeout_handler(num, stack):
+                raise Exception("timeout")
+
+            signal.alarm(timeout)
+
+            try:
+
+                if isinstance(model_filepath, torch.nn.Module):
+                    onnx_model = model_to_onnx(model_filepath, model_input=model_input)
+                else:
+                    onnx_model = model_to_onnx(model_filepath)
+                model_filepath = onnx_model
+
+            except:
+                print("Timeout: Model to ONNX conversion is taking longer than expected. This can be the case for big models.")
+                response = ''
+                while response not in {"1", "2"}:
+                    response = input("Do you want to keep trying (1) or submit predictions only (2)? ")
+
+                if response == "1":
+                    if isinstance(model_filepath, torch.nn.Module):
+                        onnx_model = model_to_onnx(model_filepath, model_input=model_input)
+                    else:
+                        onnx_model = model_to_onnx(model_filepath)
+                    model_filepath = onnx_model
+
+                elif response == "2":
+                    model_filepath = None
+
+            finally:
+                print()
+                signal.alarm(0)
+
+    return model_filepath
 
 def _get_metadata(onnx_model):
     '''Fetches previously extracted model metadata from ONNX object
@@ -2074,6 +2125,5 @@ def rename_layers(in_layers, direction="torch_to_keras", activation=False):
       out_layers.append(layer_name_temp)
 
   return out_layers
-
 
 
