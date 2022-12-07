@@ -581,7 +581,7 @@ def create_competition(apiurl, data_directory, y_test, eval_metric_filepath=None
     # create temporary folder
     temp_dir = tempfile.gettempdir()
     
-    s3, iam, region = get_s3_iam_client(os.environ.get("AWS_ACCESS_KEY_ID"), os.environ.get("AWS_SECRET_ACCESS_KEY"), os.environ.get("AWS_REGION"))
+    s3, iam, region = get_s3_iam_client(os.environ.get("AWS_ACCESS_KEY_ID_AIMS"), os.environ.get("AWS_SECRET_ACCESS_KEY_AIMS"), os.environ.get("AWS_REGION_AIMS"))
     
     # Get bucket and model_id subfolder for user based on apiurl {{{
     response, error = run_function_on_lambda(
