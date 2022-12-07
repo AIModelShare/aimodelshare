@@ -229,116 +229,133 @@ class ModelPlayground:
                 return
         # model deployment files (plus ytrain object)
 
-        def upload_playground_zipfile(model_filepath=None, preprocessor_filepath=None, y_train=None, example_data=None):
-            """
-            minimally requires model_filepath, preprocessor_filepath 
-            """
-            zipfilelist=[model_filepath,preprocessor_filepath]
-
-            import json
-            import os
-            import requests
-            import pandas as pd
-            if isinstance(example_data, pd.DataFrame):
-                pass
-            else:
-                zipfilelist.append(example_data)
-
-            #need to save dict pkl file with arg name and filepaths to add to zipfile
 
 
+        if self.awscheck==False:
+            def upload_playground_zipfile(model_filepath=None, preprocessor_filepath=None, y_train=None, example_data=None):
+                """
+                minimally requires model_filepath, preprocessor_filepath 
+                """
+                zipfilelist=[model_filepath,preprocessor_filepath]
 
+                import json
+                import os
+                import requests
+                import pandas as pd
+                if isinstance(example_data, pd.DataFrame):
+                    pass
+                else:
+                    zipfilelist.append(example_data)
 
-
-            apiurl_eval=apiurl[:-1]+"eval"
-
-            headers = { 'Content-Type':'application/json', 'authorizationToken': json.dumps({"token":os.environ.get("AWS_TOKEN"),"eval":"TEST"}), } 
-            post_dict = {"return_zip": "True"}
-            zipfile = requests.post(apiurl_eval,headers=headers,data=json.dumps(post_dict)) 
-
-            zipfileputlistofdicts=json.loads(zipfile.text)['put']
-
-            zipfilename=list(zipfileputlistofdicts.keys())[0]
-
-            from zipfile import ZipFile
-            import os
-            from os.path import basename
-            import tempfile
-
-            wkingdir=os.getcwd()
-
-            tempdir=tempfile.gettempdir() 
-
-            zipObj = ZipFile(tempdir+"/"+zipfilename, 'w')
-            # Add multiple files to the zip
-            for i in zipfilelist:
-              zipObj.write(i)
-
-            # add object to pkl file pathway here. (saving y label data)
-            import pickle
-
-            if y_train==None:
-              pass
-            else:
-              with open(tempdir+"/"+'ytrain.pkl', 'wb') as f:
-                pickle.dump(y_train, f)
-
-              os.chdir(tempdir)
-              zipObj.write('ytrain.pkl')
-
-            if isinstance(example_data, pd.DataFrame):
-              with open(tempdir+"/"+'exampledata.pkl', 'wb') as f:
-                pickle.dump(example_data, f)
-
-              os.chdir(tempdir)
-              zipObj.write('exampledata.pkl')
-            else:
-              pass
-
-
-            # close the Zip File
-            os.chdir(wkingdir)
-
-            zipObj.close()
+                #need to save dict pkl file with arg name and filepaths to add to zipfile
 
 
 
-            import ast
-
-            finalzipdict=ast.literal_eval(zipfileputlistofdicts[zipfilename])
-
-            url=finalzipdict['url']
-            fields=finalzipdict['fields']
-
-            #### save files from model deploy to zipfile in tempdir before loading to s3
 
 
+                apiurl_eval=apiurl[:-1]+"eval"
 
-            ### Load zipfile to s3
-            with open(tempdir+"/"+zipfilename, 'rb') as f:
-              files = {'file': (tempdir+"/"+zipfilename, f)}
-              http_response = requests.post(url, data=fields, files=files)
-            return zipfilename
+                headers = { 'Content-Type':'application/json', 'authorizationToken': json.dumps({"token":os.environ.get("AWS_TOKEN"),"eval":"TEST"}), } 
+                post_dict = {"return_zip": "True"}
+                zipfile = requests.post(apiurl_eval,headers=headers,data=json.dumps(post_dict)) 
 
-        from aimodelshare.generatemodelapi import model_to_api
-        self.playground_url = model_to_api(model_filepath=model_filepath, 
-                                      model_type = self.model_type, 
-                                      private = self.private, 
-                                      categorical = self.categorical,
-                                      y_train = y_train, 
-                                      preprocessor_filepath = preprocessor_filepath, 
-                                      example_data = example_data,
-                                      custom_libraries = custom_libraries,
-                                      image=image,
-                                      reproducibility_env_filepath = reproducibility_env_filepath,
-                                      memory=memory,
-                                      timeout=timeout,
-                                      email_list=self.email_list,
-                                      pyspark_support=pyspark_support,
-                                      input_dict=input_dict, 
-                                      print_output=False)
-        #remove extra quotes
-        self.playground_url = self.playground_url[1:-1]
+                zipfileputlistofdicts=json.loads(zipfile.text)['put']
+
+                zipfilename=list(zipfileputlistofdicts.keys())[0]
+
+                from zipfile import ZipFile
+                import os
+                from os.path import basename
+                import tempfile
+
+                wkingdir=os.getcwd()
+
+                tempdir=tempfile.gettempdir() 
+
+                zipObj = ZipFile(tempdir+"/"+zipfilename, 'w')
+                # Add multiple files to the zip
+                for i in zipfilelist:
+                  zipObj.write(i)
+
+                # add object to pkl file pathway here. (saving y label data)
+                import pickle
+
+                if y_train==None:
+                  pass
+                else:
+                  with open(tempdir+"/"+'ytrain.pkl', 'wb') as f:
+                    pickle.dump(y_train, f)
+
+                  os.chdir(tempdir)
+                  zipObj.write('ytrain.pkl')
+
+                if isinstance(example_data, pd.DataFrame):
+                  with open(tempdir+"/"+'exampledata.pkl', 'wb') as f:
+                    pickle.dump(example_data, f)
+
+                  os.chdir(tempdir)
+                  zipObj.write('exampledata.pkl')
+                else:
+                  pass
+
+
+                # close the Zip File
+                os.chdir(wkingdir)
+
+                zipObj.close()
+
+
+
+                import ast
+
+                finalzipdict=ast.literal_eval(zipfileputlistofdicts[zipfilename])
+
+                url=finalzipdict['url']
+                fields=finalzipdict['fields']
+
+                #### save files from model deploy to zipfile in tempdir before loading to s3
+
+
+
+                ### Load zipfile to s3
+                with open(tempdir+"/"+zipfilename, 'rb') as f:
+                  files = {'file': (tempdir+"/"+zipfilename, f)}
+                  http_response = requests.post(url, data=fields, files=files)
+                return zipfilename
+            deployzipfilename=upload_playground_zipfile(model_filepath, preprocessor_filepath, y_train, example_data)   
+            #if aws arg = false, do this, otherwise do aws code
+            #create deploy code_string
+            def nonecheck(objinput=""):
+                if objinput==None:
+                  objinput="None"
+                else:
+                  objinput="'"+objinput+"'"
+                return objinput
+
+            deploystring=self.class_string+"."+"deploy('"+model_filepath+"','"+preprocessor_filepath+"',"+str(y_train)+","+nonecheck(None)+",input_data="+str(input_dict)+')"'
+
+        else:    
+        
+            #aws pathway begins here
+            from aimodelshare.generatemodelapi import model_to_api
+            self.playground_url = model_to_api(model_filepath=model_filepath, 
+                                          model_type = self.model_type, 
+                                          private = self.private, 
+                                          categorical = self.categorical,
+                                          y_train = y_train, 
+                                          preprocessor_filepath = preprocessor_filepath, 
+                                          example_data = example_data,
+                                          custom_libraries = custom_libraries,
+                                          image=image,
+                                          reproducibility_env_filepath = reproducibility_env_filepath,
+                                          memory=memory,
+                                          timeout=timeout,
+                                          email_list=self.email_list,
+                                          pyspark_support=pyspark_support,
+                                          input_dict=input_dict, 
+                                          print_output=False)
+            #remove extra quotes
+            self.playground_url = self.playground_url[1:-1]
     
 
     def create_competition(self, data_directory, y_test, eval_metric_filepath=None, email_list = [], public=False, public_private_split=0.5):
