@@ -26,6 +26,9 @@ class ModelPlayground:
                 list should contain same emails that were used by users to sign up for modelshare.org account.
                 [OPTIONAL] set by the playground owner for private playgrounds.  Can also be updated by editing deployed 
                 playground page at www.modelshare.org.
+    `aws` :   ``bool, default = True`` 
+        True if user wishes to deploy playground using their aws account
+        False [DEFAULT] if user wishes to deploy using Model Share platform 
     """
     def __init__(self, model_type=None, classification=None, private=None, playground_url=None, email_list=[]):
         # confirm correct args are provided
@@ -39,16 +42,17 @@ class ModelPlayground:
         self.private = private
         self.playground_url = playground_url
         self.email_list = email_list
+        self.awscheck = aws
         def codestring(self):
             if self.playground_url==None:
-              return   "ModelPlayground(model_type="+"'"+str(self.model_type)+"'"+",categorical="+str(self.categorical)+",private="+str(self.private)+",playground_url="+str(self.playground_url)+",email_list="+str(self.email_list)+")"
+              return   "ModelPlayground(model_type="+"'"+str(self.model_type)+"'"+",categorical="+str(self.categorical)+",private="+str(self.private)+",playground_url="+str(self.playground_url)+",email_list="+str(self.email_list)+",aws="+str(self.awscheck)+")"
             else:
-              return   "ModelPlayground(model_type="+"'"+str(self.model_type)+"'"+",categorical="+str(self.categorical)+",private="+str(self.private)+",playground_url="+"'"+str(self.playground_url)+"'"+",email_list="+str(self.email_list)+")"
+              return   "ModelPlayground(model_type="+"'"+str(self.model_type)+"'"+",categorical="+str(self.categorical)+",private="+str(self.private)+",playground_url="+"'"+str(self.playground_url)+"'"+",email_list="+str(self.email_list)+",aws="+str(self.awscheck)+")"
         self.class_string=codestring(self)
     
     
     def __str__(self):
-        return f"ModelPlayground(self.model_type,self.categorical,self.private = private,self.playground_url,self.email_list)"
+        return f"ModelPlayground(self.model_type,self.categorical,self.private = private,self.playground_url,self.email_list, self.awscheck)"
 
 
     def activate(self, model_filepath=None, preprocessor_filepath=None, y_train=None, example_data=None, custom_libraries = "FALSE", image="", reproducibility_env_filepath=None, memory=None, timeout=None, pyspark_support=False): 
@@ -223,7 +227,98 @@ class ModelPlayground:
 
                 print("Please instantiate a new playground and try again.")
                 return
+        # model deployment files (plus ytrain object)
 
+        def upload_playground_zipfile(model_filepath=None, preprocessor_filepath=None, y_train=None, example_data=None):
+            """
+            minimally requires model_filepath, preprocessor_filepath 
+            """
+            zipfilelist=[model_filepath,preprocessor_filepath]
+
+            import json
+            import os
+            import requests
+            import pandas as pd
+            if isinstance(example_data, pd.DataFrame):
+                pass
+            else:
+                zipfilelist.append(example_data)
+
+            #need to save dict pkl file with arg name and filepaths to add to zipfile
+
+
+
+
+
+            apiurl_eval=apiurl[:-1]+"eval"
+
+            headers = { 'Content-Type':'application/json', 'authorizationToken': json.dumps({"token":os.environ.get("AWS_TOKEN"),"eval":"TEST"}), } 
+            post_dict = {"return_zip": "True"}
+            zipfile = requests.post(apiurl_eval,headers=headers,data=json.dumps(post_dict)) 
+
+            zipfileputlistofdicts=json.loads(zipfile.text)['put']
+
+            zipfilename=list(zipfileputlistofdicts.keys())[0]
+
+            from zipfile import ZipFile
+            import os
+            from os.path import basename
+            import tempfile
+
+            wkingdir=os.getcwd()
+
+            tempdir=tempfile.gettempdir() 
+
+            zipObj = ZipFile(tempdir+"/"+zipfilename, 'w')
+            # Add multiple files to the zip
+            for i in zipfilelist:
+              zipObj.write(i)
+
+            # add object to pkl file pathway here. (saving y label data)
+            import pickle
+
+            if y_train==None:
+              pass
+            else:
+              with open(tempdir+"/"+'ytrain.pkl', 'wb') as f:
+                pickle.dump(y_train, f)
+
+              os.chdir(tempdir)
+              zipObj.write('ytrain.pkl')
+
+            if isinstance(example_data, pd.DataFrame):
+              with open(tempdir+"/"+'exampledata.pkl', 'wb') as f:
+                pickle.dump(example_data, f)
+
+              os.chdir(tempdir)
+              zipObj.write('exampledata.pkl')
+            else:
+              pass
+
+
+            # close the Zip File
+            os.chdir(wkingdir)
+
+            zipObj.close()
+
+
+
+            import ast
+
+            finalzipdict=ast.literal_eval(zipfileputlistofdicts[zipfilename])
+
+            url=finalzipdict['url']
+            fields=finalzipdict['fields']
+
+            #### save files from model deploy to zipfile in tempdir before loading to s3
+
+
+
+            ### Load zipfile to s3
+            with open(tempdir+"/"+zipfilename, 'rb') as f:
+              files = {'file': (tempdir+"/"+zipfilename, f)}
+              http_response = requests.post(url, data=fields, files=files)
+            return zipfilename
 
         from aimodelshare.generatemodelapi import model_to_api
         self.playground_url = model_to_api(model_filepath=model_filepath, 
