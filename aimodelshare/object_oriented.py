@@ -30,7 +30,7 @@ class ModelPlayground:
         True if user wishes to deploy playground using their aws account
         False [DEFAULT] if user wishes to deploy using Model Share platform 
     """
-    def __init__(self, model_type=None, classification=None, private=None, playground_url=None, email_list=[]):
+    def __init__(self, model_type=None, classification=None, private=None, playground_url=None, email_list=[], aws=True):
         # confirm correct args are provided
         if playground_url != None or all([model_type !=None, classification !=None, private!=None]):
             pass
