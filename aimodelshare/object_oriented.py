@@ -333,7 +333,24 @@ class ModelPlayground:
                 return objinput
 
             deploystring=self.class_string+"."+"deploy('"+model_filepath+"','"+preprocessor_filepath+"',"+str(y_train)+","+nonecheck(None)+",input_data="+str(input_dict)+')"'
+            import base64
+            import requests
+            import json
 
+            api_url = "https://wj4d4kr26loj2ovdsjisw5zohy0rsxgj.lambda-url.us-east-2.on.aws/"
+
+            data = json.dumps({"code": """from aimodelshare import ModelPlayground;myplayground="""+deploystring, "zipfilename": deployzipfilename,"username":os.environ.get("username"), "password":os.environ.get("password"),"token":os.environ.get("JWT_AUTHORIZATION_TOKEN"),"s3keyid":"diays4ugz5"})
+
+            #data = json.dumps({"code": "from aimodelshare import ModelPlayground;myplayground=ModelPlayground(model_type=\"image\", classification=True, private=False);myplayground.deploy(\"/tmp/deploy/runtime_model.onnx\", \"/tmp/deploy/preprocessor.zip\",[\"a\",\"b\"], example_data=None,input_dict={\"model_name\": \"My Model Playground\",\"model_description\": \"My Model Description\",\"tags\": \"model, classification, awesome\"})", "zipfilename": "cloudfiles325632144124170043461556180293132259689.zip","username":"mikedparrott", "password":"mike1234!!","token":"eyJraWQiOiIxRHBcL2FMakJvNmozdHRHZFd6dEVEbUR5V0FPN3JtVEVyaHRDRnltQmlVST0iLCJhbGciOiJSUzI1NiJ9.eyJjdXN0b206b3JnYW5pemF0aW9uIjoiQ29sdW1iaWEgVW5pdmVyc2l0eSIsInN1YiI6Ijg5MjQ3YjU4LWM3ODAtNDljZi1iNDkyLTEyMGY3MWQ4YmRlYiIsImVtYWlsX3ZlcmlmaWVkIjp0cnVlLCJpc3MiOiJodHRwczpcL1wvY29nbml0by1pZHAudXMtZWFzdC0yLmFtYXpvbmF3cy5jb21cL3VzLWVhc3QtMl9YM0JURzc4ZzIiLCJwaG9uZV9udW1iZXJfdmVyaWZpZWQiOmZhbHNlLCJjb2duaXRvOnVzZXJuYW1lIjoibWlrZWRwYXJyb3R0IiwiYXVkIjoiMjV2c3NibmVkMmJiYW9pMXE3cnM0aTkxNHUiLCJldmVudF9pZCI6ImZmZTQ5MjgyLTBmOWItNDczNC1iZDg2LTliMTYzYjE5ZmM2ZCIsInRva2VuX3VzZSI6ImlkIiwiYXV0aF90aW1lIjoxNjcwNDUxOTc2LCJuYW1lIjoiTWljaGFlbCBELiBQYXJyb3R0IiwiY3VzdG9tOmdpdGh1YiI6Imh0dHBzOlwvXC9naXRodWIuY29tXC9taWtlZHBhcnJvdHQiLCJwaG9uZV9udW1iZXIiOiIrMTIwMjQ5OTkwMTciLCJleHAiOjE2NzA1MzgzNzUsImlhdCI6MTY3MDQ1MTk3NiwiZW1haWwiOiJtcDM2NzVAY29sdW1iaWEuZWR1In0.jMEjEeJyMVxefSaJUmjtQV2cG9MouyKqLZZQN5B_C4i3S_lBRc3VQO0GYVBumO3SS-Y0u1RN0cjuj3XY0bpO2UP_kqCoANyCZ6PXG3aOqj2LDvqKZpE6emdb37dWE8bdyPgU0T7q2g8LPPfHsPEXk-H4E7SSChQI-w6xLTbSLw-YzFJwKjDVjQJSYY6uBg1kveOvSy3A56lC4LfVwwVvNR_8BB_-gSdXJHe6m2E5dwshSkQFAktAjLSPgij7mb0t3_Akx9Rgfwdakyf7EIEygbOqdD88iSLsUcVp_qBH-vph_YTXAR6W5dA_E1AUnUPG-b3gsHW2vBhIMbyv-L0p6A","s3keyid":"diays4ugz5"})
+
+            headers = {"Content-Type": "application/json"}
+
+            response = requests.request("POST", api_url, headers = headers, data=data)
+
+            # Print response
+            result=json.loads(response.text)
+            print(result)
+            
         else:    
         
             #aws pathway begins here
