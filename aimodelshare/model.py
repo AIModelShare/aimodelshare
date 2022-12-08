@@ -897,7 +897,7 @@ def submit_model(
         if meta_dict['ml_framework'] == 'keras':
 
             inspect_pd = _model_summary(meta_dict)
-            model_graph = meta_dict['model_graph']
+            model_graph = ""
 
         if meta_dict['ml_framework'] == 'pytorch':
 
