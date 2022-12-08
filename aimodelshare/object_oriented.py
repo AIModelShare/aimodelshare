@@ -248,7 +248,7 @@ class ModelPlayground:
                 #need to save dict pkl file with arg name and filepaths to add to zipfile
 
 
-
+                apiurl="https://q39q8885p9.execute-api.us-east-2.amazonaws.com/prod/m"                 
 
 
                 apiurl_eval=apiurl[:-1]+"eval"
