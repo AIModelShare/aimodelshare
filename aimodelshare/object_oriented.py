@@ -62,7 +62,6 @@ class ModelPlayground:
         Inputs : 7
         Output : model launched to an API
                 detailed API info printed out
-
         Parameters: 
         ----------
         `model_filepath` :  ``string`` ends with '.onnx'
@@ -181,7 +180,6 @@ class ModelPlayground:
         Inputs : 7
         Output : model launched to an API
                 detailed API info printed out
-
         Parameters: 
         ----------
         `model_filepath` :  ``string`` ends with '.onnx'
@@ -647,12 +645,10 @@ class ModelPlayground:
     def update_runtime_model(self, model_version=None, submission_type="competition"):
         """
         Updates the prediction API behind the Model Playground with a new model from the leaderboard and verifies Model Playground performance metrics.
-
         Parameters:
         -----------
         `model_version`: ``int``
             model version number from competition leaderboard
-
         Returns:
         --------
         response:   success message when the model and preprocessor are updated successfully
@@ -665,14 +661,12 @@ class ModelPlayground:
     def instantiate_model(self, version=None, trained=False, reproduce=False, submission_type="competition"): 
         """
         Import a model previously submitted to a leaderboard to use in your session
-
         Parameters:
         -----------
         `version`: ``int``
             Model version number from competition or experiment leaderboard
         `trained`: ``bool, default=False``
             if True, a trained model is instantiated, if False, the untrained model is instantiated
-
         Returns:
         --------
         model: model chosen from leaderboard
@@ -705,12 +699,10 @@ class ModelPlayground:
         """
         Delete all components of a Model Playground, including: AWS s3 bucket & contents,
         attached competitions, prediction REST API, and interactive Model Playground web dashboard.
-
         Parameters:
         -----------
         `playground_url`: ``string`` of API URL the user wishes to delete
         WARNING: User must supply high-level credentials in order to delete an API.
-
         Returns:
         --------
         Success message when deployment is deleted.
@@ -728,7 +720,6 @@ class ModelPlayground:
     def update_access_list(self, email_list=[], update_type="Replace_list"):
         """
         Updates list of authenticated participants who can submit new models to a competition.
-
         Parameters:
         -----------
         `apiurl`: string
@@ -737,7 +728,6 @@ class ModelPlayground:
         `email_list`: [REQUIRED] list of comma separated emails for users who are allowed to submit models to competition.  Emails should be strings in a list.
         `update_type`:[REQUIRED] options, ``string``: 'Add', 'Remove', 'Replace_list','Get. Add appends user emails to original list, Remove deletes users from list, 
                   'Replace_list' overwrites the original list with the new list provided, and Get returns the current list.    
-
         Returns:
         --------
         response:   "Success" upon successful request
@@ -813,7 +803,6 @@ class Competition:
     def instantiate_model(self, version=None, trained=False, reproduce=False): 
         """
         Import a model previously submitted to the competition leaderboard to use in your session
-
         Parameters:
         -----------
         `version`: ``int``
@@ -850,7 +839,6 @@ class Competition:
     def inspect_model(self, version=None, naming_convention=None):
         """
         Examine structure of model submitted to a competition leaderboard
-
         Parameters:
         ----------
         `version` : ``int``
@@ -896,7 +884,6 @@ class Competition:
     def stylize_compare(self, compare_dict, naming_convention="keras"):
         """
         Stylizes data received from compare_models to highlight similarities & differences.
-
         Parameters:
         -----------
         `compare_dict` = dictionary of model data from compare_models
@@ -912,7 +899,6 @@ class Competition:
     def inspect_y_test(self):
         """
         Examines structure of y-test data to hep users understand how to submit models to the competition leaderboad.
-
         Parameters:
         ------------
         None
@@ -952,11 +938,9 @@ class Competition:
     def stylize_leaderboard(self, leaderboard, naming_convention="keras"):
         """
         Stylizes data received from get_leaderbord.
-
         Parameters:
         -----------
         `leaderboard` : data dictionary object returned from get_leaderboard
-
         Returns:
         --------
         Formatted competition leaderboard
@@ -968,7 +952,6 @@ class Competition:
     def update_access_list(self, email_list=[],update_type="Replace_list"):
         """
         Updates list of authenticated participants who can submit new models to a competition.
-
         Parameters:
         -----------
         `apiurl`: string
@@ -977,7 +960,6 @@ class Competition:
         `email_list`: [REQUIRED] list of comma separated emails for users who are allowed to submit models to competition.  Emails should be strings in a list.
         `update_type`:[REQUIRED] options, ``string``: 'Add', 'Remove', 'Replace_list','Get. Add appends user emails to original list, Remove deletes users from list, 
                   'Replace_list' overwrites the original list with the new list provided, and Get returns the current list.    
-
         Returns:
         --------
         response:   "Success" upon successful request
@@ -1025,4 +1007,3 @@ class Data:
         from aimodelshare.data_sharing.download_data import download_data as download
         datadownload = download(repository)
         return datadownload
-
