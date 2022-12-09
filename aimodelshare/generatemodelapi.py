@@ -128,8 +128,6 @@ def take_user_info_and_generate_api(model_filepath, model_type, categorical,labe
         Filepath = model_filepath
         model = onnx.load(model_filepath)
     metadata = _extract_model_metadata(model)
-    print("hello")
-    print(metadata)
     input_shape = metadata["input_shape"]
     #tab_imports ='./tabular_imports.pkl'
     #img_imports ='./image_imports.pkl'
@@ -299,6 +297,12 @@ def send_model_data_to_dyndb_and_return_api(api_info, private, categorical, prep
         variablename_and_type_data = ["", ""]
 
      # needs to use double backslashes and have full filepath
+
+    if isinstance(preprocessor_filepath, types.FunctionType): 
+        from aimodelshare.preprocessormodules import export_preprocessor
+        temp_prep=tempfile.mkdtemp()
+        export_preprocessor(preprocessor_filepath,temp_prep)
+        preprocessor_filepath = temp_prep+"/preprocessor.zip"
     preprocessor_file_extension = _get_extension_from_filepath(
         preprocessor_filepath)
     if exampledata_json_filepath!="":
