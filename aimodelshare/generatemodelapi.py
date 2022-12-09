@@ -12,6 +12,7 @@ import time
 import datetime
 import onnx
 import tempfile
+import types
 import sys
 import base64
 import mimetypes
@@ -118,10 +119,17 @@ def take_user_info_and_generate_api(model_filepath, model_type, categorical,labe
     create_bucket(s3['client'], os.environ.get("BUCKET_NAME"), region)
 
     # model upload
-
-    Filepath = model_filepath
-    model = onnx.load(model_filepath)
+    if isinstance(model_filepath, onnx.ModelProto):
+        model = model_filepath
+        temp = tempfile.NamedTemporaryFile()
+        temp.write(model.SerializeToString())
+        Filepath = temp.name
+    else:
+        Filepath = model_filepath
+        model = onnx.load(model_filepath)
     metadata = _extract_model_metadata(model)
+    print("hello")
+    print(metadata)
     input_shape = metadata["input_shape"]
     #tab_imports ='./tabular_imports.pkl'
     #img_imports ='./image_imports.pkl'
@@ -143,6 +151,11 @@ def take_user_info_and_generate_api(model_filepath, model_type, categorical,labe
         # preprocessor upload
 
         # ADD model/Preprocessor VERSION
+        if isinstance(preprocessor_filepath, types.FunctionType): 
+            from aimodelshare.preprocessormodules import export_preprocessor
+            temp_prep=tempfile.mkdtemp()
+            export_preprocessor(preprocessor_filepath,temp_prep)
+            preprocessor_filepath = temp_prep+"/preprocessor.zip"
         response = upload_preprocessor(
             preprocessor_filepath, s3, os.environ.get("BUCKET_NAME"), unique_model_id, 1)
         preprocessor_file_extension = _get_extension_from_filepath(
@@ -417,6 +430,7 @@ def model_to_api(model_filepath, model_type, private, categorical, y_train, prep
     # Used 2 python functions :
     #  1. take_user_info_and_generate_api : to upload model/preprocessor and generate an api for model submitted by user
     #  2. send_model_data_to_dyndb_and_return_api : to add new record to database with user data, model and api related information
+
 
     # Get user inputs, pass to other functions  {{{
     user_session = boto3.session.Session(aws_access_key_id=os.environ.get("AWS_ACCESS_KEY_ID_AIMS"),
@@ -825,7 +839,7 @@ def create_experiment(apiurl, data_directory, y_test, eval_metric_filepath=None,
 
     user_session = boto3.session.Session(aws_access_key_id=os.environ.get("AWS_ACCESS_KEY_ID_AIMS"),
                                           aws_secret_access_key = os.environ.get("AWS_SECRET_ACCESS_KEY_AIMS"), 
-                                         region_name=os.environ.get("AWS_REGION_AIMS"))
+                                         region_name=os.environ.get("AWS_REGION"))
 
     account_number = user_session.client(
         'sts').get_caller_identity().get('Account')
