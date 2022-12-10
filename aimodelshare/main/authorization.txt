@@ -5,9 +5,9 @@ import json
 
 
 def handler(event, context):
-    print("Client token: " + event['authorizationToken'])
-    print("Method ARN: " + event['methodArn'])
-
+    print("Client token: " + event.get('authorizationToken','empty'))
+    print("Method ARN: " + event.get('methodArn','empty'))
+    print("api-key: :"+ event.get('apikey',"empty"))
     '''
     Validate the incoming token and produce the principal user identifier
     associated with the token. This can be accomplished in a number of ways:
@@ -16,18 +16,21 @@ def handler(event, context):
     2. Decode a JWT token inline
     3. Lookup in a self-managed DB
     '''
-    idtoken=event['authorizationToken']
+    idtoken=event.get('authorizationToken','empty')
     try:
         tokenbodydata=json.loads(idtoken)
         idtoken=tokenbodydata['token']
         evaltrue=tokenbodydata['eval']
     except:
         evaltrue="FALSE"
-        
-    print(event)
-    principalId = idtoken
-    import jwt
-    decoded = jwt.decode(idtoken, options={"verify_signature": False})  # works in PyJWT < v2.0
+      
+    try:  
+        print(event)
+        principalId = idtoken
+        import jwt
+        decoded = jwt.decode(idtoken, options={"verify_signature": False})  # works in PyJWT < v2.0
+    except:
+        pass  
     
     # Check token access with live rest api (with cognito auth activated) to ensure user isn't sending incorrect username
     # 200 status indicates accept, 403 means unauthorized
@@ -77,7 +80,11 @@ def handler(event, context):
     uniquemodversion=str(response.text)
 
     print(response.text)
-    if any([response.status_code!=200,response.text.find("Missing")>0,response.text.find("Monthly")>0,response.text.find("monthly")>0]):
+    #TODO: add textvar to replace apikey with randomized value next
+    if apikey==$apikey:
+        policyresult="accept"
+
+    elif any([response.status_code!=200,response.text.find("Missing")>0,response.text.find("Monthly")>0,response.text.find("monthly")>0]):
         policyresult="deny"
     else:
         policyresult="accept"
