@@ -218,8 +218,7 @@ class create_prediction_api_class():
         self.aws_client.upload_file_to_s3(os.path.join(self.temp_dir, 'archive2.zip'), os.environ.get("BUCKET_NAME"), self.unique_model_id+"/"+'archiveeval.zip')
         api_key = str(shortuuid.uuid())
 
-        t = Template(pkg_resources.read_text(main, 'authorization.txt'))
-        data2 = t.substitute(apikey = api_key)
+        data2 = pkg_resources.read_text(main, 'authorization.txt').replace("$apikey",api_key)
         with open(os.path.join(self.temp_dir, 'main.py'), 'w') as file:
             file.write(data2)
         with ZipFile(os.path.join(self.temp_dir, 'archive3.zip'), 'a') as z:
