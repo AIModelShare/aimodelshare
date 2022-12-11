@@ -60,7 +60,7 @@ def handler(event, context):
     except:
         pass
       
-    authorized_emails=authorized_competitionusers.get("emails","no data")
+    authorized_emails=authorized_competitionusers.get("emaillist","no data")
     print(authorized_emails)
     public=authorized_competitionusers.get("public","FALSE")
     print(public)
@@ -79,6 +79,9 @@ def handler(event, context):
             "body": json.dumps({"apikey":apikey})
             }
             return api_dict
+        else:
+            pass
+        
     if any([email in authorized_emails,public=="TRUE"]):
         if body.get("return_apikey","ALL")  == "True":
             apikey="$apikey"
