@@ -104,6 +104,8 @@ class ModelPlayground:
         self.playground_url = self.playground_url[1:-1]
     def get_apikey(self):
         import os
+        import requests
+        import json
         if all(["username" in os.environ, 
                "password" in os.environ]):
             pass
