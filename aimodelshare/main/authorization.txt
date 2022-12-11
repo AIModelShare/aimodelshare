@@ -81,7 +81,7 @@ def handler(event, context):
 
     print(response.text)
     #TODO: add textvar to replace apikey with randomized value next
-    if apikey=="$apikey":
+    if event.get('apikey',"empty")=="$apikey":
         policyresult="accept"
 
     elif any([response.status_code!=200,response.text.find("Missing")>0,response.text.find("Monthly")>0,response.text.find("monthly")>0]):
