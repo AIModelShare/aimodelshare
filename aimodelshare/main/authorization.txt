@@ -17,6 +17,8 @@ def handler(event, context):
     '''
     idtoken=event.get('authorizationToken','empty')
     tokenlength=len(idtoken)
+    print(event)
+    principalId = idtoken
     
     if tokenlength>=40:
         try:
@@ -27,8 +29,7 @@ def handler(event, context):
             evaltrue="FALSE"
 
         try:  
-            print(event)
-            principalId = idtoken
+
             import jwt
             decoded = jwt.decode(idtoken, options={"verify_signature": False})  # works in PyJWT < v2.0
         except:
