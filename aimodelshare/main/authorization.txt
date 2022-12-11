@@ -17,15 +17,18 @@ def handler(event, context):
     '''
     idtoken=event.get('authorizationToken','empty')
     tokenlength=len(idtoken)
+    print(tokenlength)
     print(event)
-    principalId = idtoken
     evaltrue="FALSE"
+    principalId = idtoken
     
     if tokenlength>=40:
         try:
             tokenbodydata=json.loads(idtoken)
             idtoken=tokenbodydata['token']
             evaltrue=tokenbodydata['eval']
+            principalId = idtoken
+
         except:
             evaltrue="FALSE"
 
