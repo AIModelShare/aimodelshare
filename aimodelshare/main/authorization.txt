@@ -19,6 +19,7 @@ def handler(event, context):
     tokenlength=len(idtoken)
     print(event)
     principalId = idtoken
+    evaltrue="FALSE"
     
     if tokenlength>=40:
         try:
