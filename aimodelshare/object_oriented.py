@@ -102,7 +102,23 @@ class ModelPlayground:
                                       print_output=False)
         #remove extra quotes
         self.playground_url = self.playground_url[1:-1]
-    
+    def get_apikey(self):
+        import os
+        if all(["username" in os.environ, 
+               "password" in os.environ]):
+            pass
+        else:
+            return print("'get_apikey()' unsuccessful. Please provide credentials with set_credentials().")
+
+        post_dict = {"return_apikey":"True"}
+
+        headers = { 'Content-Type':'application/json', 'authorizationToken': os.environ.get("AWS_TOKEN"),} 
+
+        apiurl_eval=self.playground_url[:-1]+"eval"
+
+        api_json = requests.post(apiurl_eval,headers=headers,data=json.dumps(post_dict)) 
+
+        return json.loads(api_json.text)['apikey']
     def create_competition(self, data_directory, y_test, eval_metric_filepath=None, email_list = [], public=False, public_private_split=0.5):
         """
         Creates a model competition for a deployed prediction REST API
