@@ -893,6 +893,14 @@ def model_to_onnx(model, framework, model_input=None, initial_types=None,
 
         
     elif framework == 'pytorch':
+
+        onnx = _pytorch_to_onnx(model, model_input=model_input,
+                                transfer_learning=transfer_learning, 
+                                deep_learning=deep_learning, 
+                                task_type=task_type,
+                                epochs=epochs)
+
+    elif framework == 'pyspark':
         try:
             import pyspark
             from pyspark.sql import SparkSession
@@ -901,13 +909,6 @@ def model_to_onnx(model, framework, model_input=None, initial_types=None,
             from onnxmltools import convert_sparkml
         except:
             print("Warning: Please install pyspark to enable pyspark features")
-        onnx = _pytorch_to_onnx(model, model_input=model_input,
-                                transfer_learning=transfer_learning, 
-                                deep_learning=deep_learning, 
-                                task_type=task_type,
-                                epochs=epochs)
-
-    elif framework == 'pyspark':
         onnx = _pyspark_to_onnx(model, initial_types=initial_types, 
                                 transfer_learning=transfer_learning, 
                                 deep_learning=deep_learning, 
