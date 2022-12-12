@@ -1194,8 +1194,8 @@ def update_runtime_model(apiurl, model_version=None, submission_type="competitio
 
     # overwrite runtime_model.onnx file & runtime_preprocessor.zip files: 
     if (model_source_key in file_list) & (preprocesor_source_key in file_list):
-        response = bucket.copy(model_copy_source, model_id+"/"+submission_type+"/"+'runtime_model.onnx')
-        response = bucket.copy(preprocessor_copy_source, model_id+"/"+submission_type+"/"+'runtime_preprocessor.zip')
+        response = bucket.copy(model_copy_source, model_id+"/"+'runtime_model.onnx')
+        response = bucket.copy(preprocessor_copy_source, model_id+"/"+'runtime_preprocessor.zip')
         return print('Runtime model & preprocessor for api: '+apiurl+" updated to model version "+model_version+".\n\nModel metrics are now updated and verified for this model playground.")
     else:
         # the file resource to be the new runtime_model is not available

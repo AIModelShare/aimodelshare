@@ -394,7 +394,9 @@ class ModelPlayground:
 
         # test whether playground is active, activate if that is not the case
         if not self.playground_url:
-            self.activate(example_data=example_data)
+            #self.activate(example_data=example_data)
+            self.activate(model_filepath, preprocessor_filepath, example_data=example_data)
+            print()
 
         # if playground is active, ask whether user wants to overwrite 
         else:
@@ -433,13 +435,13 @@ class ModelPlayground:
 
             competition = Competition(self.playground_url)
 
-            if prediction_submission:           
+            if len(prediction_submission):           
                 version_comp = competition.submit_model(model_filepath = model_filepath,
                                         preprocessor_filepath=preprocessor_filepath,
                                         prediction_submission=prediction_submission,
                                         input_dict={"tags":"", "description":""},
                                         print_output=False)
-        if prediction_submission:           
+        if len(prediction_submission):           
             print(f"Your model has been submitted to competition as model version {version_comp}.")
            
 
@@ -463,14 +465,14 @@ class ModelPlayground:
 
             experiment = Experiment(self.playground_url)
             
-            if prediction_submission:           
+            if len(prediction_submission):           
                 version_exp = experiment.submit_model(model_filepath = model_filepath,
                                      preprocessor_filepath=preprocessor_filepath,
                                      prediction_submission=prediction_submission,
                                      input_dict={"tags":"", "description":""},
                                      print_output=False)
 
-        if prediction_submission:           
+        if len(prediction_submission):           
             print(f"Your model has been submitted to experiment as model version {version_exp}.")
 
         print("Check out your Model Playground page for more.")

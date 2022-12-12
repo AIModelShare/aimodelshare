@@ -28,6 +28,7 @@ from aimodelshare.preprocessormodules import upload_preprocessor
 from aimodelshare.model import _get_predictionmodel_key, _extract_model_metadata
 from aimodelshare.data_sharing.share_data import share_data_codebuild
 from aimodelshare.aimsonnx import _get_metadata
+from aimodelshare.utils import HiddenPrints
 
 def take_user_info_and_generate_api(model_filepath, model_type, categorical,labels, preprocessor_filepath,
                                     custom_libraries, requirements, exampledata_json_filepath, repo_name, 
@@ -121,9 +122,10 @@ def take_user_info_and_generate_api(model_filepath, model_type, categorical,labe
     # model upload
     if isinstance(model_filepath, onnx.ModelProto):
         model = model_filepath
-        temp = tempfile.NamedTemporaryFile()
-        temp.write(model.SerializeToString())
-        Filepath = temp.name
+        temp_prep=tempfile.mkdtemp()
+        Filepath = temp_prep+"/model.onnx"
+        with open(Filepath, "wb") as f:
+            f.write(model.SerializeToString())
     else:
         Filepath = model_filepath
         model = onnx.load(model_filepath)
@@ -152,7 +154,8 @@ def take_user_info_and_generate_api(model_filepath, model_type, categorical,labe
         if isinstance(preprocessor_filepath, types.FunctionType): 
             from aimodelshare.preprocessormodules import export_preprocessor
             temp_prep=tempfile.mkdtemp()
-            export_preprocessor(preprocessor_filepath,temp_prep)
+            with HiddenPrints():
+                export_preprocessor(preprocessor_filepath,temp_prep)
             preprocessor_filepath = temp_prep+"/preprocessor.zip"
         response = upload_preprocessor(
             preprocessor_filepath, s3, os.environ.get("BUCKET_NAME"), unique_model_id, 1)
@@ -301,7 +304,8 @@ def send_model_data_to_dyndb_and_return_api(api_info, private, categorical, prep
     if isinstance(preprocessor_filepath, types.FunctionType): 
         from aimodelshare.preprocessormodules import export_preprocessor
         temp_prep=tempfile.mkdtemp()
-        export_preprocessor(preprocessor_filepath,temp_prep)
+        with HiddenPrints():
+            export_preprocessor(preprocessor_filepath,temp_prep)
         preprocessor_filepath = temp_prep+"/preprocessor.zip"
     preprocessor_file_extension = _get_extension_from_filepath(
         preprocessor_filepath)
