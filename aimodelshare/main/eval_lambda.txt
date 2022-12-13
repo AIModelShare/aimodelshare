@@ -53,13 +53,48 @@ def handler(event, context):
     email=decoded['email']
     print(email)
     submission_type = body.get("submission_type", None)
-    authorized_competitionusers=get_authorizedcompetitionuserdata(example_data_filename = submission_type+"/competitionuserdata.json")
-    authorized_emails=authorized_competitionusers.get("emails","no data")
+    authorized_competitionusers={"emaillist":"data"}
+    try:
+        authorized_competitionusers=get_authorizedcompetitionuserdata(example_data_filename = submission_type+"/competitionuserdata.json")
+        print(authorized_competitionusers)
+    except:
+        pass
+      
+    authorized_emails=authorized_competitionusers.get("emaillist","no data")
+    print(authorized_emails)
     public=authorized_competitionusers.get("public","FALSE")
-    
+    print(public)
     #TODO: check email agains s3 list and resolve public to true or false from same file
     #Or check if emails on list and if so, check against them, if not assume public project.
-    if any([email in authorized_competitionusers['emaillist'],public=="TRUE"]):
+    if any([public=="FALSE",public=="TRUE",body.get("return_apikey","ALL")=="True" ]):
+        if body.get("return_apikey","ALL")  == "True":
+            apikey="$apikey"
+            api_dict = {"statusCode": 200,
+            "headers": {
+            "Access-Control-Allow-Origin" : "*",
+            "Access-Control-Allow-Credentials": True,
+            "Allow" : "GET, OPTIONS, POST",
+            "Access-Control-Allow-Methods" : "GET, OPTIONS, POST",
+            "Access-Control-Allow-Headers" : "*"},
+            "body": json.dumps({"apikey":apikey})
+            }
+            return api_dict
+        else:
+            pass
+        
+    if any([email in authorized_emails,public=="TRUE"]):
+        if body.get("return_apikey","ALL")  == "True":
+            apikey="$apikey"
+            api_dict = {"statusCode": 200,
+            "headers": {
+            "Access-Control-Allow-Origin" : "*",
+            "Access-Control-Allow-Credentials": True,
+            "Allow" : "GET, OPTIONS, POST",
+            "Access-Control-Allow-Methods" : "GET, OPTIONS, POST",
+            "Access-Control-Allow-Headers" : "*"},
+            "body": json.dumps({"apikey":apikey})
+            }
+            return api_dict
     
         if body.get("return_eval","ALL")  == "True":
         

@@ -698,9 +698,9 @@ def _keras_to_onnx(model, transfer_learning=None,
     metadata['epochs'] = epochs
 
     # model graph 
-    G = model_graph_keras(model)
-    metadata['model_graph'] = G.create_dot().decode('utf-8')
-
+    #G = model_graph_keras(model)
+    #metadata['model_graph'] = G.create_dot().decode('utf-8')
+    metadata['model_graph'] = ""
     # placeholder, needs evaluation engine
     metadata['eval_metrics'] = None
 
@@ -907,6 +907,14 @@ def model_to_onnx(model, framework=None, model_input=None, initial_types=None,
 
         
     elif framework == 'pytorch':
+
+        onnx = _pytorch_to_onnx(model, model_input=model_input,
+                                transfer_learning=transfer_learning, 
+                                deep_learning=deep_learning, 
+                                task_type=task_type,
+                                epochs=epochs)
+
+    elif framework == 'pyspark':
         try:
             import pyspark
             from pyspark.sql import SparkSession
@@ -915,13 +923,6 @@ def model_to_onnx(model, framework=None, model_input=None, initial_types=None,
             from onnxmltools import convert_sparkml
         except:
             print("Warning: Please install pyspark to enable pyspark features")
-        onnx = _pytorch_to_onnx(model, model_input=model_input,
-                                transfer_learning=transfer_learning, 
-                                deep_learning=deep_learning, 
-                                task_type=task_type,
-                                epochs=epochs)
-
-    elif framework == 'pyspark':
         onnx = _pyspark_to_onnx(model, initial_types=initial_types, 
                                 transfer_learning=transfer_learning, 
                                 deep_learning=deep_learning, 
