@@ -9,8 +9,10 @@ import onnx
 from aimodelshare.utils import HiddenPrints
 import signal
 from aimodelshare.aimsonnx import model_to_onnx, model_to_onnx_timed
+from aimodelshare.tools import extract_varnames_fromtrainingdata, _get_extension_from_filepath
 import time
 import pandas
+import requests
 
 
 class ModelPlayground:
@@ -683,7 +685,23 @@ class ModelPlayground:
 
         s3["client"].upload_file(exampledata_json_filepath, os.environ.get("BUCKET_NAME"), unique_model_id + "/exampledata.json") 
 
+
+        variablename_and_type_data = extract_varnames_fromtrainingdata(example_data)
+
+        bodydata = {"apiurl":self.playground_url,
+                  "apideveloper":os.environ.get("username"),
+                  "versionupdateput":"TRUE",
+                  "input_feature_dtypes": variablename_and_type_data[0],
+                  "input_feature_names": variablename_and_type_data[1],
+                  "exampledata":"TRUE"}
+
+        headers_with_authentication = {'Content-Type': 'application/json', 'authorizationToken': os.environ.get("JWT_AUTHORIZATION_TOKEN"), 'Access-Control-Allow-Headers':
+                                        'Content-Type,X-Amz-Date,authorizationToken,Access-Control-Allow-Origin,X-Api-Key,X-Amz-Security-Token,Authorization', 'Access-Control-Allow-Origin': '*'}
+        response = requests.post("https://bhrdesksak.execute-api.us-east-1.amazonaws.com/dev/modeldata",
+                                  json=bodydata, headers=headers_with_authentication)
+
         return
+
 
 
 class Competition:

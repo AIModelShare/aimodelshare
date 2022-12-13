@@ -779,9 +779,12 @@ def submit_model(
                 onnx_model = model_to_onnx(model_filepath, model_input=model_input)
             else:
                 onnx_model = model_to_onnx(model_filepath)
-        temp = tmp.NamedTemporaryFile()
-        temp.write(onnx_model.SerializeToString())
-        model_filepath = temp.name
+
+        temp_prep=tmp.mkdtemp()
+        model_filepath = temp_prep+"/model.onnx"
+        with open(model_filepath, "wb") as f:
+            f.write(onnx_model.SerializeToString())
+
         load_onnx_from_path = False
     else:
         load_onnx_from_path = True
