@@ -4,16 +4,35 @@ import os
 import shutil
 import tempfile
 import time
+from aimodelshare.aws import get_s3_iam_client, run_function_on_lambda, get_token, get_aws_token, get_aws_client
 
 import importlib.resources as pkg_resources
 from string import Template
 
+def create_bucket(s3_client, bucket_name, region):
+        try:
+            response=s3_client.head_bucket(Bucket=bucket_name)
+        except:
+            if(region=="us-east-1"):
+                response = s3_client.create_bucket(
+                    ACL="private",
+                    Bucket=bucket_name
+                )
+            else:
+                location={'LocationConstraint': region}
+                response=s3_client.create_bucket(
+                    ACL="private",
+                    Bucket=bucket_name,
+                    CreateBucketConfiguration=location
+                )
+        return response
+    
 def deploy_container(account_id, region, session, project_name, model_dir, requirements_file_path, apiid, memory_size='1024', timeout='120', python_version='3.7', pyspark_support=False):
 
     codebuild_bucket_name=os.environ.get("BUCKET_NAME") # s3 bucket name to create  #TODO: use same bucket and subfolder we used previously to store this data
                                                         # Why? AWS limits users to 100 total buckets!  Our old code only creates one per user per acct.
 
-    repository=project_name+'-repository' # repository name to create
+    repository=project_name.lower()+'repository' # repository name to create
 
     template_folder=tempfile.gettempdir()+'/'+project_name # folder to create for sam
 
@@ -29,19 +48,12 @@ def deploy_container(account_id, region, session, project_name, model_dir, requi
 
     codebuild_project_name=project_name+'-project'
 
-    s3_client = session.resource('s3', region_name=region)
-
-    try:
-      s3_client.create_bucket(
-          Bucket=codebuild_bucket_name,
-          CreateBucketConfiguration = {
-              'LocationConstraint': region
-          }
-      )
-    except:
-      s3_client.create_bucket(
-          Bucket=codebuild_bucket_name
-      )
+    aws_access_key_id = str(os.environ.get("AWS_ACCESS_KEY_ID_AIMS"))
+    aws_secret_access_key = str(os.environ.get("AWS_SECRET_ACCESS_KEY_AIMS"))
+    region_name = str(os.environ.get("AWS_REGION_AIMS"))
+        
+    s3, iam, region = get_s3_iam_client(aws_access_key_id, aws_secret_access_key, region_name)
+    create_bucket(s3['client'], codebuild_bucket_name, region)
 
     s3_resource = session.resource('s3', region_name=region)
 
@@ -49,9 +61,11 @@ def deploy_container(account_id, region, session, project_name, model_dir, requi
     response = bucket_versioning.enable()
 
     ecr = session.client('ecr')
-
+    
+    #check repo name for issues
+    os.environ["repository"] = repository.lower()
     response = ecr.create_repository(
-        repositoryName=repository
+        repositoryName=repository.lower()
     )
 
     iam = session.client('iam')

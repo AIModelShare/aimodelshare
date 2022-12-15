@@ -619,7 +619,60 @@ def submit_model(
     ##---Step 3: Attempt to get eval metrics and file access dict for model leaderboard submission
     #includes checks if returned values a success and errors otherwise
 
-    try:
+    import os
+    import tempfile
+    import pickle
+    temp = tempfile.mkdtemp()
+    predictions_path = temp + "/" + 'predictions.pkl'
+
+    fileObject = open(predictions_path, 'wb')
+    pickle.dump(prediction_submission, fileObject)
+    predfilesize=os.path.getsize(predictions_path)
+
+    fileObject.close()
+
+    if predfilesize>3555000:
+
+        post_dict = {"y_pred": [],
+              "return_eval_files": "True",
+              "submission_type": submission_type,
+              "return_y": "False"}
+
+        headers = { 'Content-Type':'application/json', 'authorizationToken': json.dumps({"token":os.environ.get("AWS_TOKEN"),"eval":"TEST"}), } 
+        apiurl_eval=apiurl[:-1]+"eval"
+        predictionfiles = requests.post(apiurl_eval,headers=headers,data=json.dumps(post_dict)) 
+        eval_metrics=json.loads(predictionfiles.text)
+
+        s3_presigned_dict = {key:val for key, val in eval_metrics.items() if key != 'eval'}
+
+        idempotentmodel_version=s3_presigned_dict['idempotentmodel_version']
+        s3_presigned_dict.pop('idempotentmodel_version')
+            #upload preprocessor (1s for small upload vs 21 for 306 mbs)
+        putfilekeys=list(s3_presigned_dict['put'].keys())
+        modelputfiles = [s for s in putfilekeys if str("pkl") in s]
+
+        fileputlistofdicts=[]
+        for i in modelputfiles:
+          filedownload_dict=ast.literal_eval(s3_presigned_dict ['put'][i])
+          fileputlistofdicts.append(filedownload_dict)
+
+
+        with open(predictions_path , 'rb') as f:
+                files = {'file': (predictions_path , f)} 
+                http_response = requests.post(fileputlistofdicts[0]['url'], data=fileputlistofdicts[0]['fields'], files=files)
+                f.close()
+
+        post_dict = {"y_pred": [],
+                    "predictionpklname":fileputlistofdicts[0]['fields']['key'].split("/")[2],
+                "submission_type": submission_type,
+                "return_y": "False",
+                "return_eval": "True"}
+
+        headers = { 'Content-Type':'application/json', 'authorizationToken': json.dumps({"token":os.environ.get("AWS_TOKEN"),"eval":"TEST"}), } 
+        apiurl_eval=apiurl[:-1]+"eval"
+        prediction = requests.post(apiurl_eval,headers=headers,data=json.dumps(post_dict))
+
+    else:
 
         post_dict = {"y_pred": prediction_submission,
                 "return_eval": "True",
@@ -630,15 +683,11 @@ def submit_model(
         apiurl_eval=apiurl[:-1]+"eval"
         prediction = requests.post(apiurl_eval,headers=headers,data=json.dumps(post_dict)) 
 
-        eval_metrics=json.loads(prediction.text)
+    eval_metrics=json.loads(prediction.text)
 
 
-        eval_metrics_private = {"eval": eval_metrics['eval'][1]}
-        eval_metrics["eval"] = eval_metrics['eval'][0] 
-
-    except Exception as e:
-        
-        print(e)
+    eval_metrics_private = {"eval": eval_metrics['eval'][1]}
+    eval_metrics["eval"] = eval_metrics['eval'][0] 
 
     if all([isinstance(eval_metrics, dict),"message" not in eval_metrics]):
         pass        
@@ -848,7 +897,7 @@ def submit_model(
         if meta_dict['ml_framework'] == 'keras':
 
             inspect_pd = _model_summary(meta_dict)
-            model_graph = meta_dict['model_graph']
+            model_graph = ""
 
         if meta_dict['ml_framework'] == 'pytorch':
 
@@ -1000,9 +1049,9 @@ def update_runtime_model(apiurl, model_version=None, submission_type="competitio
     new_model_version: string of model version number (from leaderboard) to replace original model 
     """
     # Confirm that creds are loaded, print warning if not
-    if all(["AWS_ACCESS_KEY_ID" in os.environ, 
-            "AWS_SECRET_ACCESS_KEY" in os.environ,
-            "AWS_REGION" in os.environ,
+    if all(["AWS_ACCESS_KEY_ID_AIMS" in os.environ, 
+            "AWS_SECRET_ACCESS_KEY_AIMS" in os.environ,
+            "AWS_REGION_AIMS" in os.environ,
            "username" in os.environ, 
            "password" in os.environ]):
         pass
@@ -1010,14 +1059,14 @@ def update_runtime_model(apiurl, model_version=None, submission_type="competitio
         return print("'Update Runtime Model' unsuccessful. Please provide credentials with set_credentials().")
 
     # Create user session
-    aws_client_and_resource=get_aws_client(aws_key=os.environ.get('AWS_ACCESS_KEY_ID'), 
-                              aws_secret=os.environ.get('AWS_SECRET_ACCESS_KEY'), 
-                              aws_region=os.environ.get('AWS_REGION'))
+    aws_client_and_resource=get_aws_client(aws_key=os.environ.get('AWS_ACCESS_KEY_ID_AIMS'), 
+                              aws_secret=os.environ.get('AWS_SECRET_ACCESS_KEY_AIMS'), 
+                              aws_region=os.environ.get('AWS_REGION_AIMS'))
     aws_client = aws_client_and_resource['client']
     
-    user_sess = boto3.session.Session(aws_access_key_id=os.environ.get('AWS_ACCESS_KEY_ID'), 
-                                      aws_secret_access_key=os.environ.get('AWS_SECRET_ACCESS_KEY'), 
-                                      region_name=os.environ.get('AWS_REGION'))
+    user_sess = boto3.session.Session(aws_access_key_id=os.environ.get('AWS_ACCESS_KEY_ID_AIMS'), 
+                                      aws_secret_access_key=os.environ.get('AWS_SECRET_ACCESS_KEY_AIMS'), 
+                                      region_name=os.environ.get('AWS_REGION_AIMS'))
     
     s3 = user_sess.resource('s3')
     model_version=str(model_version)
@@ -1078,8 +1127,8 @@ def update_runtime_model(apiurl, model_version=None, submission_type="competitio
 
     # overwrite runtime_model.onnx file & runtime_preprocessor.zip files: 
     if (model_source_key in file_list) & (preprocesor_source_key in file_list):
-        response = bucket.copy(model_copy_source, model_id+"/"+submission_type+"/"+'runtime_model.onnx')
-        response = bucket.copy(preprocessor_copy_source, model_id+"/"+submission_type+"/"+'runtime_preprocessor.zip')
+        response = bucket.copy(model_copy_source, model_id+"/"+'runtime_model.onnx')
+        response = bucket.copy(preprocessor_copy_source, model_id+"/"+'runtime_preprocessor.zip')
         return print('Runtime model & preprocessor for api: '+apiurl+" updated to model version "+model_version+".\n\nModel metrics are now updated and verified for this model playground.")
     else:
         # the file resource to be the new runtime_model is not available

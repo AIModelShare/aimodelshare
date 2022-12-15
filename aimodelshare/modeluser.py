@@ -40,18 +40,18 @@ def create_user_getkeyandpassword():
     from aimodelshare.tools import form_timestamp
     from aimodelshare.aws import get_s3_iam_client
 
-    s3, iam, region = get_s3_iam_client(os.environ.get("AWS_ACCESS_KEY_ID"), 
-                                        os.environ.get("AWS_SECRET_ACCESS_KEY"), 
-                                        os.environ.get("AWS_REGION"))
+    s3, iam, region = get_s3_iam_client(os.environ.get("AWS_ACCESS_KEY_ID_AIMS"), 
+                                        os.environ.get("AWS_SECRET_ACCESS_KEY_AIMS"), 
+                                        os.environ.get("AWS_REGION_AIMS"))
     
     #create s3 bucket and iam user
     now = datetime.datetime.now()
     year = datetime.date.today().year
     ts = form_timestamp(time.time())
     
-    user_session = boto3.session.Session(aws_access_key_id=os.environ.get("AWS_ACCESS_KEY_ID"),
-                                         aws_secret_access_key=os.environ.get("AWS_SECRET_ACCESS_KEY"), 
-                                         region_name= os.environ.get("AWS_REGION"))    
+    user_session = boto3.session.Session(aws_access_key_id=os.environ.get("AWS_ACCESS_KEY_ID_AIMS"),
+                                         aws_secret_access_key=os.environ.get("AWS_SECRET_ACCESS_KEY_AIMS"), 
+                                         region_name= os.environ.get("AWS_REGION_AIMS"))    
     
     account_number = user_session.client(
         'sts').get_caller_identity().get('Account')
@@ -62,7 +62,7 @@ def create_user_getkeyandpassword():
     master_name = 'aimodelshare' + username_clean.lower()+str(account_number)
     from botocore.client import ClientError
 
-    region = os.environ.get("AWS_REGION")
+    region = os.environ.get("AWS_REGION_AIMS")
 
     s3_client = s3['client']
 

@@ -16,8 +16,13 @@ class ModelPlayground:
     `private` :   ``bool, default = False``
         True if model and its corresponding data is not public
         False [DEFAULT] if model and its corresponding data is public 
+    `email_list`: ``list of string values``
+                values - list including all emails of users who have access the private playground.
+                list should contain same emails that were used by users to sign up for modelshare.org account.
+                [OPTIONAL] set by the playground owner for private playgrounds.  Can also be updated by editing deployed 
+                playground page at www.modelshare.org.
     """
-    def __init__(self, model_type=None, classification=None, private=None, playground_url=None):
+    def __init__(self, model_type=None, classification=None, private=None, playground_url=None, email_list=[]):
         # confirm correct args are provided
         if playground_url != None or all([model_type !=None, classification !=None, private!=None]):
             pass
@@ -28,13 +33,15 @@ class ModelPlayground:
         self.categorical = classification 
         self.private = private
         self.playground_url = playground_url
+        self.email_list = email_list
+
     
     
     def __str__(self):
         return f"ModelPlayground instance of model type: {self.model_type}, classification: {self.categorical},  private: {self.private}"
     
 
-    def deploy(self, model_filepath, preprocessor_filepath, y_train, example_data=None, custom_libraries = "FALSE", image="", reproducibility_env_filepath=None, memory=None, timeout=None, email_list=[], pyspark_support=False):
+    def deploy(self, model_filepath, preprocessor_filepath, y_train, example_data=None, custom_libraries = "FALSE", image="", reproducibility_env_filepath=None, memory=None, timeout=None, pyspark_support=False,input_dict=None):
 
         """
         Launches a live prediction REST API for deploying ML models using model parameters and user credentials, provided by the user
@@ -62,21 +69,20 @@ class ModelPlayground:
         `custom_libraries`:   ``string``
             "TRUE" if user wants to load custom Python libraries to their prediction runtime
             "FALSE" if user wishes to use AI Model Share base libraries including latest versions of most common ML libs.
-        `example_data`:  pandas DataFrame (for tabular & text data) OR filepath as string (image, audio, video data)
-              tabular data - pandas DataFrame in same structure expected by preprocessor function
-              other data types - absolute path to folder containing example data
-                                (first five files with relevent file extensions will be accepted)
-                     
-              [REQUIRED] for tabular data
-          `email_list`: ``list of string values``
-                values - list including all emails of users who have access the playground.
-                list should contain same emails that were used to sign up for modelshare.org account.
-                [OPTIONAL] set by the playground owner
+        `input_dict`:   ``dictionary``
+             Use to bypass text input boxes Example: {"model_name": "My Model Playground",
+                      "model_description": "My Model Description",
+                      "tags": "model, classification, awesome"}
+            
+            
+         
         Returns:
         --------
         print_api_info : prints statements with generated live prediction API details
                         also prints steps to update the model submissions by the user/team
         """
+        
+
         from aimodelshare.generatemodelapi import model_to_api
         self.playground_url = model_to_api(model_filepath=model_filepath, 
                                       model_type = self.model_type, 
@@ -90,11 +96,31 @@ class ModelPlayground:
                                       reproducibility_env_filepath = reproducibility_env_filepath,
                                       memory=memory,
                                       timeout=timeout,
-                                      email_list=email_list,
-                                      pyspark_support=pyspark_support)
+                                      email_list=self.email_list,
+                                      pyspark_support=pyspark_support,
+                                      input_dict=input_dict, 
+                                      print_output=False)
         #remove extra quotes
         self.playground_url = self.playground_url[1:-1]
-    
+    def get_apikey(self):
+        import os
+        import requests
+        import json
+        if all(["username" in os.environ, 
+               "password" in os.environ]):
+            pass
+        else:
+            return print("'get_apikey()' unsuccessful. Please provide credentials with set_credentials().")
+
+        post_dict = {"return_apikey":"True"}
+
+        headers = { 'Content-Type':'application/json', 'authorizationToken': os.environ.get("AWS_TOKEN"),} 
+
+        apiurl_eval=self.playground_url[:-1]+"eval"
+
+        api_json = requests.post(apiurl_eval,headers=headers,data=json.dumps(post_dict)) 
+
+        return json.loads(api_json.text)['apikey']
     def create_competition(self, data_directory, y_test, eval_metric_filepath=None, email_list = [], public=False, public_private_split=0.5):
         """
         Creates a model competition for a deployed prediction REST API

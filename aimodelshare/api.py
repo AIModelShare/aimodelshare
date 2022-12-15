@@ -30,9 +30,9 @@ class create_prediction_api_class():
 
         #####
         self.user_session = boto3.session.Session(
-            aws_access_key_id=os.environ.get("AWS_ACCESS_KEY_ID"),
-            aws_secret_access_key = os.environ.get("AWS_SECRET_ACCESS_KEY"), 
-            region_name=os.environ.get("AWS_REGION")
+            aws_access_key_id=os.environ.get("AWS_ACCESS_KEY_ID_AIMS"),
+            aws_secret_access_key = os.environ.get("AWS_SECRET_ACCESS_KEY_AIMS"), 
+            region_name=os.environ.get("AWS_REGION_AIMS")
         )
         self.sts_client = self.user_session.client("sts")
         self.account_id = self.sts_client.get_caller_identity()["Account"]
@@ -76,14 +76,16 @@ class create_prediction_api_class():
             "tabular": 1024,
             "text": 1024,
             "image": 1024,
-            "video": 1024
+            "video": 1024,
+            "custom":1024
         }
 
         self.timeout_model_mapping = {
-            "tabular": 30,
-            "text": 30,
-            "image": 30,
-            "video": 30
+            "tabular": 90,
+            "text": 90,
+            "image": 90,
+            "video": 90,
+            "custom": 90
         }
 
         self.eval_layer_map = {
@@ -105,8 +107,11 @@ class create_prediction_api_class():
             "eu-west-2": "arn:aws:lambda:eu-west-2:517169013426:layer:aimsauth_layer:1",
             "eu-west-3": "arn:aws:lambda:eu-west-3:517169013426:layer:aimsauth_layer:1"
         }
-
-        onnx_size = math.ceil(os.path.getsize(model_filepath)/(1024*1024))
+        
+        try:
+            onnx_size = math.ceil(os.path.getsize(model_filepath)/(1024*1024))
+        except:
+            onxx_size = 500
 
         self.temp_dir_file_deletion_list = ['archive2.zip', 'archive3.zip', 'archive.zip', 'archivetest.zip', 'archiveeval.zip', 'archiveauth.zip', 'main.py', 'ytest.pkl']
         self.memory = self.memory_model_mapping[self.model_type] if self.memory==None else memory
@@ -204,7 +209,9 @@ class create_prediction_api_class():
             file.write(data)
         
         ###
-        t = Template(pkg_resources.read_text(main, 'eval_lambda.txt'))
+        api_key = str(shortuuid.uuid())
+
+        t = Template(pkg_resources.read_text(main, 'eval_lambda.txt').replace("$apikey",api_key))
         data = t.substitute(bucket_name = self.bucket_name, unique_model_id = self.unique_model_id, task_type = self.task_type)
         with open(os.path.join(self.temp_dir, 'main.py'), 'w') as file:
             file.write(data)
@@ -212,7 +219,7 @@ class create_prediction_api_class():
             z.write(os.path.join(self.temp_dir, 'main.py'), 'main.py')
         self.aws_client.upload_file_to_s3(os.path.join(self.temp_dir, 'archive2.zip'), os.environ.get("BUCKET_NAME"), self.unique_model_id+"/"+'archiveeval.zip')
 
-        data2 = pkg_resources.read_text(main, 'authorization.txt')
+        data2 = pkg_resources.read_text(main, 'authorization.txt').replace("$apikey",api_key)
         with open(os.path.join(self.temp_dir, 'main.py'), 'w') as file:
             file.write(data2)
         with ZipFile(os.path.join(self.temp_dir, 'archive3.zip'), 'a') as z:
@@ -624,9 +631,9 @@ def delete_deployment(apiurl):
         return print("'Delete Deployment' unsuccessful: operation cancelled by user.")
 
     # Confirm that creds are loaded, print warning if not
-    if all(["AWS_ACCESS_KEY_ID" in os.environ, 
-            "AWS_SECRET_ACCESS_KEY" in os.environ,
-            "AWS_REGION" in os.environ,
+    if all(["AWS_ACCESS_KEY_ID_AIMS" in os.environ, 
+            "AWS_SECRET_ACCESS_KEY_AIMS" in os.environ,
+            "AWS_REGION_AIMS" in os.environ,
            "username" in os.environ, 
            "password" in os.environ]):
         pass
@@ -638,9 +645,9 @@ def delete_deployment(apiurl):
     api_id = api_url_trim.split(".")[0]
 
     # Create User Session
-    user_sess = boto3.session.Session(aws_access_key_id=os.environ.get('AWS_ACCESS_KEY_ID'), 
-                                      aws_secret_access_key=os.environ.get('AWS_SECRET_ACCESS_KEY'), 
-                                      region_name=os.environ.get('AWS_REGION'))
+    user_sess = boto3.session.Session(aws_access_key_id=os.environ.get('AWS_ACCESS_KEY_ID_AIMS'), 
+                                      aws_secret_access_key=os.environ.get('AWS_SECRET_ACCESS_KEY_AIMS'), 
+                                      region_name=os.environ.get('AWS_REGION_AIMS'))
     
     s3 = user_sess.resource('s3')
 
