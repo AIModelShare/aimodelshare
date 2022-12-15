@@ -28,6 +28,8 @@ class ModelPlayground:
     `private` :   ``bool, default = False``
         True if model and its corresponding data is not public
         False [DEFAULT] if model and its corresponding data is public 
+    `playground_url`: ``URL associated with online Playground page``
+        None [DEFAULT] if playground is only locally instantiated and not connected to an online Playground page. 
     `email_list`: ``list of string values``
                 values - list including all emails of users who have access the private playground.
                 list should contain same emails that were used by users to sign up for modelshare.org account.
@@ -53,7 +55,9 @@ class ModelPlayground:
         return f"ModelPlayground instance of model type: {self.model_type}, classification: {self.categorical},  private: {self.private}"
 
 
-    def activate(self, model_filepath=None, preprocessor_filepath=None, y_train=None, example_data=None, custom_libraries = "FALSE", image="", reproducibility_env_filepath=None, memory=None, timeout=None, pyspark_support=False, force_onnx=False): 
+    def activate(self, model_filepath=None, preprocessor_filepath=None, y_train=None, example_data=None, 
+        custom_libraries = "FALSE", image="", reproducibility_env_filepath=None, memory=None, timeout=None, 
+        onnx_timeout=60, pyspark_support=False): 
 
         """
         Launches a live model playground to the www.modelshare.org website. The playground can optionally include a live prediction REST API for deploying ML models using model parameters and user credentials, provided by the user.
@@ -78,9 +82,18 @@ class ModelPlayground:
         `y_train` : training labels for classification models.
             expects pandas dataframe of one hot encoded y train data
             if no value is set ... #TODO 
-        `custom_libraries`:   ``string``
+        `example_data`: ``Example of X data that will be shown on the online Playground page. 
+            if no example data is submitted, certain functionalities may be limited, including the deployment of live prediction APIs.
+            Example data can be updated at a later stage, using the update_example_data() method.``
+        `custom_libraries`: ``string``
             "TRUE" if user wants to load custom Python libraries to their prediction runtime
             "FALSE" if user wishes to use AI Model Share base libraries including latest versions of most common ML libs.
+        `reproducibility_env_filepath`: ``TODO``
+        `memory`: ``TODO``
+        `onnx_timeout`: ``int``
+            Time in seconds after which ONNX conversion should be interrupted.
+            Set to False if you want to force ONNX conversion.
+        `pyspark_support`: ```TODO`
          
         Returns:
         --------
@@ -105,7 +118,11 @@ class ModelPlayground:
                 return
 
         # convert model to onnx 
-        model_filepath = model_to_onnx_timed(model_filepath, force_onnx=force_onnx)
+        if onnx_timeout = False:
+            force_onnx=True
+        else:
+            force_onnx=False
+        model_filepath = model_to_onnx_timed(model_filepath, timeout = onnx_timeout, force_onnx=force_onnx)
 
 
         # keep track of submitted artifacts
@@ -187,7 +204,8 @@ class ModelPlayground:
         s3["client"].upload_file(tfile.name, os.environ.get("BUCKET_NAME"), unique_model_id + "/track_artifacts.json") 
 
 
-    def deploy(self, model_filepath, preprocessor_filepath, y_train, example_data=None, custom_libraries = "FALSE", image="", reproducibility_env_filepath=None, memory=None, timeout=None, pyspark_support=False,input_dict=None, force_onnx=False):
+    def deploy(self, model_filepath, preprocessor_filepath, y_train, example_data=None, custom_libraries = "FALSE", 
+        image="", reproducibility_env_filepath=None, memory=None, timeout=None, onnx_timeout=60, pyspark_support=False,input_dict=None):
 
         """
         Launches a live prediction REST API for deploying ML models using model parameters and user credentials, provided by the user
@@ -241,8 +259,12 @@ class ModelPlayground:
                 print("Please instantiate a new playground and try again.")
                 return
 
-        # convert model to onnx 
-        model_filepath = model_to_onnx_timed(model_filepath, force_onnx=force_onnx)
+        # convert model to onnx
+        if onnx_timeout = False:
+            force_onnx=True
+        else:
+            force_onnx=False
+        model_filepath = model_to_onnx_timed(model_filepath, timeout = onnx_timeout, force_onnx=force_onnx)
 
 
         from aimodelshare.generatemodelapi import model_to_api
@@ -370,7 +392,7 @@ class ModelPlayground:
 
     def quick_submit(self, model_filepath, preprocessor_filepath, prediction_submission, y_test, 
         data_directory=None, eval_metric_filepath=None, email_list = [], public=True, public_private_split=0.5,
-        model_input=None, force_onnx=False, example_data=None):
+        model_input=None, timeout=None, onnx_timeout=60, example_data=None):
         """
         Submits model/preprocessor to machine learning experiment leaderboard and model architecture database using live prediction API url generated by AI Modelshare library
         The submitted model gets evaluated and compared with all existing models and a leaderboard can be generated 
@@ -414,13 +436,20 @@ class ModelPlayground:
             raise ValueError("Please submit valid model_input for pytorch model.")
 
         # convert model to onnx 
-        model_filepath = model_to_onnx_timed(model_filepath, force_onnx=force_onnx)
+        if onnx_timeout = False:
+            force_onnx=True
+        else:
+            force_onnx=False
+        model_filepath = model_to_onnx_timed(model_filepath, timeout = onnx_timeout, force_onnx=force_onnx)
 
 
         # test whether playground is active, activate if that is not the case
         if not self.playground_url:
             #self.activate(example_data=example_data)
-            self.activate(model_filepath, preprocessor_filepath, example_data=example_data)
+            self.activate(model_filepath, preprocessor_filepath, example_data=example_data,
+                onnx_timeout=onnx_timeout, y_train=y_train, custom_libraries=custom_libraries, 
+                image=image, reproducibility_env_filepath=reproducibility_env_filepath, 
+                memory=memory, pyspark_support=pyspark_support, timeout=timeout)
             print()
 
         # if playground is active, ask whether user wants to overwrite 
@@ -508,7 +537,7 @@ class ModelPlayground:
             pass
 
     def submit_model(self, model_filepath, preprocessor_filepath, prediction_submission, submit_to="all",
-        sample_data=None, reproducibility_env_filepath=None, custom_metadata=None, input_dict=None, force_onnx=False):
+        sample_data=None, reproducibility_env_filepath=None, custom_metadata=None, input_dict=None, onnx_timeout=60):
         """
         Submits model/preprocessor to machine learning competition using live prediction API url generated by AI Modelshare library
         The submitted model gets evaluated and compared with all existing models and a leaderboard can be generated
@@ -537,8 +566,12 @@ class ModelPlayground:
 
         from aimodelshare.model import submit_model
 
-        # convert model to onnx 
-        model_filepath = model_to_onnx_timed(model_filepath, force_onnx=force_onnx)
+        # convert model to onnx
+        if onnx_timeout = False:
+            force_onnx=True
+        else:
+            force_onnx=False
+        model_filepath = model_to_onnx_timed(model_filepath, timeout = onnx_timeout, force_onnx=force_onnx)
 
         # create input dict
         input_dict = {}
