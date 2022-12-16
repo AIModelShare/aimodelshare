@@ -4,7 +4,9 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="301fb6ff-99cc-4504-86a7-f9174e9087a5" name="Changes" comment="debugged and tested">
+    <list default="true" id="301fb6ff-99cc-4504-86a7-f9174e9087a5" name="Changes" comment="wrapped into a class">
+      <change beforePath="$PROJECT_DIR$/.idea/shelf/Uncommitted_changes_before_Update_at_2022_12_2_15_04_[Changes]/shelved.patch" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/shelf/Uncommitted_changes_before_Update_at_2022_12_2_15_04__Changes_.xml" beforeDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/aimodelshare/automl/automl_tabular.py" beforeDir="false" afterPath="$PROJECT_DIR$/aimodelshare/automl/automl_tabular.py" afterDir="false" />
     </list>
@@ -36,7 +38,7 @@
     &quot;RunOnceActivity.OpenProjectViewOnStart&quot;: &quot;true&quot;,
     &quot;RunOnceActivity.ShowReadmeOnStart&quot;: &quot;true&quot;,
     &quot;WebServerToolWindowFactoryState&quot;: &quot;false&quot;,
-    &quot;last_opened_file_path&quot;: &quot;D:/AIModelShare/aimodelshare&quot;,
+    &quot;last_opened_file_path&quot;: &quot;D:/COMS-6998-HPML&quot;,
     &quot;node.js.detected.package.eslint&quot;: &quot;true&quot;,
     &quot;node.js.detected.package.tslint&quot;: &quot;true&quot;,
     &quot;node.js.selected.package.eslint&quot;: &quot;(autodetect)&quot;,
@@ -60,7 +62,9 @@
       <workItem from="1670012014587" duration="13000" />
       <workItem from="1670012040677" duration="2206000" />
       <workItem from="1670081739497" duration="52000" />
-      <workItem from="1670470181311" duration="9508000" />
+      <workItem from="1670470181311" duration="9648000" />
+      <workItem from="1670901286825" duration="112000" />
+      <workItem from="1671142266026" duration="12716000" />
     </task>
     <task id="LOCAL-00001" summary="init commit">
       <created>1669232183293</created>
@@ -111,7 +115,14 @@
       <option name="project" value="LOCAL" />
       <updated>1670012875613</updated>
     </task>
-    <option name="localTasksCounter" value="8" />
+    <task id="LOCAL-00008" summary="wrapped into a class">
+      <created>1670516614635</created>
+      <option name="number" value="00008" />
+      <option name="presentableId" value="LOCAL-00008" />
+      <option name="project" value="LOCAL" />
+      <updated>1670516614635</updated>
+    </task>
+    <option name="localTasksCounter" value="9" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
@@ -131,6 +142,7 @@
   <component name="VcsManagerConfiguration">
     <MESSAGE value="init commit" />
     <MESSAGE value="debugged and tested" />
-    <option name="LAST_COMMIT_MESSAGE" value="debugged and tested" />
+    <MESSAGE value="wrapped into a class" />
+    <option name="LAST_COMMIT_MESSAGE" value="wrapped into a class" />
   </component>
 </project>
