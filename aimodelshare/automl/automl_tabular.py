@@ -91,7 +91,7 @@ class autoMLTabular:
             # Create a new competition
             playground = ModelPlayground(model_type="tabular", classification=True, private=False)
             try:
-                playground.deploy("model.onnx", "preprocessor.zip", self.labels_train, example_data)
+                playground.deploy("model.onnx", "preprocessor.zip", self.labels_train, example_data if example_data else pd.DataFrame(self.datasets_train[0:4]))
             except:
                 playground.deploy("model.onnx", "preprocessor.zip", self.labels_train, pd.DataFrame(self.datasets_train[0:4]))
             playground.create_competition(data_directory='competition_data',
