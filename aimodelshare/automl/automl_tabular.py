@@ -91,9 +91,10 @@ class autoMLTabular:
         self._fast_preprocessing_fit()
         self._fast_preprocessing_transform()
 
-        self.configure_credential()
+        # self.configure_credential()
 
-        if playground is None or playground.playground_url is None:
+        # This will be moved outside the module
+        if playground is None:
             # Create a new competition
             playground = ModelPlayground(model_type="tabular", classification=True, private=False)
             try:
@@ -102,10 +103,10 @@ class autoMLTabular:
             except NameError:
                 playground.deploy("model.onnx", "preprocessor.zip", self.labels_train,
                                   pd.DataFrame(self.datasets_train[0:4]))
-            playground.create_competition(data_directory='competition_data',
+            playground.create_competition(data_directory='titanic_competition_data',
                                           y_test=self.labels_test)
         self.competition_playground = ai.Competition(playground.playground_url)
-        self.set_credential(apiurl=playground.playground_url)
+        set_credentials(apiurl=playground.playground_url)
 
     def _fast_preprocessing_fit(self):
         if self.datasets_train is not None:
@@ -239,8 +240,10 @@ class autoMLTabular:
         """
         Fit pipeline for onnx save
         """
+        reversed_mapping = {self.mapping[key]: key for key in self.mapping}
         pipeline.fit(self.datasets_train, self.labels_train_processed)
         predicted_labels = pipeline.predict(self.datasets_test)
+        predicted_labels = list(map(lambda x: reversed_mapping[x], predicted_labels))
         if self.labels_test_processed is not None:
             score_ = pipeline.score(self.datasets_test, self.labels_test_processed)
             return pipeline, predicted_labels, score_
@@ -269,6 +272,7 @@ class autoMLTabular:
 
     @staticmethod
     def set_credential(apiurl=None):
+        """Something might be wrong if it happens inside module, try with outside module"""
         set_credentials(credential_file="credentials.txt", type="deploy_model")
         if apiurl:
             set_credentials(apiurl=apiurl)
@@ -278,12 +282,10 @@ class autoMLTabular:
         ai.export_preprocessor(preprocessor, "")
 
     def submit_leaderboard(self, prediction_labels):
-        reversed_mapping = {self.mapping[key]: key for key in self.mapping}
         if self.competition_playground is not None:
             self.competition_playground.submit_model(model_filepath="model.onnx",
                                                      preprocessor_filepath="preprocessor.zip",
-                                                     prediction_submission=list(
-                                                         map(lambda x: reversed_mapping[x], prediction_labels)))
+                                                     prediction_submission=prediction_labels)
         else:
             print("No competition created.")
 
@@ -293,11 +295,15 @@ class autoMLTabular:
         print("Prediction score", self.prediction_score())
         self.get_leaderboard()
         pipeline, preprocessor, predicted_labels = self.get_ensemble_model()
+
+        def wrapper(X_test):
+            return preprocessor.transform(X_test, None)[0]
+
         self.to_onnx(pipeline)
-        self.zip_preprocessor(preprocessor.transform)  # Save a member function instead of an object
+        self.zip_preprocessor(wrapper)  # Save a member function instead of an object
         self.submit_leaderboard(predicted_labels)
         self.get_leaderboard(True)
-        return pipeline, preprocessor
+        return pipeline, preprocessor, predicted_labels
 
 
 if __name__ == "__main__":
@@ -305,13 +311,17 @@ if __name__ == "__main__":
     datasets_train, datasets_test, labels_train, labels_test, example_data, _ = ai.import_quickstart_data(datasets_name)
     myplayground = ModelPlayground(model_type="tabular",
                                    classification=True,
-                                   private=False)
-    myplayground.playground_url = ''
+                                   private=False,
+                                   playground_url='https://ely73yidp6.execute-api.us-east-2.amazonaws.com/prod/m')
+
+    set_credentials(credential_file="credentials.txt", type="deploy_model")
+
     automl = autoMLTabular(datasets_name,
-                           competition_playground=myplayground,
+                           playground=myplayground,
                            datasets_train=datasets_train,
                            datasets_test=datasets_test,
                            labels_train=labels_train,
                            labels_test=labels_test,
                            example_data=example_data)
-    pipeline, preprocessor = automl.activate()
+    pipeline, preprocessor, predicted_labels = automl.activate()
+
