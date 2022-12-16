@@ -98,7 +98,7 @@ class autoMLTabular:
             playground = ModelPlayground(model_type="tabular", classification=True, private=False)
             try:
                 playground.deploy("model.onnx", "preprocessor.zip", self.labels_train,
-                                  example_data if example_data else pd.DataFrame(self.datasets_train[0:4]))
+                                  example_data if example_data is not None else pd.DataFrame(self.datasets_train[0:4]))
             except NameError:
                 playground.deploy("model.onnx", "preprocessor.zip", self.labels_train,
                                   pd.DataFrame(self.datasets_train[0:4]))

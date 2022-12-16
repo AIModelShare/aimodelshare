@@ -6,7 +6,6 @@
   <component name="ChangeListManager">
     <list default="true" id="301fb6ff-99cc-4504-86a7-f9174e9087a5" name="Changes" comment="quick debug">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/aimodelshare/automl/automl_tabular.py" beforeDir="false" afterPath="$PROJECT_DIR$/aimodelshare/automl/automl_tabular.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -63,7 +62,8 @@
       <workItem from="1670470181311" duration="9648000" />
       <workItem from="1670901286825" duration="112000" />
       <workItem from="1671142266026" duration="12949000" />
-      <workItem from="1671201428856" duration="460000" />
+      <workItem from="1671201428856" duration="1198000" />
+      <workItem from="1671203191258" duration="273000" />
     </task>
     <task id="LOCAL-00001" summary="init commit">
       <created>1669232183293</created>
@@ -135,7 +135,14 @@
       <option name="project" value="LOCAL" />
       <updated>1671169518652</updated>
     </task>
-    <option name="localTasksCounter" value="11" />
+    <task id="LOCAL-00011" summary="quick debug">
+      <created>1671203104067</created>
+      <option name="number" value="00011" />
+      <option name="presentableId" value="LOCAL-00011" />
+      <option name="project" value="LOCAL" />
+      <updated>1671203104067</updated>
+    </task>
+    <option name="localTasksCounter" value="12" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
