@@ -75,11 +75,17 @@ class autoMLTabular:
                 self.datasets_train, self.datasets_test, self.labels_train, self.labels_test, example_data, y_test_labels = ai.import_quickstart_data(
                     dataset_names)
             except:
-                self.datasets_train, self.datasets_test, self.labels_train, self.labels_test, example_data = kwargs["datasets_train"], \
-                                                                                               kwargs["datasets_test"], \
-                                                                                               kwargs["labels_train"], \
-                                                                                               kwargs["labels_test"], \
-                                                                                               kwargs.get("example_data", None)
+                self.datasets_train, self.datasets_test, self.labels_train, self.labels_test, example_data = kwargs[
+                                                                                                                 "datasets_train"], \
+                                                                                                             kwargs[
+                                                                                                                 "datasets_test"], \
+                                                                                                             kwargs[
+                                                                                                                 "labels_train"], \
+                                                                                                             kwargs[
+                                                                                                                 "labels_test"], \
+                                                                                                             kwargs.get(
+                                                                                                                 "example_data",
+                                                                                                                 None)
         self.preprocessor = dabl.EasyPreprocessor()  # This is for fast preprocessing
 
         self._fast_preprocessing_fit()
@@ -91,11 +97,13 @@ class autoMLTabular:
             # Create a new competition
             playground = ModelPlayground(model_type="tabular", classification=True, private=False)
             try:
-                playground.deploy("model.onnx", "preprocessor.zip", self.labels_train, example_data if example_data else pd.DataFrame(self.datasets_train[0:4]))
-            except:
-                playground.deploy("model.onnx", "preprocessor.zip", self.labels_train, pd.DataFrame(self.datasets_train[0:4]))
+                playground.deploy("model.onnx", "preprocessor.zip", self.labels_train,
+                                  example_data if example_data else pd.DataFrame(self.datasets_train[0:4]))
+            except NameError:
+                playground.deploy("model.onnx", "preprocessor.zip", self.labels_train,
+                                  pd.DataFrame(self.datasets_train[0:4]))
             playground.create_competition(data_directory='competition_data',
-                                                      y_test=self.labels_test)
+                                          y_test=self.labels_test)
         self.competition_playground = ai.Competition(playground.playground_url)
         self.set_credential(apiurl=playground.playground_url)
 
@@ -251,7 +259,6 @@ class autoMLTabular:
                                    deep_learning=False)
         with open("model.onnx", "wb") as f:
             f.write(onnx_model.SerializeToString())
-        return onnx_model
 
     @staticmethod
     def configure_credential():
@@ -286,8 +293,8 @@ class autoMLTabular:
         print("Prediction score", self.prediction_score())
         self.get_leaderboard()
         pipeline, preprocessor, predicted_labels = self.get_ensemble_model()
-        onnx_model = self.to_onnx(pipeline)
-        self.zip_preprocessor(preprocessor)
+        self.to_onnx(pipeline)
+        self.zip_preprocessor(preprocessor.transform)  # Save a member function instead of an object
         self.submit_leaderboard(predicted_labels)
         self.get_leaderboard(True)
         return pipeline, preprocessor
@@ -299,7 +306,7 @@ if __name__ == "__main__":
     myplayground = ModelPlayground(model_type="tabular",
                                    classification=True,
                                    private=False)
-    myplayground.playground_url = 'https://die2py70qa.execute-api.us-east-2.amazonaws.com/prod/m'
+    myplayground.playground_url = ''
     automl = autoMLTabular(datasets_name,
                            competition_playground=myplayground,
                            datasets_train=datasets_train,
