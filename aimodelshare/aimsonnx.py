@@ -940,7 +940,7 @@ def model_to_onnx(model, framework=None, model_input=None, initial_types=None,
 
 
 
-def model_to_onnx_timed(model_filepath, force_onnx=False, timeout=60): 
+def model_to_onnx_timed(model_filepath, force_onnx=False, timeout=60, model_input=None): 
 
     if not (model_filepath == None or isinstance(model_filepath, str) or isinstance(model_filepath, onnx.ModelProto)): 
 
