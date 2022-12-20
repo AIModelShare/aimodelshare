@@ -1299,8 +1299,16 @@ def instantiate_model(apiurl, version=None, trained=False, reproduce=False, subm
 
     if reproduce:
         if resp_dict['reproducibility_env'] != None:
-            set_reproducibility_env(resp_dict['reproducibility_env'])
-            print("Your reproducibility environment is successfully setup")
+            if os.environ.get("reproducibility_environment_version","") == str(version): 
+                # do not reset reproducibility environment
+                print("Reproducibility environment has been set correctly beforehand, continuing model instantiation")
+            
+            elif os.environ.get("reproducibility_environment_version","") != str(version) and os.environ.get("reproducibility_environment_version","") != "": 
+                raise Exception(f"Model version and reproducibility environment do not match, please set reproducibility environment before with `set_replicate_model_env` function")
+            else :
+                set_reproducibility_env(resp_dict['reproducibility_env'])
+                os.environ['reproducibility_environment_version'] = str(version)
+                print("Your reproducibility environment is successfully setup")
         else:
             print("Reproducibility environment is not found")
 
