@@ -285,7 +285,7 @@ class ModelPlayground:
         # model deployment files (plus ytrain object)
 
         # convert model to onnx
-        if onnx_timeout = False:
+        if onnx_timeout == False:
             force_onnx=True
         else:
             force_onnx=False
