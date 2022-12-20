@@ -700,7 +700,9 @@ def _keras_to_onnx(model, transfer_learning=None,
     # model graph 
     #G = model_graph_keras(model)
     #metadata['model_graph'] = G.create_dot().decode('utf-8')
+
     metadata['model_graph'] = ""
+
     # placeholder, needs evaluation engine
     metadata['eval_metrics'] = None
 
