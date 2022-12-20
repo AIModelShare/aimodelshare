@@ -595,7 +595,7 @@ class ModelPlayground:
             raise ValueError("Please submit valid model_input for pytorch model.")
 
         # convert model to onnx 
-        if onnx_timeout = False:
+        if onnx_timeout == False:
             force_onnx=True
         else:
             force_onnx=False
@@ -727,7 +727,7 @@ class ModelPlayground:
         from aimodelshare.model import submit_model
 
         # convert model to onnx
-        if onnx_timeout = False:
+        if onnx_timeout == False:
             force_onnx=True
         else:
             force_onnx=False
