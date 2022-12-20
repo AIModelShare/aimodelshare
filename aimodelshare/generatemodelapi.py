@@ -12,6 +12,7 @@ import time
 import datetime
 import onnx
 import tempfile
+import types
 import sys
 import base64
 import mimetypes
@@ -27,6 +28,7 @@ from aimodelshare.preprocessormodules import upload_preprocessor
 from aimodelshare.model import _get_predictionmodel_key, _extract_model_metadata
 from aimodelshare.data_sharing.share_data import share_data_codebuild
 from aimodelshare.aimsonnx import _get_metadata
+from aimodelshare.utils import HiddenPrints
 
 def take_user_info_and_generate_api(model_filepath, model_type, categorical,labels, preprocessor_filepath,
                                     custom_libraries, requirements, exampledata_json_filepath, repo_name, 
@@ -118,9 +120,15 @@ def take_user_info_and_generate_api(model_filepath, model_type, categorical,labe
     create_bucket(s3['client'], os.environ.get("BUCKET_NAME"), region)
 
     # model upload
-
-    Filepath = model_filepath
-    model = onnx.load(model_filepath)
+    if isinstance(model_filepath, onnx.ModelProto):
+        model = model_filepath
+        temp_prep=tempfile.mkdtemp()
+        Filepath = temp_prep+"/model.onnx"
+        with open(Filepath, "wb") as f:
+            f.write(model.SerializeToString())
+    else:
+        Filepath = model_filepath
+        model = onnx.load(model_filepath)
     metadata = _extract_model_metadata(model)
     input_shape = metadata["input_shape"]
     #tab_imports ='./tabular_imports.pkl'
@@ -143,6 +151,12 @@ def take_user_info_and_generate_api(model_filepath, model_type, categorical,labe
         # preprocessor upload
 
         # ADD model/Preprocessor VERSION
+        if isinstance(preprocessor_filepath, types.FunctionType): 
+            from aimodelshare.preprocessormodules import export_preprocessor
+            temp_prep=tempfile.mkdtemp()
+            with HiddenPrints():
+                export_preprocessor(preprocessor_filepath,temp_prep)
+            preprocessor_filepath = temp_prep+"/preprocessor.zip"
         response = upload_preprocessor(
             preprocessor_filepath, s3, os.environ.get("BUCKET_NAME"), unique_model_id, 1)
         preprocessor_file_extension = _get_extension_from_filepath(
@@ -286,6 +300,13 @@ def send_model_data_to_dyndb_and_return_api(api_info, private, categorical, prep
         variablename_and_type_data = ["", ""]
 
      # needs to use double backslashes and have full filepath
+
+    if isinstance(preprocessor_filepath, types.FunctionType): 
+        from aimodelshare.preprocessormodules import export_preprocessor
+        temp_prep=tempfile.mkdtemp()
+        with HiddenPrints():
+            export_preprocessor(preprocessor_filepath,temp_prep)
+        preprocessor_filepath = temp_prep+"/preprocessor.zip"
     preprocessor_file_extension = _get_extension_from_filepath(
         preprocessor_filepath)
     if exampledata_json_filepath!="":
@@ -417,6 +438,7 @@ def model_to_api(model_filepath, model_type, private, categorical, y_train, prep
     # Used 2 python functions :
     #  1. take_user_info_and_generate_api : to upload model/preprocessor and generate an api for model submitted by user
     #  2. send_model_data_to_dyndb_and_return_api : to add new record to database with user data, model and api related information
+
 
     # Get user inputs, pass to other functions  {{{
     user_session = boto3.session.Session(aws_access_key_id=os.environ.get("AWS_ACCESS_KEY_ID_AIMS"),
@@ -823,8 +845,8 @@ def create_experiment(apiurl, data_directory, y_test, eval_metric_filepath=None,
         aishare_datalicense = input_dict["data_license"]
 
 
-    user_session = boto3.session.Session(aws_access_key_id=os.environ.get("AWS_ACCESS_KEY_ID"),
-                                          aws_secret_access_key = os.environ.get("AWS_SECRET_ACCESS_KEY"), 
+    user_session = boto3.session.Session(aws_access_key_id=os.environ.get("AWS_ACCESS_KEY_ID_AIMS"),
+                                          aws_secret_access_key = os.environ.get("AWS_SECRET_ACCESS_KEY_AIMS"), 
                                          region_name=os.environ.get("AWS_REGION"))
 
     account_number = user_session.client(

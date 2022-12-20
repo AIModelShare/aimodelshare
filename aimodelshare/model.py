@@ -779,9 +779,12 @@ def submit_model(
                 onnx_model = model_to_onnx(model_filepath, model_input=model_input)
             else:
                 onnx_model = model_to_onnx(model_filepath)
-        temp = tmp.NamedTemporaryFile()
-        temp.write(onnx_model.SerializeToString())
-        model_filepath = temp.name
+
+        temp_prep=tmp.mkdtemp()
+        model_filepath = temp_prep+"/model.onnx"
+        with open(model_filepath, "wb") as f:
+            f.write(onnx_model.SerializeToString())
+
         load_onnx_from_path = False
     else:
         load_onnx_from_path = True
@@ -961,7 +964,7 @@ def submit_model(
         if meta_dict['ml_framework'] == 'keras':
 
             inspect_pd = _model_summary(meta_dict)
-            model_graph = meta_dict['model_graph']
+            model_graph = ""
 
         if meta_dict['ml_framework'] == 'pytorch':
 
@@ -1108,7 +1111,7 @@ def submit_model(
     if print_output:
         return print("\nYour model has been submitted as model version "+str(model_version)+ "\n\n"+code_comp_result)
     else:
-        return
+        return str(model_version)
 
 def update_runtime_model(apiurl, model_version=None, submission_type="competition"):
     """
@@ -1194,8 +1197,8 @@ def update_runtime_model(apiurl, model_version=None, submission_type="competitio
 
     # overwrite runtime_model.onnx file & runtime_preprocessor.zip files: 
     if (model_source_key in file_list) & (preprocesor_source_key in file_list):
-        response = bucket.copy(model_copy_source, model_id+"/"+submission_type+"/"+'runtime_model.onnx')
-        response = bucket.copy(preprocessor_copy_source, model_id+"/"+submission_type+"/"+'runtime_preprocessor.zip')
+        response = bucket.copy(model_copy_source, model_id+"/"+'runtime_model.onnx')
+        response = bucket.copy(preprocessor_copy_source, model_id+"/"+'runtime_preprocessor.zip')
         return print('Runtime model & preprocessor for api: '+apiurl+" updated to model version "+model_version+".\n\nModel metrics are now updated and verified for this model playground.")
     else:
         # the file resource to be the new runtime_model is not available
