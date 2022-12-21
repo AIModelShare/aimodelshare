@@ -639,7 +639,7 @@ class ModelPlayground:
                 print(response.text)
 
                 return(response.text) 
-            else:    
+        else:    
 
                 from aimodelshare.generatemodelapi import create_competition
 
