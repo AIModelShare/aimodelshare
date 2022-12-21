@@ -466,7 +466,7 @@ class ModelPlayground:
 
         return json.loads(api_json.text)['apikey']
     
-    def create_competition(self, data_directory, y_test, eval_metric_filepath=None, email_list = [], public=True, public_private_split=0.5):
+    def create_competition(self, data_directory, y_test, eval_metric_filepath=None, email_list = [], public=True, public_private_split=0.5, input_dict=None):
         """
         Creates a model competition for a deployed prediction REST API
         Inputs : 4
@@ -495,6 +495,27 @@ class ModelPlayground:
             raise ValueError("Please submit valid email list for private competition.")
         if "model_share"==os.environ.get("cloud_location"):
             print("Creating your Model Playground...\nEst. completion: ~1 minute\n")
+            if input_dict==None:
+                print("\n--INPUT COMPETITION DETAILS--\n")
+
+                aishare_competitionname = input("Enter competition name:")
+                aishare_competitiondescription = input("Enter competition description:")
+
+                print("\n--INPUT DATA DETAILS--\n")
+                print("Note: (optional) Save an optional LICENSE.txt file in your competition data directory to make users aware of any restrictions on data sharing/usage.\n")
+
+                aishare_datadescription = input(
+                    "Enter data description (i.e.- filenames denoting training and test data, file types, and any subfolders where files are stored):")
+
+                aishare_datalicense = input(
+                    "Enter optional data license descriptive name (e.g.- 'MIT, Apache 2.0, CC0, Other, etc.'):")
+                
+               input_dict={"compname":aishare_competitionname,"compdesc":aishare_competitiondescription,
+                           "datadesc":aishare_datadescription,"datalicence":aishare_datalicense}
+            else:
+               pass
+        
+            
         # model competition files
         def upload_comp_exp_zipfile(data_directory, y_test=None, eval_metric_filepath=None, email_list=[]):
             """
