@@ -581,7 +581,7 @@ class ModelPlayground:
                   zipObj.write('ytest.pkl')
 
                 if isinstance(email_list, list):
-                  with open(tempdir+"/"+'email_list.pkl', 'wb') as f:
+                  with open(tempdir+"/"+'emaillist.pkl', 'wb') as f:
                     pickle.dump(email_list, f)
 
                   os.chdir(tempdir)
