@@ -1109,7 +1109,7 @@ def submit_model(
         code_comp_result="" #TODO: reponse 403 indicates that user needs to reset credentials.  Need to add a creds check to top of function.
 
     if print_output:
-        return print("\nYour model has been submitted as model version "+str(model_version)+ "\n\n"+code_comp_result)
+        return "\nYour model has been submitted as model version "+str(model_version)+ "\n\n"+code_comp_result
     else:
         return str(model_version)
 
