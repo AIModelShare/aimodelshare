@@ -613,32 +613,32 @@ class ModelPlayground:
                   files = {'file': (tempdir+"/"+zipfilename, f)}
                   http_response = requests.post(url, data=fields, files=files)
                 return zipfilename                                                 
-                compzipfilename=upload_comp_exp_zipfile(data_directory, y_test, eval_metric_filepath, email_list)
-                #if aws arg = false, do this, otherwise do aws code
-                #create deploy code_string
-                def nonecheck(objinput=""):
-                    if objinput==None:
-                      objinput="None"
-                    else:
-                      objinput="'/tmp/"+objinput+"'"
-                    return objinput
+            compzipfilename=upload_comp_exp_zipfile(data_directory, y_test, eval_metric_filepath, email_list)
+            #if aws arg = false, do this, otherwise do aws code
+            #create deploy code_string
+            def nonecheck(objinput=""):
+                if objinput==None:
+                  objinput="None"
+                else:
+                  objinput="'/tmp/"+objinput+"'"
+                return objinput
 
-                compstring=self.class_string.replace(",aws=False","")+"."+"create_competition('/tmp/"+data_directory+"','/tmp/"+y_test+","+nonecheck(eval_metric_filepath)+","+nonecheck(email_list)+",input_dict="+str(input_dict)+')'
-                print(compstring)
-                import base64
-                import requests
-                import json
+            compstring=self.class_string.replace(",aws=False","")+"."+"create_competition('/tmp/"+data_directory+"','/tmp/"+y_test+","+nonecheck(eval_metric_filepath)+","+nonecheck(email_list)+",input_dict="+str(input_dict)+')'
+            print(compstring)
+            import base64
+            import requests
+            import json
 
-                api_url = "https://cgzc63pxkhhbgfvg4fn2eht4oi0hrgdt.lambda-url.us-east-2.on.aws/"
+            api_url = "https://cgzc63pxkhhbgfvg4fn2eht4oi0hrgdt.lambda-url.us-east-2.on.aws/"
 
-                data = json.dumps({"code": """from aimodelshare import ModelPlayground;myplayground="""+compstring, "zipfilename": compzipfilename,"username":os.environ.get("username"), "password":os.environ.get("password"),"token":os.environ.get("JWT_AUTHORIZATION_TOKEN"),"s3keyid":"diays4ugz5"})
+            data = json.dumps({"code": """from aimodelshare import ModelPlayground;myplayground="""+compstring, "zipfilename": compzipfilename,"username":os.environ.get("username"), "password":os.environ.get("password"),"token":os.environ.get("JWT_AUTHORIZATION_TOKEN"),"s3keyid":"diays4ugz5"})
 
-                headers = {"Content-Type": "application/json"}
+            headers = {"Content-Type": "application/json"}
 
-                response = requests.request("POST", api_url, headers = headers, data=data)
-                print(response.text)
+            response = requests.request("POST", api_url, headers = headers, data=data)
+            print(response.text)
 
-                return(response.text) 
+            return(response.text) 
         else:    
 
                 from aimodelshare.generatemodelapi import create_competition
