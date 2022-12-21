@@ -35,8 +35,11 @@ class ModelPlayground:
                 list should contain same emails that were used by users to sign up for modelshare.org account.
                 [OPTIONAL] set by the playground owner for private playgrounds.  Can also be updated by editing deployed 
                 playground page at www.modelshare.org.
+    `aws` :   ``bool, default = True`` 
+        True if user wishes to deploy playground using their aws account
+        False [DEFAULT] if user wishes to deploy using Model Share platform 
     """
-    def __init__(self, model_type=None, classification=None, private=None, playground_url=None, email_list=[]):
+    def __init__(self, model_type=None, classification=None, private=None, playground_url=None, email_list=[], aws=True):
         # confirm correct args are provided
         if playground_url != None or all([model_type !=None, classification !=None, private!=None]):
             pass
@@ -48,11 +51,17 @@ class ModelPlayground:
         self.private = private
         self.playground_url = playground_url
         self.email_list = email_list
-
+        self.awscheck = aws
+        def codestring(self):
+            if self.playground_url==None:
+              return   "ModelPlayground(model_type="+"'"+str(self.model_type)+"'"+",categorical="+str(self.categorical)+",private="+str(self.private)+",playground_url="+str(self.playground_url)+",email_list="+str(self.email_list)+",aws="+str(self.awscheck)+")"
+            else:
+              return   "ModelPlayground(model_type="+"'"+str(self.model_type)+"'"+",categorical="+str(self.categorical)+",private="+str(self.private)+",playground_url="+"'"+str(self.playground_url)+"'"+",email_list="+str(self.email_list)+",aws="+str(self.awscheck)+")"
+        self.class_string=codestring(self)
     
     
     def __str__(self):
-        return f"ModelPlayground instance of model type: {self.model_type}, classification: {self.categorical},  private: {self.private}"
+        return f"ModelPlayground(self.model_type,self.categorical,self.private = private,self.playground_url,self.email_list, self.awscheck)"
 
 
     def activate(self, model_filepath=None, preprocessor_filepath=None, y_train=None, example_data=None, 
@@ -64,7 +73,6 @@ class ModelPlayground:
         Inputs : 7
         Output : model launched to an API
                 detailed API info printed out
-
         Parameters: 
         ----------
         `model_filepath` :  ``string`` ends with '.onnx'
@@ -122,7 +130,7 @@ class ModelPlayground:
                 return
 
         # convert model to onnx 
-        if onnx_timeout = False:
+        if onnx_timeout == False:
             force_onnx=True
         else:
             force_onnx=False
@@ -217,7 +225,6 @@ class ModelPlayground:
         Inputs : 7
         Output : model launched to an API
                 detailed API info printed out
-
         Parameters: 
         ----------
         `model_filepath` :  ``string`` ends with '.onnx'
@@ -275,38 +282,159 @@ class ModelPlayground:
 
                 print("Please instantiate a new playground and try again.")
                 return
+        # model deployment files (plus ytrain object)
 
         # convert model to onnx
-        if onnx_timeout = False:
+        if onnx_timeout == False:
             force_onnx=True
         else:
             force_onnx=False
         model_filepath = model_to_onnx_timed(model_filepath, timeout = onnx_timeout, 
             force_onnx=force_onnx, model_input=model_input)
 
-        from aimodelshare.generatemodelapi import model_to_api
-        self.playground_url = model_to_api(model_filepath=model_filepath, 
-                                      model_type = self.model_type, 
-                                      private = self.private, 
-                                      categorical = self.categorical,
-                                      y_train = y_train, 
-                                      preprocessor_filepath = preprocessor_filepath, 
-                                      example_data = example_data,
-                                      custom_libraries = custom_libraries,
-                                      image=image,
-                                      reproducibility_env_filepath = reproducibility_env_filepath,
-                                      memory=memory,
-                                      timeout=timeout,
-                                      email_list=self.email_list,
-                                      pyspark_support=pyspark_support,
-                                      input_dict=input_dict, 
-                                      print_output=False)
-        #remove extra quotes
-        self.playground_url = self.playground_url[1:-1]
 
-        return
+        if self.awscheck==False:
+            def upload_playground_zipfile(model_filepath=None, preprocessor_filepath=None, y_train=None, example_data=None):
+                """
+                minimally requires model_filepath, preprocessor_filepath 
+                """
+                zipfilelist=[model_filepath,preprocessor_filepath]
+
+                import json
+                import os
+                import requests
+                import pandas as pd
+                if isinstance(example_data, pd.DataFrame):
+                    pass
+                else:
+                    zipfilelist.append(example_data)
+
+                #need to save dict pkl file with arg name and filepaths to add to zipfile
 
 
+                apiurl="https://q39q8885p9.execute-api.us-east-2.amazonaws.com/prod/m"                 
+
+
+                apiurl_eval=apiurl[:-1]+"eval"
+
+                headers = { 'Content-Type':'application/json', 'authorizationToken': json.dumps({"token":os.environ.get("AWS_TOKEN"),"eval":"TEST"}), } 
+                post_dict = {"return_zip": "True"}
+                zipfile = requests.post(apiurl_eval,headers=headers,data=json.dumps(post_dict)) 
+
+                zipfileputlistofdicts=json.loads(zipfile.text)['put']
+
+                zipfilename=list(zipfileputlistofdicts.keys())[0]
+
+                from zipfile import ZipFile
+                import os
+                from os.path import basename
+                import tempfile
+
+                wkingdir=os.getcwd()
+
+                tempdir=tempfile.gettempdir() 
+
+                zipObj = ZipFile(tempdir+"/"+zipfilename, 'w')
+                # Add multiple files to the zip
+                for i in zipfilelist:
+                  zipObj.write(i)
+
+                # add object to pkl file pathway here. (saving y label data)
+                import pickle
+
+                if y_train==None:
+                  pass
+                else:
+                  with open(tempdir+"/"+'ytrain.pkl', 'wb') as f:
+                    pickle.dump(y_train, f)
+
+                  os.chdir(tempdir)
+                  zipObj.write('ytrain.pkl')
+
+                if isinstance(example_data, pd.DataFrame):
+                  with open(tempdir+"/"+'exampledata.pkl', 'wb') as f:
+                    pickle.dump(example_data, f)
+
+                  os.chdir(tempdir)
+                  zipObj.write('exampledata.pkl')
+                else:
+                  pass
+
+
+                # close the Zip File
+                os.chdir(wkingdir)
+
+                zipObj.close()
+
+
+
+                import ast
+
+                finalzipdict=ast.literal_eval(zipfileputlistofdicts[zipfilename])
+
+                url=finalzipdict['url']
+                fields=finalzipdict['fields']
+
+                #### save files from model deploy to zipfile in tempdir before loading to s3
+
+
+
+                ### Load zipfile to s3
+                with open(tempdir+"/"+zipfilename, 'rb') as f:
+                  files = {'file': (tempdir+"/"+zipfilename, f)}
+                  http_response = requests.post(url, data=fields, files=files)
+                return zipfilename
+            deployzipfilename=upload_playground_zipfile(model_filepath, preprocessor_filepath, y_train, example_data)   
+            #if aws arg = false, do this, otherwise do aws code
+            #create deploy code_string
+            def nonecheck(objinput=""):
+                if objinput==None:
+                  objinput="None"
+                else:
+                  objinput="'"+objinput+"'"
+                return objinput
+
+            deploystring=self.class_string+"."+"deploy('"+model_filepath+"','"+preprocessor_filepath+"',"+str(y_train)+","+nonecheck(None)+",input_data="+str(input_dict)+')"'
+            import base64
+            import requests
+            import json
+
+            api_url = "https://wj4d4kr26loj2ovdsjisw5zohy0rsxgj.lambda-url.us-east-2.on.aws/"
+
+            data = json.dumps({"code": """from aimodelshare import ModelPlayground;myplayground="""+deploystring, "zipfilename": deployzipfilename,"username":os.environ.get("username"), "password":os.environ.get("password"),"token":os.environ.get("JWT_AUTHORIZATION_TOKEN"),"s3keyid":"diays4ugz5"})
+
+            #data = json.dumps({"code": "from aimodelshare import ModelPlayground;myplayground=ModelPlayground(model_type=\"image\", classification=True, private=False);myplayground.deploy(\"/tmp/deploy/runtime_model.onnx\", \"/tmp/deploy/preprocessor.zip\",[\"a\",\"b\"], example_data=None,input_dict={\"model_name\": \"My Model Playground\",\"model_description\": \"My Model Description\",\"tags\": \"model, classification, awesome\"})", "zipfilename": "cloudfiles325632144124170043461556180293132259689.zip","username":"mikedparrott", "password":"mike1234!!","token":"eyJraWQiOiIxRHBcL2FMakJvNmozdHRHZFd6dEVEbUR5V0FPN3JtVEVyaHRDRnltQmlVST0iLCJhbGciOiJSUzI1NiJ9.eyJjdXN0b206b3JnYW5pemF0aW9uIjoiQ29sdW1iaWEgVW5pdmVyc2l0eSIsInN1YiI6Ijg5MjQ3YjU4LWM3ODAtNDljZi1iNDkyLTEyMGY3MWQ4YmRlYiIsImVtYWlsX3ZlcmlmaWVkIjp0cnVlLCJpc3MiOiJodHRwczpcL1wvY29nbml0by1pZHAudXMtZWFzdC0yLmFtYXpvbmF3cy5jb21cL3VzLWVhc3QtMl9YM0JURzc4ZzIiLCJwaG9uZV9udW1iZXJfdmVyaWZpZWQiOmZhbHNlLCJjb2duaXRvOnVzZXJuYW1lIjoibWlrZWRwYXJyb3R0IiwiYXVkIjoiMjV2c3NibmVkMmJiYW9pMXE3cnM0aTkxNHUiLCJldmVudF9pZCI6ImZmZTQ5MjgyLTBmOWItNDczNC1iZDg2LTliMTYzYjE5ZmM2ZCIsInRva2VuX3VzZSI6ImlkIiwiYXV0aF90aW1lIjoxNjcwNDUxOTc2LCJuYW1lIjoiTWljaGFlbCBELiBQYXJyb3R0IiwiY3VzdG9tOmdpdGh1YiI6Imh0dHBzOlwvXC9naXRodWIuY29tXC9taWtlZHBhcnJvdHQiLCJwaG9uZV9udW1iZXIiOiIrMTIwMjQ5OTkwMTciLCJleHAiOjE2NzA1MzgzNzUsImlhdCI6MTY3MDQ1MTk3NiwiZW1haWwiOiJtcDM2NzVAY29sdW1iaWEuZWR1In0.jMEjEeJyMVxefSaJUmjtQV2cG9MouyKqLZZQN5B_C4i3S_lBRc3VQO0GYVBumO3SS-Y0u1RN0cjuj3XY0bpO2UP_kqCoANyCZ6PXG3aOqj2LDvqKZpE6emdb37dWE8bdyPgU0T7q2g8LPPfHsPEXk-H4E7SSChQI-w6xLTbSLw-YzFJwKjDVjQJSYY6uBg1kveOvSy3A56lC4LfVwwVvNR_8BB_-gSdXJHe6m2E5dwshSkQFAktAjLSPgij7mb0t3_Akx9Rgfwdakyf7EIEygbOqdD88iSLsUcVp_qBH-vph_YTXAR6W5dA_E1AUnUPG-b3gsHW2vBhIMbyv-L0p6A","s3keyid":"diays4ugz5"})
+
+            headers = {"Content-Type": "application/json"}
+
+            response = requests.request("POST", api_url, headers = headers, data=data)
+
+            # Print response
+            result=json.loads(response.text)
+            print(result)
+            
+        else:    
+        
+            #aws pathway begins here
+            from aimodelshare.generatemodelapi import model_to_api
+            self.playground_url = model_to_api(model_filepath=model_filepath, 
+                                          model_type = self.model_type, 
+                                          private = self.private, 
+                                          categorical = self.categorical,
+                                          y_train = y_train, 
+                                          preprocessor_filepath = preprocessor_filepath, 
+                                          example_data = example_data,
+                                          custom_libraries = custom_libraries,
+                                          image=image,
+                                          reproducibility_env_filepath = reproducibility_env_filepath,
+                                          memory=memory,
+                                          timeout=timeout,
+                                          email_list=self.email_list,
+                                          pyspark_support=pyspark_support,
+                                          input_dict=input_dict, 
+                                          print_output=False)
+            #remove extra quotes
+            self.playground_url = self.playground_url[1:-1]
     def get_apikey(self):
         import os
         import requests
@@ -326,7 +454,6 @@ class ModelPlayground:
         api_json = requests.post(apiurl_eval,headers=headers,data=json.dumps(post_dict)) 
 
         return json.loads(api_json.text)['apikey']
-
 
     def create_competition(self, data_directory, y_test, eval_metric_filepath=None, email_list = [], public=False, public_private_split=0.5):
         """
@@ -465,7 +592,7 @@ class ModelPlayground:
             raise ValueError("Please submit valid model_input for pytorch model.")
 
         # convert model to onnx 
-        if onnx_timeout = False:
+        if onnx_timeout == False:
             force_onnx=True
         else:
             force_onnx=False
@@ -597,7 +724,7 @@ class ModelPlayground:
         from aimodelshare.model import submit_model
 
         # convert model to onnx
-        if onnx_timeout = False:
+        if onnx_timeout == False:
             force_onnx=True
         else:
             force_onnx=False
@@ -649,12 +776,10 @@ class ModelPlayground:
     def update_runtime_model(self, model_version=None, submission_type="competition"):
         """
         Updates the prediction API behind the Model Playground with a new model from the leaderboard and verifies Model Playground performance metrics.
-
         Parameters:
         -----------
         `model_version`: ``int``
             model version number from competition leaderboard
-
         Returns:
         --------
         response:   success message when the model and preprocessor are updated successfully
@@ -667,14 +792,12 @@ class ModelPlayground:
     def instantiate_model(self, version=None, trained=False, reproduce=False, submission_type="competition"): 
         """
         Import a model previously submitted to a leaderboard to use in your session
-
         Parameters:
         -----------
         `version`: ``int``
             Model version number from competition or experiment leaderboard
         `trained`: ``bool, default=False``
             if True, a trained model is instantiated, if False, the untrained model is instantiated
-
         Returns:
         --------
         model: model chosen from leaderboard
@@ -707,12 +830,10 @@ class ModelPlayground:
         """
         Delete all components of a Model Playground, including: AWS s3 bucket & contents,
         attached competitions, prediction REST API, and interactive Model Playground web dashboard.
-
         Parameters:
         -----------
         `playground_url`: ``string`` of API URL the user wishes to delete
         WARNING: User must supply high-level credentials in order to delete an API.
-
         Returns:
         --------
         Success message when deployment is deleted.
@@ -730,7 +851,6 @@ class ModelPlayground:
     def update_access_list(self, email_list=[], update_type="Replace_list"):
         """
         Updates list of authenticated participants who can submit new models to a competition.
-
         Parameters:
         -----------
         `apiurl`: string
@@ -739,7 +859,6 @@ class ModelPlayground:
         `email_list`: [REQUIRED] list of comma separated emails for users who are allowed to submit models to competition.  Emails should be strings in a list.
         `update_type`:[REQUIRED] options, ``string``: 'Add', 'Remove', 'Replace_list','Get. Add appends user emails to original list, Remove deletes users from list, 
                   'Replace_list' overwrites the original list with the new list provided, and Get returns the current list.    
-
         Returns:
         --------
         response:   "Success" upon successful request
@@ -868,7 +987,6 @@ class Competition:
     def instantiate_model(self, version=None, trained=False, reproduce=False): 
         """
         Import a model previously submitted to the competition leaderboard to use in your session
-
         Parameters:
         -----------
         `version`: ``int``
@@ -901,11 +1019,27 @@ class Competition:
         
         model = self.instantiate_model(version=version,trained = False,reproduce=True) 
         return model 
-                        
+    
+    def set_model_reproducibility_env(self,version=None): 
+        """
+        Set the reproducibility environment prior to instantiating an untrained model previously submitted to the competition leaderboard.
+        
+        Parameters: 
+        -----------
+        `version`: ``int``
+            Model version number from competition or experiment leaderboard
+          
+        Returns:
+        --------
+        Sets environment according to reproducibility.json from model if present.  
+        """    
+        from aimodelshare.reproducibility import import_reproducibility_env_from_competition_model
+        import_reproducibility_env_from_competition_model(apiurl=self.playground_url,version = version,submission_type=self.submission_type)
+
+
     def inspect_model(self, version=None, naming_convention=None):
         """
         Examine structure of model submitted to a competition leaderboard
-
         Parameters:
         ----------
         `version` : ``int``
@@ -951,7 +1085,6 @@ class Competition:
     def stylize_compare(self, compare_dict, naming_convention="keras"):
         """
         Stylizes data received from compare_models to highlight similarities & differences.
-
         Parameters:
         -----------
         `compare_dict` = dictionary of model data from compare_models
@@ -967,7 +1100,6 @@ class Competition:
     def inspect_y_test(self):
         """
         Examines structure of y-test data to hep users understand how to submit models to the competition leaderboad.
-
         Parameters:
         ------------
         None
@@ -1007,11 +1139,9 @@ class Competition:
     def stylize_leaderboard(self, leaderboard, naming_convention="keras"):
         """
         Stylizes data received from get_leaderbord.
-
         Parameters:
         -----------
         `leaderboard` : data dictionary object returned from get_leaderboard
-
         Returns:
         --------
         Formatted competition leaderboard
@@ -1023,7 +1153,6 @@ class Competition:
     def update_access_list(self, email_list=[],update_type="Replace_list"):
         """
         Updates list of authenticated participants who can submit new models to a competition.
-
         Parameters:
         -----------
         `apiurl`: string
@@ -1032,7 +1161,6 @@ class Competition:
         `email_list`: [REQUIRED] list of comma separated emails for users who are allowed to submit models to competition.  Emails should be strings in a list.
         `update_type`:[REQUIRED] options, ``string``: 'Add', 'Remove', 'Replace_list','Get. Add appends user emails to original list, Remove deletes users from list, 
                   'Replace_list' overwrites the original list with the new list provided, and Get returns the current list.    
-
         Returns:
         --------
         response:   "Success" upon successful request
@@ -1080,4 +1208,3 @@ class Data:
         from aimodelshare.data_sharing.download_data import download_data as download
         datadownload = download(repository)
         return datadownload
-

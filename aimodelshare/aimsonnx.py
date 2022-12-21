@@ -700,7 +700,9 @@ def _keras_to_onnx(model, transfer_learning=None,
     # model graph 
     #G = model_graph_keras(model)
     #metadata['model_graph'] = G.create_dot().decode('utf-8')
+
     metadata['model_graph'] = ""
+
     # placeholder, needs evaluation engine
     metadata['eval_metrics'] = None
 
@@ -938,7 +940,7 @@ def model_to_onnx(model, framework=None, model_input=None, initial_types=None,
 
 
 
-def model_to_onnx_timed(model_filepath, force_onnx=False, timeout=60): 
+def model_to_onnx_timed(model_filepath, force_onnx=False, timeout=60, model_input=None): 
 
     if not (model_filepath == None or isinstance(model_filepath, str) or isinstance(model_filepath, onnx.ModelProto)): 
 
@@ -1362,8 +1364,16 @@ def instantiate_model(apiurl, version=None, trained=False, reproduce=False, subm
 
     if reproduce:
         if resp_dict['reproducibility_env'] != None:
-            set_reproducibility_env(resp_dict['reproducibility_env'])
-            print("Your reproducibility environment is successfully setup")
+            if os.environ.get("reproducibility_environment_version","") == str(version): 
+                # do not reset reproducibility environment
+                print("Reproducibility environment has been set correctly beforehand, continuing model instantiation")
+            
+            elif os.environ.get("reproducibility_environment_version","") != str(version) and os.environ.get("reproducibility_environment_version","") != "": 
+                raise Exception(f"Model version and reproducibility environment do not match, please set reproducibility environment before with `set_replicate_model_env` function")
+            else :
+                set_reproducibility_env(resp_dict['reproducibility_env'])
+                os.environ['reproducibility_environment_version'] = str(version)
+                print("Your reproducibility environment is successfully setup")
         else:
             print("Reproducibility environment is not found")
 
