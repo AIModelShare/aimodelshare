@@ -1136,9 +1136,6 @@ class Competition:
                               input_dict=input_dict,
                               print_output=print_output)
 
-        print(submission)
-
-        return submission
 
     def instantiate_model(self, version=None, trained=False, reproduce=False): 
         """
