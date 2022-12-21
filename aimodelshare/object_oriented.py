@@ -585,7 +585,7 @@ class ModelPlayground:
                     pickle.dump(email_list, f)
 
                   os.chdir(tempdir)
-                  zipObj.write('email_list.pkl')
+                  zipObj.write('emaillist.pkl')
                 else:
                   pass
 
