@@ -1108,11 +1108,7 @@ def submit_model(
     else:
         code_comp_result="" #TODO: reponse 403 indicates that user needs to reset credentials.  Need to add a creds check to top of function.
 
-    if print_output:
-        print("\nYour model has been submitted as model version "+str(model_version)+ "\n\n"+code_comp_result)
-    else:
-        print(str(model_version))
-    return
+    return print("\nYour model has been submitted as model version "+str(model_version)+ "\n\n"+code_comp_result)
 
 def update_runtime_model(apiurl, model_version=None, submission_type="competition"):
     """
