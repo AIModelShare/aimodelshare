@@ -409,7 +409,7 @@ class ModelPlayground:
                                     public_private_split)
         return experiment
 
-    def quick_submit(self, model_filepath, preprocessor_filepath, prediction_submission, y_test, 
+    def quick_submit(self, model_filepath, preprocessor_filepath, prediction_submission, y_test, y_train=None,
         data_directory=None, eval_metric_filepath=None, email_list = [], public=True, public_private_split=0.5,
         model_input=None, timeout=None, onnx_timeout=60, example_data=None):
         """
@@ -771,7 +771,7 @@ class ModelPlayground:
         --------
         response:   "Success" upon successful request
         """
-        
+
         from aimodelshare.generatemodelapi import _create_exampledata_json
 
         _create_exampledata_json(self.model_type, example_data)
