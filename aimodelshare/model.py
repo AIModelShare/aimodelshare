@@ -1102,16 +1102,17 @@ def submit_model(
     # competitiondata lambda function invoked through below url to update model submissions and contributors
     response=requests.post("https://eeqq8zuo9j.execute-api.us-east-1.amazonaws.com/dev/modeldata",
                   json=bodydatamodels_allstrings, headers=headers_with_authentication)
-    print(response.text)
+
     if str(response.status_code)=="200":
         code_comp_result="To submit code used to create this model or to view current leaderboard navigate to Model Playground: \n\n https://www.modelshare.org/detail/model:"+response.text.split(":")[1]  
     else:
         code_comp_result="" #TODO: reponse 403 indicates that user needs to reset credentials.  Need to add a creds check to top of function.
 
     if print_output:
-        return "\nYour model has been submitted as model version "+str(model_version)+ "\n\n"+code_comp_result
+        print("\nYour model has been submitted as model version "+str(model_version)+ "\n\n"+code_comp_result
     else:
-        return str(model_version)
+        print(str(model_version))
+    return
 
 def update_runtime_model(apiurl, model_version=None, submission_type="competition"):
     """
