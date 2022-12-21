@@ -622,8 +622,9 @@ class ModelPlayground:
                 else:
                   objinput="'/tmp/"+objinput+"'"
                 return objinput
+            deploystring=self.class_string.replace(",aws=False","")+"."+"deploy('/tmp/"+model_filepath+"','/tmp/"+preprocessor_filepath+"',"+'y_train'+","+nonecheck(example_data)+",input_dict="+str(input_dict)+')'
 
-            compstring=self.class_string.replace(",aws=False","")+"."+"create_competition('/tmp/"+data_directory+"','/tmp/"+y_test+","+nonecheck(eval_metric_filepath)+","+nonecheck(email_list)+",input_dict="+str(input_dict)+')'
+            compstring=self.class_string.replace(",aws=False","")+"."+"create_competition('/tmp/"+data_directory+"',"+'y_test'+","+onecheck(eval_metric_filepath)+","+'email_list'+",input_dict="+str(input_dict)+')'
             print(compstring)
             import base64
             import requests
