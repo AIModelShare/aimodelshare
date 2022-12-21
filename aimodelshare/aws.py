@@ -13,8 +13,8 @@ def set_credentials(credential_file=None, type="submit_model", apiurl="apiurl", 
   from aimodelshare.modeluser import get_jwt_token, create_user_getkeyandpassword
   if all([credential_file==None, type=="submit_model"]):
     set_credentials_public(type="submit_model", apiurl=apiurl)
-  elif all([credential_file==None, type=="deploy", cloud=="model_share"]):
-    set_credentials_public_aimscloud(credential_file=None, type="deploy", apiurl=apiurl)
+  elif all([credential_file==None, type=="deploy_model", cloud=="model_share"]):
+    set_credentials_public_aimscloud(credential_file=None, type="deploy_model", apiurl=apiurl)
     os.environ["cloud_location"] = cloud
   else:
       ##TODO: Require that "type" is provided, to ensure correct env vars get loaded
@@ -206,7 +206,7 @@ def set_credentials_public(credential_file=None, type="submit_model", apiurl="ap
 
   return
 
-def set_credentials_public_aimscloud(credential_file=None, type="deploy", apiurl="apiurl", manual = True):
+def set_credentials_public_aimscloud(credential_file=None, type="deploy_model", apiurl="apiurl", manual = True):
   import os
   import getpass
   from aimodelshare.aws import get_aws_token
