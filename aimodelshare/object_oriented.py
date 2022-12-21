@@ -510,7 +510,7 @@ class ModelPlayground:
                 aishare_datalicense = input(
                     "Enter optional data license descriptive name (e.g.- 'MIT, Apache 2.0, CC0, Other, etc.'):")
  
-               input_dict={"competition_name":aishare_competitionname,"competition_description":aishare_competitiondescription,"data_description":aishare_datadescription,"data_license":aishare_datalicense}
+                input_dict={"competition_name":aishare_competitionname,"competition_description":aishare_competitiondescription,"data_description":aishare_datadescription,"data_license":aishare_datalicense}
             else:
                pass
         
