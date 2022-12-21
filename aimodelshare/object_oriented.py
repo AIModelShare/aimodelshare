@@ -650,7 +650,7 @@ class ModelPlayground:
                                         eval_metric_filepath,
                                         email_list, 
                                         public,
-                                        public_private_split)
+                                        public_private_split, input_dict=input_dict)
             return competition
         
     def create_experiment(self, data_directory, y_test, eval_metric_filepath=None, email_list = [], public=False, public_private_split=0):
