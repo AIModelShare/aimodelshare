@@ -1158,9 +1158,7 @@ def update_runtime_model(apiurl, model_version=None, submission_type="competitio
         leaderboardversion=leaderboardversion.dropna(axis=1)
 
         metric_names_subset=list(columns[0:4])
-        print(metric_names_subset)
         leaderboardversiondict=leaderboardversion.loc[:,metric_names_subset].to_dict('records')[0]
-        print(leaderboardversiondict)
 
     except Exception as err:
         raise err
