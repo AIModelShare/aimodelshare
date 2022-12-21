@@ -1104,7 +1104,7 @@ def submit_model(
                   json=bodydatamodels_allstrings, headers=headers_with_authentication)
 
     if str(response.status_code)=="200":
-        return print(code_comp_result="To submit code used to create this model or to view current leaderboard navigate to Model Playground: \n\n https://www.modelshare.org/detail/model:"+response.text.split(":")[1])  
+        return print("To submit code used to create this model or to view current leaderboard navigate to Model Playground: \n\n https://www.modelshare.org/detail/model:"+response.text.split(":")[1])  
     else:
         return print("Submission unsuccessful: Reset your credentials to generate new token and try again.") #TODO: reponse 403 indicates that user needs to reset credentials.  Need to add a creds check to top of function.
 
