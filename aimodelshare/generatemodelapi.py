@@ -12,6 +12,7 @@ import time
 import datetime
 import onnx
 import tempfile
+import types
 import sys
 import base64
 import mimetypes
@@ -27,6 +28,7 @@ from aimodelshare.preprocessormodules import upload_preprocessor
 from aimodelshare.model import _get_predictionmodel_key, _extract_model_metadata
 from aimodelshare.data_sharing.share_data import share_data_codebuild
 from aimodelshare.aimsonnx import _get_metadata
+from aimodelshare.utils import HiddenPrints
 
 def take_user_info_and_generate_api(model_filepath, model_type, categorical,labels, preprocessor_filepath,
                                     custom_libraries, requirements, exampledata_json_filepath, repo_name, 
@@ -118,9 +120,15 @@ def take_user_info_and_generate_api(model_filepath, model_type, categorical,labe
     create_bucket(s3['client'], os.environ.get("BUCKET_NAME"), region)
 
     # model upload
-
-    Filepath = model_filepath
-    model = onnx.load(model_filepath)
+    if isinstance(model_filepath, onnx.ModelProto):
+        model = model_filepath
+        temp_prep=tempfile.mkdtemp()
+        Filepath = temp_prep+"/model.onnx"
+        with open(Filepath, "wb") as f:
+            f.write(model.SerializeToString())
+    else:
+        Filepath = model_filepath
+        model = onnx.load(model_filepath)
     metadata = _extract_model_metadata(model)
     input_shape = metadata["input_shape"]
     #tab_imports ='./tabular_imports.pkl'
@@ -143,6 +151,12 @@ def take_user_info_and_generate_api(model_filepath, model_type, categorical,labe
         # preprocessor upload
 
         # ADD model/Preprocessor VERSION
+        if isinstance(preprocessor_filepath, types.FunctionType): 
+            from aimodelshare.preprocessormodules import export_preprocessor
+            temp_prep=tempfile.mkdtemp()
+            with HiddenPrints():
+                export_preprocessor(preprocessor_filepath,temp_prep)
+            preprocessor_filepath = temp_prep+"/preprocessor.zip"
         response = upload_preprocessor(
             preprocessor_filepath, s3, os.environ.get("BUCKET_NAME"), unique_model_id, 1)
         preprocessor_file_extension = _get_extension_from_filepath(
@@ -286,6 +300,13 @@ def send_model_data_to_dyndb_and_return_api(api_info, private, categorical, prep
         variablename_and_type_data = ["", ""]
 
      # needs to use double backslashes and have full filepath
+
+    if isinstance(preprocessor_filepath, types.FunctionType): 
+        from aimodelshare.preprocessormodules import export_preprocessor
+        temp_prep=tempfile.mkdtemp()
+        with HiddenPrints():
+            export_preprocessor(preprocessor_filepath,temp_prep)
+        preprocessor_filepath = temp_prep+"/preprocessor.zip"
     preprocessor_file_extension = _get_extension_from_filepath(
         preprocessor_filepath)
     if exampledata_json_filepath!="":
@@ -418,6 +439,7 @@ def model_to_api(model_filepath, model_type, private, categorical, y_train, prep
     #  1. take_user_info_and_generate_api : to upload model/preprocessor and generate an api for model submitted by user
     #  2. send_model_data_to_dyndb_and_return_api : to add new record to database with user data, model and api related information
 
+
     # Get user inputs, pass to other functions  {{{
     user_session = boto3.session.Session(aws_access_key_id=os.environ.get("AWS_ACCESS_KEY_ID_AIMS"),
                                          aws_secret_access_key = os.environ.get("AWS_SECRET_ACCESS_KEY_AIMS"), 
@@ -527,6 +549,9 @@ def model_to_api(model_filepath, model_type, private, categorical, y_train, prep
         exampledata_json_filepath, repo_name, image_tag, 
         reproducibility_env_filepath, memory, timeout, pyspark_support=pyspark_support)
 
+    if input_dict:
+        aishare_modelname = aishare_modelname+" "+str(api_info[3])
+
     ### Progress Update #5/6 {{{
     sys.stdout.write('\r')
     sys.stdout.write("[=================================    ] Progress: 90% - Finishing web dashboard...                           ")
@@ -541,7 +566,8 @@ def model_to_api(model_filepath, model_type, private, categorical, y_train, prep
     
     return api_info[0]
 
-def create_competition(apiurl, data_directory, y_test, eval_metric_filepath=None, email_list=[], public=False, public_private_split=0.5):
+def create_competition(apiurl, data_directory, y_test, eval_metric_filepath=None, email_list=[], public=False, public_private_split=0.5,
+                        input_dict=None, print_output=True):
     """
     Creates a model competition for a deployed prediction REST API
     Inputs : 4
@@ -633,26 +659,35 @@ def create_competition(apiurl, data_directory, y_test, eval_metric_filepath=None
     api_url_trim = apiurl.split('https://')[1]
     api_id = api_url_trim.split(".")[0]
 
-    print("\n--INPUT COMPETITION DETAILS--\n")
+    if input_dict == None:
+        print("\n--INPUT COMPETITION DETAILS--\n")
+        aishare_competitionname = input("Enter competition name:")
+        aishare_competitiondescription = input("Enter competition description:")
 
-    aishare_competitionname = input("Enter competition name:")
-    aishare_competitiondescription = input("Enter competition description:")
+        print("\n--INPUT DATA DETAILS--\n")
+        print("Note: (optional) Save an optional LICENSE.txt file in your competition data directory to make users aware of any restrictions on data sharing/usage.\n")
 
-    print("\n--INPUT DATA DETAILS--\n")
-    print("Note: (optional) Save an optional LICENSE.txt file in your competition data directory to make users aware of any restrictions on data sharing/usage.\n")
+        aishare_datadescription = input(
+            "Enter data description (i.e.- filenames denoting training and test data, file types, and any subfolders where files are stored):")
+        
+        aishare_datalicense = input(
+            "Enter optional data license descriptive name (e.g.- 'MIT, Apache 2.0, CC0, Other, etc.'):")
 
-    aishare_datadescription = input(
-        "Enter data description (i.e.- filenames denoting training and test data, file types, and any subfolders where files are stored):")
-    
-    aishare_datalicense = input(
-        "Enter optional data license descriptive name (e.g.- 'MIT, Apache 2.0, CC0, Other, etc.'):")    
+    else:
+        aishare_competitionname = input_dict["competition_name"]
+        aishare_competitiondescription = input_dict["competition_description"]
+        aishare_datadescription = input_dict["data_description"]
+        aishare_datalicense = input_dict["data_license"]
+
+
     user_session = boto3.session.Session(aws_access_key_id=os.environ.get("AWS_ACCESS_KEY_ID_AIMS"),
                                           aws_secret_access_key = os.environ.get("AWS_SECRET_ACCESS_KEY_AIMS"), 
                                          region_name=os.environ.get("AWS_REGION_AIMS"))
+
     account_number = user_session.client(
         'sts').get_caller_identity().get('Account')
 
-    datauri=share_data_codebuild(account_number,os.environ.get("AWS_REGION"),data_directory)
+    datauri=share_data_codebuild(account_number,os.environ.get("AWS_REGION_AIMS"),data_directory)
     
     #create and upload json file with list of authorized users who can submit to this competition.
     _create_competitionuserauth_json(apiurl, email_list,public,datauri['ecr_uri'], submission_type="competition")
@@ -689,12 +724,15 @@ def create_competition(apiurl, data_directory, y_test, eval_metric_filepath=None
                  "# Use this data to preprocess data and train model. Write and save preprocessor fxn, save model to onnx file, generate predicted y values\n using X test data, then submit a model below.\n\n"
                 "competition.submit_model(model_filepath, preprocessor_filepath, prediction_submission_list)")
   
-    return print(final_message)
+    if print_output:
+        return print(final_message)
+    else:
+        return
 
 
 
-
-def create_experiment(apiurl, data_directory, y_test, eval_metric_filepath=None, email_list=[], public=False, public_private_split=0.5):
+def create_experiment(apiurl, data_directory, y_test, eval_metric_filepath=None, email_list=[], public=False, public_private_split=0,
+                        input_dict=None, print_output=True):
     """
     Creates a model experiment for a deployed prediction REST API
     Inputs : 4
@@ -786,22 +824,31 @@ def create_experiment(apiurl, data_directory, y_test, eval_metric_filepath=None,
     api_url_trim = apiurl.split('https://')[1]
     api_id = api_url_trim.split(".")[0]
 
-    print("\n--INPUT COMPETITION DETAILS--\n")
+    if input_dict == None:
+        print("\n--INPUT COMPETITION DETAILS--\n")
+        aishare_competitionname = input("Enter competition name:")
+        aishare_competitiondescription = input("Enter competition description:")
 
-    aishare_competitionname = input("Enter experiment name:")
-    aishare_competitiondescription = input("Enter experiment description:")
+        print("\n--INPUT DATA DETAILS--\n")
+        print("Note: (optional) Save an optional LICENSE.txt file in your competition data directory to make users aware of any restrictions on data sharing/usage.\n")
 
-    print("\n--INPUT DATA DETAILS--\n")
-    print("Note: (optional) Save an optional LICENSE.txt file in your experiment data directory to make users aware of any restrictions on data sharing/usage.\n")
+        aishare_datadescription = input(
+            "Enter data description (i.e.- filenames denoting training and test data, file types, and any subfolders where files are stored):")
+        
+        aishare_datalicense = input(
+            "Enter optional data license descriptive name (e.g.- 'MIT, Apache 2.0, CC0, Other, etc.'):")
 
-    aishare_datadescription = input(
-        "Enter data description (i.e.- filenames denoting training and test data, file types, and any subfolders where files are stored):")
-    
-    aishare_datalicense = input(
-        "Enter optional data license descriptive name (e.g.- 'MIT, Apache 2.0, CC0, Other, etc.'):")    
+    else:
+        aishare_competitionname = input_dict["experiment_name"]
+        aishare_competitiondescription = input_dict["experiment_description"]
+        aishare_datadescription = input_dict["data_description"]
+        aishare_datalicense = input_dict["data_license"]
+
+
     user_session = boto3.session.Session(aws_access_key_id=os.environ.get("AWS_ACCESS_KEY_ID_AIMS"),
                                           aws_secret_access_key = os.environ.get("AWS_SECRET_ACCESS_KEY_AIMS"), 
                                          region_name=os.environ.get("AWS_REGION_AIMS"))
+
     account_number = user_session.client(
         'sts').get_caller_identity().get('Account')
 
@@ -843,7 +890,10 @@ def create_experiment(apiurl, data_directory, y_test, eval_metric_filepath=None,
                  "# Use this data to preprocess data and train model. Write and save preprocessor fxn, save model to onnx file, generate predicted y values\n using X test data, then submit a model below.\n\n"
                 "experiment.submit_model(model_filepath, preprocessor_filepath, prediction_submission_list)")
   
-    return print(final_message)
+    if print_output:
+        return print(final_message)
+    else:
+        return
 
 def _create_public_private_split_json(apiurl, split=0.5, submission_type='competition'): 
       import json
@@ -1148,10 +1198,11 @@ def _create_exampledata_json(model_type, exampledata_folder_filepath):
                         '.jfi', 'psd', '.raw', '.arw', '.cr2', '.nrw', '.k25', '.eps']
     video_extensions = ['.avchd', '.avi', '.flv', '.mov', '.mkv', '.mp4', '.wmv']
     audio_extensions = ['.m4a', '.flac', '.mp3', '.mp4', '.wav', '.wma', '.aac']
+
+    import pandas as pd
      
     if any([model_type.lower() == "tabular", model_type.lower() == "timeseries", model_type.lower() == "text"]):
         #confirm data type is data frame, try to convert if not [necessary for front end]
-        import pandas as pd
         if isinstance(exampledata_folder_filepath, pd.DataFrame):
             pass
         else:
@@ -1166,41 +1217,48 @@ def _create_exampledata_json(model_type, exampledata_folder_filepath):
             return
         
     else:
-        #Check file types & make list to convert 
-        data = ""
-        file_list = os.listdir(exampledata_folder_filepath)
-        files_to_convert = []
-        for i in range(len(file_list)):
-            file_list[i] = exampledata_folder_filepath + "/" + file_list[i]
-            root, ext = os.path.splitext(file_list[i])
-            
-            if not ext:
-                ext = mimetypes.guess_extension(file_list[i])
-                
-            if model_type.lower() == "image" and ext in image_extensions:
-                files_to_convert.append(file_list[i])
-                    
-            if model_type.lower() == "video" and ext in video_extensions:
-                files_to_convert.append(file_list[i])
-                
-            if model_type.lower() == "audio" and ext in audio_extensions: 
-                files_to_convert.append(file_list[i])     
-        
-            i += 1 
-            if len(files_to_convert) == 5:
-                break
-    
-        #base64 encode confirmed file list 
-        for i in range(len(files_to_convert)):
-            with open(files_to_convert[i], "rb") as current_file: 
-                encoded_string = base64.b64encode(current_file.read())
-                data = data + encoded_string.decode('utf-8') + ", "
-                i += 1
 
-        #build json
-        with open(temp_dir+'/exampledata.json', 'w', encoding='utf-8') as f:
-            json.dump({"exampledata": data[:-2], "totalfiles": len(files_to_convert)}, f, ensure_ascii=False, indent=4)
+        if isinstance(exampledata_folder_filepath, pd.DataFrame):
+
+            tabularjson = exampledata_folder_filepath.to_json(orient='split', index=False)
+            with open(temp_dir+'/exampledata.json', 'w', encoding='utf-8') as f:
+                json.dump({"exampledata": tabularjson, "totalfiles":1}, f, ensure_ascii=False, indent=4)
+        else:
+            #Check file types & make list to convert 
+            data = ""
+            file_list = os.listdir(exampledata_folder_filepath)
+            files_to_convert = []
+            for i in range(len(file_list)):
+                file_list[i] = exampledata_folder_filepath + "/" + file_list[i]
+                root, ext = os.path.splitext(file_list[i])
+                
+                if not ext:
+                    ext = mimetypes.guess_extension(file_list[i])
+                    
+                if model_type.lower() == "image" and ext in image_extensions:
+                    files_to_convert.append(file_list[i])
+                        
+                if model_type.lower() == "video" and ext in video_extensions:
+                    files_to_convert.append(file_list[i])
+                    
+                if model_type.lower() == "audio" and ext in audio_extensions: 
+                    files_to_convert.append(file_list[i])     
+            
+                i += 1 
+                if len(files_to_convert) == 5:
+                    break
         
+            #base64 encode confirmed file list 
+            for i in range(len(files_to_convert)):
+                with open(files_to_convert[i], "rb") as current_file: 
+                    encoded_string = base64.b64encode(current_file.read())
+                    data = data + encoded_string.decode('utf-8') + ", "
+                    i += 1
+        
+            #build json
+            with open(temp_dir+'/exampledata.json', 'w', encoding='utf-8') as f:
+                json.dump({"exampledata": data[:-2], "totalfiles": len(files_to_convert)}, f, ensure_ascii=False, indent=4)
+            
         return
 
 __all__ = [

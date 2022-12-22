@@ -5,9 +5,8 @@ import json
 
 
 def handler(event, context):
-    print("Client token: " + event['authorizationToken'])
-    print("Method ARN: " + event['methodArn'])
-
+    print("Client token: " + event.get('authorizationToken','empty'))
+    print("Method ARN: " + event.get('methodArn','empty'))
     '''
     Validate the incoming token and produce the principal user identifier
     associated with the token. This can be accomplished in a number of ways:
@@ -16,18 +15,31 @@ def handler(event, context):
     2. Decode a JWT token inline
     3. Lookup in a self-managed DB
     '''
-    idtoken=event['authorizationToken']
-    try:
-        tokenbodydata=json.loads(idtoken)
-        idtoken=tokenbodydata['token']
-        evaltrue=tokenbodydata['eval']
-    except:
-        evaltrue="FALSE"
-        
+    idtoken=event.get('authorizationToken','empty')
+    tokenlength=len(idtoken)
+    print(tokenlength)
     print(event)
+    evaltrue="FALSE"
     principalId = idtoken
-    import jwt
-    decoded = jwt.decode(idtoken, options={"verify_signature": False})  # works in PyJWT < v2.0
+    
+    if tokenlength>=40:
+        try:
+            tokenbodydata=json.loads(idtoken)
+            idtoken=tokenbodydata['token']
+            evaltrue=tokenbodydata['eval']
+            principalId = idtoken
+
+        except:
+            evaltrue="FALSE"
+
+        try:  
+
+            import jwt
+            decoded = jwt.decode(idtoken, options={"verify_signature": False})  # works in PyJWT < v2.0
+        except:
+            pass  
+    else:
+        pass
     
     # Check token access with live rest api (with cognito auth activated) to ensure user isn't sending incorrect username
     # 200 status indicates accept, 403 means unauthorized
@@ -66,18 +78,23 @@ def handler(event, context):
     
     
     #====================Accept/Deny auth for AIMODELSHARE begins here===========================================
+
     import requests
-    
+
 
     headers_with_authentication = {'Content-Type': 'application/json', 'Authorization': idtoken}
-    
+
     response=requests.post("https://1b861v14ne.execute-api.us-east-1.amazonaws.com/dev/redisusagetrackerembedded",
                          json={"apiid": str(policy.restApiId),"eval":evaltrue}, headers=headers_with_authentication)
     print(response.status_code)
     uniquemodversion=str(response.text)
 
     print(response.text)
-    if any([response.status_code!=200,response.text.find("Missing")>0,response.text.find("Monthly")>0,response.text.find("monthly")>0]):
+    
+    if idtoken=="$apikey":
+        policyresult="accept"
+
+    elif any([response.status_code!=200,response.text.find("Missing")>0,response.text.find("Monthly")>0,response.text.find("monthly")>0]):
         policyresult="deny"
     else:
         policyresult="accept"
