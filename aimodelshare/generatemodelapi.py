@@ -1221,7 +1221,7 @@ def _create_exampledata_json(model_type, exampledata_folder_filepath):
         if isinstance(exampledata_folder_filepath, pd.DataFrame):
 
             tabularjson = exampledata_folder_filepath.to_json(orient='split', index=False)
-            with open('exampledata.json', 'w', encoding='utf-8') as f:
+            with open(temp_dir+'/exampledata.json', 'w', encoding='utf-8') as f:
                 json.dump({"exampledata": tabularjson, "totalfiles":1}, f, ensure_ascii=False, indent=4)
         else:
             #Check file types & make list to convert 
@@ -1256,7 +1256,7 @@ def _create_exampledata_json(model_type, exampledata_folder_filepath):
                     i += 1
         
             #build json
-            with open('exampledata.json', 'w', encoding='utf-8') as f:
+            with open(temp_dir+'/exampledata.json', 'w', encoding='utf-8') as f:
                 json.dump({"exampledata": data[:-2], "totalfiles": len(files_to_convert)}, f, ensure_ascii=False, indent=4)
             
         return
