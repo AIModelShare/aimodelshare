@@ -421,8 +421,7 @@ class ModelPlayground:
             
             print("\nConnect to your playground in Python:\n")
             print("myplayground=ModelPlayground(playground_url="+json.loads(result['body'])[-7].replace("Playground Url: ","").strip()+")")
-
-            return(modelplaygroundurlid)
+            self.playground_url = modelplaygroundid[1:-1]
         else:    
         
             #aws pathway begins here
