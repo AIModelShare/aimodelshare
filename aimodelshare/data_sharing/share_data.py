@@ -75,17 +75,12 @@ def create_docker_folder_codebuild(dataset_dir, dataset_name, template_folder, r
 
     tmp_dataset = tempfile.gettempdir() + '/' + 'tmp_dataset_dir'
 
-    os.mkdir(tmp_dataset)
-
-    """
-    if not os.path.exists(tmp_dataset):
-        os.makedirs(tmp_dataset)
-    else:
+    if os.path.exists(tmp_dataset):
         shutil.rmtree(tmp_dataset)
-        os.makedirs(tmp_dataset)
-    """
+    os.makedirs(tmp_dataset)
 
-    shutil.copytree(dataset_dir, tmp_dataset_dir)
+    if dataset_dir:
+        shutil.copytree(dataset_dir, tmp_dataset_dir)
 
     os.mkdir(template_folder)
 
@@ -173,7 +168,10 @@ def share_data_codebuild(account_id, region, dataset_dir, dataset_tag='latest', 
 
     flag = 0
 
-    dataset_name = dataset_dir.replace(" ", "_")
+    if dataset_dir:
+        dataset_name = dataset_dir.replace(" ", "_")
+    else:
+        dataset_name = "placeholder_data"
 
     repository=dataset_name+'-repository'
 

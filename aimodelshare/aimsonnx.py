@@ -23,6 +23,7 @@ from onnx.tools.net_drawer import GetPydotGraph, GetOpNodeProducer
 import importlib
 import onnxmltools
 import onnxruntime as rt
+from skl2onnx.common.data_types import FloatTensorType
 
 # aims modules
 from aimodelshare.aws import run_function_on_lambda, get_aws_client
@@ -49,6 +50,8 @@ import absl.logging
 import networkx as nx
 import warnings
 from pathlib import Path
+import time
+import signal
 
 
 absl.logging.set_verbosity(absl.logging.ERROR)
@@ -207,7 +210,7 @@ def _misc_to_onnx(model, initial_types, transfer_learning=None,
 
 
 
-def _sklearn_to_onnx(model, initial_types, transfer_learning=None,
+def _sklearn_to_onnx(model, initial_types=None, transfer_learning=None,
                     deep_learning=None, task_type=None):
     '''Extracts metadata from sklearn model object.'''
     
@@ -226,6 +229,10 @@ def _sklearn_to_onnx(model, initial_types, transfer_learning=None,
       model.flatten_transform=False
     
     # convert to onnx
+    if initial_types == None: 
+        feature_count=model.n_features_in_
+        initial_types = [('float_input', FloatTensorType([None, feature_count]))]
+
     onx = convert_sklearn(model, initial_types=initial_types,target_opset={'': 15, 'ai.onnx.ml': 2})
     
     ## Dynamically set model ir_version to ensure sklearn opsets work properly
@@ -693,7 +700,9 @@ def _keras_to_onnx(model, transfer_learning=None,
     # model graph 
     #G = model_graph_keras(model)
     #metadata['model_graph'] = G.create_dot().decode('utf-8')
+
     metadata['model_graph'] = ""
+
     # placeholder, needs evaluation engine
     metadata['eval_metrics'] = None
 
@@ -809,7 +818,7 @@ def _pytorch_to_onnx(model, model_input, transfer_learning=None,
     return onx
 
 
-def model_to_onnx(model, framework, model_input=None, initial_types=None,
+def model_to_onnx(model, framework=None, model_input=None, initial_types=None,
                   transfer_learning=None, deep_learning=None, task_type=None, 
                   epochs=None, spark_session=None):
     
@@ -842,6 +851,13 @@ def model_to_onnx(model, framework, model_input=None, initial_types=None,
     Returns:
     ONNX object with model metadata saved in metadata props
     '''
+
+    # if no framework was passed, extract framework 
+    if model and framework==None:
+        framework = model.__module__.split(".")[0]
+
+        if isinstance(model, torch.nn.Module):
+            framework = "pytorch"
 
     # assert that framework exists
     frameworks = ['sklearn', 'keras', 'pytorch', 'xgboost', 'pyspark']
@@ -923,6 +939,55 @@ def model_to_onnx(model, framework, model_input=None, initial_types=None,
     return onnx
 
 
+
+def model_to_onnx_timed(model_filepath, force_onnx=False, timeout=60, model_input=None): 
+
+    if not (model_filepath == None or isinstance(model_filepath, str) or isinstance(model_filepath, onnx.ModelProto)): 
+
+        if force_onnx:
+            if isinstance(model_filepath, torch.nn.Module):
+                onnx_model = model_to_onnx(model_filepath, model_input=model_input)
+            else:
+                onnx_model = model_to_onnx(model_filepath)
+            model_filepath = onnx_model
+
+        else:
+
+            # interrupt if onnx conversion is taking too long
+            def timeout_handler(num, stack):
+                raise Exception("timeout")
+
+            signal.alarm(timeout)
+
+            try:
+
+                if isinstance(model_filepath, torch.nn.Module):
+                    onnx_model = model_to_onnx(model_filepath, model_input=model_input)
+                else:
+                    onnx_model = model_to_onnx(model_filepath)
+                model_filepath = onnx_model
+
+            except:
+                print("Timeout: Model to ONNX conversion is taking longer than expected. This can be the case for big models.")
+                response = ''
+                while response not in {"1", "2"}:
+                    response = input("Do you want to keep trying (1) or submit predictions only (2)? ")
+
+                if response == "1":
+                    if isinstance(model_filepath, torch.nn.Module):
+                        onnx_model = model_to_onnx(model_filepath, model_input=model_input)
+                    else:
+                        onnx_model = model_to_onnx(model_filepath)
+                    model_filepath = onnx_model
+
+                elif response == "2":
+                    model_filepath = None
+
+            finally:
+                print()
+                signal.alarm(0)
+
+    return model_filepath
 
 def _get_metadata(onnx_model):
     '''Fetches previously extracted model metadata from ONNX object
@@ -2071,6 +2136,5 @@ def rename_layers(in_layers, direction="torch_to_keras", activation=False):
       out_layers.append(layer_name_temp)
 
   return out_layers
-
 
 
