@@ -180,7 +180,7 @@ class autoMLTabular:
         """
         if competition:
             data = self.competition_playground.get_leaderboard()
-            self.competition_playground.stylize_leaderboard(data)
+            print(self.competition_playground.stylize_leaderboard(data))
         else:
             print(self.automl.get_leaderboard())
 
@@ -212,7 +212,8 @@ class autoMLTabular:
                         calculate_linear_classifier_output_shapes, convert_xgboost,
                         options={'nocl': [True, False], 'zipmap': [True, False, 'columns']})
                 elif isinstance(model, lightgbm.Booster):
-                    new_model = model
+                    new_model = lightgbm.LGBMClassifier()
+                    new_model.booster_ = model
                     update_registered_converter(
                         LGBMClassifier, 'LightGbmLGBMClassifier',
                         calculate_linear_classifier_output_shapes, convert_lightgbm,
@@ -224,17 +225,42 @@ class autoMLTabular:
                 pipeline = new_model
             else:
                 pipeline = model
-            model_pipelines.append(pipeline)
+                model_pipelines.append(pipeline)
 
-        estimators = [("model_" + str(i), pipeline) for i, pipeline in enumerate(model_pipelines)]
+        if model_pipelines:
+            estimators = [("model_" + str(i), pipeline) for i, pipeline in enumerate(model_pipelines)]
+            stacked_classifier = StackingClassifier(estimators=estimators,
+                                                    final_estimator=LogisticRegression())
 
-        stacked_classifier = StackingClassifier(estimators=estimators,
-                                                final_estimator=LogisticRegression())
+            pipeline = make_pipeline(stacked_classifier)
 
-        pipeline = make_pipeline(stacked_classifier)
         packed_fitting = self._fit_pipeline(pipeline)
         predicted_labels = packed_fitting[1]
         return pipeline, preprocessor, predicted_labels
+
+    def get_single_model(self):
+        selected_models = self.automl.ensemble.selected_models
+        best_model = None
+        best_preprocessor = None
+        best_score = 0.
+
+        for model_ in selected_models:
+            model = model_["model"]
+            preprocessor = model.preprocessings[0]
+            learner = model.learners[0].model
+            if isinstance(learner, xgboost.core.Booster):
+                new_model = xgboost.XGBClassifier()
+                new_model._Booster = learner
+                learner = new_model
+
+            score = learner.score(self.datasets_test, self.labels_test_processed)
+
+            if score > best_score:
+                best_score = score
+                predicted_labels = learner.predict(self.datasets_test)
+                best_model = learner
+                best_preprocessor = preprocessor
+        return best_model, best_preprocessor, predicted_labels
 
     def _fit_pipeline(self, pipeline):
         """
@@ -294,7 +320,7 @@ class autoMLTabular:
         self.train()
         print("Prediction score", self.prediction_score())
         self.get_leaderboard()
-        pipeline, preprocessor, predicted_labels = self.get_ensemble_model()
+        pipeline, preprocessor, predicted_labels = self.get_single_model()# self.get_ensemble_model()
 
         def wrapper(X_test):
             return preprocessor.transform(X_test, None)[0]

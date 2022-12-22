@@ -4,7 +4,7 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="301fb6ff-99cc-4504-86a7-f9174e9087a5" name="Changes" comment="quick debug">
+    <list default="true" id="301fb6ff-99cc-4504-86a7-f9174e9087a5" name="Changes" comment="something wrong with onnx -&gt; submit">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/aimodelshare/automl/automl_tabular.py" beforeDir="false" afterPath="$PROJECT_DIR$/aimodelshare/automl/automl_tabular.py" afterDir="false" />
     </list>
@@ -66,7 +66,8 @@
       <workItem from="1671201428856" duration="1198000" />
       <workItem from="1671203191258" duration="273000" />
       <workItem from="1671211410071" duration="54000" />
-      <workItem from="1671223834305" duration="4630000" />
+      <workItem from="1671223834305" duration="5218000" />
+      <workItem from="1671732753266" duration="1922000" />
     </task>
     <task id="LOCAL-00001" summary="init commit">
       <created>1669232183293</created>
@@ -152,7 +153,14 @@
       <option name="project" value="LOCAL" />
       <updated>1671211438104</updated>
     </task>
-    <option name="localTasksCounter" value="13" />
+    <task id="LOCAL-00013" summary="something wrong with onnx -&gt; submit">
+      <created>1671229824838</created>
+      <option name="number" value="00013" />
+      <option name="presentableId" value="LOCAL-00013" />
+      <option name="project" value="LOCAL" />
+      <updated>1671229824838</updated>
+    </task>
+    <option name="localTasksCounter" value="14" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
@@ -175,6 +183,7 @@
     <MESSAGE value="wrapped into a class" />
     <MESSAGE value="a placeholder for integrating aimodelshare" />
     <MESSAGE value="quick debug" />
-    <option name="LAST_COMMIT_MESSAGE" value="quick debug" />
+    <MESSAGE value="something wrong with onnx -&gt; submit" />
+    <option name="LAST_COMMIT_MESSAGE" value="something wrong with onnx -&gt; submit" />
   </component>
 </project>
