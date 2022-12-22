@@ -141,3 +141,5 @@ settings.json
 
 # Mac OS files
 **.DS_Store
+
+./.idea

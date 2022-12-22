@@ -244,6 +244,10 @@ class autoMLTabular:
         best_preprocessor = None
         best_score = 0.
 
+        datasets_test_df = pd.DataFrame(
+            self.datasets_test, columns=["feature_" + str(i) for i in range(1, len(self.datasets_test[0]) + 1)]
+        )
+
         for model_ in selected_models:
             model = model_["model"]
             preprocessor = model.preprocessings[0]
@@ -253,7 +257,7 @@ class autoMLTabular:
                 new_model._Booster = learner
                 learner = new_model
 
-            score = learner.score(self.datasets_test, self.labels_test_processed)
+            score = learner.score(datasets_test_df, self.labels_test_processed)
 
             if score > best_score:
                 best_score = score
