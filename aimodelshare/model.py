@@ -1102,7 +1102,7 @@ def submit_model(
     # competitiondata lambda function invoked through below url to update model submissions and contributors
     response=requests.post("https://eeqq8zuo9j.execute-api.us-east-1.amazonaws.com/dev/modeldata",
                   json=bodydatamodels_allstrings, headers=headers_with_authentication)
-
+    
     if str(response.status_code)=="200":
         code_comp_result="To submit code used to create this model or to view current leaderboard navigate to Model Playground: \n\n https://www.modelshare.org/detail/model:"+response.text.split(":")[1]  
     else:
@@ -1158,9 +1158,7 @@ def update_runtime_model(apiurl, model_version=None, submission_type="competitio
         leaderboardversion=leaderboardversion.dropna(axis=1)
 
         metric_names_subset=list(columns[0:4])
-        print(metric_names_subset)
         leaderboardversiondict=leaderboardversion.loc[:,metric_names_subset].to_dict('records')[0]
-        print(leaderboardversiondict)
 
     except Exception as err:
         raise err

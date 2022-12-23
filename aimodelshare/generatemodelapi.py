@@ -680,14 +680,14 @@ def create_competition(apiurl, data_directory, y_test, eval_metric_filepath=None
         aishare_datalicense = input_dict["data_license"]
 
 
-    user_session = boto3.session.Session(aws_access_key_id=os.environ.get("AWS_ACCESS_KEY_ID"),
-                                          aws_secret_access_key = os.environ.get("AWS_SECRET_ACCESS_KEY"), 
-                                         region_name=os.environ.get("AWS_REGION"))
+    user_session = boto3.session.Session(aws_access_key_id=os.environ.get("AWS_ACCESS_KEY_ID_AIMS"),
+                                          aws_secret_access_key = os.environ.get("AWS_SECRET_ACCESS_KEY_AIMS"), 
+                                         region_name=os.environ.get("AWS_REGION_AIMS"))
 
     account_number = user_session.client(
         'sts').get_caller_identity().get('Account')
 
-    datauri=share_data_codebuild(account_number,os.environ.get("AWS_REGION"),data_directory)
+    datauri=share_data_codebuild(account_number,os.environ.get("AWS_REGION_AIMS"),data_directory)
     
     #create and upload json file with list of authorized users who can submit to this competition.
     _create_competitionuserauth_json(apiurl, email_list,public,datauri['ecr_uri'], submission_type="competition")
@@ -847,7 +847,7 @@ def create_experiment(apiurl, data_directory, y_test, eval_metric_filepath=None,
 
     user_session = boto3.session.Session(aws_access_key_id=os.environ.get("AWS_ACCESS_KEY_ID_AIMS"),
                                           aws_secret_access_key = os.environ.get("AWS_SECRET_ACCESS_KEY_AIMS"), 
-                                         region_name=os.environ.get("AWS_REGION"))
+                                         region_name=os.environ.get("AWS_REGION_AIMS"))
 
     account_number = user_session.client(
         'sts').get_caller_identity().get('Account')
@@ -1221,7 +1221,7 @@ def _create_exampledata_json(model_type, exampledata_folder_filepath):
         if isinstance(exampledata_folder_filepath, pd.DataFrame):
 
             tabularjson = exampledata_folder_filepath.to_json(orient='split', index=False)
-            with open('exampledata.json', 'w', encoding='utf-8') as f:
+            with open(temp_dir+'/exampledata.json', 'w', encoding='utf-8') as f:
                 json.dump({"exampledata": tabularjson, "totalfiles":1}, f, ensure_ascii=False, indent=4)
         else:
             #Check file types & make list to convert 
@@ -1256,7 +1256,7 @@ def _create_exampledata_json(model_type, exampledata_folder_filepath):
                     i += 1
         
             #build json
-            with open('exampledata.json', 'w', encoding='utf-8') as f:
+            with open(temp_dir+'/exampledata.json', 'w', encoding='utf-8') as f:
                 json.dump({"exampledata": data[:-2], "totalfiles": len(files_to_convert)}, f, ensure_ascii=False, indent=4)
             
         return

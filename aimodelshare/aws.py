@@ -4,15 +4,18 @@ import botocore
 import requests
 import json
 from aimodelshare.exceptions import AuthorizationError, AWSAccessError
+from aimodelshare.modeluser import get_jwt_token
 
-
-def set_credentials(credential_file=None, type="submit_model", apiurl="apiurl", manual = True):
+def set_credentials(credential_file=None, type="submit_model", apiurl="apiurl", manual = True, cloud="aws"):
   import os
   import getpass
   from aimodelshare.aws import get_aws_token
   from aimodelshare.modeluser import get_jwt_token, create_user_getkeyandpassword
   if all([credential_file==None, type=="submit_model"]):
     set_credentials_public(type="submit_model", apiurl=apiurl)
+  elif all([credential_file==None, type=="deploy_model", cloud=="model_share"]):
+    set_credentials_public_aimscloud(credential_file=None, type="deploy_model", apiurl=apiurl)
+    os.environ["cloud_location"] = cloud
   else:
       ##TODO: Require that "type" is provided, to ensure correct env vars get loaded
       flag = False
@@ -23,7 +26,7 @@ def set_credentials(credential_file=None, type="submit_model", apiurl="apiurl", 
         os.environ["username"] = user
         pw = getpass.getpass(prompt="AI Modelshare Password:")
         os.environ["password"] = pw
-      
+        
       else: 
         f = open(credential_file)
 
@@ -189,6 +192,70 @@ def set_credentials_public(credential_file=None, type="submit_model", apiurl="ap
   try: 
     os.environ["AWS_TOKEN"]=get_aws_token()
 
+    print("AI Model Share login credentials set successfully.")
+  except: 
+    print("Credential confirmation unsuccessful. Check username & password and try again.")
+    return
+  
+   # Set AWS creds from file
+ 
+  try:
+    f.close()
+  except:
+    pass
+
+  return
+
+def set_credentials_public_aimscloud(credential_file=None, type="deploy_model", apiurl="apiurl", manual = True):
+  import os
+  import getpass
+  from aimodelshare.aws import get_aws_token
+  from aimodelshare.modeluser import get_jwt_token, create_user_getkeyandpassword
+
+  ##TODO: Require that "type" is provided, to ensure correct env vars get loaded
+  flag = False
+
+  # Set AI Modelshare Username & Password
+  if all([manual == True, credential_file==None]):
+    user = getpass.getpass(prompt="AI Modelshare Username:")
+    os.environ["username"] = user
+    pw = getpass.getpass(prompt="AI Modelshare Password:")
+    os.environ["password"] = pw
+  
+  else: 
+    f = open(credential_file)
+
+    for line in f:
+      if "aimodelshare_creds" in line or "AIMODELSHARE_CREDS" in line:
+        for line in f:
+          if line == "\n":
+            break
+          try:
+            value = line.split("=", 1)[1].strip()
+            value = value[1:-1]
+            key = line.split("=", 1)[0].strip()
+            os.environ[key.lower()] = value
+
+          except LookupError: 
+            print(* "Warning: Review format of", credential_file, ". Format should be variablename = 'variable_value'")
+            break
+    if "AWS_ACCESS_KEY_ID_AIMS" in os.environ:
+      pass
+    elif "AWS_ACCESS_KEY_ID" in os.environ:
+        os.environ['AWS_ACCESS_KEY_ID_AIMS']=os.environ.get("AWS_ACCESS_KEY_ID")
+    if "AWS_SECRET_ACCESS_KEY_AIMS" in os.environ:
+      pass
+    elif "AWS_SECRET_ACCESS_KEY" in os.environ:
+        os.environ['AWS_SECRET_ACCESS_KEY_AIMS']=os.environ.get("AWS_SECRET_ACCESS_KEY")
+
+    if 'AWS_REGION_AIMS' in os.environ:
+      pass
+    elif "AWS_REGION" in os.environ:
+        os.environ['AWS_REGION_AIMS']=os.environ.get("AWS_REGION")
+  #Validate Username & Password
+  try: 
+    os.environ["AWS_TOKEN"]=get_aws_token()
+    get_jwt_token(user,pw)
     print("AI Model Share login credentials set successfully.")
   except: 
     print("Credential confirmation unsuccessful. Check username & password and try again.")
