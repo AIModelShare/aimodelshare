@@ -176,12 +176,12 @@ def share_data_codebuild(account_id, region, dataset_dir, dataset_tag='latest', 
     else:
         dataset_name = "placeholder_data"
 
-    repository=dataset_name+'-repository'
+    repository=dataset_name.replace("/","")+'-repository'
 
     template_folder=tempfile.gettempdir() + '/' + dataset_name+'_'+dataset_tag
     template_folder= template_folder.replace("/tmp//tmp/","/tmp/")
-    codebuild_role_name=dataset_name+'-codebuild-role'
-    codebuild_policies_name=dataset_name+'-codebuild-policies'
+    codebuild_role_name=dataset_name.replace("/","")+'-codebuild-role'
+    codebuild_policies_name=dataset_name.replace("/","")+'-codebuild-policies'
 
     codebuild_dataset_name=dataset_name.replace("/","")+'-upload'
     
