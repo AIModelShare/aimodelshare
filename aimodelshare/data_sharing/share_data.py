@@ -183,7 +183,7 @@ def share_data_codebuild(account_id, region, dataset_dir, dataset_tag='latest', 
     codebuild_role_name=dataset_name+'-codebuild-role'
     codebuild_policies_name=dataset_name+'-codebuild-policies'
 
-    codebuild_dataset_name=dataset_name+'-upload'
+    codebuild_dataset_name=dataset_name.replace("/","")+'-upload'
 
     s3_client = session.client('s3', region_name=region)
 
