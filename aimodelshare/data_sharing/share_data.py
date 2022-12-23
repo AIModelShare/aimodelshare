@@ -175,20 +175,16 @@ def share_data_codebuild(account_id, region, dataset_dir, dataset_tag='latest', 
         dataset_name = dataset_dir.replace(" ", "_")
     else:
         dataset_name = "placeholder_data"
-
-    repository=dataset_name.replace("/","")+'-repository'
-    print("repositoryname: "+repository)
+    dataset_name=dataset_name.replace("/tmp/","")
+    repository=dataset_name+'-repository'
 
     template_folder=tempfile.gettempdir() + '/' + dataset_name+'_'+dataset_tag
     template_folder= template_folder.replace("/tmp//tmp/","/tmp/")
-    codebuild_role_name=dataset_name.replace("/","")+'-codebuild-role'
-    print("repositoryname: "+codebuild_role_name)
+    codebuild_role_name=dataset_name+'-codebuild-role'
 
-    codebuild_policies_name=dataset_name.replace("/","")+'-codebuild-policies'
-    print("codebuild_policies_name: "+codebuild_policies_name)
+    codebuild_policies_name=dataset_name+'-codebuild-policies'
 
-    codebuild_dataset_name=dataset_name.replace("/","")+'-upload'
-    print("codebuild_dataset_name: "+codebuild_dataset_name)
+    codebuild_dataset_name=dataset_name+'-upload'
 
     s3_client = session.client('s3', region_name=region)
 
@@ -234,12 +230,7 @@ def share_data_codebuild(account_id, region, dataset_dir, dataset_tag='latest', 
         attach_policy_to_role(iam, account_id, codebuild_role_name, codebuild_policies_name)
     except:
         None
-    
-    print("s3localfilename: "+''.join([template_folder, '.zip']))
-    print("s3objectname: "+''.join([dataset_name+'_'+dataset_tag, '.zip']))
-    print("s3locationzipfilename: "bucket_name + '/' + dataset_name+'_'+dataset_tag + '.zip')
-
-          
+             
     s3_client = session.client('s3')
     s3_client.upload_file(''.join([template_folder, '.zip']),
                           bucket_name,
