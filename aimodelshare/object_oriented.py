@@ -318,7 +318,7 @@ class ModelPlayground:
 
 
 
-              apiurl="https://n8567q0ssd.execute-api.us-east-2.amazonaws.com/prod/m"
+              apiurl="https://1l2z4k1gce.execute-api.us-east-2.amazonaws.com/prod/m"
 
               apiurl_eval=apiurl[:-1]+"eval"
 
@@ -404,7 +404,7 @@ class ModelPlayground:
             import requests
             import json
 
-            api_url = "https://ugjaeaenxaerdubk7by2nonw3m0zfchw.lambda-url.us-east-2.on.aws/"
+            api_url = "https://7yo5bckp5bz6l657hl52kao66u0jdlal.lambda-url.us-east-2.on.aws/"
 
             data = json.dumps({"code": """from aimodelshare import ModelPlayground;myplayground="""+deploystring, "zipfilename": deployzipfilename,"username":os.environ.get("username"), "password":os.environ.get("password"),"token":os.environ.get("JWT_AUTHORIZATION_TOKEN"),"s3keyid":"diays4ugz5"})
 
@@ -422,7 +422,7 @@ class ModelPlayground:
             print("\nConnect to your playground in Python:\n")
             print("myplayground=ModelPlayground(playground_url="+json.loads(result['body'])[-7].replace("Playground Url: ","").strip()+")")
             self.playground_url=modelplaygroundurlid
-            return(modelplaygroundurlid)
+
         else:    
         
             #aws pathway begins here
@@ -536,7 +536,7 @@ class ModelPlayground:
 
 
 
-                apiurl="https://n8567q0ssd.execute-api.us-east-2.amazonaws.com/prod/m"
+                apiurl="https://1l2z4k1gce.execute-api.us-east-2.amazonaws.com/prod/m"
 
                 apiurl_eval=apiurl[:-1]+"eval"
 
@@ -622,13 +622,14 @@ class ModelPlayground:
                 else:
                   objinput="'/tmp/"+objinput+"'"
                 return objinput
-            compstring=self.class_string.replace(",aws=False","")+"."+"create_competition('/tmp/"+data_directory+"',"+'y_test'+","+nonecheck(eval_metric_filepath)+","+'email_list'+",input_dict="+str(input_dict)+')'
+            playgroundurlcode="playground_url="+self.playground_url
+            compstring=self.class_string.replace(",aws=False","").replace("playground_url=None",playgroundurlcode)+"."+"create_competition('/tmp/"+data_directory+"',"+'y_test'+","+nonecheck(eval_metric_filepath)+","+'email_list'+",input_dict="+str(input_dict)+')'
             print(compstring)
             import base64
             import requests
             import json
 
-            api_url = "https://ugjaeaenxaerdubk7by2nonw3m0zfchw.lambda-url.us-east-2.on.aws/"
+            api_url = "https://7yo5bckp5bz6l657hl52kao66u0jdlal.lambda-url.us-east-2.on.aws/"
 
             data = json.dumps({"code": """from aimodelshare import ModelPlayground;myplayground="""+compstring, "zipfilename": compzipfilename,"username":os.environ.get("username"), "password":os.environ.get("password"),"token":os.environ.get("JWT_AUTHORIZATION_TOKEN"),"s3keyid":"diays4ugz5"})
 
