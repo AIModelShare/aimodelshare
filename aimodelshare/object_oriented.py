@@ -1140,6 +1140,8 @@ class Competition:
                               submission_type = self.submission_type,
                               input_dict=input_dict,
                               print_output=print_output)
+        
+        return submission
 
 
     def instantiate_model(self, version=None, trained=False, reproduce=False): 
