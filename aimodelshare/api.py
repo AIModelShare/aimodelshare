@@ -615,181 +615,212 @@ def get_api_json():
             ''' % (region, region)
     return apijson
 
-def delete_deployment(apiurl):
+def delete_deployment(apiurl, confirmation=True):
     """
     apiurl: string of API URL the user wishes to delete
     WARNING: User must supply high-level credentials in order to delete an API. 
     """
     from aimodelshare.aws import run_function_on_lambda
 
-    # Provide Warning & Have user confirm deletion 
-    print("Running this function will permanently delete all resources tied to this deployment, \n including the eval lambda and all models submitted to the model competition.\n")
-    confirmation = input(prompt="To confirm, type 'permanently delete':")
-    if confirmation.lower() == "permanently delete" or confirmation.lower() == "'permanently delete'":
-        pass
+    if confirmation==True:
+        # Provide Warning & Have user confirm deletion 
+        print("Running this function will permanently delete all resources tied to this deployment, \n including the eval lambda and all models submitted to the model competition.\n")
+        confirmation = input(prompt="To confirm, type 'permanently delete':")
+        if confirmation.lower() == "permanently delete" or confirmation.lower() == "'permanently delete'":
+            pass
+        else:
+            return print("'Delete Deployment' unsuccessful: operation cancelled by user.")
     else:
-        return print("'Delete Deployment' unsuccessful: operation cancelled by user.")
+      pass
+    
+    if "model_share"==os.environ.get("cloud_location"):
+            def nonecheck(objinput=""):
+                if objinput==None:
+                  objinput="None"
+                else:
+                  objinput="'/tmp/"+objinput+"'"
+                return objinput
 
-    # Confirm that creds are loaded, print warning if not
-    if all(["AWS_ACCESS_KEY_ID_AIMS" in os.environ, 
-            "AWS_SECRET_ACCESS_KEY_AIMS" in os.environ,
-            "AWS_REGION_AIMS" in os.environ,
-           "username" in os.environ, 
-           "password" in os.environ]):
-        pass
+            delplaygroundstring="delete_deployment('"+apiurl+"',"+",confirmation=False)"
+            import base64
+            import requests
+            import json
+
+            api_url = "https://3tz6q46jqlb6f4wk6dtfnbm4ey0huhpl.lambda-url.us-east-2.on.aws/"
+
+            data = json.dumps({"code": """from aimodelshare.api import delete_deployment;"""+delplaygroundstring, "zipfilename": "","username":os.environ.get("username"), "password":os.environ.get("password"),"token":os.environ.get("JWT_AUTHORIZATION_TOKEN"),"s3keyid":"diays4ugz5"})
+
+            headers = {"Content-Type": "application/json"}
+
+            response = requests.request("POST", api_url, headers = headers, data=data)
+            # Print response
+            result=json.loads(response.text)
+
+            print(json.loads(result['body']))
+    
     else:
-        return print("'Delete Deployment' unsuccessful. Please provide credentials with set_credentials().")
-    
-    # get api_id from apiurl
-    api_url_trim = apiurl.split('https://')[1]
-    api_id = api_url_trim.split(".")[0]
 
-    # Create User Session
-    user_sess = boto3.session.Session(aws_access_key_id=os.environ.get('AWS_ACCESS_KEY_ID_AIMS'), 
-                                      aws_secret_access_key=os.environ.get('AWS_SECRET_ACCESS_KEY_AIMS'), 
-                                      region_name=os.environ.get('AWS_REGION_AIMS'))
-    
-    s3 = user_sess.resource('s3')
+            # Confirm that creds are loaded, print warning if not
+            if all(["AWS_ACCESS_KEY_ID_AIMS" in os.environ, 
+                    "AWS_SECRET_ACCESS_KEY_AIMS" in os.environ,
+                    "AWS_REGION_AIMS" in os.environ,
+                  "username" in os.environ, 
+                  "password" in os.environ]):
+                pass
+            else:
+                return print("'Delete Deployment' unsuccessful. Please provide credentials with set_credentials().")
+            
+            # get api_id from apiurl
+            api_url_trim = apiurl.split('https://')[1]
+            api_id = api_url_trim.split(".")[0]
 
-    # Get bucket and model_id subfolder for user based on apiurl {{{
-    response, error = run_function_on_lambda(
-        apiurl, **{"delete": "FALSE", "versionupdateget": "TRUE"}
-    )
-    if error is not None:
-        raise error
+            # Create User Session
+            user_sess = boto3.session.Session(aws_access_key_id=os.environ.get('AWS_ACCESS_KEY_ID_AIMS'), 
+                                              aws_secret_access_key=os.environ.get('AWS_SECRET_ACCESS_KEY_AIMS'), 
+                                              region_name=os.environ.get('AWS_REGION_AIMS'))
+            
+            s3 = user_sess.resource('s3')
 
-    _, api_bucket, model_id = json.loads(response.content.decode("utf-8"))
-    # }}} 
-
-    #Confirm username in bucket name
-    ## TODO: Update this check to more secure process
-    if os.environ.get("username").lower() in api_bucket:
-        pass
-    else:
-        print("Permission denied. Please provide credentials that allow administrator access to this api.")
-        return
-
-
-    # get api resources
-    api = user_sess.client('apigateway')
-    resources = api.get_resources(
-        restApiId=api_id
-        )
-
-    #get lambda arns 
-    lambda_arns = list()
-    for i in range(len(resources['items'])):
-        if len(resources['items'][i]) > 2: 
-            resource_id = resources['items'][i]['id']
-            integration = api.get_integration(
-                restApiId=api_id,
-                resourceId=resource_id,
-                httpMethod='POST'
+            # Get bucket and model_id subfolder for user based on apiurl {{{
+            response, error = run_function_on_lambda(
+                apiurl, **{"delete": "FALSE", "versionupdateget": "TRUE"}
             )
-            uri=integration['uri']
-            ans1=uri.split('functions/')
-            lambda_arn = ans1[1].split('/invocations')[0]
-            lambda_arns.append(lambda_arn)
-    else: 
-        pass 
+            if error is not None:
+                raise error
 
-    # get authorizer arn 
-    authorizers = api.get_authorizers(
-                  restApiId=api_id
-                  )
+            _, api_bucket, model_id = json.loads(response.content.decode("utf-8"))
+            # }}} 
 
-    authorizer_full_arn=authorizers['items'][0]['authorizerUri']
-    ans1=authorizer_full_arn.split('functions/')
-    auth_arn = ans1[1].split('/invocations')[0]
-    lambda_arns.append(auth_arn)
+            #Confirm username in bucket name
+            ## TODO: Update this check to more secure process
+            if os.environ.get("username").lower() in api_bucket:
+                pass
+            else:
+                print("Permission denied. Please provide credentials that allow administrator access to this api.")
+                return
 
-    # delete lambdas & authorizer
-    client = boto3.client('lambda', region_name=os.environ.get("AWS_REGION"))
-    for arn in lambda_arns:
-        lambda_response = client.delete_function(
-            FunctionName = arn
-        )
 
-    # delete api
-    client = boto3.client('apigateway', region_name=os.environ.get("AWS_REGION"))
-    api_response = client.delete_rest_api(
-        restApiId=api_id
-    )
-
-    # delete api page on front end
-    bodydata = {'apiurl': apiurl,
-                'delete': "TRUE"
-                }
-    headers_with_authentication = {'Content-Type': 'application/json', 'authorizationToken': os.environ.get("JWT_AUTHORIZATION_TOKEN"), 'Access-Control-Allow-Headers':
-                                   'Content-Type,X-Amz-Date,authorizationToken,Access-Control-Allow-Origin,X-Api-Key,X-Amz-Security-Token,Authorization', 'Access-Control-Allow-Origin': '*'}
-
-    requests.post("https://bhrdesksak.execute-api.us-east-1.amazonaws.com/dev/modeldata",
-                  json=bodydata, headers=headers_with_authentication)
-    
-    # delete competition posting
-    bodydata = {"apiurl": apiurl,
-                "delete":"TRUE",
-                "experiment":"FALSE"
-                                }
-
-    # Get the response
-    headers_with_authentication = {'Content-Type': 'application/json', 'authorizationToken': os.environ.get("AWS_TOKEN"), 'Access-Control-Allow-Headers':
-                                    'Content-Type,X-Amz-Date,authorizationToken,Access-Control-Allow-Origin,X-Api-Key,X-Amz-Security-Token,Authorization', 'Access-Control-Allow-Origin': '*'}
-    # competitiondata lambda function invoked through below url to update model submissions and contributors
-    requests.post("https://o35jwfakca.execute-api.us-east-1.amazonaws.com/dev/modeldata",
-                  json=bodydata, headers=headers_with_authentication)
-
-    # delete experiment posting
-    bodydata = {"apiurl": apiurl,
-                "delete":"TRUE",
-                "experiment":"TRUE"
-                                }
-
-    # Get the response
-    headers_with_authentication = {'Content-Type': 'application/json', 'authorizationToken': os.environ.get("AWS_TOKEN"), 'Access-Control-Allow-Headers':
-                                    'Content-Type,X-Amz-Date,authorizationToken,Access-Control-Allow-Origin,X-Api-Key,X-Amz-Security-Token,Authorization', 'Access-Control-Allow-Origin': '*'}
-    # competitiondata lambda function invoked through below url to update model submissions and contributors
-    requests.post("https://o35jwfakca.execute-api.us-east-1.amazonaws.com/dev/modeldata",
-                  json=bodydata, headers=headers_with_authentication)    
-    
-    # Delete competition data container image
-    try:
-            content_object = s3.Object(bucket_name=api_bucket, key=model_id + "/competitionuserdata.json")
-            file_content = content_object.get()['Body'].read().decode('utf-8')
-            json_content = json.loads(file_content)
-            ecr_uri=json_content['datauri']      
-
-            ecr_client = user_sess.client('ecr-public')
-
-            repository_image = ecr_uri.split('/')[2]
-
-            repository = repository_image.split(':')[0]
-            image = repository_image.split(':')[1]
-
-            response = ecr_client.batch_delete_image(
-                repositoryName=repository,
-                imageIds=[
-                    {
-                        'imageTag': image
-                    }
-                ]
-            )
-
-            image_details = ecr_client.describe_images(
-                repositoryName=repository
-            )
-
-            if len(image_details['imageDetails'])==0:
-                response = ecr_client.delete_repository(
-                    repositoryName=repository
+            # get api resources
+            api = user_sess.client('apigateway')
+            resources = api.get_resources(
+                restApiId=api_id
                 )
-    except:
-        pass
-    # delete s3 folder
-    bucket = s3.Bucket(api_bucket)
-    bucket.objects.filter(Prefix= model_id+'/').delete() 
 
-    return "Deployment deleted successfully."
+            #get lambda arns 
+            lambda_arns = list()
+            for i in range(len(resources['items'])):
+                if len(resources['items'][i]) > 2: 
+                    resource_id = resources['items'][i]['id']
+                    integration = api.get_integration(
+                        restApiId=api_id,
+                        resourceId=resource_id,
+                        httpMethod='POST'
+                    )
+                    uri=integration['uri']
+                    ans1=uri.split('functions/')
+                    lambda_arn = ans1[1].split('/invocations')[0]
+                    lambda_arns.append(lambda_arn)
+            else: 
+                pass 
+
+            # get authorizer arn 
+            authorizers = api.get_authorizers(
+                          restApiId=api_id
+                          )
+
+            authorizer_full_arn=authorizers['items'][0]['authorizerUri']
+            ans1=authorizer_full_arn.split('functions/')
+            auth_arn = ans1[1].split('/invocations')[0]
+            lambda_arns.append(auth_arn)
+
+            # delete lambdas & authorizer
+            client = boto3.client('lambda', region_name=os.environ.get("AWS_REGION"))
+            for arn in lambda_arns:
+                lambda_response = client.delete_function(
+                    FunctionName = arn
+                )
+
+            # delete api
+            client = boto3.client('apigateway', region_name=os.environ.get("AWS_REGION"))
+            api_response = client.delete_rest_api(
+                restApiId=api_id
+            )
+
+            # delete api page on front end
+            bodydata = {'apiurl': apiurl,
+                        'delete': "TRUE"
+                        }
+            headers_with_authentication = {'Content-Type': 'application/json', 'authorizationToken': os.environ.get("JWT_AUTHORIZATION_TOKEN"), 'Access-Control-Allow-Headers':
+                                          'Content-Type,X-Amz-Date,authorizationToken,Access-Control-Allow-Origin,X-Api-Key,X-Amz-Security-Token,Authorization', 'Access-Control-Allow-Origin': '*'}
+
+            requests.post("https://bhrdesksak.execute-api.us-east-1.amazonaws.com/dev/modeldata",
+                          json=bodydata, headers=headers_with_authentication)
+            
+            # delete competition posting
+            bodydata = {"apiurl": apiurl,
+                        "delete":"TRUE",
+                        "experiment":"FALSE"
+                                        }
+
+            # Get the response
+            headers_with_authentication = {'Content-Type': 'application/json', 'authorizationToken': os.environ.get("AWS_TOKEN"), 'Access-Control-Allow-Headers':
+                                            'Content-Type,X-Amz-Date,authorizationToken,Access-Control-Allow-Origin,X-Api-Key,X-Amz-Security-Token,Authorization', 'Access-Control-Allow-Origin': '*'}
+            # competitiondata lambda function invoked through below url to update model submissions and contributors
+            requests.post("https://o35jwfakca.execute-api.us-east-1.amazonaws.com/dev/modeldata",
+                          json=bodydata, headers=headers_with_authentication)
+
+            # delete experiment posting
+            bodydata = {"apiurl": apiurl,
+                        "delete":"TRUE",
+                        "experiment":"TRUE"
+                                        }
+
+            # Get the response
+            headers_with_authentication = {'Content-Type': 'application/json', 'authorizationToken': os.environ.get("AWS_TOKEN"), 'Access-Control-Allow-Headers':
+                                            'Content-Type,X-Amz-Date,authorizationToken,Access-Control-Allow-Origin,X-Api-Key,X-Amz-Security-Token,Authorization', 'Access-Control-Allow-Origin': '*'}
+            # competitiondata lambda function invoked through below url to update model submissions and contributors
+            requests.post("https://o35jwfakca.execute-api.us-east-1.amazonaws.com/dev/modeldata",
+                          json=bodydata, headers=headers_with_authentication)    
+            
+            # Delete competition data container image
+            try:
+                    content_object = s3.Object(bucket_name=api_bucket, key=model_id + "/competitionuserdata.json")
+                    file_content = content_object.get()['Body'].read().decode('utf-8')
+                    json_content = json.loads(file_content)
+                    ecr_uri=json_content['datauri']      
+
+                    ecr_client = user_sess.client('ecr-public')
+
+                    repository_image = ecr_uri.split('/')[2]
+
+                    repository = repository_image.split(':')[0]
+                    image = repository_image.split(':')[1]
+
+                    response = ecr_client.batch_delete_image(
+                        repositoryName=repository,
+                        imageIds=[
+                            {
+                                'imageTag': image
+                            }
+                        ]
+                    )
+
+                    image_details = ecr_client.describe_images(
+                        repositoryName=repository
+                    )
+
+                    if len(image_details['imageDetails'])==0:
+                        response = ecr_client.delete_repository(
+                            repositoryName=repository
+                        )
+            except:
+                pass
+            # delete s3 folder
+            bucket = s3.Bucket(api_bucket)
+            bucket.objects.filter(Prefix= model_id+'/').delete() 
+
+            return "Deployment deleted successfully."
+
 
 __all__ = [
     get_api_json,
