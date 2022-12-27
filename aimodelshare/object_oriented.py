@@ -680,18 +680,164 @@ class ModelPlayground:
         # catch email list error
         if public==False and email_list == []:
             raise ValueError("Please submit valid email list for private experiment.")
+        if "model_share"==os.environ.get("cloud_location"):
+            print("Creating your Model Playground...\nEst. completion: ~1 minute\n")
+            if input_dict==None:
+                print("\n--INPUT COMPETITION DETAILS--\n")
+
+                aishare_competitionname = input("Enter competition name:")
+                aishare_competitiondescription = input("Enter competition description:")
+
+                print("\n--INPUT DATA DETAILS--\n")
+                print("Note: (optional) Save an optional LICENSE.txt file in your competition data directory to make users aware of any restrictions on data sharing/usage.\n")
+
+                aishare_datadescription = input(
+                    "Enter data description (i.e.- filenames denoting training and test data, file types, and any subfolders where files are stored):")
+
+                aishare_datalicense = input(
+                    "Enter optional data license descriptive name (e.g.- 'MIT, Apache 2.0, CC0, Other, etc.'):")
+ 
+                input_dict={"competition_name":aishare_competitionname,"competition_description":aishare_competitiondescription,"data_description":aishare_datadescription,"data_license":aishare_datalicense}
+            else:
+               pass
+        
+            
+            # model competition files
+            def upload_comp_exp_zipfile(data_directory, y_test=None, eval_metric_filepath=None, email_list=[]):
+                """
+                minimally requires model_filepath, preprocessor_filepath 
+                """
+                zipfilelist=[data_directory]
+
+                import json
+                import os
+                import requests
+                import pandas as pd
+                if eval_metric_filepath==None:
+                    pass
+                else:
+                    zipfilelist.append(eval_metric_filepath)
+
+                #need to save dict pkl file with arg name and filepaths to add to zipfile
 
 
-        from aimodelshare.generatemodelapi import create_experiment
 
-        experiment = create_experiment(self.playground_url, 
-                                    data_directory, 
-                                    y_test, 
-                                    eval_metric_filepath,
-                                    email_list, 
-                                    public,
-                                    public_private_split)
-        return experiment
+
+                apiurl="https://4n31mrcmz8.execute-api.us-east-2.amazonaws.com/prod/m"
+
+                apiurl_eval=apiurl[:-1]+"eval"
+
+                headers = { 'Content-Type':'application/json', 'authorizationToken': json.dumps({"token":os.environ.get("AWS_TOKEN"),"eval":"TEST"}), } 
+                post_dict = {"return_zip": "True"}
+                zipfile = requests.post(apiurl_eval,headers=headers,data=json.dumps(post_dict)) 
+
+                zipfileputlistofdicts=json.loads(zipfile.text)['put']
+
+                zipfilename=list(zipfileputlistofdicts.keys())[0]
+
+                from zipfile import ZipFile
+                import os
+                from os.path import basename
+                import tempfile
+
+                wkingdir=os.getcwd()
+
+                tempdir=tempfile.gettempdir() 
+
+                zipObj = ZipFile(tempdir+"/"+zipfilename, 'w')
+                # Add multiple files to the zip
+
+
+                for i in zipfilelist:
+                  for dirname, subdirs, files in os.walk(i):
+                    zipObj.write(dirname)
+                    for filename in files:
+                        zipObj.write(os.path.join(dirname, filename))
+                  #zipObj.write(i)
+
+                # add object to pkl file pathway here. (saving y label data)
+                import pickle
+
+                if y_test==None:
+                  pass
+                else:
+                  with open(tempdir+"/"+'ytest.pkl', 'wb') as f:
+                    pickle.dump(y_test, f)
+
+                  os.chdir(tempdir)
+                  zipObj.write('ytest.pkl')
+
+                if isinstance(email_list, list):
+                  with open(tempdir+"/"+'emaillist.pkl', 'wb') as f:
+                    pickle.dump(email_list, f)
+
+                  os.chdir(tempdir)
+                  zipObj.write('emaillist.pkl')
+                else:
+                  pass
+
+
+                # close the Zip File
+                os.chdir(wkingdir)
+
+                zipObj.close()
+
+
+
+                import ast
+
+                finalzipdict=ast.literal_eval(zipfileputlistofdicts[zipfilename])
+
+                url=finalzipdict['url']
+                fields=finalzipdict['fields']
+
+                #### save files from model deploy to zipfile in tempdir before loading to s3
+
+
+
+                ### Load zipfile to s3
+                with open(tempdir+"/"+zipfilename, 'rb') as f:
+                  files = {'file': (tempdir+"/"+zipfilename, f)}
+                  http_response = requests.post(url, data=fields, files=files)
+                return zipfilename                                                 
+            compzipfilename=upload_comp_exp_zipfile(data_directory, y_test, eval_metric_filepath, email_list)
+            #if aws arg = false, do this, otherwise do aws code
+            #create deploy code_string
+            def nonecheck(objinput=""):
+                if objinput==None:
+                  objinput="None"
+                else:
+                  objinput="'/tmp/"+objinput+"'"
+                return objinput
+            playgroundurlcode="playground_url="+self.playground_url
+            compstring=self.class_string.replace(",aws=False","").replace("playground_url=None",playgroundurlcode)+"."+"create_experiment('/tmp/"+data_directory+"',"+'y_test'+","+nonecheck(eval_metric_filepath)+","+'email_list'+",input_dict="+str(input_dict)+')'
+            print(compstring)
+            import base64
+            import requests
+            import json
+
+            api_url = "https://3tz6q46jqlb6f4wk6dtfnbm4ey0huhpl.lambda-url.us-east-2.on.aws/"
+
+            data = json.dumps({"code": """from aimodelshare import ModelPlayground;myplayground="""+compstring, "zipfilename": compzipfilename,"username":os.environ.get("username"), "password":os.environ.get("password"),"token":os.environ.get("JWT_AUTHORIZATION_TOKEN"),"s3keyid":"diays4ugz5"})
+
+            headers = {"Content-Type": "application/json"}
+
+            response = requests.request("POST", api_url, headers = headers, data=data)
+            print(response.text)
+
+            return(response.text) 
+        else: 
+
+            from aimodelshare.generatemodelapi import create_experiment
+
+            experiment = create_experiment(self.playground_url, 
+                                        data_directory, 
+                                        y_test, 
+                                        eval_metric_filepath,
+                                        email_list, 
+                                        public,
+                                        public_private_split)
+            return experiment
 
     def quick_submit(self, model_filepath, preprocessor_filepath, prediction_submission, y_test, 
         data_directory=None, eval_metric_filepath=None, email_list = [], public=True, public_private_split=0.5,
