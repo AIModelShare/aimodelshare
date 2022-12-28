@@ -318,7 +318,7 @@ class ModelPlayground:
 
 
 
-              apiurl="https://3jha9rocbj.execute-api.us-east-2.amazonaws.com/prod/m"
+              apiurl="https://50tczb9iz9.execute-api.us-east-2.amazonaws.com/prod/m"
 
               apiurl_eval=apiurl[:-1]+"eval"
 
@@ -536,7 +536,7 @@ class ModelPlayground:
 
 
 
-                apiurl="https://3jha9rocbj.execute-api.us-east-2.amazonaws.com/prod/m"
+                apiurl="https://50tczb9iz9.execute-api.us-east-2.amazonaws.com/prod/m"
 
                 apiurl_eval=apiurl[:-1]+"eval"
 
@@ -723,8 +723,8 @@ class ModelPlayground:
 
 
 
-                apiurl="https://3jha9rocbj.execute-api.us-east-2.amazonaws.com/prod/m"
-
+                apiurl="https://50tczb9iz9.execute-api.us-east-2.amazonaws.com/prod/m"
+                
                 apiurl_eval=apiurl[:-1]+"eval"
 
                 headers = { 'Content-Type':'application/json', 'authorizationToken': json.dumps({"token":os.environ.get("AWS_TOKEN"),"eval":"TEST"}), } 
