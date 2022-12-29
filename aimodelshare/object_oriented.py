@@ -627,7 +627,7 @@ class ModelPlayground:
                 else:
                   objinput="'/tmp/"+objinput+"'"
                 return objinput
-            playgroundurlcode="playground_url="+self.playground_url
+            playgroundurlcode="playground_url='"+self.playground_url+"'"
             compstring=self.class_string.replace(",aws=False","").replace("playground_url=None",playgroundurlcode)+"."+"create_competition('/tmp/"+data_directory+"',"+'y_test'+","+nonecheck(eval_metric_filepath)+","+'email_list'+",input_dict="+str(input_dict)+')'
             print(compstring)
             import base64
@@ -814,7 +814,7 @@ class ModelPlayground:
                 else:
                   objinput="'/tmp/"+objinput+"'"
                 return objinput
-            playgroundurlcode="playground_url="+self.playground_url
+            playgroundurlcode="playground_url='"+self.playground_url+"'"
             compstring=self.class_string.replace(",aws=False","").replace("playground_url=None",playgroundurlcode)+"."+"create_experiment('/tmp/"+data_directory+"',"+'y_test'+","+nonecheck(eval_metric_filepath)+","+'email_list'+",input_dict="+str(input_dict)+')'
             print(compstring)
             import base64
