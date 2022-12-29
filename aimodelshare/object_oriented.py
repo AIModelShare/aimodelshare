@@ -421,7 +421,12 @@ class ModelPlayground:
             
             print("\nConnect to your playground in Python:\n")
             print("myplayground=ModelPlayground(playground_url="+json.loads(result['body'])[-7].replace("Playground Url: ","").strip()+")")
-            self.playground_url=modelplaygroundurlid
+            try:
+                self.playground_url=modelplaygroundurlid[1:-1]
+            except:
+                import json
+                self.playground_url=json.loads(modelplaygroundurlid)
+                pass
 
         else:    
         
