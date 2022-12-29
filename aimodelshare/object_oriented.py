@@ -299,6 +299,13 @@ class ModelPlayground:
 
         if "model_share"==os.environ.get("cloud_location"):
             print("Creating your Model Playground...\nEst. completion: ~1 minute\n")
+            
+
+            
+            import sys
+            sys.stdout.write("[===                                  ] Progress: 5% - Accessing cloud, uploading resources...")
+            sys.stdout.flush()
+            
             def upload_playground_zipfile(model_filepath=None, preprocessor_filepath=None, y_train=None, example_data=None):
               """
               minimally requires model_filepath, preprocessor_filepath 
@@ -398,36 +405,109 @@ class ModelPlayground:
                 else:
                   objinput="'/tmp/"+objinput+"'"
                 return objinput
+            from threading import Thread
+            import time
 
-            deploystring=self.class_string.replace(",aws=False","")+"."+"deploy('/tmp/"+model_filepath+"','/tmp/"+preprocessor_filepath+"',"+'y_train'+","+nonecheck(example_data)+",input_dict="+str(input_dict)+')'
-            import base64
-            import requests
-            import json
 
-            api_url = "https://nds5eyacuohjseaknx4wpteok40lbjew.lambda-url.us-east-2.on.aws/"
+            thread_running = True
 
-            data = json.dumps({"code": """from aimodelshare import ModelPlayground;myplayground="""+deploystring, "zipfilename": deployzipfilename,"username":os.environ.get("username"), "password":os.environ.get("password"),"token":os.environ.get("JWT_AUTHORIZATION_TOKEN"),"s3keyid":"xrjpv1i7xe"})
 
-            headers = {"Content-Type": "application/json"}
+            def deployment_output_information(self, model_filepath, preprocessor_filepath, y_train, example_data=None, custom_libraries = "FALSE", 
+                image="", reproducibility_env_filepath=None, memory=None, timeout=None, onnx_timeout=60, pyspark_support=False,
+                model_input=None, input_dict=None):
+                import os
+                import sys
 
-            response = requests.request("POST", api_url, headers = headers, data=data)
-            # Print response
-            result=json.loads(response.text)
+                def cls():
+                    os.system('cls' if os.name=='nt' else 'clear')
 
-            modelplaygroundurlid=json.loads(result['body'])[-7].replace("Playground Url: ","").strip()
+                # now, to clear the screen
+                cls()
+                from IPython.display import clear_output
+                clear_output()
+                
+                sys.stdout.write('\r')
+                sys.stdout.write("[========                             ] Progress: 30% - Building serverless functions and updating permissions...")
+                sys.stdout.flush()
+                time.sleep(10)
+                sys.stdout.write('\r')
+                sys.stdout.write("[============                         ] Progress: 40% - Creating custom containers...                        ")
+                sys.stdout.flush()
+                time.sleep(10)
+                sys.stdout.write('\r')
+                sys.stdout.write("[==========================           ] Progress: 75% - Deploying prediction API...                          ")
+                sys.stdout.flush()
+                time.sleep(10)
 
-            print(json.loads(result['body'])[-8]+"\n")
-            print("View live playground now at:\n"+json.loads(result['body'])[-1])
-            
-            print("\nConnect to your playground in Python:\n")
-            print("myplayground=ModelPlayground(playground_url="+json.loads(result['body'])[-7].replace("Playground Url: ","").strip()+")")
-            try:
-                self.playground_url=modelplaygroundurlid[1:-1]
-            except:
+
+            def run_deployment_code(model_filepath=model_filepath, 
+                                          model_type = self.model_type, 
+                                          private = self.private, 
+                                          categorical = self.categorical,
+                                          y_train = y_train, 
+                                          preprocessor_filepath = preprocessor_filepath, 
+                                          example_data = example_data,
+                                          custom_libraries = custom_libraries,
+                                          image=image,
+                                          reproducibility_env_filepath = reproducibility_env_filepath,
+                                          memory=memory,
+                                          timeout=timeout,
+                                          email_list=self.email_list,
+                                          pyspark_support=pyspark_support,
+                                          input_dict=input_dict, 
+                                          print_output=False):
+                deploystring=self.class_string.replace(",aws=False","")+"."+"deploy('/tmp/"+model_filepath+"','/tmp/"+preprocessor_filepath+"',"+'y_train'+","+nonecheck(example_data)+",input_dict="+str(input_dict)+')'
+                import base64
+                import requests
                 import json
-                self.playground_url=json.loads(modelplaygroundurlid)
-                pass
 
+                api_url = "https://nds5eyacuohjseaknx4wpteok40lbjew.lambda-url.us-east-2.on.aws/"
+
+                data = json.dumps({"code": """from aimodelshare import ModelPlayground;myplayground="""+deploystring, "zipfilename": deployzipfilename,"username":os.environ.get("username"), "password":os.environ.get("password"),"token":os.environ.get("JWT_AUTHORIZATION_TOKEN"),"s3keyid":"xrjpv1i7xe"})
+
+                headers = {"Content-Type": "application/json"}
+
+                response = requests.request("POST", api_url, headers = headers, data=data)
+                # Print response
+                result=json.loads(response.text)
+
+                modelplaygroundurlid=json.loads(result['body'])[-7].replace("Playground Url: ","").strip()
+
+                print(json.loads(result['body'])[-8]+"\n")
+                print("View live playground now at:\n"+json.loads(result['body'])[-1])
+
+                print("\nConnect to your playground in Python:\n")
+                print("myplayground=ModelPlayground(playground_url="+json.loads(result['body'])[-7].replace("Playground Url: ","").strip()+")")
+                try:
+                    self.playground_url=modelplaygroundurlid[1:-1]
+                except:
+                    import json
+                    self.playground_url=json.loads(modelplaygroundurlid)
+                    pass
+            
+            if __name__ == '__main__':
+                t1 = Thread(target=deployment_output_information)
+                t2 = Thread(target=run_deployment_code)
+
+                t1.start()
+                t2.start()
+
+                t2.join()  # interpreter will wait until your process get completed or terminated
+                    #clear last output
+                import os
+                import sys
+
+                def cls():
+                    os.system('cls' if os.name=='nt' else 'clear')
+
+                # now, to clear the screen
+                cls()
+                from IPython.display import clear_output
+                clear_output()
+                sys.stdout.write('\r')
+                sys.stdout.write("[=====================================] Progress: 100% - Complete!                                            ")
+                sys.stdout.flush()
+                thread_running = False
         else:    
         
             #aws pathway begins here
