@@ -690,11 +690,11 @@ class ModelPlayground:
             if input_dict==None:
                 print("\n--INPUT COMPETITION DETAILS--\n")
 
-                aishare_competitionname = input("Enter competition name:")
-                aishare_competitiondescription = input("Enter competition description:")
+                aishare_competitionname = input("Enter experiment name:")
+                aishare_competitiondescription = input("Enter experiment description:")
 
                 print("\n--INPUT DATA DETAILS--\n")
-                print("Note: (optional) Save an optional LICENSE.txt file in your competition data directory to make users aware of any restrictions on data sharing/usage.\n")
+                print("Note: (optional) Save an optional LICENSE.txt file in your experiment data directory to make users aware of any restrictions on data sharing/usage.\n")
 
                 aishare_datadescription = input(
                     "Enter data description (i.e.- filenames denoting training and test data, file types, and any subfolders where files are stored):")
