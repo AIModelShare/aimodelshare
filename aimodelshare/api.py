@@ -646,7 +646,7 @@ def delete_deployment(apiurl, confirmation=True):
             import requests
             import json
 
-            api_url = "https://adobilora2woqonpnouyh74s2m0eywlm.lambda-url.us-east-2.on.aws/"
+            api_url = "https://nds5eyacuohjseaknx4wpteok40lbjew.lambda-url.us-east-2.on.aws/"
 
             data = json.dumps({"code": """from aimodelshare.api import delete_deployment;"""+delplaygroundstring, "zipfilename": "","username":os.environ.get("username"), "password":os.environ.get("password"),"token":os.environ.get("JWT_AUTHORIZATION_TOKEN"),"s3keyid":"xrjpv1i7xe"})
 
