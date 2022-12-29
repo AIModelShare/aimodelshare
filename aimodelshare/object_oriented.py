@@ -768,7 +768,7 @@ class ModelPlayground:
         if public==False and email_list == []:
             raise ValueError("Please submit valid email list for private competition.")
         if "model_share"==os.environ.get("cloud_location"):
-            print("Creating your Model Playground...\nEst. completion: ~1 minute\n")
+            print("Creating your Model Playground Competition...\nEst. completion: ~1 minute\n")
             if input_dict==None:
                 print("\n--INPUT COMPETITION DETAILS--\n")
 
@@ -898,7 +898,7 @@ class ModelPlayground:
                 return objinput
             playgroundurlcode="playground_url='"+self.playground_url+"'"
             compstring=self.class_string.replace(",aws=False","").replace("playground_url=None",playgroundurlcode)+"."+"create_competition('/tmp/"+data_directory+"',"+'y_test'+","+nonecheck(eval_metric_filepath)+","+'email_list'+",input_dict="+str(input_dict)+')'
-            print(compstring)
+
             import base64
             import requests
             import json
@@ -910,9 +910,13 @@ class ModelPlayground:
             headers = {"Content-Type": "application/json"}
 
             response = requests.request("POST", api_url, headers = headers, data=data)
-            print(response.text)
+            result=json.loads(response.text)
+            printoutlist=json.loads(result['body'])
+            printoutlistfinal=printoutlist[2:len(printoutlist)]
+            print("\n")
+            for i in printoutlistfinal:
+              print(i)
 
-            return(response.text) 
         else:    
 
                 from aimodelshare.generatemodelapi import create_competition
