@@ -1134,7 +1134,7 @@ class ModelPlayground:
         return model
     
    
-    def delete_deployment(self, playground_url=None):
+    def delete_deployment(self, playground_url=None, confirmation=True):
         """
         Delete all components of a Model Playground, including: AWS s3 bucket & contents,
         attached competitions, prediction REST API, and interactive Model Playground web dashboard.
@@ -1149,7 +1149,7 @@ class ModelPlayground:
         from aimodelshare.api import delete_deployment
         if playground_url == None:
             playground_url = self.playground_url
-        deletion = delete_deployment(apiurl = playground_url)
+        deletion = delete_deployment(apiurl = playground_url, confirmation=confirmation)
         return deletion
 
     def import_reproducibility_env(self):
