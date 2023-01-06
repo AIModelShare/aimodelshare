@@ -656,7 +656,8 @@ def delete_deployment(apiurl, confirmation=True):
             # Print response
             result=json.loads(response.text)
 
-            print(json.loads(result['body']))
+            for i in json.loads(result['body']):
+                print(i)
     
     else:
 
