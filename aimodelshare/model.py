@@ -1221,7 +1221,7 @@ def update_runtime_model(apiurl, model_version=None, submission_type="competitio
                               "versionupdateput":"TRUE",
                               "verified_metrics":"TRUE",
                               "eval_metrics":json.dumps(leaderboardversiondict)}
-    
+        import requests
         headers = { 'Content-Type':'application/json', 'authorizationToken': os.environ.get("AWS_TOKEN"), } 
         prediction = requests.post("https://bhrdesksak.execute-api.us-east-1.amazonaws.com/dev/modeldata",headers=headers,data=json.dumps(bodydatamodelmetrics)) 
 
