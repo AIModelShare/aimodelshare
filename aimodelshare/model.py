@@ -1118,7 +1118,12 @@ def update_runtime_model(apiurl, model_version=None, submission_type="competitio
     apiurl: string of API URL that the user wishes to edit
     new_model_version: string of model version number (from leaderboard) to replace original model 
     """
-    if "model_share"==os.environ.get("cloud_location"):
+    import os 
+    if os.environ.get("cloud_location") is not None:
+        cloudlocation=os.environ.get("cloud_location")
+    else:
+        cloudlocation="not set"
+    if "model_share"==cloudlocation:
             def nonecheck(objinput=""):
                 if objinput==None:
                   objinput="None"
