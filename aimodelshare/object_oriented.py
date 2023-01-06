@@ -296,8 +296,12 @@ class ModelPlayground:
             force_onnx=False
         model_filepath = model_to_onnx_timed(model_filepath, timeout = onnx_timeout, 
             force_onnx=force_onnx, model_input=model_input)
-
-        if "model_share"==os.environ.get("cloud_location"):
+        if os.environ.get("cloud_location") is not None:
+            cloudlocation=os.environ.get("cloud_location")
+        else:
+            cloudlocation="not set"
+            
+        if "model_share"==cloudlocation:
             print("Creating your Model Playground...\nEst. completion: ~1 minute\n")
             
 
