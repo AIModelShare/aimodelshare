@@ -1141,7 +1141,8 @@ def update_runtime_model(apiurl, model_version=None, submission_type="competitio
             # Print response
             result=json.loads(response.text)
 
-            print(json.loads(result['body']))
+            for i in json.loads(result['body']):
+                print(i)
     
     else:
         # Confirm that creds are loaded, print warning if not
