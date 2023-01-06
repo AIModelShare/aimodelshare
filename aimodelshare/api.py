@@ -692,7 +692,7 @@ def delete_deployment(apiurl, confirmation=True):
             )
             if error is not None:
                 raise error
-
+            import json
             _, api_bucket, model_id = json.loads(response.content.decode("utf-8"))
             # }}} 
 
