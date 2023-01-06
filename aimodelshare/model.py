@@ -702,6 +702,7 @@ def submit_model(
 
         headers = { 'Content-Type':'application/json', 'authorizationToken': json.dumps({"token":os.environ.get("AWS_TOKEN"),"eval":"TEST"}), } 
         apiurl_eval=apiurl[:-1]+"eval"
+        import requests
         prediction = requests.post(apiurl_eval,headers=headers,data=json.dumps(post_dict)) 
 
     eval_metrics=json.loads(prediction.text)
