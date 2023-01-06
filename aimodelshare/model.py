@@ -754,7 +754,7 @@ def submit_model(
     for i in modelputfiles:
       filedownload_dict=ast.literal_eval(s3_presigned_dict ['put'][i])
       fileputlistofdicts.append(filedownload_dict)
-
+    import requests
     if preprocessor is not None: 
         with open(preprocessor, 'rb') as f:
           files = {'file': (preprocessor, f)}
