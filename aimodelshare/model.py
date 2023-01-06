@@ -1178,7 +1178,7 @@ def update_runtime_model(apiurl, model_version=None, submission_type="competitio
         )
         if error is not None:
             raise error
-
+        import json
         _, api_bucket, model_id = json.loads(response.content.decode("utf-8"))
         # }}}
 
