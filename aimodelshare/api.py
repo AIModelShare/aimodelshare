@@ -632,8 +632,12 @@ def delete_deployment(apiurl, confirmation=True):
             return print("'Delete Deployment' unsuccessful: operation cancelled by user.")
     else:
       pass
-    
-    if "model_share"==os.environ.get("cloud_location"):
+    import os 
+    if os.environ.get("cloud_location") is not None:
+        cloudlocation=os.environ.get("cloud_location")
+    else:
+        cloudlocation="not set"
+    if "model_share"==cloudlocation:
             def nonecheck(objinput=""):
                 if objinput==None:
                   objinput="None"
