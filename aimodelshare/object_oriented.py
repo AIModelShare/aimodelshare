@@ -296,6 +296,7 @@ class ModelPlayground:
             force_onnx=False
         model_filepath = model_to_onnx_timed(model_filepath, timeout = onnx_timeout, 
             force_onnx=force_onnx, model_input=model_input)
+        import os 
         if os.environ.get("cloud_location") is not None:
             cloudlocation=os.environ.get("cloud_location")
         else:
