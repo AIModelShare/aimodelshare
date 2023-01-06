@@ -479,8 +479,12 @@ class ModelPlayground:
 
                 print(json.loads(result['body'])[-8]+"\n")
                 print("View live playground now at:\n"+json.loads(result['body'])[-1])
-        import os        
-        if "model_share"==os.environ.get("cloud_location"):
+        import os 
+        if os.environ.get("cloud_location") is not None:
+            cloudlocation=os.environ.get("cloud_location")
+        else:
+            cloudlocation="not set"
+        if "model_share"==cloudlocation:
             print("Creating your Model Playground...\nEst. completion: ~1 minute\n")
 
 
@@ -772,7 +776,12 @@ class ModelPlayground:
         # catch email list error
         if public==False and email_list == []:
             raise ValueError("Please submit valid email list for private competition.")
-        if "model_share"==os.environ.get("cloud_location"):
+        import os 
+        if os.environ.get("cloud_location") is not None:
+            cloudlocation=os.environ.get("cloud_location")
+        else:
+            cloudlocation="not set"
+        if "model_share"==cloudlocation:
             print("Creating your Model Playground Competition...\nEst. completion: ~1 minute\n")
             if input_dict==None:
                 print("\n--INPUT COMPETITION DETAILS--\n")
@@ -963,7 +972,12 @@ class ModelPlayground:
         # catch email list error
         if public==False and email_list == []:
             raise ValueError("Please submit valid email list for private experiment.")
-        if "model_share"==os.environ.get("cloud_location"):
+        import os 
+        if os.environ.get("cloud_location") is not None:
+            cloudlocation=os.environ.get("cloud_location")
+        else:
+            cloudlocation="not set"
+        if "model_share"==cloudlocation:
             print("Creating your Model Playground...\nEst. completion: ~1 minute\n")
             if input_dict==None:
                 print("\n--INPUT COMPETITION DETAILS--\n")
