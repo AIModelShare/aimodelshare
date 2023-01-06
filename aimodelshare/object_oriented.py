@@ -475,6 +475,7 @@ class ModelPlayground:
 
                 print(json.loads(result['body'])[-8]+"\n")
                 print("View live playground now at:\n"+json.loads(result['body'])[-1])
+        import os        
         if "model_share"==os.environ.get("cloud_location"):
             print("Creating your Model Playground...\nEst. completion: ~1 minute\n")
 
