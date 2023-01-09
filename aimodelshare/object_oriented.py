@@ -286,100 +286,7 @@ class ModelPlayground:
             force_onnx=False
         model_filepath = model_to_onnx_timed(model_filepath, timeout = onnx_timeout, 
             force_onnx=force_onnx, model_input=model_input)
-        import os 
-        if os.environ.get("cloud_location") is not None:
-            cloudlocation=os.environ.get("cloud_location")
-        else:
-            cloudlocation="not set"
-            
-        if "model_share"==cloudlocation:
-            print("Creating your Model Playground...\nEst. completion: ~1 minute\n")
-            
 
-            
-            import sys
-            sys.stdout.write("[===                                  ] Progress: 5% - Accessing cloud, uploading resources...")
-            sys.stdout.flush()
-            
- 
-            #if aws arg = false, do this, otherwise do aws code
-            #create deploy code_string
-            def nonecheck(objinput=""):
-                if objinput is None:
-                  objinput="None"
-                else:
-                  objinput="'/tmp/"+objinput+"'"
-                return objinput
-            from threading import Thread
-            import time
-
-
-            thread_running = True
-
-
-            def deployment_output_information(self, model_filepath, preprocessor_filepath, y_train, example_data=None, custom_libraries = "FALSE", 
-                image="", reproducibility_env_filepath=None, memory=None, timeout=None, onnx_timeout=60, pyspark_support=False,
-                model_input=None, input_dict=None):
-                import os
-                import sys
-
-                def cls():
-                    os.system('cls' if os.name=='nt' else 'clear')
-
-                # now, to clear the screen
-                cls()
-                from IPython.display import clear_output
-                clear_output()
-                
-                sys.stdout.write('\r')
-                sys.stdout.write("[========                             ] Progress: 30% - Building serverless functions and updating permissions...")
-                sys.stdout.flush()
-                time.sleep(10)
-                sys.stdout.write('\r')
-                sys.stdout.write("[============                         ] Progress: 40% - Creating custom containers...                        ")
-                sys.stdout.flush()
-                time.sleep(10)
-                sys.stdout.write('\r')
-                sys.stdout.write("[==========================           ] Progress: 75% - Deploying prediction API...                          ")
-                sys.stdout.flush()
-                time.sleep(10)
-
-
-            def run_deployment_code(model_filepath=model_filepath, 
-                                          model_type = self.model_type, 
-                                          private = self.private, 
-                                          categorical = self.categorical,
-                                          y_train = y_train, 
-                                          preprocessor_filepath = preprocessor_filepath, 
-                                          example_data = example_data,
-                                          custom_libraries = custom_libraries,
-                                          image=image,
-                                          reproducibility_env_filepath = reproducibility_env_filepath,
-                                          memory=memory,
-                                          timeout=timeout,
-                                          email_list=self.email_list,
-                                          pyspark_support=pyspark_support,
-                                          input_dict=input_dict, 
-                                          print_output=False):
-                deploystring=self.class_string.replace(",aws=False","")+"."+"deploy('/tmp/"+model_filepath+"','/tmp/"+preprocessor_filepath+"',"+'y_train'+","+nonecheck(example_data)+",input_dict="+str(input_dict)+')'
-                import base64
-                import requests
-                import json
-
-                api_url = "https://xtc6p535pxkl3237mnxocd4v3y0bipwg.lambda-url.us-east-2.on.aws/"
-
-                data = json.dumps({"code": """from aimodelshare import ModelPlayground;myplayground="""+deploystring, "zipfilename": deployzipfilename,"username":os.environ.get("username"), "password":os.environ.get("password"),"token":os.environ.get("JWT_AUTHORIZATION_TOKEN"),"s3keyid":"xrjpv1i7xe"})
-
-                headers = {"Content-Type": "application/json"}
-
-                response = requests.request("POST", api_url, headers = headers, data=data)
-                # Print response
-                result=json.loads(response.text)
-
-                modelplaygroundurlid=json.loads(result['body'])[-7].replace("Playground Url: ","").strip()
-
-                print(json.loads(result['body'])[-8]+"\n")
-                print("View live playground now at:\n"+json.loads(result['body'])[-1])
         import os 
         if os.environ.get("cloud_location") is not None:
             cloudlocation=os.environ.get("cloud_location")
@@ -495,6 +402,7 @@ class ModelPlayground:
                     zipObj.write('ytrain.pkl')
 
                   if any([isinstance(example_data, pd.DataFrame),isinstance(example_data, pd.Series)]):
+                    example_data=example_data.to_frame()
                     with open(tempdir+"/"+'exampledata.pkl', 'wb') as f:
                       pickle.dump(example_data, f)
 
