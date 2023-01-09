@@ -437,7 +437,7 @@ class ModelPlayground:
                                           pyspark_support=pyspark_support,
                                           input_dict=input_dict, 
                                           print_output=False):
-               def upload_playground_zipfile(model_filepath=None, preprocessor_filepath=None, y_train=None, example_data=None):
+                def upload_playground_zipfile(model_filepath=None, preprocessor_filepath=None, y_train=None, example_data=None):
                   """
                   minimally requires model_filepath, preprocessor_filepath 
                   """
