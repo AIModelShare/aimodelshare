@@ -330,7 +330,7 @@ class ModelPlayground:
 
 
 
-              apiurl="https://6far4l0b7i.execute-api.us-east-2.amazonaws.com/prod/m"
+              apiurl="https://5rxn9grye5.execute-api.us-east-2.amazonaws.com/prod/m"
 
               apiurl_eval=apiurl[:-1]+"eval"
 
@@ -466,7 +466,7 @@ class ModelPlayground:
                 import requests
                 import json
 
-                api_url = "https://nds5eyacuohjseaknx4wpteok40lbjew.lambda-url.us-east-2.on.aws/"
+                api_url = "https://xtc6p535pxkl3237mnxocd4v3y0bipwg.lambda-url.us-east-2.on.aws/"
 
                 data = json.dumps({"code": """from aimodelshare import ModelPlayground;myplayground="""+deploystring, "zipfilename": deployzipfilename,"username":os.environ.get("username"), "password":os.environ.get("password"),"token":os.environ.get("JWT_AUTHORIZATION_TOKEN"),"s3keyid":"xrjpv1i7xe"})
 
@@ -556,7 +556,7 @@ class ModelPlayground:
 
 
 
-                  apiurl="https://6far4l0b7i.execute-api.us-east-2.amazonaws.com/prod/m"
+                  apiurl="https://5rxn9grye5.execute-api.us-east-2.amazonaws.com/prod/m"
 
                   apiurl_eval=apiurl[:-1]+"eval"
 
@@ -642,7 +642,7 @@ class ModelPlayground:
                 import requests
                 import json
 
-                api_url = "https://nds5eyacuohjseaknx4wpteok40lbjew.lambda-url.us-east-2.on.aws/"
+                api_url = "https://xtc6p535pxkl3237mnxocd4v3y0bipwg.lambda-url.us-east-2.on.aws/"
 
                 data = json.dumps({"code": """from aimodelshare import ModelPlayground;myplayground="""+deploystring, "zipfilename": deployzipfilename,"username":os.environ.get("username"), "password":os.environ.get("password"),"token":os.environ.get("JWT_AUTHORIZATION_TOKEN"),"s3keyid":"xrjpv1i7xe"})
 
@@ -825,7 +825,7 @@ class ModelPlayground:
 
 
 
-                apiurl="https://6far4l0b7i.execute-api.us-east-2.amazonaws.com/prod/m"
+                apiurl="https://5rxn9grye5.execute-api.us-east-2.amazonaws.com/prod/m"
 
                 apiurl_eval=apiurl[:-1]+"eval"
 
@@ -918,7 +918,7 @@ class ModelPlayground:
             import requests
             import json
 
-            api_url = "https://nds5eyacuohjseaknx4wpteok40lbjew.lambda-url.us-east-2.on.aws/"
+            api_url = "https://xtc6p535pxkl3237mnxocd4v3y0bipwg.lambda-url.us-east-2.on.aws/"
 
             data = json.dumps({"code": """from aimodelshare import ModelPlayground;myplayground="""+compstring, "zipfilename": compzipfilename,"username":os.environ.get("username"), "password":os.environ.get("password"),"token":os.environ.get("JWT_AUTHORIZATION_TOKEN"),"s3keyid":"xrjpv1i7xe"})
 
@@ -1021,7 +1021,7 @@ class ModelPlayground:
 
 
 
-                apiurl="https://6far4l0b7i.execute-api.us-east-2.amazonaws.com/prod/m"
+                apiurl="https://5rxn9grye5.execute-api.us-east-2.amazonaws.com/prod/m"
                 
                 apiurl_eval=apiurl[:-1]+"eval"
 
@@ -1114,7 +1114,7 @@ class ModelPlayground:
             import requests
             import json
 
-            api_url = "https://nds5eyacuohjseaknx4wpteok40lbjew.lambda-url.us-east-2.on.aws/"
+            api_url = "https://xtc6p535pxkl3237mnxocd4v3y0bipwg.lambda-url.us-east-2.on.aws/"
 
             data = json.dumps({"code": """from aimodelshare import ModelPlayground;myplayground="""+compstring, "zipfilename": compzipfilename,"username":os.environ.get("username"), "password":os.environ.get("password"),"token":os.environ.get("JWT_AUTHORIZATION_TOKEN"),"s3keyid":"xrjpv1i7xe"})
 
