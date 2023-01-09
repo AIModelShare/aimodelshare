@@ -321,7 +321,7 @@ class ModelPlayground:
               import os
               import requests
               import pandas as pd
-              if any([isinstance(example_data, pd.DataFrame),example_data==None]):
+              if any([isinstance(example_data, pd.DataFrame),example_data is None]):
                   pass
               else:
                   zipfilelist.append(example_data)
@@ -359,7 +359,7 @@ class ModelPlayground:
               # add object to pkl file pathway here. (saving y label data)
               import pickle
 
-              if y_train==None:
+              if y_train is None:
                 pass
               else:
                 with open(tempdir+"/"+'ytrain.pkl', 'wb') as f:
@@ -405,7 +405,7 @@ class ModelPlayground:
             #if aws arg = false, do this, otherwise do aws code
             #create deploy code_string
             def nonecheck(objinput=""):
-                if objinput==None:
+                if objinput is None:
                   objinput="None"
                 else:
                   objinput="'/tmp/"+objinput+"'"
@@ -547,7 +547,7 @@ class ModelPlayground:
                   import os
                   import requests
                   import pandas as pd
-                  if any([isinstance(example_data, pd.DataFrame),example_data==None]):
+                  if any([isinstance(example_data, pd.DataFrame),example_data is None]):
                       pass
                   else:
                       zipfilelist.append(example_data)
@@ -585,7 +585,7 @@ class ModelPlayground:
                   # add object to pkl file pathway here. (saving y label data)
                   import pickle
 
-                  if y_train==None:
+                  if y_train is None:
                     pass
                   else:
                     with open(tempdir+"/"+'ytrain.pkl', 'wb') as f:
@@ -631,7 +631,7 @@ class ModelPlayground:
                 #if aws arg = false, do this, otherwise do aws code
                 #create deploy code_string
                 def nonecheck(objinput=""):
-                    if objinput==None:
+                    if objinput is None:
                       objinput="None"
                     else:
                       objinput="'/tmp/"+objinput+"'"
@@ -784,7 +784,7 @@ class ModelPlayground:
             cloudlocation="not set"
         if "model_share"==cloudlocation:
             print("Creating your Model Playground Competition...\nEst. completion: ~1 minute\n")
-            if input_dict==None:
+            if input_dict is None:
                 print("\n--INPUT COMPETITION DETAILS--\n")
 
                 aishare_competitionname = input("Enter competition name:")
@@ -860,7 +860,7 @@ class ModelPlayground:
                 # add object to pkl file pathway here. (saving y label data)
                 import pickle
 
-                if y_test==None:
+                if y_test is None:
                   pass
                 else:
                   with open(tempdir+"/"+'ytest.pkl', 'wb') as f:
@@ -906,7 +906,7 @@ class ModelPlayground:
             #if aws arg = false, do this, otherwise do aws code
             #create deploy code_string
             def nonecheck(objinput=""):
-                if objinput==None:
+                if objinput is None:
                   objinput="None"
                 else:
                   objinput="'/tmp/"+objinput+"'"
@@ -980,7 +980,7 @@ class ModelPlayground:
             cloudlocation="not set"
         if "model_share"==cloudlocation:
             print("Creating your Model Playground...\nEst. completion: ~1 minute\n")
-            if input_dict==None:
+            if input_dict is None:
                 print("\n--INPUT COMPETITION DETAILS--\n")
 
                 aishare_competitionname = input("Enter experiment name:")
@@ -1056,7 +1056,7 @@ class ModelPlayground:
                 # add object to pkl file pathway here. (saving y label data)
                 import pickle
 
-                if y_test==None:
+                if y_test is None:
                   pass
                 else:
                   with open(tempdir+"/"+'ytest.pkl', 'wb') as f:
