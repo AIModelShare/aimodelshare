@@ -655,7 +655,6 @@ def delete_deployment(apiurl, confirmation=True):
             data = json.dumps({"code": """from aimodelshare.api import delete_deployment;"""+delplaygroundstring, "zipfilename": "","username":os.environ.get("username"), "password":os.environ.get("password"),"token":os.environ.get("JWT_AUTHORIZATION_TOKEN"),"s3keyid":"xrjpv1i7xe"})
 
             headers = {"Content-Type": "application/json"}
-
             response = requests.request("POST", api_url, headers = headers, data=data)
             # Print response
             result=json.loads(response.text)
@@ -750,6 +749,7 @@ def delete_deployment(apiurl, confirmation=True):
             api_response = client.delete_rest_api(
                 restApiId=api_id
             )
+            import requests
 
             # delete api page on front end
             bodydata = {'apiurl': apiurl,
