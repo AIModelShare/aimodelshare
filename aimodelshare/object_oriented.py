@@ -13,16 +13,6 @@ from aimodelshare.tools import extract_varnames_fromtrainingdata, _get_extension
 import time
 import pandas
 import requests
-
-
-# import packages 
-import os
-import contextlib
-import boto3
-from aimodelshare.api import get_api_json
-import tempfile
-import torch
-import onnx
 from aimodelshare.aws import get_aws_token
 
 class ModelPlayground:
@@ -311,97 +301,7 @@ class ModelPlayground:
             sys.stdout.write("[===                                  ] Progress: 5% - Accessing cloud, uploading resources...")
             sys.stdout.flush()
             
-            def upload_playground_zipfile(model_filepath=None, preprocessor_filepath=None, y_train=None, example_data=None):
-              """
-              minimally requires model_filepath, preprocessor_filepath 
-              """
-              zipfilelist=[model_filepath,preprocessor_filepath]
-
-              import json
-              import os
-              import requests
-              import pandas as pd
-              if any([isinstance(example_data, pd.DataFrame),isinstance(example_data, pd.Series),example_data is None]):
-                  pass
-              else:
-                  zipfilelist.append(example_data)
-
-              #need to save dict pkl file with arg name and filepaths to add to zipfile
-
-
-
-              apiurl="https://5rxn9grye5.execute-api.us-east-2.amazonaws.com/prod/m"
-
-              apiurl_eval=apiurl[:-1]+"eval"
-
-              headers = { 'Content-Type':'application/json', 'authorizationToken': json.dumps({"token":os.environ.get("AWS_TOKEN"),"eval":"TEST"}), } 
-              post_dict = {"return_zip": "True"}
-              zipfile = requests.post(apiurl_eval,headers=headers,data=json.dumps(post_dict)) 
-
-              zipfileputlistofdicts=json.loads(zipfile.text)['put']
-
-              zipfilename=list(zipfileputlistofdicts.keys())[0]
-
-              from zipfile import ZipFile
-              import os
-              from os.path import basename
-              import tempfile
-
-              wkingdir=os.getcwd()
-
-              tempdir=tempfile.gettempdir() 
-
-              zipObj = ZipFile(tempdir+"/"+zipfilename, 'w')
-              # Add multiple files to the zip
-              for i in zipfilelist:
-                zipObj.write(i)
-
-              # add object to pkl file pathway here. (saving y label data)
-              import pickle
-
-              if y_train is None:
-                pass
-              else:
-                with open(tempdir+"/"+'ytrain.pkl', 'wb') as f:
-                  pickle.dump(y_train, f)
-
-                os.chdir(tempdir)
-                zipObj.write('ytrain.pkl')
-
-              if any([isinstance(example_data, pd.DataFrame),isinstance(example_data, pd.Series)]):
-                with open(tempdir+"/"+'exampledata.pkl', 'wb') as f:
-                  pickle.dump(example_data, f)
-
-                os.chdir(tempdir)
-                zipObj.write('exampledata.pkl')
-              else:
-                pass
-
-
-              # close the Zip File
-              os.chdir(wkingdir)
-
-              zipObj.close()
-
-
-
-              import ast
-
-              finalzipdict=ast.literal_eval(zipfileputlistofdicts[zipfilename])
-
-              url=finalzipdict['url']
-              fields=finalzipdict['fields']
-
-              #### save files from model deploy to zipfile in tempdir before loading to s3
-
-
-
-              ### Load zipfile to s3
-              with open(tempdir+"/"+zipfilename, 'rb') as f:
-                files = {'file': (tempdir+"/"+zipfilename, f)}
-                http_response = requests.post(url, data=fields, files=files)
-              return zipfilename
-            deployzipfilename=upload_playground_zipfile(model_filepath, preprocessor_filepath, y_train, example_data)   
+ 
             #if aws arg = false, do this, otherwise do aws code
             #create deploy code_string
             def nonecheck(objinput=""):
@@ -537,7 +437,7 @@ class ModelPlayground:
                                           pyspark_support=pyspark_support,
                                           input_dict=input_dict, 
                                           print_output=False):
-                def upload_playground_zipfile(model_filepath=None, preprocessor_filepath=None, y_train=None, example_data=None):
+               def upload_playground_zipfile(model_filepath=None, preprocessor_filepath=None, y_train=None, example_data=None):
                   """
                   minimally requires model_filepath, preprocessor_filepath 
                   """
@@ -547,7 +447,7 @@ class ModelPlayground:
                   import os
                   import requests
                   import pandas as pd
-                  if any([isinstance(example_data, pd.DataFrame),example_data is None]):
+                  if any([isinstance(example_data, pd.DataFrame),isinstance(example_data, pd.Series),example_data is None]):
                       pass
                   else:
                       zipfilelist.append(example_data)
@@ -594,7 +494,7 @@ class ModelPlayground:
                     os.chdir(tempdir)
                     zipObj.write('ytrain.pkl')
 
-                  if isinstance(example_data, pd.DataFrame):
+                  if any([isinstance(example_data, pd.DataFrame),isinstance(example_data, pd.Series)]):
                     with open(tempdir+"/"+'exampledata.pkl', 'wb') as f:
                       pickle.dump(example_data, f)
 
