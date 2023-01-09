@@ -439,10 +439,13 @@ class ModelPlayground:
                 #if aws arg = false, do this, otherwise do aws code
                 #create deploy code_string
                 def nonecheck(objinput=""):
-                    if objinput is None:
-                      objinput="None"
+                    if isinstance(objinput, str):
+                      if objinput is None:
+                        objinput="None"
+                      else:
+                        objinput="'/tmp/"+objinput+"'"
                     else:
-                      objinput="'/tmp/"+objinput+"'"
+                        objinput='example_data'
                     return objinput
                 
                 deploystring=self.class_string.replace(",aws=False","")+"."+"deploy('/tmp/"+model_filepath+"','/tmp/"+preprocessor_filepath+"',"+'y_train'+","+nonecheck(example_data)+",input_dict="+str(input_dict)+')'
