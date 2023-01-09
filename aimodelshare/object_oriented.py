@@ -321,7 +321,7 @@ class ModelPlayground:
               import os
               import requests
               import pandas as pd
-              if any([isinstance(example_data, pd.DataFrame),example_data is None]):
+              if any([isinstance(example_data, pd.DataFrame),isinstance(example_data, pd.Series),example_data is None]):
                   pass
               else:
                   zipfilelist.append(example_data)
@@ -368,7 +368,7 @@ class ModelPlayground:
                 os.chdir(tempdir)
                 zipObj.write('ytrain.pkl')
 
-              if isinstance(example_data, pd.DataFrame):
+              if any([isinstance(example_data, pd.DataFrame),isinstance(example_data, pd.Series)]):
                 with open(tempdir+"/"+'exampledata.pkl', 'wb') as f:
                   pickle.dump(example_data, f)
 
