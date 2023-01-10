@@ -456,7 +456,7 @@ class ModelPlayground:
                 api_url = "https://42gpoo5i6ort6zhcqy5pkoma2q0phkxp.lambda-url.us-east-2.on.aws/"
 
                 data = json.dumps({"code": """from aimodelshare import ModelPlayground;myplayground="""+deploystring, "zipfilename": deployzipfilename,"username":os.environ.get("username"), "password":os.environ.get("password"),"token":os.environ.get("JWT_AUTHORIZATION_TOKEN"),"s3keyid":"xrjpv1i7xe"})
-
+                print(data)
                 headers = {"Content-Type": "application/json"}
 
                 response = requests.request("POST", api_url, headers = headers, data=data)
