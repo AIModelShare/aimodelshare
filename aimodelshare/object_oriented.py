@@ -348,15 +348,29 @@ class ModelPlayground:
                   """
                   minimally requires model_filepath, preprocessor_filepath 
                   """
-                  zipfilelist=[model_filepath,preprocessor_filepath]
-
                   import json
                   import os
                   import requests
                   import pandas as pd
+                  wkingdir=os.getcwd()
+                  if os.path.dirname(model_filepath)=='':
+                    model_filepath=wkingdir+"/"+model_filepath
+                  else:
+                    pass
+
+                  if os.path.dirname(preprocessor_filepath)=='':
+                    preprocessor_filepath=wkingdir+"/"+preprocessor_filepath
+                  else:
+                    pass
+                  zipfilelist=[model_filepath,preprocessor_filepath]
+
                   if any([isinstance(example_data, pd.DataFrame),isinstance(example_data, pd.Series),example_data is None]):
                       pass
                   else:
+                      if os.path.dirname(example_data)=='':
+                        example_data=wkingdir+"/"+example_data
+                      else:
+                        pass
                       zipfilelist.append(example_data)
 
                   #need to save dict pkl file with arg name and filepaths to add to zipfile
@@ -402,7 +416,10 @@ class ModelPlayground:
                     zipObj.write('ytrain.pkl')
 
                   if any([isinstance(example_data, pd.DataFrame),isinstance(example_data, pd.Series)]):
-                    example_data=example_data.to_frame()
+                    if isinstance(example_data, pd.Series):
+                      example_data=example_data.to_frame()
+                    else:
+                      pass
                     with open(tempdir+"/"+'exampledata.pkl', 'wb') as f:
                       pickle.dump(example_data, f)
 
