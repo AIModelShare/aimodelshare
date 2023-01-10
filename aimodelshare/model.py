@@ -1137,7 +1137,7 @@ def update_runtime_model(apiurl, model_version=None, submission_type="competitio
             import requests
             import json
 
-            api_url = "https://z74rxllxu26pi6aqkzzmttikaq0dojxw.lambda-url.us-east-2.on.aws/"
+            api_url = "https://42gpoo5i6ort6zhcqy5pkoma2q0phkxp.lambda-url.us-east-2.on.aws/"
 
             data = json.dumps({"code": """from aimodelshare.model import update_runtime_model;"""+runtimemodstring, "zipfilename": "","username":os.environ.get("username"), "password":os.environ.get("password"),"token":os.environ.get("JWT_AUTHORIZATION_TOKEN"),"s3keyid":"xrjpv1i7xe"})
 
