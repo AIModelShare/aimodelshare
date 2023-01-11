@@ -377,7 +377,7 @@ class ModelPlayground:
 
 
 
-                  apiurl="https://xjd6jmmfda.execute-api.us-east-2.amazonaws.com/prod/m"
+                  apiurl="https://djoehnv623.execute-api.us-east-2.amazonaws.com/prod/m"
 
                   apiurl_eval=apiurl[:-1]+"eval"
 
@@ -653,7 +653,7 @@ class ModelPlayground:
 
 
 
-                apiurl="https://xjd6jmmfda.execute-api.us-east-2.amazonaws.com/prod/m"
+                apiurl="https://djoehnv623.execute-api.us-east-2.amazonaws.com/prod/m"
 
                 apiurl_eval=apiurl[:-1]+"eval"
 
@@ -849,7 +849,7 @@ class ModelPlayground:
 
 
 
-                apiurl="https://xjd6jmmfda.execute-api.us-east-2.amazonaws.com/prod/m"
+                apiurl="https://djoehnv623.execute-api.us-east-2.amazonaws.com/prod/m"
                 
                 apiurl_eval=apiurl[:-1]+"eval"
 
