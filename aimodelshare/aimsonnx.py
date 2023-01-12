@@ -3,15 +3,26 @@ import pandas as pd
 import numpy as np
 
 # ml frameworks
-import sklearn
-from sklearn.model_selection import GridSearchCV, RandomizedSearchCV
-import torch
+
+try:
+    import sklearn
+    from sklearn.model_selection import GridSearchCV, RandomizedSearchCV
+except:
+    pass
+try:
+    import torch
+except:
+    pass
 try:
     import xgboost
 except:
     pass
-import tensorflow as tf
-import keras
+try:
+    import tensorflow as tf
+    import keras
+except:
+    pass
+
 
 # onnx modules
 import onnx
