@@ -4,7 +4,10 @@ import contextlib
 import boto3
 from aimodelshare.api import get_api_json
 import tempfile
-import torch
+try:
+    import torch
+except:
+    pass
 import onnx
 from aimodelshare.utils import HiddenPrints
 import signal
