@@ -10,7 +10,10 @@ import ast
 import tensorflow as tf
 import tempfile as tmp
 from datetime import datetime
-import torch
+try:
+    import torch
+except:
+    pass
 
 from aimodelshare.leaderboard import get_leaderboard
 from aimodelshare.aws import run_function_on_lambda, get_token, get_aws_token, get_aws_client
