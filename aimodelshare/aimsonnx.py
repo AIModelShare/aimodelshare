@@ -29,7 +29,10 @@ import onnx
 import skl2onnx
 from skl2onnx import convert_sklearn
 import tf2onnx
-from torch.onnx import export
+try:
+    from torch.onnx import export
+except:
+    pass
 from onnx.tools.net_drawer import GetPydotGraph, GetOpNodeProducer
 import importlib
 import onnxmltools
