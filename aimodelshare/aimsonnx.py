@@ -3,22 +3,36 @@ import pandas as pd
 import numpy as np
 
 # ml frameworks
-import sklearn
-from sklearn.model_selection import GridSearchCV, RandomizedSearchCV
-import torch
+
+try:
+    import sklearn
+    from sklearn.model_selection import GridSearchCV, RandomizedSearchCV
+except:
+    pass
+try:
+    import torch
+except:
+    pass
 try:
     import xgboost
 except:
     pass
-import tensorflow as tf
-import keras
+try:
+    import tensorflow as tf
+    import keras
+except:
+    pass
+
 
 # onnx modules
 import onnx
 import skl2onnx
 from skl2onnx import convert_sklearn
 import tf2onnx
-from torch.onnx import export
+try:
+    from torch.onnx import export
+except:
+    pass
 from onnx.tools.net_drawer import GetPydotGraph, GetOpNodeProducer
 import importlib
 import onnxmltools
@@ -1469,7 +1483,8 @@ def instantiate_model(apiurl, version=None, trained=False, reproduce=False, subm
             # Get leaderboard
             status = wget.download(model_weight_url, out=temp_path)
             onnx_model = onnx.load(temp_path)
-            model_weights = np.array([np.array(weight) for weight in ast.literal_eval(_get_metadata(onnx_model)['model_weights'])])
+            import pickle
+            model_weights=pickle.loads(_get_metadata(onnx_model)['model_weights'])
             
             model = tf.keras.Sequential().from_config(model_config)
 
