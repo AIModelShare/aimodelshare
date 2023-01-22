@@ -17,6 +17,7 @@ class AutoML_Tabular:
             "time_budget": 600,
             "metric": "accuracy",
             "task": "classification",
+            "starting_points": "data",
             "log_file_name": "experiment.log",
             "seed": 7654321,
         }

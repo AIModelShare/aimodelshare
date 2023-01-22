@@ -4,9 +4,10 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="301fb6ff-99cc-4504-86a7-f9174e9087a5" name="Changes" comment="something wrong with onnx -&gt; submit">
+    <list default="true" id="8559db28-8753-4b9a-bd42-3b9242cedb8a" name="Changes" comment="add flaml">
+      <change beforePath="$PROJECT_DIR$/.idea/aimodelshare.iml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/aimodelshare.iml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/misc.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/misc.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/aimodelshare/automl/automl_tabular.py" beforeDir="false" afterPath="$PROJECT_DIR$/aimodelshare/automl/automl_tabular.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -21,146 +22,66 @@
     </option>
   </component>
   <component name="Git.Settings">
+    <option name="RECENT_BRANCH_BY_REPOSITORY">
+      <map>
+        <entry key="$PROJECT_DIR$" value="master" />
+      </map>
+    </option>
     <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$" />
   </component>
   <component name="MarkdownSettingsMigration">
     <option name="stateVersion" value="1" />
   </component>
-  <component name="ProjectId" id="2HmmWRwG0QKR22dhIoyYvgEHuhY" />
+  <component name="ProjectId" id="2JHoAuklHbuGUZ3FIV3QDtWnR0j" />
+  <component name="ProjectLevelVcsManager" settingsEditedManually="true" />
   <component name="ProjectViewState">
     <option name="hideEmptyMiddlePackages" value="true" />
     <option name="showLibraryContents" value="true" />
   </component>
   <component name="PropertiesComponent">{
   &quot;keyToString&quot;: {
+    &quot;Git.Branch.Popup.ShowAllRemotes&quot;: &quot;true&quot;,
     &quot;RunOnceActivity.OpenProjectViewOnStart&quot;: &quot;true&quot;,
     &quot;RunOnceActivity.ShowReadmeOnStart&quot;: &quot;true&quot;,
     &quot;WebServerToolWindowFactoryState&quot;: &quot;false&quot;,
-    &quot;last_opened_file_path&quot;: &quot;D:/COMS-6998-HPML&quot;,
     &quot;node.js.detected.package.eslint&quot;: &quot;true&quot;,
     &quot;node.js.detected.package.tslint&quot;: &quot;true&quot;,
     &quot;node.js.selected.package.eslint&quot;: &quot;(autodetect)&quot;,
     &quot;node.js.selected.package.tslint&quot;: &quot;(autodetect)&quot;,
-    &quot;nodejs_package_manager_path&quot;: &quot;npm&quot;
+    &quot;nodejs_package_manager_path&quot;: &quot;npm&quot;,
+    &quot;settings.editor.selected.configurable&quot;: &quot;project.scopes&quot;
   }
 }</component>
   <component name="SpellCheckerSettings" RuntimeDictionaries="0" Folders="0" CustomDictionaries="0" DefaultDictionary="application-level" UseSingleDictionary="true" transferred="true" />
   <component name="TaskManager">
     <task active="true" id="Default" summary="Default task">
-      <changelist id="301fb6ff-99cc-4504-86a7-f9174e9087a5" name="Changes" comment="" />
-      <created>1668898665049</created>
+      <changelist id="8559db28-8753-4b9a-bd42-3b9242cedb8a" name="Changes" comment="" />
+      <created>1671744232415</created>
       <option name="number" value="Default" />
       <option name="presentableId" value="Default" />
-      <updated>1668898665049</updated>
-      <workItem from="1668898666397" duration="176000" />
-      <workItem from="1668959931685" duration="567000" />
-      <workItem from="1669222197242" duration="4907000" />
-      <workItem from="1669340460128" duration="110000" />
-      <workItem from="1670006696144" duration="4417000" />
-      <workItem from="1670012014587" duration="13000" />
-      <workItem from="1670012040677" duration="2206000" />
-      <workItem from="1670081739497" duration="52000" />
-      <workItem from="1670470181311" duration="9648000" />
-      <workItem from="1670901286825" duration="112000" />
-      <workItem from="1671142266026" duration="12949000" />
-      <workItem from="1671201428856" duration="1198000" />
-      <workItem from="1671203191258" duration="273000" />
-      <workItem from="1671211410071" duration="54000" />
-      <workItem from="1671223834305" duration="5218000" />
-      <workItem from="1671732753266" duration="1922000" />
+      <updated>1671744232415</updated>
+      <workItem from="1671744236107" duration="1064000" />
+      <workItem from="1671986613834" duration="31000" />
+      <workItem from="1673233666266" duration="1665000" />
+      <workItem from="1673321487507" duration="122000" />
+      <workItem from="1673916606274" duration="80000" />
+      <workItem from="1674425062436" duration="306000" />
     </task>
-    <task id="LOCAL-00001" summary="init commit">
-      <created>1669232183293</created>
+    <task id="LOCAL-00001" summary="quick warning diminish">
+      <created>1671745704308</created>
       <option name="number" value="00001" />
       <option name="presentableId" value="LOCAL-00001" />
       <option name="project" value="LOCAL" />
-      <updated>1669232183293</updated>
+      <updated>1671745704308</updated>
     </task>
-    <task id="LOCAL-00002" summary="debugged and tested">
-      <created>1670011395591</created>
+    <task id="LOCAL-00002" summary="add flaml">
+      <created>1673235271686</created>
       <option name="number" value="00002" />
       <option name="presentableId" value="LOCAL-00002" />
       <option name="project" value="LOCAL" />
-      <updated>1670011395591</updated>
+      <updated>1673235271686</updated>
     </task>
-    <task id="LOCAL-00003" summary="debugged and tested">
-      <created>1670011422509</created>
-      <option name="number" value="00003" />
-      <option name="presentableId" value="LOCAL-00003" />
-      <option name="project" value="LOCAL" />
-      <updated>1670011422509</updated>
-    </task>
-    <task id="LOCAL-00004" summary="debugged and tested">
-      <created>1670011712258</created>
-      <option name="number" value="00004" />
-      <option name="presentableId" value="LOCAL-00004" />
-      <option name="project" value="LOCAL" />
-      <updated>1670011712258</updated>
-    </task>
-    <task id="LOCAL-00005" summary="debugged and tested">
-      <created>1670012163786</created>
-      <option name="number" value="00005" />
-      <option name="presentableId" value="LOCAL-00005" />
-      <option name="project" value="LOCAL" />
-      <updated>1670012163786</updated>
-    </task>
-    <task id="LOCAL-00006" summary="debugged and tested">
-      <created>1670012287312</created>
-      <option name="number" value="00006" />
-      <option name="presentableId" value="LOCAL-00006" />
-      <option name="project" value="LOCAL" />
-      <updated>1670012287312</updated>
-    </task>
-    <task id="LOCAL-00007" summary="debugged and tested">
-      <created>1670012875613</created>
-      <option name="number" value="00007" />
-      <option name="presentableId" value="LOCAL-00007" />
-      <option name="project" value="LOCAL" />
-      <updated>1670012875613</updated>
-    </task>
-    <task id="LOCAL-00008" summary="wrapped into a class">
-      <created>1670516614635</created>
-      <option name="number" value="00008" />
-      <option name="presentableId" value="LOCAL-00008" />
-      <option name="project" value="LOCAL" />
-      <updated>1670516614635</updated>
-    </task>
-    <task id="LOCAL-00009" summary="a placeholder for integrating aimodelshare">
-      <created>1671169404689</created>
-      <option name="number" value="00009" />
-      <option name="presentableId" value="LOCAL-00009" />
-      <option name="project" value="LOCAL" />
-      <updated>1671169404689</updated>
-    </task>
-    <task id="LOCAL-00010" summary="quick debug">
-      <created>1671169518652</created>
-      <option name="number" value="00010" />
-      <option name="presentableId" value="LOCAL-00010" />
-      <option name="project" value="LOCAL" />
-      <updated>1671169518652</updated>
-    </task>
-    <task id="LOCAL-00011" summary="quick debug">
-      <created>1671203104067</created>
-      <option name="number" value="00011" />
-      <option name="presentableId" value="LOCAL-00011" />
-      <option name="project" value="LOCAL" />
-      <updated>1671203104067</updated>
-    </task>
-    <task id="LOCAL-00012" summary="quick debug">
-      <created>1671211438104</created>
-      <option name="number" value="00012" />
-      <option name="presentableId" value="LOCAL-00012" />
-      <option name="project" value="LOCAL" />
-      <updated>1671211438104</updated>
-    </task>
-    <task id="LOCAL-00013" summary="something wrong with onnx -&gt; submit">
-      <created>1671229824838</created>
-      <option name="number" value="00013" />
-      <option name="presentableId" value="LOCAL-00013" />
-      <option name="project" value="LOCAL" />
-      <updated>1671229824838</updated>
-    </task>
-    <option name="localTasksCounter" value="14" />
+    <option name="localTasksCounter" value="3" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
@@ -178,12 +99,8 @@
     </option>
   </component>
   <component name="VcsManagerConfiguration">
-    <MESSAGE value="init commit" />
-    <MESSAGE value="debugged and tested" />
-    <MESSAGE value="wrapped into a class" />
-    <MESSAGE value="a placeholder for integrating aimodelshare" />
-    <MESSAGE value="quick debug" />
-    <MESSAGE value="something wrong with onnx -&gt; submit" />
-    <option name="LAST_COMMIT_MESSAGE" value="something wrong with onnx -&gt; submit" />
+    <MESSAGE value="quick warning diminish" />
+    <MESSAGE value="add flaml" />
+    <option name="LAST_COMMIT_MESSAGE" value="add flaml" />
   </component>
 </project>
