@@ -4,10 +4,9 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="8559db28-8753-4b9a-bd42-3b9242cedb8a" name="Changes" comment="add flaml">
-      <change beforePath="$PROJECT_DIR$/.idea/aimodelshare.iml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/aimodelshare.iml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/misc.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/misc.xml" afterDir="false" />
+    <list default="true" id="8559db28-8753-4b9a-bd42-3b9242cedb8a" name="Changes" comment="make automl data dependency">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/aimodelshare/automl/automl_tabular.py" beforeDir="false" afterPath="$PROJECT_DIR$/aimodelshare/automl/automl_tabular.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -65,7 +64,8 @@
       <workItem from="1673233666266" duration="1665000" />
       <workItem from="1673321487507" duration="122000" />
       <workItem from="1673916606274" duration="80000" />
-      <workItem from="1674425062436" duration="306000" />
+      <workItem from="1674425062436" duration="471000" />
+      <workItem from="1674433004162" duration="873000" />
     </task>
     <task id="LOCAL-00001" summary="quick warning diminish">
       <created>1671745704308</created>
@@ -81,7 +81,14 @@
       <option name="project" value="LOCAL" />
       <updated>1673235271686</updated>
     </task>
-    <option name="localTasksCounter" value="3" />
+    <task id="LOCAL-00003" summary="make automl data dependency">
+      <created>1674425516993</created>
+      <option name="number" value="00003" />
+      <option name="presentableId" value="LOCAL-00003" />
+      <option name="project" value="LOCAL" />
+      <updated>1674425516993</updated>
+    </task>
+    <option name="localTasksCounter" value="4" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
@@ -101,6 +108,7 @@
   <component name="VcsManagerConfiguration">
     <MESSAGE value="quick warning diminish" />
     <MESSAGE value="add flaml" />
-    <option name="LAST_COMMIT_MESSAGE" value="add flaml" />
+    <MESSAGE value="make automl data dependency" />
+    <option name="LAST_COMMIT_MESSAGE" value="make automl data dependency" />
   </component>
 </project>

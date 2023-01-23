@@ -36,6 +36,7 @@ class autoMLTabular:
                  automl_dir="automl",
                  mode=None,
                  playground: ModelPlayground = None,
+                 classification=True,
                  **kwargs):
         """
         :param dataset_names: There are a few possibilities, a series of csv file, a directory or a keyword
@@ -54,17 +55,32 @@ class autoMLTabular:
         self.automl_dir = automl_dir
         self.automl = AutoML(results_path=automl_dir, mode=mode if mode else "Explain")
 
-        if isinstance(dataset_names, list) or isinstance(dataset_names, tuple):
-            self.datasets_train, self.datasets_test = pd.read_csv(dataset_names[0]), pd.read_csv(
-                dataset_names[1])
+        if isinstance(dataset_names, (list, tuple)):
+            if dataset_names[0].split(".")[-1] == "csv":
+                self.datasets_train, self.datasets_test = pd.read_csv(dataset_names[0]), pd.read_csv(
+                    dataset_names[1])
+            elif dataset_names[0].split(".")[-1] == "pkl":
+                self.datasets_train, self.datasets_test = pd.read_pickle(dataset_names[0]), pd.read_pickle(
+                    dataset_names[1])
+            else:
+                raise Exception("File format not supported.\n")
             self.labels_train = self.datasets_train.loc[keyword]
             self.datasets_train = self.datasets_train.drop([keyword], axis=1)
             self.labels_test = self.datasets_test.loc[keyword]
             self.datasets_test = self.datasets_test.drop([keyword], axis=1)
         elif isinstance(dataset_names, str) and os.path.isdir(dataset_names):
-            dataset_names = sorted(glob.glob("/".join((dataset_names, "*.csv"))), reverse=True)  # train.csv, test.csv
-            self.datasets_train, self.datasets_test = pd.read_csv(dataset_names[0]), pd.read_csv(
-                dataset_names[1])
+            directory = dataset_names
+            dataset_names = sorted(glob.glob("/".join((directory, "*.csv"))), reverse=True)  # train.csv, test.csv
+            if dataset_names:
+                self.datasets_train, self.datasets_test = pd.read_csv(dataset_names[0]), pd.read_csv(
+                    dataset_names[1])
+            else:
+                dataset_names = sorted(glob.glob("/".join((directory, "*.pkl"))), reverse=True)
+                if dataset_names:
+                    self.datasets_train, self.datasets_test = pd.read_pickle(dataset_names[0]), pd.read_pickle(
+                        dataset_names[1])
+                else:
+                    raise Exception("Dataset loading failed.\n")
             self.labels_train = self.datasets_train.loc[keyword]
             self.datasets_train = self.datasets_train.drop([keyword], axis=1)
             self.labels_test = self.datasets_test.loc[keyword]
@@ -96,7 +112,7 @@ class autoMLTabular:
         # This will be moved outside the module
         if playground is None:
             # Create a new competition
-            playground = ModelPlayground(model_type="tabular", classification=True, private=False)
+            playground = ModelPlayground(model_type="tabular", classification=classification, private=False)
             try:
                 playground.deploy("model.onnx", "preprocessor.zip", self.labels_train,
                                   example_data if example_data is not None else pd.DataFrame(self.datasets_train[0:4]))
@@ -347,6 +363,7 @@ if __name__ == "__main__":
     set_credentials(credential_file="credentials.txt", type="deploy_model")
 
     automl = autoMLTabular(datasets_name,
+                           classification=True,
                            playground=myplayground,
                            datasets_train=datasets_train,
                            datasets_test=datasets_test,
