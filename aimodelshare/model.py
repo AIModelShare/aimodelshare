@@ -588,8 +588,13 @@ def submit_model(
     """
 
     # catch missing model_input for pytorch 
-    if isinstance(model_filepath, torch.nn.Module) and model_input==None:
-        raise ValueError("Please submit valid model_input for pytorch model.")
+    try:
+        import torch
+        if isinstance(model_filepath, torch.nn.Module) and model_input==None:
+            raise ValueError("Please submit valid model_input for pytorch model.")
+    except:
+        pass
+
 
     # check whether preprocessor is function
     import types
@@ -779,10 +784,14 @@ def submit_model(
             onnx_model = model_filepath
         else:
             print("Transform model object to onnx.")
-            if isinstance(model_filepath, torch.nn.Module) and model_input==None:
-                onnx_model = model_to_onnx(model_filepath, model_input=model_input)
-            else:
-                onnx_model = model_to_onnx(model_filepath)
+            try:
+                import torch
+                if isinstance(model_filepath, torch.nn.Module) and model_input==None:
+                    onnx_model = model_to_onnx(model_filepath, model_input=model_input)
+            except:
+                onnx_model = model_to_onnx(model_filepath
+                pass
+
 
         temp_prep=tmp.mkdtemp()
         model_filepath = temp_prep+"/model.onnx"
