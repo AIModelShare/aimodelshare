@@ -789,7 +789,7 @@ def submit_model(
                 if isinstance(model_filepath, torch.nn.Module) and model_input==None:
                     onnx_model = model_to_onnx(model_filepath, model_input=model_input)
             except:
-                onnx_model = model_to_onnx(model_filepath
+                onnx_model = model_to_onnx(model_filepath)
                 pass
 
 
