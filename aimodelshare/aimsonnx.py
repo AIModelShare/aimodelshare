@@ -966,7 +966,7 @@ def model_to_onnx_timed(model_filepath, force_onnx=False, timeout=60, model_inpu
                 import torch
                 if isinstance(model_filepath, torch.nn.Module):
                     onnx_model = model_to_onnx(model_filepath, model_input=model_input)
-            else:
+            except:
                 onnx_model = model_to_onnx(model_filepath)
             model_filepath = onnx_model
 
