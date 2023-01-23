@@ -1547,6 +1547,7 @@ def _get_layer_names_pytorch():
         layer_list = [i for i in dir(torch.nn) if callable(getattr(torch.nn, i))]
         layer_list = [i for i in layer_list if not i in activation_list and not 'Loss' in i]
     except:
+        layer_list=["no layers found"]
         pass
 
 
