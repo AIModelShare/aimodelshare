@@ -6,7 +6,7 @@
   <component name="ChangeListManager">
     <list default="true" id="8559db28-8753-4b9a-bd42-3b9242cedb8a" name="Changes" comment="make automl data dependency">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/aimodelshare/automl/automl_tabular.py" beforeDir="false" afterPath="$PROJECT_DIR$/aimodelshare/automl/automl_tabular.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/aimodelshare/automl/automl_flaml.py" beforeDir="false" afterPath="$PROJECT_DIR$/aimodelshare/automl/automl_flaml.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -43,6 +43,7 @@
     &quot;RunOnceActivity.OpenProjectViewOnStart&quot;: &quot;true&quot;,
     &quot;RunOnceActivity.ShowReadmeOnStart&quot;: &quot;true&quot;,
     &quot;WebServerToolWindowFactoryState&quot;: &quot;false&quot;,
+    &quot;last_opened_file_path&quot;: &quot;D:/Columbia University/NNDL/real-timeREID&quot;,
     &quot;node.js.detected.package.eslint&quot;: &quot;true&quot;,
     &quot;node.js.detected.package.tslint&quot;: &quot;true&quot;,
     &quot;node.js.selected.package.eslint&quot;: &quot;(autodetect)&quot;,
@@ -65,7 +66,9 @@
       <workItem from="1673321487507" duration="122000" />
       <workItem from="1673916606274" duration="80000" />
       <workItem from="1674425062436" duration="471000" />
-      <workItem from="1674433004162" duration="873000" />
+      <workItem from="1674433004162" duration="1930000" />
+      <workItem from="1674571656739" duration="51000" />
+      <workItem from="1675023208114" duration="5375000" />
     </task>
     <task id="LOCAL-00001" summary="quick warning diminish">
       <created>1671745704308</created>
@@ -88,7 +91,14 @@
       <option name="project" value="LOCAL" />
       <updated>1674425516993</updated>
     </task>
-    <option name="localTasksCounter" value="4" />
+    <task id="LOCAL-00004" summary="make automl data dependency">
+      <created>1674434328119</created>
+      <option name="number" value="00004" />
+      <option name="presentableId" value="LOCAL-00004" />
+      <option name="project" value="LOCAL" />
+      <updated>1674434328119</updated>
+    </task>
+    <option name="localTasksCounter" value="5" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
