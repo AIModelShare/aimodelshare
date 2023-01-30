@@ -74,14 +74,17 @@ def create_docker_folder_codebuild(dataset_dir, dataset_name, template_folder, r
     tmp_dataset_dir = tempfile.gettempdir() + '/' + '/'.join(['tmp_dataset_dir', dataset_name])
 
     tmp_dataset = tempfile.gettempdir() + '/' + 'tmp_dataset_dir'
+    tmp_dataset = tmp_dataset.replace("/tmp//tmp/","/tmp/")
+
 
     if os.path.exists(tmp_dataset):
-        shutil.rmtree(tmp_dataset)
+        shutil.rmtree(tmp_dataset)    
     os.makedirs(tmp_dataset)
 
     if dataset_dir:
         shutil.copytree(dataset_dir, tmp_dataset_dir)
 
+    template_folder= template_folder.replace("/tmp//tmp/","/tmp/")
     os.mkdir(template_folder)
 
     data = pkg_resources.read_text(data_sharing_templates, 'Dockerfile.txt')
@@ -172,15 +175,17 @@ def share_data_codebuild(account_id, region, dataset_dir, dataset_tag='latest', 
         dataset_name = dataset_dir.replace(" ", "_")
     else:
         dataset_name = "placeholder_data"
-
+    dataset_name=dataset_name.replace("/tmp/","")
     repository=dataset_name+'-repository'
 
     template_folder=tempfile.gettempdir() + '/' + dataset_name+'_'+dataset_tag
-
+    template_folder= template_folder.replace("/tmp//tmp/","/tmp/")
     codebuild_role_name=dataset_name+'-codebuild-role'
+
     codebuild_policies_name=dataset_name+'-codebuild-policies'
 
     codebuild_dataset_name=dataset_name+'-upload'
+    
 
     s3_client = session.client('s3', region_name=region)
 
@@ -226,7 +231,7 @@ def share_data_codebuild(account_id, region, dataset_dir, dataset_tag='latest', 
         attach_policy_to_role(iam, account_id, codebuild_role_name, codebuild_policies_name)
     except:
         None
-
+             
     s3_client = session.client('s3')
     s3_client.upload_file(''.join([template_folder, '.zip']),
                           bucket_name,

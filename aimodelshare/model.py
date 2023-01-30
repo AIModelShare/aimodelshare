@@ -10,7 +10,10 @@ import ast
 import tensorflow as tf
 import tempfile as tmp
 from datetime import datetime
-import torch
+try:
+    import torch
+except:
+    pass
 
 from aimodelshare.leaderboard import get_leaderboard
 from aimodelshare.aws import run_function_on_lambda, get_token, get_aws_token, get_aws_client
@@ -585,8 +588,13 @@ def submit_model(
     """
 
     # catch missing model_input for pytorch 
-    if isinstance(model_filepath, torch.nn.Module) and model_input==None:
-        raise ValueError("Please submit valid model_input for pytorch model.")
+    try:
+        import torch
+        if isinstance(model_filepath, torch.nn.Module) and model_input==None:
+            raise ValueError("Please submit valid model_input for pytorch model.")
+    except:
+        pass
+
 
     # check whether preprocessor is function
     import types
@@ -702,6 +710,7 @@ def submit_model(
 
         headers = { 'Content-Type':'application/json', 'authorizationToken': json.dumps({"token":os.environ.get("AWS_TOKEN"),"eval":"TEST"}), } 
         apiurl_eval=apiurl[:-1]+"eval"
+        import requests
         prediction = requests.post(apiurl_eval,headers=headers,data=json.dumps(post_dict)) 
 
     eval_metrics=json.loads(prediction.text)
@@ -754,7 +763,7 @@ def submit_model(
     for i in modelputfiles:
       filedownload_dict=ast.literal_eval(s3_presigned_dict ['put'][i])
       fileputlistofdicts.append(filedownload_dict)
-
+    import requests
     if preprocessor is not None: 
         with open(preprocessor, 'rb') as f:
           files = {'file': (preprocessor, f)}
@@ -775,10 +784,14 @@ def submit_model(
             onnx_model = model_filepath
         else:
             print("Transform model object to onnx.")
-            if isinstance(model_filepath, torch.nn.Module) and model_input==None:
-                onnx_model = model_to_onnx(model_filepath, model_input=model_input)
-            else:
+            try:
+                import torch
+                if isinstance(model_filepath, torch.nn.Module) and model_input==None:
+                    onnx_model = model_to_onnx(model_filepath, model_input=model_input)
+            except:
                 onnx_model = model_to_onnx(model_filepath)
+                pass
+
 
         temp_prep=tmp.mkdtemp()
         model_filepath = temp_prep+"/model.onnx"
@@ -1118,89 +1131,121 @@ def update_runtime_model(apiurl, model_version=None, submission_type="competitio
     apiurl: string of API URL that the user wishes to edit
     new_model_version: string of model version number (from leaderboard) to replace original model 
     """
-    # Confirm that creds are loaded, print warning if not
-    if all(["AWS_ACCESS_KEY_ID_AIMS" in os.environ, 
-            "AWS_SECRET_ACCESS_KEY_AIMS" in os.environ,
-            "AWS_REGION_AIMS" in os.environ,
-           "username" in os.environ, 
-           "password" in os.environ]):
-        pass
+    import os 
+    if os.environ.get("cloud_location") is not None:
+        cloudlocation=os.environ.get("cloud_location")
     else:
-        return print("'Update Runtime Model' unsuccessful. Please provide credentials with set_credentials().")
+        cloudlocation="not set"
+    if "model_share"==cloudlocation:
+            def nonecheck(objinput=""):
+                if objinput==None:
+                  objinput="None"
+                else:
+                  objinput="'/tmp/"+objinput+"'"
+                return objinput
 
-    # Create user session
-    aws_client_and_resource=get_aws_client(aws_key=os.environ.get('AWS_ACCESS_KEY_ID_AIMS'), 
-                              aws_secret=os.environ.get('AWS_SECRET_ACCESS_KEY_AIMS'), 
-                              aws_region=os.environ.get('AWS_REGION_AIMS'))
-    aws_client = aws_client_and_resource['client']
+            runtimemodstring="update_runtime_model('"+apiurl+"',"+str(model_version)+",submission_type='"+str(submission_type)+"')"
+            import base64
+            import requests
+            import json
+
+            api_url = "https://z4kvag4sxdnv2mvs2b6c4thzj40bxnuw.lambda-url.us-east-2.on.aws/"
+
+            data = json.dumps({"code": """from aimodelshare.model import update_runtime_model;"""+runtimemodstring, "zipfilename": "","username":os.environ.get("username"), "password":os.environ.get("password"),"token":os.environ.get("JWT_AUTHORIZATION_TOKEN"),"s3keyid":"xrjpv1i7xe"})
+
+            headers = {"Content-Type": "application/json"}
+
+            response = requests.request("POST", api_url, headers = headers, data=data)
+            # Print response
+            result=json.loads(response.text)
+
+            for i in json.loads(result['body']):
+                print(i)
     
-    user_sess = boto3.session.Session(aws_access_key_id=os.environ.get('AWS_ACCESS_KEY_ID_AIMS'), 
-                                      aws_secret_access_key=os.environ.get('AWS_SECRET_ACCESS_KEY_AIMS'), 
-                                      region_name=os.environ.get('AWS_REGION_AIMS'))
-    
-    s3 = user_sess.resource('s3')
-    model_version=str(model_version)
-    # Get bucket and model_id for user based on apiurl {{{
-    response, error = run_function_on_lambda(
-        apiurl, **{"delete": "FALSE", "versionupdateget": "TRUE"}
-    )
-    if error is not None:
-        raise error
-
-    _, api_bucket, model_id = json.loads(response.content.decode("utf-8"))
-    # }}}
-
-    try:
-        leaderboard = get_leaderboard(apiurl=apiurl, submission_type=submission_type)
-
-        columns = leaderboard.columns
-        leaderboardversion=leaderboard[leaderboard['version']==int(model_version)]
-        leaderboardversion=leaderboardversion.dropna(axis=1)
-
-        metric_names_subset=list(columns[0:4])
-        leaderboardversiondict=leaderboardversion.loc[:,metric_names_subset].to_dict('records')[0]
-
-    except Exception as err:
-        raise err
-
-    # Get file list for current bucket {{{
-    model_files, err = _get_file_list(aws_client, api_bucket, model_id+"/"+submission_type)
-    if err is not None:
-        raise err
-    # }}}
-
-    # extract subfolder objects specific to the model id
-    folder = s3.meta.client.list_objects(Bucket=api_bucket, Prefix=model_id+"/"+submission_type+"/")
-    bucket = s3.Bucket(api_bucket)
-    file_list = [file['Key'] for file in folder['Contents']]
-    s3 = boto3.resource('s3')
-    model_source_key = model_id+"/"+submission_type+"/onnx_model_v"+str(model_version)+".onnx"
-    preprocesor_source_key = model_id+"/"+submission_type+"/preprocessor_v"+str(model_version)+".zip"
-    model_copy_source = {
-          'Bucket': api_bucket,
-          'Key': model_source_key
-        }
-    preprocessor_copy_source = {
-          'Bucket': api_bucket,
-          'Key': preprocesor_source_key
-      }
-    # Sending correct model metrics to front end 
-    bodydatamodelmetrics={"apiurl":apiurl,
-                          "versionupdateput":"TRUE",
-                          "verified_metrics":"TRUE",
-                          "eval_metrics":json.dumps(leaderboardversiondict)}
- 
-    headers = { 'Content-Type':'application/json', 'authorizationToken': os.environ.get("AWS_TOKEN"), } 
-    prediction = requests.post("https://bhrdesksak.execute-api.us-east-1.amazonaws.com/dev/modeldata",headers=headers,data=json.dumps(bodydatamodelmetrics)) 
-
-    # overwrite runtime_model.onnx file & runtime_preprocessor.zip files: 
-    if (model_source_key in file_list) & (preprocesor_source_key in file_list):
-        response = bucket.copy(model_copy_source, model_id+"/"+'runtime_model.onnx')
-        response = bucket.copy(preprocessor_copy_source, model_id+"/"+'runtime_preprocessor.zip')
-        return print('Runtime model & preprocessor for api: '+apiurl+" updated to model version "+model_version+".\n\nModel metrics are now updated and verified for this model playground.")
     else:
-        # the file resource to be the new runtime_model is not available
-        return 'New Runtime Model version ' + model_version + ' not found.'
+        # Confirm that creds are loaded, print warning if not
+        if all(["AWS_ACCESS_KEY_ID_AIMS" in os.environ, 
+                "AWS_SECRET_ACCESS_KEY_AIMS" in os.environ,
+                "AWS_REGION_AIMS" in os.environ,
+              "username" in os.environ, 
+              "password" in os.environ]):
+            pass
+        else:
+            return print("'Update Runtime Model' unsuccessful. Please provide credentials with set_credentials().")
+
+        # Create user session
+        aws_client_and_resource=get_aws_client(aws_key=os.environ.get('AWS_ACCESS_KEY_ID_AIMS'), 
+                                  aws_secret=os.environ.get('AWS_SECRET_ACCESS_KEY_AIMS'), 
+                                  aws_region=os.environ.get('AWS_REGION_AIMS'))
+        aws_client = aws_client_and_resource['client']
+        
+        user_sess = boto3.session.Session(aws_access_key_id=os.environ.get('AWS_ACCESS_KEY_ID_AIMS'), 
+                                          aws_secret_access_key=os.environ.get('AWS_SECRET_ACCESS_KEY_AIMS'), 
+                                          region_name=os.environ.get('AWS_REGION_AIMS'))
+        
+        s3 = user_sess.resource('s3')
+        model_version=str(model_version)
+        # Get bucket and model_id for user based on apiurl {{{
+        response, error = run_function_on_lambda(
+            apiurl, **{"delete": "FALSE", "versionupdateget": "TRUE"}
+        )
+        if error is not None:
+            raise error
+        import json
+        _, api_bucket, model_id = json.loads(response.content.decode("utf-8"))
+        # }}}
+
+        try:
+            leaderboard = get_leaderboard(apiurl=apiurl, submission_type=submission_type)
+
+            columns = leaderboard.columns
+            leaderboardversion=leaderboard[leaderboard['version']==int(model_version)]
+            leaderboardversion=leaderboardversion.dropna(axis=1)
+
+            metric_names_subset=list(columns[0:4])
+            leaderboardversiondict=leaderboardversion.loc[:,metric_names_subset].to_dict('records')[0]
+
+        except Exception as err:
+            raise err
+
+        # Get file list for current bucket {{{
+        model_files, err = _get_file_list(aws_client, api_bucket, model_id+"/"+submission_type)
+        if err is not None:
+            raise err
+        # }}}
+
+        # extract subfolder objects specific to the model id
+        folder = s3.meta.client.list_objects(Bucket=api_bucket, Prefix=model_id+"/"+submission_type+"/")
+        bucket = s3.Bucket(api_bucket)
+        file_list = [file['Key'] for file in folder['Contents']]
+        s3 = boto3.resource('s3')
+        model_source_key = model_id+"/"+submission_type+"/onnx_model_v"+str(model_version)+".onnx"
+        preprocesor_source_key = model_id+"/"+submission_type+"/preprocessor_v"+str(model_version)+".zip"
+        model_copy_source = {
+              'Bucket': api_bucket,
+              'Key': model_source_key
+            }
+        preprocessor_copy_source = {
+              'Bucket': api_bucket,
+              'Key': preprocesor_source_key
+          }
+        # Sending correct model metrics to front end 
+        bodydatamodelmetrics={"apiurl":apiurl,
+                              "versionupdateput":"TRUE",
+                              "verified_metrics":"TRUE",
+                              "eval_metrics":json.dumps(leaderboardversiondict)}
+        import requests
+        headers = { 'Content-Type':'application/json', 'authorizationToken': os.environ.get("AWS_TOKEN"), } 
+        prediction = requests.post("https://bhrdesksak.execute-api.us-east-1.amazonaws.com/dev/modeldata",headers=headers,data=json.dumps(bodydatamodelmetrics)) 
+
+        # overwrite runtime_model.onnx file & runtime_preprocessor.zip files: 
+        if (model_source_key in file_list) & (preprocesor_source_key in file_list):
+            response = bucket.copy(model_copy_source, model_id+"/"+'runtime_model.onnx')
+            response = bucket.copy(preprocessor_copy_source, model_id+"/"+'runtime_preprocessor.zip')
+            return print('Runtime model & preprocessor for api: '+apiurl+" updated to model version "+model_version+".\n\nModel metrics are now updated and verified for this model playground.")
+        else:
+            # the file resource to be the new runtime_model is not available
+            return print('New Runtime Model version ' + model_version + ' not found.')
     
 
 def _extract_model_metadata(model, eval_metrics=None):

@@ -3,22 +3,36 @@ import pandas as pd
 import numpy as np
 
 # ml frameworks
-import sklearn
-from sklearn.model_selection import GridSearchCV, RandomizedSearchCV
-import torch
+
+try:
+    import sklearn
+    from sklearn.model_selection import GridSearchCV, RandomizedSearchCV
+except:
+    pass
+try:
+    import torch
+except:
+    pass
 try:
     import xgboost
 except:
     pass
-import tensorflow as tf
-import keras
+try:
+    import tensorflow as tf
+    import keras
+except:
+    pass
+
 
 # onnx modules
 import onnx
 import skl2onnx
 from skl2onnx import convert_sklearn
 import tf2onnx
-from torch.onnx import export
+try:
+    from torch.onnx import export
+except:
+    pass
 from onnx.tools.net_drawer import GetPydotGraph, GetOpNodeProducer
 import importlib
 import onnxmltools
@@ -855,9 +869,12 @@ def model_to_onnx(model, framework=None, model_input=None, initial_types=None,
     # if no framework was passed, extract framework 
     if model and framework==None:
         framework = model.__module__.split(".")[0]
-
-        if isinstance(model, torch.nn.Module):
-            framework = "pytorch"
+        try:
+            import torch
+            if isinstance(model, torch.nn.Module):
+                framework = "pytorch"
+        except:
+            pass
 
     # assert that framework exists
     frameworks = ['sklearn', 'keras', 'pytorch', 'xgboost', 'pyspark']
@@ -865,9 +882,9 @@ def model_to_onnx(model, framework=None, model_input=None, initial_types=None,
     'Please choose "sklearn", "keras", "pytorch", "pyspark" or "xgboost".'
     
     # assert model input type THIS IS A PLACEHOLDER
-    if model_input is not None:
-        assert isinstance(model_input, (list, pd.core.series.Series, np.ndarray, torch.Tensor)), \
-        'Please format model input as XYZ.'
+    #if model_input is not None:
+    #    assert isinstance(model_input, (list, pd.core.series.Series, np.ndarray, torch.Tensor)), \
+    #    'Please format model input as XYZ.'
     
     # assert initialtypes 
     if initial_types != None:
@@ -945,9 +962,11 @@ def model_to_onnx_timed(model_filepath, force_onnx=False, timeout=60, model_inpu
     if not (model_filepath == None or isinstance(model_filepath, str) or isinstance(model_filepath, onnx.ModelProto)): 
 
         if force_onnx:
-            if isinstance(model_filepath, torch.nn.Module):
-                onnx_model = model_to_onnx(model_filepath, model_input=model_input)
-            else:
+            try:
+                import torch
+                if isinstance(model_filepath, torch.nn.Module):
+                    onnx_model = model_to_onnx(model_filepath, model_input=model_input)
+            except:
                 onnx_model = model_to_onnx(model_filepath)
             model_filepath = onnx_model
 
@@ -960,10 +979,13 @@ def model_to_onnx_timed(model_filepath, force_onnx=False, timeout=60, model_inpu
             signal.alarm(timeout)
 
             try:
-
-                if isinstance(model_filepath, torch.nn.Module):
-                    onnx_model = model_to_onnx(model_filepath, model_input=model_input)
-                else:
+                try:
+                    import torch
+                    if isinstance(model_filepath, torch.nn.Module):
+                        onnx_model = model_to_onnx(model_filepath, model_input=model_input)
+                    else:
+                        onnx_model = model_to_onnx(model_filepath)
+                except:
                     onnx_model = model_to_onnx(model_filepath)
                 model_filepath = onnx_model
 
@@ -974,9 +996,13 @@ def model_to_onnx_timed(model_filepath, force_onnx=False, timeout=60, model_inpu
                     response = input("Do you want to keep trying (1) or submit predictions only (2)? ")
 
                 if response == "1":
-                    if isinstance(model_filepath, torch.nn.Module):
-                        onnx_model = model_to_onnx(model_filepath, model_input=model_input)
-                    else:
+                    try:
+                        import torch
+                        if isinstance(model_filepath, torch.nn.Module):
+                            onnx_model = model_to_onnx(model_filepath, model_input=model_input)
+                        else:
+                            onnx_model = model_to_onnx(model_filepath)
+                    except:
                         onnx_model = model_to_onnx(model_filepath)
                     model_filepath = onnx_model
 
@@ -1479,7 +1505,8 @@ def instantiate_model(apiurl, version=None, trained=False, reproduce=False, subm
             # Get leaderboard
             status = wget.download(model_weight_url, out=temp_path)
             onnx_model = onnx.load(temp_path)
-            model_weights = np.array([np.array(weight) for weight in ast.literal_eval(_get_metadata(onnx_model)['model_weights'])])
+            import pickle
+            model_weights=pickle.loads(_get_metadata(onnx_model)['model_weights'])
             
             model = tf.keras.Sequential().from_config(model_config)
 
@@ -1515,9 +1542,14 @@ def _get_layer_names_pytorch():
                     'MultiheadAttention', 'PReLU', 'ReLU', 'ReLU6', 'RReLU', 'SELU', 'CELU', 'GELU', 'Sigmoid',
                     'SiLU', 'Mish', 'Softplus', 'Softshrink', 'Softsign', 'Tanh', 'Tanhshrink', 'Threshold',
                     'GLU', 'Softmin', 'Softmax', 'Softmax2d', 'LogSoftmax', 'AdaptiveLogSoftmaxWithLoss']
+    try:
+        import torch
+        layer_list = [i for i in dir(torch.nn) if callable(getattr(torch.nn, i))]
+        layer_list = [i for i in layer_list if not i in activation_list and not 'Loss' in i]
+    except:
+        layer_list=["no layers found"]
+        pass
 
-    layer_list = [i for i in dir(torch.nn) if callable(getattr(torch.nn, i))]
-    layer_list = [i for i in layer_list if not i in activation_list and not 'Loss' in i]
 
     return layer_list, activation_list
 
