@@ -813,7 +813,7 @@ class ModelPlayground:
         if "model_share"==cloudlocation:
             print("Creating your Model Playground...\nEst. completion: ~1 minute\n")
             if input_dict is None:
-                print("\n--INPUT COMPETITION DETAILS--\n")
+                print("\n--INPUT Experiment DETAILS--\n")
 
                 aishare_competitionname = input("Enter experiment name:")
                 aishare_competitiondescription = input("Enter experiment description:")
