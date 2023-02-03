@@ -376,7 +376,7 @@ def model_to_api(model_filepath, model_type, private, categorical, y_train, prep
                 custom_libraries="FALSE", example_data=None, image="", 
                 base_image_api_endpoint="https://vupwujn586.execute-api.us-east-1.amazonaws.com/dev/copybasetouseracct", 
                 update=False, reproducibility_env_filepath=None, memory=None, timeout=None, email_list=[],pyspark_support=False,
-                input_dict=None, print_output=True):
+                input_dict=None, print_output=True, playground_id=False):
     """
       Launches a live prediction REST API for deploying ML models using model parameters and user credentials, provided by the user
       Inputs : 8
@@ -549,7 +549,7 @@ def model_to_api(model_filepath, model_type, private, categorical, y_train, prep
         exampledata_json_filepath, repo_name, image_tag, 
         reproducibility_env_filepath, memory, timeout, pyspark_support=pyspark_support)
 
-    if input_dict:
+    if input_dict and playground_id:
         aishare_modelname = aishare_modelname+" "+str(api_info[3])
 
     ### Progress Update #5/6 {{{
