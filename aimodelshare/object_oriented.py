@@ -618,7 +618,7 @@ class ModelPlayground:
         response:   Model version if the model is submitted sucessfully
                     error  if there is any error while submitting models
         """
-
+        self.createcheck = "created"
         # catch email list error
         if public==False and email_list == []:
             raise ValueError("Please submit valid email list for private competition/experiment.")
