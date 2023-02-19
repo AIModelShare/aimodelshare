@@ -747,6 +747,7 @@ class ModelPlayground:
             temp.close()
         except:
             pass
+        return "complete"
 
     def create_competition(self, data_directory, y_test, eval_metric_filepath=None, email_list = [], public=True, public_private_split=0.5, input_dict=None):
         """
