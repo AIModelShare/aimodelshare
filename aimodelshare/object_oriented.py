@@ -976,7 +976,7 @@ class ModelPlayground:
             return experiment
 
 
-    def create(self, y_test, y_train=None, data_directory=None, eval_metric_filepath=None, email_list = [],
+    def create(self, eval_data, y_train=None, data_directory=None, eval_metric_filepath=None, email_list = [],
         public=True, public_private_split=0.5, model_input=None, timeout=None,  example_data=None,
         custom_libraries = "FALSE", image="", reproducibility_env_filepath=None, memory=None, pyspark_support=False, 
         user_input=False):
@@ -987,8 +987,10 @@ class ModelPlayground:
         
         Parameters:
         -----------
-        `y_test` :  ``list`` of y values for test data used to generate metrics from predicted values from X test data submitted via the submit_model() function
-            [REQUIRED] to generate eval metrics in experiment leaderboard   
+        `eval_data` :  ``list`` of y values used to generate metrics from predicted values from predictions submitted via the submit_model() method
+            [REQUIRED] to generate eval metrics in experiment leaderboard
+        `y_train` :  ``list`` of y values for training data used to extract the set of class labels
+            [REQUIRED] for image classification models
         `eval_metric_filepath`: [OPTIONAL] file path of zip file with custon evaluation functions
         `data_directory` : folder storing training data and test data (excluding Y test data)                   
         `email_list`: [OPTIONAL] list of comma separated emails for users who are allowed to submit models to experiment leaderboard.  Emails should be strings in a list.
@@ -1011,6 +1013,9 @@ class ModelPlayground:
         response:   Model version if the model is submitted sucessfully
                     error  if there is any error while submitting models
         """
+
+        if y_train == None:
+            ytrain = []
 
         # catch email list error
         if public==False and email_list == []:
@@ -1093,7 +1098,7 @@ class ModelPlayground:
             from aimodelshare.generatemodelapi import create_competition
             create_competition(apiurl=self.playground_url,
                                     data_directory=data_directory, 
-                                    y_test = y_test,
+                                    y_test = eval_data,
                                     eval_metric_filepath = eval_metric_filepath,
                                     email_list=email_list,
                                     public=public,
@@ -1126,7 +1131,7 @@ class ModelPlayground:
             from aimodelshare.generatemodelapi import create_experiment
             create_experiment(apiurl=self.playground_url,
                                     data_directory=data_directory, 
-                                    y_test = y_test,
+                                    y_test = eval_data,
                                     eval_metric_filepath = eval_metric_filepath,
                                     email_list=email_list,
                                     public=public,
@@ -1142,7 +1147,7 @@ class ModelPlayground:
             pass
 
 
-    def quick_submit(self, model_filepath, preprocessor_filepath, prediction_submission, y_test, y_train=None,
+    def quick_submit(self, model_filepath, preprocessor_filepath, prediction_submission, eval_data, y_train=None,
         data_directory=None, eval_metric_filepath=None, email_list = [], public=True, public_private_split=0.5,
         model_input=None, timeout=None, onnx_timeout=60, example_data=None, custom_libraries = "FALSE", image="",
         reproducibility_env_filepath=None, memory=None, pyspark_support=False, user_input=False):
@@ -1165,8 +1170,8 @@ class ModelPlayground:
             searches for an exported zip preprocessor file in the current directory
             file is generated from preprocessor module using export_preprocessor function from the AI Modelshare library 
         `prediction_submission`: [REQUIRED] list of predictions from X test data that will be used to evaluate model prediction error against y test data.
-            Use mycompetition.inspect_y_test() to view example of list expected by competition.
-        `y_test` :  ``list`` of y values for test data used to generate metrics from predicted values from X test data submitted via the submit_model() function
+            Use mycompetition.inspect_eval_data() to view example of list expected by competition.
+        `eval_data` :  ``list`` of y values used to generate metrics from predictions submitted via the submit_model() function
             [REQUIRED] to generate eval metrics in experiment leaderboard   
         `eval_metric_filepath`: [OPTIONAL] file path of zip file with custon evaluation functions
         `data_directory` : folder storing training data and test data (excluding Y test data)                   
@@ -1286,7 +1291,7 @@ class ModelPlayground:
             from aimodelshare.generatemodelapi import create_competition
             create_competition(apiurl=self.playground_url,
                                     data_directory=data_directory, 
-                                    y_test = y_test,
+                                    y_test = eval_data,
                                     eval_metric_filepath = eval_metric_filepath,
                                     email_list=email_list,
                                     public=public,
@@ -1332,7 +1337,7 @@ class ModelPlayground:
             from aimodelshare.generatemodelapi import create_experiment
             create_experiment(apiurl=self.playground_url,
                                     data_directory=data_directory, 
-                                    y_test = y_test,
+                                    y_test = eval_data,
                                     eval_metric_filepath = eval_metric_filepath,
                                     email_list=email_list,
                                     public=public,
@@ -1387,6 +1392,10 @@ class ModelPlayground:
         --------
         response:   Model version if the model is submitted sucessfully
         """
+
+
+        if not self.playground_url:
+            raise Exception("Please instantiate ModelPlayground with playground_url or use create() method to setup Model Playground Page before submitting your model.")
 
         from aimodelshare.model import submit_model
 
@@ -1591,6 +1600,50 @@ class ModelPlayground:
         return
 
 
+    def update_labels(self, y_train): 
+
+        """
+        Updates class labels associated with a model playground prediction API.
+        Class labels are automatically extracted from y_train data
+
+        Parameters:
+        -----------
+
+        `y_train`: ``training labels for classification models. Expects pandas dataframe of one hot encoded y train data``
+        If no example data is submitted, certain functionalities may be limited, including the deployment of live prediction APIs.
+
+        Returns:
+        --------
+        response:   "Success" upon successful request
+        """
+
+        #create labels json
+
+        try:
+            labels = y_train.columns.tolist()
+        except:
+            #labels = list(set(y_train.to_frame()['tags'].tolist()))
+            labels = list(set(y_train))
+
+        #labels_json = json.dumps(labels)
+        
+        temp_dir = tempfile.gettempdir()
+        labels_json_filepath = temp_dir+ "/labels.json"
+
+        import json
+        with open(labels_json_filepath, 'w', encoding='utf-8') as f:
+            json.dump(labels, f)
+
+        from aimodelshare.aws import get_s3_iam_client
+        s3, iam, region = get_s3_iam_client(os.environ.get("AWS_ACCESS_KEY_ID_AIMS"), os.environ.get("AWS_SECRET_ACCESS_KEY_AIMS"), os.environ.get("AWS_REGION_AIMS"))
+
+        unique_model_id = self.playground_url.split(".")[0].split("//")[-1]
+
+        s3["client"].upload_file(labels_json_filepath, os.environ.get("BUCKET_NAME"), unique_model_id + "/labels.json") 
+
+        return
+
+
     def get_leaderboard(self, verbose=3, columns=None, submission_type="experiment"):
         """
         Get current competition leaderboard to rank all submitted models.
@@ -1711,9 +1764,9 @@ class ModelPlayground:
             reproduce=reproduce, submission_type=submission_type)
         return model
 
-    def inspect_y_test(self, submission_type="experiment"):
+    def inspect_eval_data(self, submission_type="experiment"):
         """
-        Examines structure of y-test data to hep users understand how to submit models to the competition leaderboad.
+        Examines structure of evaluation data to hep users understand how to submit models to the competition leaderboad.
         Parameters:
         ------------
         None

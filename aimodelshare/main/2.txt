@@ -78,8 +78,15 @@ preprocessor=get_preprocessor(preprocessor_s3_filename="runtime_preprocessor.zip
 
 def predict(event,model,preprocessor):
 
-  labels=$labels
-  
+  # load class labels
+  try: 
+    s3 = boto3.resource('s3')
+    obj = s3.Object("$bucket_name", "$unique_model_id" + "/labels.json")
+    labels = json.loads(obj.get()['Body'].read())
+  except:
+    labels=$labels
+
+
 # Load base64 encoded image stored within "data" key of event dictionary
   print(event["body"])
   body = event["body"]

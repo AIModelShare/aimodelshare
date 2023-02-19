@@ -105,7 +105,15 @@ def predict(event,model,preprocessor):
         prediction_index=predict_classes(prob)
         def index_to_label(labels,index_n):
             return labels[index_n]
-        labels=$labels
+
+        # load class labels
+        try: 
+            s3 = boto3.resource('s3')
+            obj = s3.Object("$bucket_name", "$unique_model_id" + "/labels.json")
+            labels = json.loads(obj.get()['Body'].read())
+        except:
+            labels=$labels
+            
         result=list(map(lambda x: labels[x], prediction_index))
     except:
         result=prob.tolist() 
