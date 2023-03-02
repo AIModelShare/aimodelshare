@@ -24,5 +24,5 @@ setuptools.setup(
     ],
     python_requires='>=3.7',
     include_package_data=True,
-    package_data={'': ['placeholders/*']},)     
+    package_data={'': ['placeholders/model.onnx', 'placeholders/preprocessor.zip']},)     
   
