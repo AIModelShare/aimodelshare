@@ -81,7 +81,15 @@ preprocessor=get_preprocessor(preprocessor_s3_filename="runtime_preprocessor.zip
 
 def predict(event,model,preprocessor):
     body = event["body"]
-    labels=$labels
+
+    # load class labels
+    try: 
+        s3 = boto3.resource('s3')
+        obj = s3.Object("$bucket_name", "$unique_model_id" + "/labels.json")
+        labels = json.loads(obj.get()['Body'].read())
+    except:
+        labels=$labels
+
     import six
     if isinstance(event["body"], six.string_types):
         body = json.loads(event["body"])

@@ -103,7 +103,14 @@ def predict(event, model, preprocessor):
 
     prediction_index = predict_classes(prob)
 
-    labels = $labels
+    # load class labels
+    try: 
+        s3 = boto3.resource('s3')
+        obj = s3.Object("$bucket_name", "$unique_model_id" + "/labels.json")
+        labels = json.loads(obj.get()['Body'].read())
+    except:
+        labels=$labels
+
     result = list(map(lambda x: labels[x], prediction_index))
 
     os.remove("/tmp/videotopredict."+extension)
