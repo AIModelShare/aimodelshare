@@ -970,11 +970,16 @@ def model_to_onnx_timed(model_filepath, force_onnx=False, timeout=60, model_inpu
 
         else:
 
-            # interrupt if onnx conversion is taking too long
-            def timeout_handler(num, stack):
-                raise Exception("timeout")
 
-            signal.alarm(timeout)
+            try: # try needed because signal.alarm not available on windows
+                # interrupt if onnx conversion is taking too long
+                def timeout_handler(num, stack):
+                    raise Exception("timeout")
+
+                signal.alarm(timeout)
+            except:
+                pass
+
 
             try:
                 try:
@@ -1009,7 +1014,10 @@ def model_to_onnx_timed(model_filepath, force_onnx=False, timeout=60, model_inpu
 
             finally:
                 print()
-                signal.alarm(0)
+                try: # try needed because signal.alarm not available on windows
+                    signal.alarm(0)
+                except:
+                    pass
 
     return model_filepath
 

@@ -9,6 +9,7 @@ import tempfile
 import tarfile
 import urllib3
 import re
+from aimodelshare.data_sharing.utils import redo_with_write
 
 urllib3.disable_warnings()
 
@@ -153,7 +154,7 @@ def pull_image(image_uri):
 	tar.add(tmp_img_dir, arcname=os.path.sep)
 	tar.close()
 
-	shutil.rmtree(tmp_img_dir)
+	shutil.rmtree(tmp_img_dir, onerror=redo_with_write)
 
 	return docker_tar
 
@@ -171,9 +172,9 @@ def extract_data_from_image(image_name, file_name, location):
             break
     tar_layer.extractall(members=files, path=tempfile.gettempdir())
     if(os.path.isdir(file_name)):
-        shutil.rmtree(file_name)
+        shutil.rmtree(file_name, onerror=redo_with_write)
     shutil.copytree(tempfile.gettempdir()+'/var/task/'+file_name, os.path.join(location, file_name))
-    shutil.rmtree(tempfile.gettempdir()+'/var')
+    shutil.rmtree(tempfile.gettempdir()+'/var', onerror=redo_with_write)
 
 def download_data(repository, location="./"):
 	data_zip_name = repository.split('/')[2].split('-repository')[0]
@@ -245,7 +246,7 @@ def import_quickstart_data(tutorial, section="modelplayground"):
     
     #Delete pre-existing tutorial folders
     if os.path.exists(existing_folder):
-        shutil.rmtree(existing_folder)
+        shutil.rmtree(existing_folder, onerror=redo_with_write)
 
     #{{{ Prepare modelplayground materials
     if section == "modelplayground": 

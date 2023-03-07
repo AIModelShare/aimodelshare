@@ -217,7 +217,10 @@ class ModelPlayground:
 
         unique_model_id = self.playground_url.split(".")[0].split("//")[-1]
 
-        s3["client"].upload_file(tfile.name, os.environ.get("BUCKET_NAME"), unique_model_id + "/track_artifacts.json") 
+        try:
+            s3["client"].upload_file(tfile.name, os.environ.get("BUCKET_NAME"), unique_model_id + "/track_artifacts.json") 
+        except:
+            pass
 
 
     def deploy(self, model_filepath, preprocessor_filepath, y_train, example_data=None, custom_libraries = "FALSE", 
@@ -1409,9 +1412,10 @@ class ModelPlayground:
             force_onnx=force_onnx, model_input=model_input)
 
         # create input dict
-        input_dict = {}
-        input_dict["tags"] = input("Insert search tags to help users find your model (optional): ")
-        input_dict["description"] = input("Provide any useful notes about your model (optional): ")
+        if not input_dict:
+            input_dict = {}
+            input_dict["tags"] = input("Insert search tags to help users find your model (optional): ")
+            input_dict["description"] = input("Provide any useful notes about your model (optional): ")
 
  
         if submit_to == "competition" or submit_to == "all": 
@@ -1445,12 +1449,27 @@ class ModelPlayground:
 
             print(f"Your model has been submitted to experiment as model version {version_exp}.")
             print(f"Visit your Model Playground Page for more.")
-
-
         return 
 
+    def deploy_model(self, model_version, example_data, y_train, submission_type="experiment"): 
+        """
+        Updates the prediction API behind the Model Playground with a new model from the leaderboard and verifies Model Playground performance metrics.
+        Parameters:
+        -----------
+        `model_version`: ``int`` model version number from competition leaderboard
+        `example_data`: ``Example of X data that will be shown on the online Playground page``
+        `y_train`: ``training labels for classification models. Expects pandas dataframe of one hot encoded y train data``
+        """
+        self.update_example_data(example_data)
+
+        self.update_labels(y_train)
+
+        self.update_runtime_model(model_version, submission_type)
+
+        return
+
     
-    def update_runtime_model(self, model_version=None, submission_type="experiment"):
+    def update_runtime_model(self, model_version, submission_type="experiment"):
         """
         Updates the prediction API behind the Model Playground with a new model from the leaderboard and verifies Model Playground performance metrics.
         Parameters:
@@ -1460,7 +1479,6 @@ class ModelPlayground:
         Returns:
         --------
         response:   success message when the model and preprocessor are updated successfully
-        
         """
         from aimodelshare.model import update_runtime_model as update
         update = update(apiurl = self.playground_url, model_version = model_version, submission_type=submission_type)
@@ -1543,13 +1561,6 @@ class ModelPlayground:
         from aimodelshare.generatemodelapi import update_access_list as update_list
         update = update_list(apiurl = self.playground_url, email_list=email_list, update_type=update_type)
         return update
-
-    def update_model(self): 
-        return
-
-
-    def update_preprocessor(self): 
-        return
 
 
     def update_example_data(self, example_data): 
@@ -1745,25 +1756,6 @@ class ModelPlayground:
             reproduce=reproduce, submission_type=submission_type)
         return model
 
-
-    def instantiate_model(self, version=None, trained=False, reproduce=False, submission_type="experiment"): 
-        """
-        Import a model previously submitted to the competition leaderboard to use in your session
-        Parameters:
-        -----------
-        `version`: ``int``
-            Model version number from competition leaderboard
-        `trained`: ``bool, default=False``
-            if True, a trained model is instantiated, if False, the untrained model is instantiated
-       
-        Returns:
-        --------
-        model: model chosen from leaderboard
-        """
-        from aimodelshare.aimsonnx import instantiate_model
-        model = instantiate_model(apiurl=self.playground_url, trained=trained, version=version, 
-            reproduce=reproduce, submission_type=submission_type)
-        return model
 
     def inspect_eval_data(self, submission_type="experiment"):
         """
