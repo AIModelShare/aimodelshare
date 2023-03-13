@@ -22,9 +22,9 @@ def set_credentials(credential_file=None, type="submit_model", apiurl="apiurl", 
 
       # Set AI Modelshare Username & Password
       if all([manual == True, credential_file==None]):
-        user = getpass.getpass(prompt="AI Modelshare Username:")
+        user = getpass.getpass(prompt="Modelshare.ai Username:")
         os.environ["username"] = user
-        pw = getpass.getpass(prompt="AI Modelshare Password:")
+        pw = getpass.getpass(prompt="Modelshare.ai Password:")
         os.environ["password"] = pw
         
       else: 
@@ -49,7 +49,7 @@ def set_credentials(credential_file=None, type="submit_model", apiurl="apiurl", 
       try: 
         os.environ["AWS_TOKEN"]=get_aws_token()
 
-        print("AI Model Share login credentials set successfully.")
+        print("Modelshare.ai login credentials set successfully.")
       except: 
         print("Credential confirmation unsuccessful. Check username & password and try again.")
         return
@@ -153,9 +153,9 @@ def set_credentials_public(credential_file=None, type="submit_model", apiurl="ap
 
   # Set AI Modelshare Username & Password
   if all([manual == True, credential_file==None]):
-    user = getpass.getpass(prompt="AI Modelshare Username:")
+    user = getpass.getpass(prompt="Modelshare.ai Username:")
     os.environ["username"] = user
-    pw = getpass.getpass(prompt="AI Modelshare Password:")
+    pw = getpass.getpass(prompt="Modelshare.ai Password:")
     os.environ["password"] = pw
   
   else: 
@@ -192,7 +192,7 @@ def set_credentials_public(credential_file=None, type="submit_model", apiurl="ap
   try: 
     os.environ["AWS_TOKEN"]=get_aws_token()
 
-    print("AI Model Share login credentials set successfully.")
+    print("Modelshare.ai login credentials set successfully.")
   except: 
     print("Credential confirmation unsuccessful. Check username & password and try again.")
     return
@@ -217,9 +217,9 @@ def set_credentials_public_aimscloud(credential_file=None, type="deploy_model", 
 
   # Set AI Modelshare Username & Password
   if all([manual == True, credential_file==None]):
-    user = getpass.getpass(prompt="AI Modelshare Username:")
+    user = getpass.getpass(prompt="Modelshare.ai Username:")
     os.environ["username"] = user
-    pw = getpass.getpass(prompt="AI Modelshare Password:")
+    pw = getpass.getpass(prompt="Modelshare.ai Password:")
     os.environ["password"] = pw
   
   else: 
@@ -256,7 +256,7 @@ def set_credentials_public_aimscloud(credential_file=None, type="deploy_model", 
   try: 
     os.environ["AWS_TOKEN"]=get_aws_token()
     get_jwt_token(user,pw)
-    print("AI Model Share login credentials set successfully.")
+    print("Modelshare.ai login credentials set successfully.")
   except: 
     print("Credential confirmation unsuccessful. Check username & password and try again.")
     return
@@ -390,8 +390,8 @@ def get_token(username, password):
 
 def configure_credentials(): 
     import getpass
-    user = getpass.getpass(prompt="AI Modelshare Username:")
-    pw = getpass.getpass(prompt="AI Modelshare Password:")
+    user = getpass.getpass(prompt="Modelshare.ai Username:")
+    pw = getpass.getpass(prompt="Modelshare.ai Password:")
     input_AWS_ACCESS_KEY_ID = getpass.getpass(prompt="AWS_ACCESS_KEY_ID:")
     input_AWS_SECRET_ACCESS_KEY = getpass.getpass(prompt="AWS_SECRET_ACCESS_KEY:")
     input_AWS_REGION = getpass.getpass(prompt="AWS_REGION:")

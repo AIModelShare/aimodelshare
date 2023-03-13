@@ -33,9 +33,9 @@ class ModelPlayground:
         False [DEFAULT] if model and its corresponding data is public 
     `email_list`: ``list of string values``
                 values - list including all emails of users who have access the private playground.
-                list should contain same emails that were used by users to sign up for modelshare.org account.
+                list should contain same emails that were used by users to sign up for modelshare.ai account.
                 [OPTIONAL] set by the playground owner for private playgrounds.  Can also be updated by editing deployed 
-                playground page at www.modelshare.org.
+                playground page at www.modelshare.ai.
     """
     def __init__(self, input_type=None, task_type=None, private=None, playground_url=None, email_list=[]):
         # confirm correct args are provided
@@ -71,7 +71,7 @@ class ModelPlayground:
         onnx_timeout=60, pyspark_support=False, model_input=None, input_dict=None, playground_id=False): 
 
         """
-        Launches a live model playground to the www.modelshare.org website. The playground can optionally include a live prediction REST API for deploying ML models using model parameters and user credentials, provided by the user.
+        Launches a live model playground to the www.modelshare.ai website. The playground can optionally include a live prediction REST API for deploying ML models using model parameters and user credentials, provided by the user.
         Inputs : 7
         Output : model launched to an API
                 detailed API info printed out

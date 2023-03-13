@@ -284,7 +284,7 @@ def send_model_data_to_dyndb_and_return_api(api_info, private, categorical, prep
                                 'default' when training data info is not available to extract columns
     email_list: list of strings
                 values - list including all emails of users who have access the playground.
-                list should contain same emails used to sign up for modelshare.org account.
+                list should contain same emails used to sign up for modelshare.ai account.
                 [OPTIONAL] to be set by the playground owner
     -----------
     Results
@@ -352,7 +352,7 @@ def send_model_data_to_dyndb_and_return_api(api_info, private, categorical, prep
     final_message = ("\nYou can now use your Model Playground.\n\n"
                      "Follow this link to explore your Model Playground's functionality\n"
                      "You can make predictions with the Dashboard and access example code from the Programmatic tab.\n")
-    web_dashboard_url = ("https://www.modelshare.org/detail/"+ response_stringfinal)
+    web_dashboard_url = ("https://www.modelshare.ai/detail/"+ response_stringfinal)
     
     start = api_info[2]
     end = datetime.datetime.now()
@@ -426,7 +426,7 @@ def model_to_api(model_filepath, model_type, private, categorical, y_train, prep
                                 file is generated using export_reproducibility_env function from the AI Modelshare library
       email_list: list of strings
                 values - list including all emails of users who have access the playground.
-                list should contain same emails used to sign up for modelshare.org account.
+                list should contain same emails used to sign up for modelshare.ai account.
                 [OPTIONAL] to be set by the playground owner
       -----------
       Returns
