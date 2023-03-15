@@ -89,7 +89,8 @@ def test_playground_sklearn():
 	myplayground.submit_model(model = model,
 							  preprocessor=preprocessor,
 							  prediction_submission=prediction_labels, 
-							  input_dict={"description": "", "tags": ""})
+							  input_dict={"description": "", "tags": ""},
+							  submission_type="all")
 
 	# build model 2
 	model_2 = LogisticRegression(C=.01, penalty='l2')
@@ -133,3 +134,125 @@ def test_playground_sklearn():
 	shutil.rmtree("titanic_quickstart", onerror=redo_with_write)
 
 
+
+def test_playground_keras(): 
+
+	# Set credentials 
+	from aimodelshare.aws import set_credentials
+	set_credentials(credential_file="../../credentials_private.txt", type="deploy_model")
+
+	# # Download flower image data and and pretrained Keras models
+	from aimodelshare.data_sharing.download_data import import_quickstart_data
+	keras_model, y_train_labels = import_quickstart_data("flowers")
+	keras_model_2, y_test_labels = import_quickstart_data("flowers", "competition")
+
+	# Here is a pre-designed preprocessor, but you could also build your own to prepare the data differently
+	def preprocessor(image_filepath, shape=(192, 192)):
+	        """
+	        This function preprocesses reads in images, resizes them to a fixed shape and
+	        min/max transforms them before converting feature values to float32 numeric values
+	        required by onnx files.
+	        
+	        params:
+	            image_filepath
+	                full filepath of a particular image
+	                      
+	        returns:
+	            X
+	                numpy array of preprocessed image data
+	        """
+	           
+	        import cv2
+	        import numpy as np
+
+	        "Resize a color image and min/max transform the image"
+	        img = cv2.imread(image_filepath) # Read in image from filepath.
+	        img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB) # cv2 reads in images in order of blue green and red, we reverse the order for ML.
+	        img = cv2.resize(img, shape) # Change height and width of image.
+	        img = img / 255.0 # Min-max transform.
+
+
+	        # Resize all the images...
+	        X = np.array(img)
+	        X = np.expand_dims(X, axis=0) # Expand dims to add "1" to object shape [1, h, w, channels] for keras model.
+	        X = np.array(X, dtype=np.float32) # Final shape for onnx runtime.
+	        return X
+
+	# Preprocess X_test image data to generate predictions from models 
+	import numpy as np
+
+	# Generate filenames
+	file_names = [('flower_competition_data/test_images/' + str(i) + '.jpg') for i in range(1, 735)]
+
+	# Apply preprocessor to image data
+	preprocessed_image_data = [preprocessor(x) for x in file_names]
+
+	# Create single X_test array from preprocessed images
+	X_test = np.vstack(preprocessed_image_data) 
+
+	# One-hot encode y_train labels (y_train.columns used to generate prediction labels below)
+	import pandas as pd
+	y_train = pd.get_dummies(y_train_labels)
+
+	# Generate predicted y values
+	prediction_column_index=keras_model.predict(X_test).argmax(axis=1)
+
+	# Extract correct prediction labels 
+	prediction_labels = [y_train.columns[i] for i in prediction_column_index]
+
+	# Instantiate Model Playground object
+	from aimodelshare.playground import ModelPlayground
+	myplayground=ModelPlayground(input_type="image", task_type="classification", private=False)
+	# Create Model Playground Page on modelshare.ai website
+	myplayground.create(eval_data = y_test_labels)
+
+	# Submit Model to Experiment Leaderboard
+	myplayground.submit_model(model=keras_model,
+	                          preprocessor=preprocessor,
+	                          prediction_submission=prediction_labels,
+	                          input_dict={"description": "", "tags": ""},
+	                          submission_type="all")
+
+	# Deploy model by version number
+	myplayground.deploy_model(model_version=1, example_data="quickstart_materials/example_data", y_train=y_train)
+
+	# example url from deployed playground: apiurl= "https://123456.execute-api.us-east-1.amazonaws.com/prod/m
+	apiurl=myplayground.playground_url 
+
+
+	# Submit Model 2
+	# Generate predicted y values (Model 2)
+	prediction_column_index=keras_model_2.predict(X_test).argmax(axis=1)
+
+	# extract correct prediction labels (Model 2)
+	prediction_labels = [y_train.columns[i] for i in prediction_column_index]
+
+	# Submit Model 2 to Experiment Leaderboard
+	myplayground.submit_model(model = keras_model_2,
+	                            preprocessor=preprocessor,
+	                            prediction_submission=prediction_labels,
+	                            input_dict={"description": "", "tags": ""},
+	                            submission_type="all")
+
+
+	# Check experiment leaderboard
+	data = myplayground.get_leaderboard()
+	myplayground.stylize_leaderboard(data)
+
+	# Compare two or more models
+	data=myplayground.compare_models([1,2], verbose=1)
+	myplayground.stylize_compare(data)
+
+	# Check structure of evaluation data
+	myplayground.inspect_eval_data()
+
+	# Update runtime model
+	myplayground.update_runtime_model(model_version=2)
+
+	# delete
+	myplayground.delete_deployment(confirmation=False)
+
+	# local cleanup 
+	shutil.rmtree("flower_competition_data", onerror=redo_with_write)
+	shutil.rmtree("quickstart_materials", onerror=redo_with_write)
+	shutil.rmtree("quickstart_flowers_competition", onerror=redo_with_write)
