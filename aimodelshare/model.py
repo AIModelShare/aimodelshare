@@ -19,6 +19,7 @@ from aimodelshare.leaderboard import get_leaderboard
 from aimodelshare.aws import run_function_on_lambda, get_token, get_aws_token, get_aws_client
 from aimodelshare.aimsonnx import _get_leaderboard_data, inspect_model, _get_metadata, _model_summary, model_from_string, pyspark_model_from_string, _get_layer_names, _get_layer_names_pytorch
 from aimodelshare.aimsonnx import model_to_onnx
+from aimodelshare.utils import ignore_warning
 
 
 def _get_file_list(client, bucket,keysubfolderid):
@@ -199,7 +200,10 @@ def _update_leaderboard(
     # Update the leaderboard {{{
     metadata_temp = {col: metadata.get(col, None) for col in columns}
     metadata = dict(metadata, **metadata_temp)
-    leaderboard = leaderboard.append(metadata, ignore_index=True, sort=False)
+    # leaderboard = leaderboard.append(metadata, ignore_index=True, sort=False) # deprecated
+    #leaderboard = pd.concat([leaderboard, pd.DataFrame(metadata)], ignore_index=True)
+    leaderboard.loc[len(leaderboard)] = metadata
+
 
     leaderboard['username']=leaderboard.pop("username")
     leaderboard['timestamp'] = leaderboard.pop("timestamp")
@@ -299,7 +303,10 @@ def _update_leaderboard_public(
 
     metadata_temp = {col: metadata.get(col, None) for col in columns}
     metadata = dict(metadata, **metadata_temp)
-    leaderboard = leaderboard.append(metadata, ignore_index=True, sort=False)
+    # leaderboard = leaderboard.append(metadata, ignore_index=True, sort=False) # deprecated
+    # leaderboard = pd.concat([leaderboard, pd.DataFrame(metadata)], ignore_index=True)
+    leaderboard.loc[len(leaderboard)] = metadata
+
 
     leaderboard['username']=leaderboard.pop("username")
     leaderboard['timestamp'] = leaderboard.pop("timestamp")

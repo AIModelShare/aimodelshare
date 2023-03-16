@@ -1,6 +1,9 @@
 import os, sys
 import shutil
 import tempfile
+import functools
+import warnings
+from typing import Type
 
 def delete_files_from_temp_dir(temp_dir_file_deletion_list):
     temp_dir = tempfile.gettempdir()
@@ -24,3 +27,26 @@ class HiddenPrints:
     def __exit__(self, exc_type, exc_val, exc_tb):
         sys.stdout.close()
         sys.stdout = self._original_stdout
+
+
+def ignore_warning(warning: Type[Warning]):
+    """
+    Ignore a given warning occurring during method execution.
+
+    Args:
+        warning (Warning): warning type to ignore.
+
+    Returns:
+        the inner function
+    """
+
+    def inner(func):
+        @functools.wraps(func)
+        def wrapper(*args, **kwargs):
+            with warnings.catch_warnings():
+                warnings.filterwarnings("ignore", category= warning)
+                return func(*args, **kwargs)
+
+        return wrapper
+
+    return inner
