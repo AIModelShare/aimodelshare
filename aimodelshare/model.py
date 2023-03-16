@@ -20,6 +20,7 @@ from aimodelshare.aws import run_function_on_lambda, get_token, get_aws_token, g
 from aimodelshare.aimsonnx import _get_leaderboard_data, inspect_model, _get_metadata, _model_summary, model_from_string, pyspark_model_from_string, _get_layer_names, _get_layer_names_pytorch
 from aimodelshare.aimsonnx import model_to_onnx
 from aimodelshare.utils import ignore_warning
+import warnings
 
 
 def _get_file_list(client, bucket,keysubfolderid):
