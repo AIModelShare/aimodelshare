@@ -200,8 +200,6 @@ def _update_leaderboard(
     # Update the leaderboard {{{
     metadata_temp = {col: metadata.get(col, None) for col in columns}
     metadata = dict(metadata, **metadata_temp)
-    # leaderboard = leaderboard.append(metadata, ignore_index=True, sort=False) # deprecated
-    #leaderboard = pd.concat([leaderboard, pd.DataFrame(metadata)], ignore_index=True)
     leaderboard.loc[len(leaderboard)] = metadata
 
 
@@ -303,8 +301,6 @@ def _update_leaderboard_public(
 
     metadata_temp = {col: metadata.get(col, None) for col in columns}
     metadata = dict(metadata, **metadata_temp)
-    # leaderboard = leaderboard.append(metadata, ignore_index=True, sort=False) # deprecated
-    # leaderboard = pd.concat([leaderboard, pd.DataFrame(metadata)], ignore_index=True)
     leaderboard.loc[len(leaderboard)] = metadata
 
 
