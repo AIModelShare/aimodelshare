@@ -202,10 +202,11 @@ def _update_leaderboard(
     metadata = dict(metadata, **metadata_temp)
     leaderboard.loc[len(leaderboard)] = metadata
 
-
-    leaderboard['username']=leaderboard.pop("username")
-    leaderboard['timestamp'] = leaderboard.pop("timestamp")
-    leaderboard['version'] = leaderboard.pop("version")
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        leaderboard['username']=leaderboard.pop("username")
+        leaderboard['timestamp'] = leaderboard.pop("timestamp")
+        leaderboard['version'] = leaderboard.pop("version")
 
     leaderboard_csv = leaderboard.to_csv(index=False, sep="\t")
     metadata.pop("model_config", "pop worked")
@@ -303,10 +304,11 @@ def _update_leaderboard_public(
     metadata = dict(metadata, **metadata_temp)
     leaderboard.loc[len(leaderboard)] = metadata
 
-
-    leaderboard['username']=leaderboard.pop("username")
-    leaderboard['timestamp'] = leaderboard.pop("timestamp")
-    leaderboard['version'] = leaderboard.pop("version")
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        leaderboard['username']=leaderboard.pop("username")
+        leaderboard['timestamp'] = leaderboard.pop("timestamp")
+        leaderboard['version'] = leaderboard.pop("version")
         
     leaderboard_csv = leaderboard.to_csv(temp+"/"+mastertable_path,index=False, sep="\t")
     metadata.pop("model_config", "pop worked")
