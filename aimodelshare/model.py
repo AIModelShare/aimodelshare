@@ -1130,7 +1130,7 @@ def submit_model(
     if print_output:
         return print("\nYour model has been submitted as model version "+str(model_version)+ "\n\n"+code_comp_result)
     else:
-        return str(model_version)
+        return str(model_version), "https://www.modelshare.ai/detail/model:"+response.text.split(":")[1]
 
 def update_runtime_model(apiurl, model_version=None, submission_type="competition"):
     """

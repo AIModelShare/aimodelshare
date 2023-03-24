@@ -14,6 +14,8 @@ import signal
 from aimodelshare.aimsonnx import model_to_onnx, model_to_onnx_timed
 from aimodelshare.tools import extract_varnames_fromtrainingdata, _get_extension_from_filepath
 import time
+import numpy as np
+import json
 import pandas
 import requests
 from aimodelshare.aws import get_aws_token
@@ -53,6 +55,7 @@ class ModelPlayground:
 
         self.private = private
         self.playground_url = playground_url
+        self.model_page = None
         self.email_list = email_list
         def codestring(self):
             if self.playground_url==None:
@@ -593,7 +596,7 @@ class ModelPlayground:
 
         return json.loads(api_json.text)['apikey']
 
-    def create(self, eval_data, y_train=None, data_directory=None, eval_metric_filepath=None, email_list = [],
+    def create(self, eval_data=None, y_train=None, data_directory=None, eval_metric_filepath=None, email_list = [],
         public=True, public_private_split=0.5, model_input=None, timeout=None,  example_data=None,
         custom_libraries = "FALSE", image="", reproducibility_env_filepath=None, memory=None, pyspark_support=False, 
         user_input=False):
@@ -634,6 +637,10 @@ class ModelPlayground:
         # use placeholder y_train labels if none are submitted
         if y_train == None:
             ytrain = []
+
+        # use placeholder y_train labels if none are submitted
+        if eval_data == None:
+            eval_data = []
 
         # catch email list error
         if public==False and email_list == []:
@@ -1205,7 +1212,7 @@ class ModelPlayground:
             with HiddenPrints():
                 competition = Competition(self.playground_url)
 
-                version_comp = competition.submit_model(model_filepath = model, 
+                version_comp, model_page = competition.submit_model(model_filepath = model, 
                                       prediction_submission = prediction_submission, 
                                       preprocessor_filepath = preprocessor,
                                       reproducibility_env_filepath = reproducibility_env_filepath,
@@ -1221,7 +1228,7 @@ class ModelPlayground:
             with HiddenPrints():
                 experiment = Experiment(self.playground_url)
 
-                version_exp = experiment.submit_model(model_filepath = model, 
+                version_exp, model_page = experiment.submit_model(model_filepath = model, 
                                       prediction_submission = prediction_submission, 
                                       preprocessor_filepath = preprocessor,
                                       reproducibility_env_filepath = reproducibility_env_filepath,
@@ -1230,7 +1237,11 @@ class ModelPlayground:
                                       print_output=False)
 
             print(f"Your model has been submitted to experiment as model version {version_exp}.")
-            print(f"Visit your Model Playground Page for more.")
+        
+        self.model_page = model_page
+
+        print(f"\nVisit your Model Playground Page for more.")
+        print(model_page)
         return 
 
     def deploy_model(self, model_version, example_data, y_train, submission_type="experiment"): 
@@ -1265,6 +1276,10 @@ class ModelPlayground:
         """
         from aimodelshare.model import update_runtime_model as update
         update = update(apiurl = self.playground_url, model_version = model_version, submission_type=submission_type)
+
+        print(f"\nVisit your Model Playground Page for more.")
+        print(self.model_page)
+
         return update
         
     def instantiate_model(self, version=None, trained=False, reproduce=False, submission_type="experiment"): 
@@ -1392,6 +1407,12 @@ class ModelPlayground:
         response = requests.post("https://bhrdesksak.execute-api.us-east-1.amazonaws.com/dev/modeldata",
                                   json=bodydata, headers=headers_with_authentication)
 
+
+        print("Your evaluation data has been updated.")
+
+        print(f"\nVisit your Model Playground Page for more.")
+        print(self.model_page)
+
         return
 
 
@@ -1438,6 +1459,54 @@ class ModelPlayground:
 
         return
 
+    def update_eval_data(self, eval_data):
+        """
+        Updates evaluation data associated with a model playground prediction API.
+
+        Parameters:
+        -----------
+
+        `eval_data` :  ``list`` of y values used to generate metrics from predicted values from predictions submitted via the submit_model() method
+            [REQUIRED] to generate eval metrics in experiment leaderboard
+        """
+
+        # create temporary folder
+        temp_dir = tempfile.gettempdir()
+        
+        from aimodelshare.aws import get_s3_iam_client, run_function_on_lambda
+        s3, iam, region = get_s3_iam_client(os.environ.get("AWS_ACCESS_KEY_ID_AIMS"), os.environ.get("AWS_SECRET_ACCESS_KEY_AIMS"), os.environ.get("AWS_REGION_AIMS"))
+        
+        # Get bucket and model_id subfolder for user based on apiurl {{{
+        response, error = run_function_on_lambda(
+            self.playground_url, **{"delete": "FALSE", "versionupdateget": "TRUE"}
+        )
+        if error is not None:
+            raise error
+
+        _, api_bucket, model_id = json.loads(response.content.decode("utf-8"))
+        # }}} 
+        
+        # upload eval_data data: 
+        eval_data_path = os.path.join(temp_dir, "ytest.pkl")
+        import pickle
+        #ytest data to load to s3
+
+        if eval_data is not None:
+            if type(eval_data) is not list:
+                eval_data=eval_data.tolist()
+
+            if all(isinstance(x, (np.float64)) for x in eval_data):
+                  eval_data = [float(i) for i in eval_data]
+
+        pickle.dump(eval_data,open(eval_data_path,"wb"))
+        s3["client"].upload_file(eval_data_path, os.environ.get("BUCKET_NAME"),  model_id + "/experiment/ytest.pkl")
+        s3["client"].upload_file(eval_data_path, os.environ.get("BUCKET_NAME"),  model_id + "/competition/ytest.pkl")
+
+
+        print("Your evaluation data has been updated.")
+
+        print(f"\nVisit your Model Playground Page for more.")
+        print(self.model_page)
 
     def get_leaderboard(self, verbose=3, columns=None, submission_type="experiment"):
         """
