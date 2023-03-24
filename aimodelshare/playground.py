@@ -1254,9 +1254,12 @@ class ModelPlayground:
         `y_train`: ``training labels for classification models. Expects pandas dataframe of one hot encoded y train data``
         """
 
-        self.update_example_data(example_data)
 
-        self.update_labels(y_train)
+
+        with HiddenPrints():
+            self.update_example_data(example_data)
+
+            self.update_labels(y_train)
 
         self.update_runtime_model(model_version, submission_type)
 
@@ -1278,7 +1281,8 @@ class ModelPlayground:
         update = update(apiurl = self.playground_url, model_version = model_version, submission_type=submission_type)
 
         print(f"\nVisit your Model Playground Page for more.")
-        print(self.model_page)
+        if self.model_page:
+            print(self.model_page)
 
         return update
         
@@ -1411,7 +1415,8 @@ class ModelPlayground:
         print("Your evaluation data has been updated.")
 
         print(f"\nVisit your Model Playground Page for more.")
-        print(self.model_page)
+        if self.model_page:
+            print(self.model_page)
 
         return
 
@@ -1506,7 +1511,8 @@ class ModelPlayground:
         print("Your evaluation data has been updated.")
 
         print(f"\nVisit your Model Playground Page for more.")
-        print(self.model_page)
+        if self.model_page:
+            print(self.model_page)
 
     def get_leaderboard(self, verbose=3, columns=None, submission_type="experiment"):
         """
