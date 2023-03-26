@@ -261,10 +261,10 @@ def import_quickstart_data(tutorial, section="modelplayground"):
         
         if tutorial == "covid_tweets":
             #unpack data 
-            X_train = pd.read_csv("quickstart_covid_competition/X_train.csv", squeeze=True)
-            X_test = pd.read_csv("quickstart_covid_competition/X_test.csv", squeeze=True)
-            y_test_labels = pd.read_csv("quickstart_covid_competition/y_test_labels.csv", squeeze=True)
-            y_train_labels = pd.read_csv("quickstart_covid_competition/y_train_labels.csv", squeeze=True)
+            X_train = pd.read_csv("quickstart_covid_competition/X_train.csv").squeeze("columns")
+            X_test = pd.read_csv("quickstart_covid_competition/X_test.csv").squeeze("columns")
+            y_test_labels = pd.read_csv("quickstart_covid_competition/y_test_labels.csv").squeeze("columns")
+            y_train_labels = pd.read_csv("quickstart_covid_competition/y_train_labels.csv").squeeze("columns")
             # example data
             example_data = X_train[50:55]
 
@@ -280,10 +280,10 @@ def import_quickstart_data(tutorial, section="modelplayground"):
 
         if tutorial == "imdb":
             #unpack data 
-            X_train = pd.read_csv("imdb_quickstart_materials/X_train.csv", squeeze=True)
-            X_test = pd.read_csv("imdb_quickstart_materials/X_test.csv", squeeze=True)
-            y_test_labels = pd.read_csv("imdb_quickstart_materials/y_test_labels.csv", squeeze=True)
-            y_train_labels = pd.read_csv("imdb_quickstart_materials/y_train_labels.csv", squeeze=True)
+            X_train = pd.read_csv("imdb_quickstart_materials/X_train.csv").squeeze("columns")
+            X_test = pd.read_csv("imdb_quickstart_materials/X_test.csv").squeeze("columns")
+            y_test_labels = pd.read_csv("imdb_quickstart_materials/y_test_labels.csv").squeeze("columns")
+            y_train_labels = pd.read_csv("imdb_quickstart_materials/y_train_labels.csv").squeeze("columns")
             # example data
             example_data = X_train[50:55]
 
