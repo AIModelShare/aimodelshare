@@ -19,6 +19,8 @@ from aimodelshare.leaderboard import get_leaderboard
 from aimodelshare.aws import run_function_on_lambda, get_token, get_aws_token, get_aws_client
 from aimodelshare.aimsonnx import _get_leaderboard_data, inspect_model, _get_metadata, _model_summary, model_from_string, pyspark_model_from_string, _get_layer_names, _get_layer_names_pytorch
 from aimodelshare.aimsonnx import model_to_onnx
+from aimodelshare.utils import ignore_warning
+import warnings
 
 
 def _get_file_list(client, bucket,keysubfolderid):
@@ -199,11 +201,13 @@ def _update_leaderboard(
     # Update the leaderboard {{{
     metadata_temp = {col: metadata.get(col, None) for col in columns}
     metadata = dict(metadata, **metadata_temp)
-    leaderboard = leaderboard.append(metadata, ignore_index=True, sort=False)
+    leaderboard.loc[len(leaderboard)] = metadata
 
-    leaderboard['username']=leaderboard.pop("username")
-    leaderboard['timestamp'] = leaderboard.pop("timestamp")
-    leaderboard['version'] = leaderboard.pop("version")
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        leaderboard['username']=leaderboard.pop("username")
+        leaderboard['timestamp'] = leaderboard.pop("timestamp")
+        leaderboard['version'] = leaderboard.pop("version")
 
     leaderboard_csv = leaderboard.to_csv(index=False, sep="\t")
     metadata.pop("model_config", "pop worked")
@@ -299,11 +303,13 @@ def _update_leaderboard_public(
 
     metadata_temp = {col: metadata.get(col, None) for col in columns}
     metadata = dict(metadata, **metadata_temp)
-    leaderboard = leaderboard.append(metadata, ignore_index=True, sort=False)
+    leaderboard.loc[len(leaderboard)] = metadata
 
-    leaderboard['username']=leaderboard.pop("username")
-    leaderboard['timestamp'] = leaderboard.pop("timestamp")
-    leaderboard['version'] = leaderboard.pop("version")
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        leaderboard['username']=leaderboard.pop("username")
+        leaderboard['timestamp'] = leaderboard.pop("timestamp")
+        leaderboard['version'] = leaderboard.pop("version")
         
     leaderboard_csv = leaderboard.to_csv(temp+"/"+mastertable_path,index=False, sep="\t")
     metadata.pop("model_config", "pop worked")
@@ -1117,14 +1123,14 @@ def submit_model(
                   json=bodydatamodels_allstrings, headers=headers_with_authentication)
     
     if str(response.status_code)=="200":
-        code_comp_result="To submit code used to create this model or to view current leaderboard navigate to Model Playground: \n\n https://www.modelshare.org/detail/model:"+response.text.split(":")[1]  
+        code_comp_result="To submit code used to create this model or to view current leaderboard navigate to Model Playground: \n\n https://www.modelshare.ai/detail/model:"+response.text.split(":")[1]  
     else:
         code_comp_result="" #TODO: reponse 403 indicates that user needs to reset credentials.  Need to add a creds check to top of function.
 
     if print_output:
         return print("\nYour model has been submitted as model version "+str(model_version)+ "\n\n"+code_comp_result)
     else:
-        return str(model_version)
+        return str(model_version), "https://www.modelshare.ai/detail/model:"+response.text.split(":")[1]
 
 def update_runtime_model(apiurl, model_version=None, submission_type="competition"):
     """

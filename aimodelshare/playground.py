@@ -14,6 +14,8 @@ import signal
 from aimodelshare.aimsonnx import model_to_onnx, model_to_onnx_timed
 from aimodelshare.tools import extract_varnames_fromtrainingdata, _get_extension_from_filepath
 import time
+import numpy as np
+import json
 import pandas
 import requests
 from aimodelshare.aws import get_aws_token
@@ -33,21 +35,27 @@ class ModelPlayground:
         False [DEFAULT] if model and its corresponding data is public 
     `email_list`: ``list of string values``
                 values - list including all emails of users who have access the private playground.
-                list should contain same emails that were used by users to sign up for modelshare.org account.
+                list should contain same emails that were used by users to sign up for modelshare.ai account.
                 [OPTIONAL] set by the playground owner for private playgrounds.  Can also be updated by editing deployed 
-                playground page at www.modelshare.org.
+                playground page at www.modelshare.ai.
     """
-    def __init__(self, model_type=None, classification=None, private=None, playground_url=None, email_list=[]):
+    def __init__(self, input_type=None, task_type=None, private=None, playground_url=None, email_list=[]):
         # confirm correct args are provided
-        if playground_url != None or all([model_type !=None, classification !=None, private!=None]):
-            pass
-        elif playground_url == None and any([model_type ==None, classification ==None, private==None]):
-            return print("Error. To instantiate a ModelPlayground instance, please provide either a playground_url or \n the model_type, classification, and private arguments.")
+        if playground_url == None and any([input_type ==None, task_type==None, private==None]):
+            raise ValueError ("To instantiate a ModelPlayground instance, please provide either a playground_url or \n the input_type, task_type, and private arguments.")
         
-        self.model_type = model_type
-        self.categorical = classification 
+        self.model_type = input_type
+
+        if task_type == "classification":
+            self.categorical = True 
+        elif task_type == "regression":
+            self.categorical = False
+        else:
+            raise ValueError('Please set task_type argument to "classification" or "regression".')
+
         self.private = private
         self.playground_url = playground_url
+        self.model_page = None
         self.email_list = email_list
         def codestring(self):
             if self.playground_url==None:
@@ -55,7 +63,6 @@ class ModelPlayground:
             else:
               return   "ModelPlayground(model_type="+"'"+str(self.model_type)+"'"+",classification="+str(self.categorical)+",private="+str(self.private)+",playground_url="+"'"+str(self.playground_url)+"'"+",email_list="+str(self.email_list)+")"
         self.class_string=codestring(self)
-    
     
     def __str__(self):
         return f"ModelPlayground(self.model_type,self.categorical,self.private = private,self.playground_url,self.email_list)"
@@ -67,7 +74,7 @@ class ModelPlayground:
         onnx_timeout=60, pyspark_support=False, model_input=None, input_dict=None, playground_id=False): 
 
         """
-        Launches a live model playground to the www.modelshare.org website. The playground can optionally include a live prediction REST API for deploying ML models using model parameters and user credentials, provided by the user.
+        Launches a live model playground to the www.modelshare.ai website. The playground can optionally include a live prediction REST API for deploying ML models using model parameters and user credentials, provided by the user.
         Inputs : 7
         Output : model launched to an API
                 detailed API info printed out
@@ -217,7 +224,10 @@ class ModelPlayground:
 
         unique_model_id = self.playground_url.split(".")[0].split("//")[-1]
 
-        s3["client"].upload_file(tfile.name, os.environ.get("BUCKET_NAME"), unique_model_id + "/track_artifacts.json") 
+        try:
+            s3["client"].upload_file(tfile.name, os.environ.get("BUCKET_NAME"), unique_model_id + "/track_artifacts.json") 
+        except:
+            pass
 
 
     def deploy(self, model_filepath, preprocessor_filepath, y_train, example_data=None, custom_libraries = "FALSE", 
@@ -455,8 +465,6 @@ class ModelPlayground:
 
                   #### save files from model deploy to zipfile in tempdir before loading to s3
 
-
-
                   ### Load zipfile to s3
                   with open(tempdir+"/"+zipfilename, 'rb') as f:
                     files = {'file': (tempdir+"/"+zipfilename, f)}
@@ -588,7 +596,7 @@ class ModelPlayground:
 
         return json.loads(api_json.text)['apikey']
 
-    def create(self, eval_data, y_train=None, data_directory=None, eval_metric_filepath=None, email_list = [],
+    def create(self, eval_data=None, y_train=None, data_directory=None, eval_metric_filepath=None, email_list = [],
         public=True, public_private_split=0.5, model_input=None, timeout=None,  example_data=None,
         custom_libraries = "FALSE", image="", reproducibility_env_filepath=None, memory=None, pyspark_support=False, 
         user_input=False):
@@ -629,6 +637,10 @@ class ModelPlayground:
         # use placeholder y_train labels if none are submitted
         if y_train == None:
             ytrain = []
+
+        # use placeholder y_train labels if none are submitted
+        if eval_data == None:
+            eval_data = []
 
         # catch email list error
         if public==False and email_list == []:
@@ -758,7 +770,8 @@ class ModelPlayground:
             temp.close()
         except:
             pass
-        return "complete"
+
+        return
 
     def create_competition(self, data_directory, y_test, eval_metric_filepath=None, email_list = [], public=True, public_private_split=0.5, input_dict=None):
         """
@@ -1084,13 +1097,10 @@ class ModelPlayground:
                 else:
                   pass
 
-
                 # close the Zip File
                 os.chdir(wkingdir)
 
                 zipObj.close()
-
-
 
                 import ast
 
@@ -1142,231 +1152,14 @@ class ModelPlayground:
                                         data_directory, 
                                         y_test, 
                                         eval_metric_filepath,
-                                        email_list, 
+                                        email_list,
                                         public,
                                         public_private_split, input_dict=None)
             return experiment
 
 
-    def quick_submit(self, model_filepath, preprocessor_filepath, prediction_submission, y_test, y_train=None,
-        data_directory=None, eval_metric_filepath=None, email_list = [], public=True, public_private_split=0.5,
-        model_input=None, timeout=None, onnx_timeout=60, example_data=None, custom_libraries = "FALSE", image="",
-        reproducibility_env_filepath=None, memory=None, pyspark_support=False, user_input=False):
 
-        """
-        Submits model/preprocessor to machine learning experiment leaderboard and model architecture database using live prediction API url generated by AI Modelshare library
-        The submitted model gets evaluated and compared with all existing models and a leaderboard can be generated 
-        
-        Parameters:
-        -----------
-        `model_filepath`:  ``string`` ends with '.onnx'
-            value - Absolute path to model file [REQUIRED] to be set by the user
-            .onnx is the only accepted model file extension
-            "example_model.onnx" filename for file in directory.
-            "/User/xyz/model/example_model.onnx" absolute path to model file from local directory
-        `preprocessor_filepath`:   ``string``, default=None
-            value - absolute path to preprocessor file 
-            [REQUIRED] to be set by the user
-            "./preprocessor.zip" 
-            searches for an exported zip preprocessor file in the current directory
-            file is generated from preprocessor module using export_preprocessor function from the AI Modelshare library 
-        `prediction_submission`: [REQUIRED] list of predictions from X test data that will be used to evaluate model prediction error against y test data.
-            Use mycompetition.inspect_eval_data() to view example of list expected by competition.
-        `eval_data` :  ``list`` of y values used to generate metrics from predictions submitted via the submit_model() function
-            [REQUIRED] to generate eval metrics in experiment leaderboard   
-        `eval_metric_filepath`: [OPTIONAL] file path of zip file with custon evaluation functions
-        `data_directory` : folder storing training data and test data (excluding Y test data)                   
-        `email_list`: [OPTIONAL] list of comma separated emails for users who are allowed to submit models to experiment leaderboard.  Emails should be strings in a list.
-        `public`: [REQUIRED] True/false. Defaults to False.  If True, experiment/competition is public and ANY AIMODELSHARE USER CAN SUBMIT MODELS.  USE WITH CAUTION b/c one model and 
-            one preprocessor file will be be saved to your AWS S3 folder for each model submission.
-        `public_private_split`: [REQUIRED] Float between 0 and 1. Defaults to 0. Porportion of test data that is allocated to private hold-out set.
-        `model_input`: ``array_like``
-            Required only when framework="pytorch" 
-            One example of X training data in correct format.
-        `timeout`: ``TODO``
-        `onnx_timeout`: ``int``
-            Time in seconds after which ONNX conversion should be interrupted.
-            Set to False if you want to force ONNX conversion.
-        `example_data`: ``Example of X data that will be shown on the online Playground page. 
-            if no example data is submitted, certain functionalities may be limited, including the deployment of live prediction APIs.
-            Example data can be updated at a later stage, using the update_example_data() method.``
-
-        Returns:
-        -------
-        response:   Model version if the model is submitted sucessfully
-                    error  if there is any error while submitting models
-        """
-
-        # catch email list error
-        if public==False and email_list == []:
-            raise ValueError("Please submit valid email list for private competition/experiment.")
-
-        # catch missing model_input for pytorch 
-        if isinstance(model_filepath, torch.nn.Module) and model_input==None:
-            raise ValueError("Please submit valid model_input for pytorch model.")
-
-        # convert model to onnx 
-        if onnx_timeout == False:
-            force_onnx=True
-        else:
-            force_onnx=False
-        model_filepath = model_to_onnx_timed(model_filepath, timeout = onnx_timeout, 
-            force_onnx=force_onnx, model_input=model_input)
-
-
-        # test whether playground is active, activate if that is not the case
-        if not self.playground_url:
-
-            if user_input: 
-
-                print("Submit Model Playground data.")
-                model_name = input("Playground name: ")
-                model_description = input("Playground description: ")
-                requirements = input("Requirements: ")
-                tags = input("Tags: ")
-                print()
-
-                input_dict = {"requirements": requirements,
-                    "model_name": model_name,
-                    "model_description": model_description,
-                    "tags": tags}
-
-                playground_id = False
-
-            else: 
-
-                input_dict = {"requirements": "",
-                    "model_name": "Default Model Playground",
-                    "model_description": "",
-                    "tags": ""}
-
-                playground_id = True
-
-            self.activate(model_filepath, preprocessor_filepath, example_data=example_data,
-                onnx_timeout=onnx_timeout, y_train=y_train, custom_libraries=custom_libraries, 
-                image=image, reproducibility_env_filepath=reproducibility_env_filepath, 
-                memory=memory, pyspark_support=pyspark_support, timeout=timeout, input_dict=input_dict,
-                playground_id=playground_id)
-            print()
-
-        # if playground is active, ask whether user wants to overwrite 
-        else:
-
-            print("The Model Playground is already active. Do you want to overwrite existing competitions and experiments?")
-            response = ''
-            while response not in {"yes", "no"}:
-                response = input("Please enter yes or no: ").lower()
-
-            if response == "no":
-
-                print("Please instantiate a new playground and try again.")
-                return
-
-        # get model id from playground url
-        unique_model_id = self.playground_url.split(".")[0].split("//")[-1]
-
-
-        if user_input == False:
-
-            competition_name = "Default Competition "+ unique_model_id
-            competition_description = ""
-            data_description = ""
-            data_license = ""
-
-        else: 
-
-            print("Submit Model Competition data.")
-            competition_name = input("Competition name: ")
-            competition_description = input("Competition description: ")
-            data_description = input("Competition data description: ")
-            data_license = input("Cometition data license: ")
-
-        comp_input_dict = {"competition_name": competition_name,
-                            "competition_description": competition_description,
-                            "data_description": data_description,
-                            "data_license": data_license}
-
-
-        with HiddenPrints():
-
-            from aimodelshare.generatemodelapi import create_competition
-            create_competition(apiurl=self.playground_url,
-                                    data_directory=data_directory, 
-                                    y_test = eval_data,
-                                    eval_metric_filepath = eval_metric_filepath,
-                                    email_list=email_list,
-                                    public=public,
-                                    public_private_split=public_private_split,
-                                    input_dict=comp_input_dict,
-                                    print_output=False)
-
-            competition = Competition(self.playground_url)
-
-            if len(prediction_submission):           
-                version_comp = competition.submit_model(model_filepath = model_filepath,
-                                        preprocessor_filepath=preprocessor_filepath,
-                                        prediction_submission=prediction_submission,
-                                        input_dict={"tags":"", "description":""},
-                                        print_output=False)
-        if len(prediction_submission):           
-            print(f"Your model has been submitted to competition as model version {version_comp}.")
-            print()
-           
-
-        if user_input == False:
-
-            experiment_name = "Default Experiment "+ unique_model_id
-            experiment_description = ""
-            data_description = ""
-            data_license = ""
-
-        else: 
-            print("Submit Model Experiment data.")
-            experiment_name = input("Experiment name: ")
-            experiment_description = input("Experiment description: ")
-            data_description = input("Experiment data description: ")
-            data_license = input("Experiment data license: ")
-
-        exp_input_dict = {"experiment_name": experiment_name,
-                            "experiment_description": experiment_description,
-                            "data_description": data_description,
-                            "data_license": data_license}
-
-
-        with HiddenPrints():
-
-            from aimodelshare.generatemodelapi import create_experiment
-            create_experiment(apiurl=self.playground_url,
-                                    data_directory=data_directory, 
-                                    y_test = eval_data,
-                                    eval_metric_filepath = eval_metric_filepath,
-                                    email_list=email_list,
-                                    public=public,
-                                    public_private_split=public_private_split,
-                                    input_dict=exp_input_dict,
-                                    print_output=False)
-
-            experiment = Experiment(self.playground_url)
-            
-            if len(prediction_submission):           
-                version_exp = experiment.submit_model(model_filepath = model_filepath,
-                                     preprocessor_filepath=preprocessor_filepath,
-                                     prediction_submission=prediction_submission,
-                                     input_dict={"tags":"", "description":""},
-                                     print_output=False)
-
-        if len(prediction_submission):           
-            print(f"Your model has been submitted to experiment as model version {version_exp}.")
-            print()
-
-        print("Check out your Model Playground page for more.")
-
-        try:    
-            temp.close()
-        except:
-            pass
-
-    def submit_model(self, model_filepath, preprocessor_filepath, prediction_submission, submit_to="experiment",
+    def submit_model(self, model, preprocessor, prediction_submission, submission_type="experiment",
         sample_data=None, reproducibility_env_filepath=None, custom_metadata=None, input_dict=None, onnx_timeout=60, model_input=None):
         """
         Submits model/preprocessor to machine learning competition using live prediction API url generated by AI Modelshare library
@@ -1394,7 +1187,6 @@ class ModelPlayground:
         response:   Model version if the model is submitted sucessfully
         """
 
-
         if not self.playground_url:
             raise Exception("Please instantiate ModelPlayground with playground_url or use create() method to setup Model Playground Page before submitting your model.")
 
@@ -1405,23 +1197,24 @@ class ModelPlayground:
             force_onnx=True
         else:
             force_onnx=False
-        model_filepath = model_to_onnx_timed(model_filepath, timeout = onnx_timeout, 
+        model = model_to_onnx_timed(model, timeout = onnx_timeout, 
             force_onnx=force_onnx, model_input=model_input)
 
         # create input dict
-        input_dict = {}
-        input_dict["tags"] = input("Insert search tags to help users find your model (optional): ")
-        input_dict["description"] = input("Provide any useful notes about your model (optional): ")
+        if not input_dict:
+            input_dict = {}
+            input_dict["tags"] = input("Insert search tags to help users find your model (optional): ")
+            input_dict["description"] = input("Provide any useful notes about your model (optional): ")
 
  
-        if submit_to == "competition" or submit_to == "all": 
+        if submission_type == "competition" or submission_type == "all": 
 
             with HiddenPrints():
                 competition = Competition(self.playground_url)
 
-                version_comp = competition.submit_model(model_filepath = model_filepath, 
+                version_comp, model_page = competition.submit_model(model_filepath = model, 
                                       prediction_submission = prediction_submission, 
-                                      preprocessor_filepath = preprocessor_filepath,
+                                      preprocessor_filepath = preprocessor,
                                       reproducibility_env_filepath = reproducibility_env_filepath,
                                       custom_metadata = custom_metadata, 
                                       input_dict=input_dict,
@@ -1430,27 +1223,50 @@ class ModelPlayground:
 
             print(f"Your model has been submitted to competition as model version {version_comp}.")
 
-        if submit_to == "experiment" or submit_to == "all": 
+        if submission_type == "experiment" or submission_type == "all": 
 
             with HiddenPrints():
                 experiment = Experiment(self.playground_url)
 
-                version_exp = experiment.submit_model(model_filepath = model_filepath, 
+                version_exp, model_page = experiment.submit_model(model_filepath = model, 
                                       prediction_submission = prediction_submission, 
-                                      preprocessor_filepath = preprocessor_filepath,
+                                      preprocessor_filepath = preprocessor,
                                       reproducibility_env_filepath = reproducibility_env_filepath,
                                       custom_metadata = custom_metadata, 
                                       input_dict=input_dict,
                                       print_output=False)
 
             print(f"Your model has been submitted to experiment as model version {version_exp}.")
-            print(f"Visit your Model Playground Page for more.")
+        
+        self.model_page = model_page
 
-
+        print(f"\nVisit your Model Playground Page for more.")
+        print(model_page)
         return 
 
+    def deploy_model(self, model_version, example_data, y_train, submission_type="experiment"): 
+        """
+        Updates the prediction API behind the Model Playground with a new model from the leaderboard and verifies Model Playground performance metrics.
+        Parameters:
+        -----------
+        `model_version`: ``int`` model version number from competition leaderboard
+        `example_data`: ``Example of X data that will be shown on the online Playground page``
+        `y_train`: ``training labels for classification models. Expects pandas dataframe of one hot encoded y train data``
+        """
+
+
+
+        with HiddenPrints():
+            self.update_example_data(example_data)
+
+            self.update_labels(y_train)
+
+        self.update_runtime_model(model_version, submission_type)
+
+        return
+
     
-    def update_runtime_model(self, model_version=None, submission_type="experiment"):
+    def update_runtime_model(self, model_version, submission_type="experiment"):
         """
         Updates the prediction API behind the Model Playground with a new model from the leaderboard and verifies Model Playground performance metrics.
         Parameters:
@@ -1460,10 +1276,14 @@ class ModelPlayground:
         Returns:
         --------
         response:   success message when the model and preprocessor are updated successfully
-        
         """
         from aimodelshare.model import update_runtime_model as update
         update = update(apiurl = self.playground_url, model_version = model_version, submission_type=submission_type)
+
+        print(f"\nVisit your Model Playground Page for more.")
+        if self.model_page:
+            print(self.model_page)
+
         return update
         
     def instantiate_model(self, version=None, trained=False, reproduce=False, submission_type="experiment"): 
@@ -1544,13 +1364,6 @@ class ModelPlayground:
         update = update_list(apiurl = self.playground_url, email_list=email_list, update_type=update_type)
         return update
 
-    def update_model(self): 
-        return
-
-
-    def update_preprocessor(self): 
-        return
-
 
     def update_example_data(self, example_data): 
 
@@ -1598,6 +1411,13 @@ class ModelPlayground:
         response = requests.post("https://bhrdesksak.execute-api.us-east-1.amazonaws.com/dev/modeldata",
                                   json=bodydata, headers=headers_with_authentication)
 
+
+        print("Your evaluation data has been updated.")
+
+        print(f"\nVisit your Model Playground Page for more.")
+        if self.model_page:
+            print(self.model_page)
+
         return
 
 
@@ -1644,6 +1464,55 @@ class ModelPlayground:
 
         return
 
+    def update_eval_data(self, eval_data):
+        """
+        Updates evaluation data associated with a model playground prediction API.
+
+        Parameters:
+        -----------
+
+        `eval_data` :  ``list`` of y values used to generate metrics from predicted values from predictions submitted via the submit_model() method
+            [REQUIRED] to generate eval metrics in experiment leaderboard
+        """
+
+        # create temporary folder
+        temp_dir = tempfile.gettempdir()
+        
+        from aimodelshare.aws import get_s3_iam_client, run_function_on_lambda
+        s3, iam, region = get_s3_iam_client(os.environ.get("AWS_ACCESS_KEY_ID_AIMS"), os.environ.get("AWS_SECRET_ACCESS_KEY_AIMS"), os.environ.get("AWS_REGION_AIMS"))
+        
+        # Get bucket and model_id subfolder for user based on apiurl {{{
+        response, error = run_function_on_lambda(
+            self.playground_url, **{"delete": "FALSE", "versionupdateget": "TRUE"}
+        )
+        if error is not None:
+            raise error
+
+        _, api_bucket, model_id = json.loads(response.content.decode("utf-8"))
+        # }}} 
+        
+        # upload eval_data data: 
+        eval_data_path = os.path.join(temp_dir, "ytest.pkl")
+        import pickle
+        #ytest data to load to s3
+
+        if eval_data is not None:
+            if type(eval_data) is not list:
+                eval_data=eval_data.tolist()
+
+            if all(isinstance(x, (np.float64)) for x in eval_data):
+                  eval_data = [float(i) for i in eval_data]
+
+        pickle.dump(eval_data,open(eval_data_path,"wb"))
+        s3["client"].upload_file(eval_data_path, os.environ.get("BUCKET_NAME"),  model_id + "/experiment/ytest.pkl")
+        s3["client"].upload_file(eval_data_path, os.environ.get("BUCKET_NAME"),  model_id + "/competition/ytest.pkl")
+
+
+        print("Your evaluation data has been updated.")
+
+        print(f"\nVisit your Model Playground Page for more.")
+        if self.model_page:
+            print(self.model_page)
 
     def get_leaderboard(self, verbose=3, columns=None, submission_type="experiment"):
         """
@@ -1746,25 +1615,6 @@ class ModelPlayground:
         return model
 
 
-    def instantiate_model(self, version=None, trained=False, reproduce=False, submission_type="experiment"): 
-        """
-        Import a model previously submitted to the competition leaderboard to use in your session
-        Parameters:
-        -----------
-        `version`: ``int``
-            Model version number from competition leaderboard
-        `trained`: ``bool, default=False``
-            if True, a trained model is instantiated, if False, the untrained model is instantiated
-       
-        Returns:
-        --------
-        model: model chosen from leaderboard
-        """
-        from aimodelshare.aimsonnx import instantiate_model
-        model = instantiate_model(apiurl=self.playground_url, trained=trained, version=version, 
-            reproduce=reproduce, submission_type=submission_type)
-        return model
-
     def inspect_eval_data(self, submission_type="experiment"):
         """
         Examines structure of evaluation data to hep users understand how to submit models to the competition leaderboad.
@@ -1858,6 +1708,7 @@ class Competition:
         model = instantiate_model(apiurl=self.playground_url, trained=trained, version=version, 
             reproduce=reproduce, submission_type=self.submission_type)
         return model
+
 
     def replicate_model(self,version=None): 
         """

@@ -42,6 +42,7 @@ from skl2onnx.common.data_types import FloatTensorType
 # aims modules
 from aimodelshare.aws import run_function_on_lambda, get_aws_client
 from aimodelshare.reproducibility import set_reproducibility_env
+from pandas.io.formats.style import Styler
 
 # os etc
 import os
@@ -970,11 +971,16 @@ def model_to_onnx_timed(model_filepath, force_onnx=False, timeout=60, model_inpu
 
         else:
 
-            # interrupt if onnx conversion is taking too long
-            def timeout_handler(num, stack):
-                raise Exception("timeout")
 
-            signal.alarm(timeout)
+            try: # try needed because signal.alarm not available on windows
+                # interrupt if onnx conversion is taking too long
+                def timeout_handler(num, stack):
+                    raise Exception("timeout")
+
+                signal.alarm(timeout)
+            except:
+                pass
+
 
             try:
                 try:
@@ -1009,7 +1015,10 @@ def model_to_onnx_timed(model_filepath, force_onnx=False, timeout=60, model_inpu
 
             finally:
                 print()
-                signal.alarm(0)
+                try: # try needed because signal.alarm not available on windows
+                    signal.alarm(0)
+                except:
+                    pass
 
     return model_filepath
 
@@ -1239,7 +1248,7 @@ def stylize_model_comparison(comp_dict_out, naming_convention=None):
             df_styled = df_styled.set_caption('Model type: ' + 'Neural Network').set_table_styles([{'selector': 'caption',
                 'props': [('color', 'black'), ('font-size', '18px')]}])
 
-            display(HTML(df_styled.render()))
+            display(HTML(Styler.to_html(df_styled)))
 
         elif 'undefined' in i:
 
@@ -1250,7 +1259,7 @@ def stylize_model_comparison(comp_dict_out, naming_convention=None):
             df_styled = df_styled.set_caption("No metadata available for model "+ str(version)).set_table_styles([{'selector': 'caption',
                 'props': [('color', 'black'), ('font-size', '18px')]}])
 
-            display(HTML(df_styled.render()))
+            display(HTML(Styler.to_html(df_styled)))
             print('\n\n')
 
         else:
@@ -1263,7 +1272,7 @@ def stylize_model_comparison(comp_dict_out, naming_convention=None):
             df_styled = df_styled.set_caption('Model type: ' + i).set_table_styles([{'selector': 'caption',
                 'props': [('color', 'black'), ('font-size', '18px')]}])
 
-            display(HTML(df_styled.render()))
+            display(HTML(Styler.to_html(df_styled)))
             print('\n\n')
 
 
