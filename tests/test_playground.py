@@ -36,6 +36,7 @@ def test_playground_sklearn():
 
 	# set credentials
 	# set_credentials(credential_file="../../credentials.txt", type="deploy_model")
+	os.environ["AWS_TOKEN"]=get_aws_token()
 
 	# Get materials for tutorial
 	X_train, X_test, y_train, y_test, example_data, y_test_labels = ai.import_quickstart_data("titanic")
@@ -139,6 +140,7 @@ def test_playground_keras():
 
 	# Set credentials 
 	# set_credentials(credential_file="../../credentials.txt", type="deploy_model")
+	os.environ["AWS_TOKEN"]=get_aws_token()
 
 	# # Download flower image data and and pretrained Keras models
 	from aimodelshare.data_sharing.download_data import import_quickstart_data
