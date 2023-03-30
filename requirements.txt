@@ -27,5 +27,4 @@ pathlib>=1.0.1
 scipy==1.7.0
 protobuf==3.19.6
 IPython
-cv2
 opencv-python
