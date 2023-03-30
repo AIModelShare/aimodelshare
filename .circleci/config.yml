@@ -18,9 +18,7 @@ jobs:
           pypi-cache: false
       - run:
           name: Test
-          command: |
-            coverage run -m pytest tests/
-            coverage report
+          command: pytest tests/
           
 workflows:
   main:
