@@ -11,14 +11,21 @@ jobs:
       - python/install-packages:
           pip-dependency-file: requirements.txt
           pkg-manager: pip
+          pypi-cache: true
       - python/install-packages:
           args: pytest
           pkg-manager: pip
           pypi-cache: false
       - run:
-          command: |
-            pytest tests/
           name: Test
+          command: |
+            coverage run -m pytest tests/
+            coverage run -m pytest
+            coverage html
+      - store_artifacts:
+          path: htmlcov
+
+            
 workflows:
   main:
     jobs:
