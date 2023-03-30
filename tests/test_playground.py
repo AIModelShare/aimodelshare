@@ -15,9 +15,9 @@ import shutil
 
 
 
-def test_set_credentials():
+# def test_set_credentials():
 
-	set_credentials(credential_file="../../credentials.txt", type="deploy_model")
+#	set_credentials(credential_file="../../credentials.txt", type="deploy_model")
 
 
 # def test_quickstart_sklearn():
@@ -35,7 +35,7 @@ def test_set_credentials():
 def test_playground_sklearn(): 
 
 	# set credentials
-	set_credentials(credential_file="../../credentials.txt", type="deploy_model")
+	# set_credentials(credential_file="../../credentials.txt", type="deploy_model")
 
 	# Get materials for tutorial
 	X_train, X_test, y_train, y_test, example_data, y_test_labels = ai.import_quickstart_data("titanic")
@@ -138,8 +138,7 @@ def test_playground_sklearn():
 def test_playground_keras(): 
 
 	# Set credentials 
-	from aimodelshare.aws import set_credentials
-	set_credentials(credential_file="../../credentials.txt", type="deploy_model")
+	# set_credentials(credential_file="../../credentials.txt", type="deploy_model")
 
 	# # Download flower image data and and pretrained Keras models
 	from aimodelshare.data_sharing.download_data import import_quickstart_data
