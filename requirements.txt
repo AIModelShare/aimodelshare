@@ -1,4 +1,5 @@
 pytest
+coverage
 boto3==1.26.69
 botocore==1.29.82
 scikit-learn==1.2.1
@@ -27,3 +28,4 @@ scipy==1.7.0
 protobuf==3.19.6
 IPython
 cv2
+opencv-python
