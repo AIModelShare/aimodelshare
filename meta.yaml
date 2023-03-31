@@ -41,6 +41,7 @@ requirements:
     - shortuuid >=1.0.8
     - skl2onnx >=1.8.0
     - tensorflow >=2.5.0
+    - protobuf ==3.19.6
     - tf2onnx
     - pytorch >=1.8.1
     - urllib3 ==1.25.11
