@@ -141,3 +141,8 @@ settings.json
 
 # Mac OS files
 **.DS_Store
+
+# IDEs
+.vs/ 
+aimodelshare/.idea/
+.idea/
