@@ -2,6 +2,9 @@ from aimodelshare.playground import ModelPlayground, Experiment, Competition
 from aimodelshare.aws import set_credentials, get_aws_token
 import aimodelshare as ai
 from aimodelshare.data_sharing.utils import redo_with_write
+from tests.mock_input import set_keyboard_input
+
+from unittest.mock import patch
 
 from sklearn.compose import ColumnTransformer
 from sklearn.pipeline import Pipeline
@@ -33,11 +36,42 @@ import os
 # 	assert isinstance(y_test_labels, list)
 
 
-def test_playground_sklearn(): 
+def test_configure_credentials():
+
+	# mock user input
+	inputs = [os.environ.get('USERNAME'),
+			  os.environ.get('PASSWORD'),
+			  os.environ.get('AWS_ACCESS_KEY_ID'),
+			  os.environ.get('AWS_SECRET_ACCESS_KEY'),
+			  os.environ.get('AWS_REGION')]
+
+	with patch("getpass.getpass", side_effect=inputs):
+		from aimodelshare.aws import configure_credentials
+		configure_credentials()
+
+	# clean up credentials file
+	os.remove("credentials.txt")
+
+
+def test_playground_sklearn():
+
+	# mock user input
+	inputs = [os.environ.get('USERNAME'),
+			  os.environ.get('PASSWORD'),
+			  os.environ.get('AWS_ACCESS_KEY_ID'),
+			  os.environ.get('AWS_SECRET_ACCESS_KEY'),
+			  os.environ.get('AWS_REGION')]
+
+	with patch("getpass.getpass", side_effect=inputs):
+		from aimodelshare.aws import configure_credentials
+		configure_credentials()
 
 	# set credentials
-	# set_credentials(credential_file="../../credentials.txt", type="deploy_model")
-	os.environ["AWS_TOKEN"]=get_aws_token()
+	set_credentials(credential_file="credentials.txt", type="deploy_model")
+	#os.environ["AWS_TOKEN"]=get_aws_token()
+
+	# clean up credentials file
+	os.remove("credentials.txt")
 
 	# Get materials for tutorial
 	X_train, X_test, y_train, y_test, example_data, y_test_labels = ai.import_quickstart_data("titanic")
@@ -137,11 +171,25 @@ def test_playground_sklearn():
 
 
 
-def test_playground_keras(): 
+def test_playground_keras():
 
-	# Set credentials 
-	# set_credentials(credential_file="../../credentials.txt", type="deploy_model")
-	os.environ["AWS_TOKEN"]=get_aws_token()
+	# mock user input
+	inputs = [os.environ.get('USERNAME'),
+			  os.environ.get('PASSWORD'),
+			  os.environ.get('AWS_ACCESS_KEY_ID'),
+			  os.environ.get('AWS_SECRET_ACCESS_KEY'),
+			  os.environ.get('AWS_REGION')]
+
+	with patch("getpass.getpass", side_effect=inputs):
+		from aimodelshare.aws import configure_credentials
+		configure_credentials()
+
+	# set credentials
+	set_credentials(credential_file="credentials.txt", type="deploy_model")
+	# os.environ["AWS_TOKEN"]=get_aws_token()
+
+	# clean up credentials file
+	os.remove("credentials.txt")
 
 	# # Download flower image data and and pretrained Keras models
 	from aimodelshare.data_sharing.download_data import import_quickstart_data
