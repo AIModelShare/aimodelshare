@@ -2,7 +2,6 @@ from aimodelshare.playground import ModelPlayground, Experiment, Competition
 from aimodelshare.aws import set_credentials, get_aws_token
 import aimodelshare as ai
 from aimodelshare.data_sharing.utils import redo_with_write
-from tests.mock_input import set_keyboard_input
 
 from unittest.mock import patch
 
