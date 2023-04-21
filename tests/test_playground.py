@@ -300,6 +300,18 @@ def test_playground_keras():
 	                            input_dict={"description": "", "tags": ""},
 	                            submission_type="all")
 
+	#submit model through competition
+	mycompetition = ai.playground.Competition(myplayground.playground_url)
+	mycompetition.submit_model(model=keras_model_2,
+							   preprocessor=preprocessor,
+							   prediction_submission=prediction_labels)
+
+	#submit model through experiment
+	myexperiment = ai.playground.Experiment(myplayground.playground_url)
+	myexperiment.submit_model(model=keras_model_2,
+							   preprocessor=preprocessor,
+							   prediction_submission=prediction_labels)
+
 	# Check experiment leaderboard
 	data = myplayground.get_leaderboard()
 	myplayground.stylize_leaderboard(data)
@@ -312,7 +324,7 @@ def test_playground_keras():
 
 	# Check structure of evaluation data
 	data = yplayground.inspect_eval_data()
-	assert isinstance(data, pd.DataFrame)
+	assert isinstance(data, dict)
 
 	# Update runtime model
 	myplayground.update_runtime_model(model_version=2)
