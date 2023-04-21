@@ -146,13 +146,17 @@ def test_playground_sklearn():
 	mycompetition = ai.playground.Competition(myplayground.playground_url)
 	mycompetition.submit_model(model=model_2,
 							   preprocessor=preprocessor,
-							   prediction_submission=prediction_labels)
+							   prediction_submission=prediction_labels,
+							   input_dict={"description": "", "tags": ""}
+							   )
 
 	#submit model through experiment
 	myexperiment = ai.playground.Experiment(myplayground.playground_url)
 	myexperiment.submit_model(model=model_2,
 							   preprocessor=preprocessor,
-							   prediction_submission=prediction_labels)
+							   prediction_submission=prediction_labels,
+							  input_dict={"description": "", "tags": ""}
+							  )
 
 	# Check Competition Leaderboard
 	data = myplayground.get_leaderboard()
@@ -304,13 +308,17 @@ def test_playground_keras():
 	mycompetition = ai.playground.Competition(myplayground.playground_url)
 	mycompetition.submit_model(model=keras_model_2,
 							   preprocessor=preprocessor,
-							   prediction_submission=prediction_labels)
+							   prediction_submission=prediction_labels,
+							   input_dict={"description": "", "tags": ""}
+							   )
 
 	#submit model through experiment
 	myexperiment = ai.playground.Experiment(myplayground.playground_url)
 	myexperiment.submit_model(model=keras_model_2,
 							   preprocessor=preprocessor,
-							   prediction_submission=prediction_labels)
+							   prediction_submission=prediction_labels,
+							  input_dict={"description": "", "tags": ""}
+							  )
 
 	# Check experiment leaderboard
 	data = myplayground.get_leaderboard()
