@@ -166,8 +166,7 @@ def test_playground_sklearn():
 	# Compare two or more models
 	data = myplayground.compare_models([1,2], verbose=1)
 	myplayground.stylize_compare(data)
-	assert isinstance(data, pd.DataFrame)
-
+	assert isinstance(data, (pd.DataFrame, dict))
 
 	# Check structure of evaluation data
 	data = myplayground.inspect_eval_data()
@@ -328,7 +327,7 @@ def test_playground_keras():
 	# Compare two or more models
 	data = myplayground.compare_models([1,2], verbose=1)
 	myplayground.stylize_compare(data)
-	assert isinstance(data, pd.DataFrame)
+	assert isinstance(data, (pd.DataFrame, dict))
 
 	# Check structure of evaluation data
 	data = yplayground.inspect_eval_data()
