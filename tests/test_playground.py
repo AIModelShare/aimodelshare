@@ -1,7 +1,9 @@
 from aimodelshare.playground import ModelPlayground, Experiment, Competition
-from aimodelshare.aws import set_credentials
+from aimodelshare.aws import set_credentials, get_aws_token
 import aimodelshare as ai
 from aimodelshare.data_sharing.utils import redo_with_write
+
+from unittest.mock import patch
 
 from sklearn.compose import ColumnTransformer
 from sklearn.pipeline import Pipeline
@@ -11,13 +13,14 @@ from sklearn.linear_model import LogisticRegression
 
 import pandas as pd
 import shutil
+import os
 
 
 
 
-def test_set_credentials():
+# def test_set_credentials():
 
-	set_credentials(credential_file="../../credentials.txt", type="deploy_model")
+#	set_credentials(credential_file="../../credentials.txt", type="deploy_model")
 
 
 # def test_quickstart_sklearn():
@@ -32,10 +35,42 @@ def test_set_credentials():
 # 	assert isinstance(y_test_labels, list)
 
 
-def test_playground_sklearn(): 
+def test_configure_credentials():
+
+	# mock user input
+	inputs = [os.environ.get('USERNAME'),
+			  os.environ.get('PASSWORD'),
+			  os.environ.get('AWS_ACCESS_KEY_ID'),
+			  os.environ.get('AWS_SECRET_ACCESS_KEY'),
+			  os.environ.get('AWS_REGION')]
+
+	with patch("getpass.getpass", side_effect=inputs):
+		from aimodelshare.aws import configure_credentials
+		configure_credentials()
+
+	# clean up credentials file
+	os.remove("credentials.txt")
+
+
+def test_playground_sklearn():
+
+	# mock user input
+	inputs = [os.environ.get('USERNAME'),
+			  os.environ.get('PASSWORD'),
+			  os.environ.get('AWS_ACCESS_KEY_ID'),
+			  os.environ.get('AWS_SECRET_ACCESS_KEY'),
+			  os.environ.get('AWS_REGION')]
+
+	with patch("getpass.getpass", side_effect=inputs):
+		from aimodelshare.aws import configure_credentials
+		configure_credentials()
 
 	# set credentials
-	set_credentials(credential_file="../../credentials.txt", type="deploy_model")
+	set_credentials(credential_file="credentials.txt", type="deploy_model")
+	#os.environ["AWS_TOKEN"]=get_aws_token()
+
+	# clean up credentials file
+	os.remove("credentials.txt")
 
 	# Get materials for tutorial
 	X_train, X_test, y_train, y_test, example_data, y_test_labels = ai.import_quickstart_data("titanic")
@@ -69,7 +104,7 @@ def test_playground_sklearn():
 	    return preprocessed_data
 
 	# check shape of X data after preprocessing it using our new function
-	preprocessor(X_train).shape
+	assert preprocessor(X_train).shape == (1047, 10)
 
 	# build model 1
 	model = LogisticRegression(C=10, penalty='l1', solver = 'liblinear')
@@ -107,24 +142,44 @@ def test_playground_sklearn():
 	                          input_dict={"description": "", "tags": ""},
 	                          submission_type="all")
 
+	#submit model through competition
+	mycompetition = ai.playground.Competition(myplayground.playground_url)
+	mycompetition.submit_model(model=model_2,
+							   preprocessor=preprocessor,
+							   prediction_submission=prediction_labels,
+							   input_dict={"description": "", "tags": ""}
+							   )
+
+	#submit model through experiment
+	myexperiment = ai.playground.Experiment(myplayground.playground_url)
+	myexperiment.submit_model(model=model_2,
+							   preprocessor=preprocessor,
+							   prediction_submission=prediction_labels,
+							  input_dict={"description": "", "tags": ""}
+							  )
+
 	# Check Competition Leaderboard
 	data = myplayground.get_leaderboard()
 	myplayground.stylize_leaderboard(data)
+	assert isinstance(data, pd.DataFrame)
 
 	# Compare two or more models
-	data=myplayground.compare_models([1,2], verbose=1)
+	data = myplayground.compare_models([1,2], verbose=1)
 	myplayground.stylize_compare(data)
+	assert isinstance(data, (pd.DataFrame, dict))
 
 	# Check structure of evaluation data
-	myplayground.inspect_eval_data()
+	data = myplayground.inspect_eval_data()
+	assert isinstance(data, dict)
 
 	# deploy model
 	myplayground.deploy_model(model_version=1, example_data=example_data, y_train=y_train)
 
-	# myplayground.update_example_data(example_data)
+	# update example data
+	myplayground.update_example_data(example_data)
 
-	# # swap out runtime model
-	# myplayground.update_runtime_model(model_version=1)
+	# swap out runtime model
+	myplayground.update_runtime_model(model_version=1)
 
 	# delete
 	myplayground.delete_deployment(confirmation=False)
@@ -135,11 +190,25 @@ def test_playground_sklearn():
 
 
 
-def test_playground_keras(): 
+def test_playground_keras():
 
-	# Set credentials 
-	from aimodelshare.aws import set_credentials
-	set_credentials(credential_file="../../credentials.txt", type="deploy_model")
+	# mock user input
+	inputs = [os.environ.get('USERNAME'),
+			  os.environ.get('PASSWORD'),
+			  os.environ.get('AWS_ACCESS_KEY_ID'),
+			  os.environ.get('AWS_SECRET_ACCESS_KEY'),
+			  os.environ.get('AWS_REGION')]
+
+	with patch("getpass.getpass", side_effect=inputs):
+		from aimodelshare.aws import configure_credentials
+		configure_credentials()
+
+	# set credentials
+	set_credentials(credential_file="credentials.txt", type="deploy_model")
+	# os.environ["AWS_TOKEN"]=get_aws_token()
+
+	# clean up credentials file
+	os.remove("credentials.txt")
 
 	# # Download flower image data and and pretrained Keras models
 	from aimodelshare.data_sharing.download_data import import_quickstart_data
@@ -204,7 +273,7 @@ def test_playground_keras():
 	from aimodelshare.playground import ModelPlayground
 	myplayground=ModelPlayground(input_type="image", task_type="classification", private=False)
 	# Create Model Playground Page on modelshare.ai website
-	myplayground.create(eval_data = y_test_labels)
+	myplayground.create(eval_data=y_test_labels)
 
 	# Submit Model to Experiment Leaderboard
 	myplayground.submit_model(model=keras_model,
@@ -228,22 +297,41 @@ def test_playground_keras():
 	prediction_labels = [y_train.columns[i] for i in prediction_column_index]
 
 	# Submit Model 2 to Experiment Leaderboard
-	myplayground.submit_model(model = keras_model_2,
+	myplayground.submit_model(model=keras_model_2,
 	                            preprocessor=preprocessor,
 	                            prediction_submission=prediction_labels,
 	                            input_dict={"description": "", "tags": ""},
 	                            submission_type="all")
 
+	#submit model through competition
+	mycompetition = ai.playground.Competition(myplayground.playground_url)
+	mycompetition.submit_model(model=keras_model_2,
+							   preprocessor=preprocessor,
+							   prediction_submission=prediction_labels,
+							   input_dict={"description": "", "tags": ""}
+							   )
+
+	#submit model through experiment
+	myexperiment = ai.playground.Experiment(myplayground.playground_url)
+	myexperiment.submit_model(model=keras_model_2,
+							   preprocessor=preprocessor,
+							   prediction_submission=prediction_labels,
+							  input_dict={"description": "", "tags": ""}
+							  )
+
 	# Check experiment leaderboard
 	data = myplayground.get_leaderboard()
 	myplayground.stylize_leaderboard(data)
+	assert isinstance(data, pd.DataFrame)
 
 	# Compare two or more models
-	data=myplayground.compare_models([1,2], verbose=1)
+	data = myplayground.compare_models([1,2], verbose=1)
 	myplayground.stylize_compare(data)
+	assert isinstance(data, (pd.DataFrame, dict))
 
 	# Check structure of evaluation data
-	myplayground.inspect_eval_data()
+	data = myplayground.inspect_eval_data()
+	assert isinstance(data, dict)
 
 	# Update runtime model
 	myplayground.update_runtime_model(model_version=2)

@@ -1573,7 +1573,6 @@ def _get_sklearn_modules():
     return models_modules_dict
 
 
-
 def model_from_string(model_type):
     models_modules_dict = _get_sklearn_modules()
     module = models_modules_dict[model_type]

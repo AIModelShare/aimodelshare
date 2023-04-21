@@ -1,4 +1,4 @@
-# import packages 
+# import packages
 import os
 import contextlib
 import boto3
@@ -27,18 +27,18 @@ class ModelPlayground:
     Parameters:
     ----------
     `model_type` : ``string``
-          values - [ 'text' , 'image' , 'tabular' , 'video', 'audio','timeseries' ] 
-          type of model data     
+          values - [ 'text' , 'image' , 'tabular' , 'video', 'audio','timeseries' ]
+          type of model data
     `classification`:    ``bool, default=True``
         True [DEFAULT] if model is of Classification type with categorical target variables
         False if model is of Regression type with continuous target variables
     `private` :   ``bool, default = False``
         True if model and its corresponding data is not public
-        False [DEFAULT] if model and its corresponding data is public 
+        False [DEFAULT] if model and its corresponding data is public
     `email_list`: ``list of string values``
                 values - list including all emails of users who have access the private playground.
                 list should contain same emails that were used by users to sign up for modelshare.ai account.
-                [OPTIONAL] set by the playground owner for private playgrounds.  Can also be updated by editing deployed 
+                [OPTIONAL] set by the playground owner for private playgrounds.  Can also be updated by editing deployed
                 playground page at www.modelshare.ai.
     """
 
@@ -90,24 +90,24 @@ class ModelPlayground:
         Inputs : 7
         Output : model launched to an API
                 detailed API info printed out
-        Parameters: 
+        Parameters:
         ----------
         `model_filepath` :  ``string`` ends with '.onnx'
-              value - Absolute path to model file 
+              value - Absolute path to model file
               .onnx is the only accepted model file extension
               "example_model.onnx" filename for file in directory.
               "/User/xyz/model/example_model.onnx" absolute path to model file from local directory
               if no value is set the playground will be launched with only a placeholder prediction API.
         `preprocessor_filepath`:  ``string``
-            value - absolute path to preprocessor file 
-            "./preprocessor.zip" 
+            value - absolute path to preprocessor file
+            "./preprocessor.zip"
             searches for an exported zip preprocessor file in the current directory
             file is generated using export_preprocessor function from the AI Modelshare library
             if no value is set the playground will be launched with only a placeholder prediction API.
         `y_train` : training labels for classification models.
             expects pandas dataframe of one hot encoded y train data
-            if no value is set ... #TODO 
-        `example_data`: ``Example of X data that will be shown on the online Playground page. 
+            if no value is set ... #TODO
+        `example_data`: ``Example of X data that will be shown on the online Playground page.
             if no example data is submitted, certain functionalities may be limited, including the deployment of live prediction APIs.
             Example data can be updated at a later stage, using the update_example_data() method.``
         `custom_libraries`: ``string``
@@ -121,13 +121,13 @@ class ModelPlayground:
             Set to False if you want to force ONNX conversion.
         `pyspark_support`: ``TODO``
         `model_input`: ``array_like``
-            Required only when framework="pytorch" 
+            Required only when framework="pytorch"
             One example of X training data in correct format.
-         
+
         Returns:
         --------
         print_api_info : prints statements with generated model playground page and live prediction API details
-                        also prints steps to update the model submissions by the user/team 
+                        also prints steps to update the model submissions by the user/team
         """
 
         # test whether playground is already active
@@ -146,7 +146,7 @@ class ModelPlayground:
             if r:
                 return
 
-        # convert model to onnx 
+        # convert model to onnx
         if onnx_timeout == False:
             force_onnx = True
         else:
@@ -252,24 +252,24 @@ class ModelPlayground:
         Inputs : 7
         Output : model launched to an API
                 detailed API info printed out
-        Parameters: 
+        Parameters:
         ----------
         `model_filepath` :  ``string`` ends with '.onnx'
-              value - Absolute path to model file 
+              value - Absolute path to model file
               [REQUIRED] to be set by the user
               .onnx is the only accepted model file extension
               "example_model.onnx" filename for file in directory.
               "/User/xyz/model/example_model.onnx" absolute path to model file from local directory
         `preprocessor_filepath`:  ``string``
-            value - absolute path to preprocessor file 
+            value - absolute path to preprocessor file
             [REQUIRED] to be set by the user
-            "./preprocessor.zip" 
+            "./preprocessor.zip"
             searches for an exported zip preprocessor file in the current directory
-            file is generated using export_preprocessor function from the AI Modelshare library  
+            file is generated using export_preprocessor function from the AI Modelshare library
         `y_train` : training labels for classification models.
               [REQUIRED] for classification type models
               expects pandas dataframe of one hot encoded y train data
-        `example_data`: ``Example of X data that will be shown on the online Playground page. 
+        `example_data`: ``Example of X data that will be shown on the online Playground page.
             if no example data is submitted, certain functionalities may be limited, including the deployment of live prediction APIs.
             Example data can be updated at a later stage, using the update_example_data() method.``
         `custom_libraries`:   ``string``
@@ -284,13 +284,13 @@ class ModelPlayground:
             Set to False if you want to force ONNX conversion.
         `pyspark_support`: ``TODO``
         `model_input`: ``array_like``
-            Required only when framework="pytorch" 
+            Required only when framework="pytorch"
             One example of X training data in correct format.
         `input_dict`:   ``dictionary``
              Use to bypass text input boxes Example: {"model_name": "My Model Playground",
                       "model_description": "My Model Description",
                       "tags": "model, classification, awesome"}
-         
+
         Returns:
         --------
         print_api_info : prints statements with generated live prediction API details
@@ -382,7 +382,7 @@ class ModelPlayground:
                 def upload_playground_zipfile(model_filepath=None, preprocessor_filepath=None, y_train=None,
                                               example_data=None):
                     """
-                  minimally requires model_filepath, preprocessor_filepath 
+                  minimally requires model_filepath, preprocessor_filepath
                   """
                     import json
                     import os
@@ -628,8 +628,8 @@ class ModelPlayground:
 
         """
         Submits model/preprocessor to machine learning experiment leaderboard and model architecture database using live prediction API url generated by AI Modelshare library
-        The submitted model gets evaluated and compared with all existing models and a leaderboard can be generated 
-        
+        The submitted model gets evaluated and compared with all existing models and a leaderboard can be generated
+
         Parameters:
         -----------
         `eval_data` :  ``list`` of y values used to generate metrics from predicted values from predictions submitted via the submit_model() method
@@ -637,19 +637,19 @@ class ModelPlayground:
         `y_train` :  ``list`` of y values for training data used to extract the set of class labels
             [REQUIRED] for image classification models
         `eval_metric_filepath`: [OPTIONAL] file path of zip file with custon evaluation functions
-        `data_directory` : folder storing training data and test data (excluding Y test data)                   
+        `data_directory` : folder storing training data and test data (excluding Y test data)
         `email_list`: [OPTIONAL] list of comma separated emails for users who are allowed to submit models to experiment leaderboard.  Emails should be strings in a list.
-        `public`: [REQUIRED] True/false. Defaults to False.  If True, experiment is public and ANY AIMODELSHARE USER CAN SUBMIT MODELS.  USE WITH CAUTION b/c one model and 
+        `public`: [REQUIRED] True/false. Defaults to False.  If True, experiment is public and ANY AIMODELSHARE USER CAN SUBMIT MODELS.  USE WITH CAUTION b/c one model and
             one preprocessor file will be be saved to your AWS S3 folder for each model submission.
         `public_private_split`: [REQUIRED] Float between 0 and 1. Defaults to 0. Porportion of test data that is allocated to private hold-out set.
         `model_input`: ``array_like``
-            Required only when framework="pytorch" 
+            Required only when framework="pytorch"
             One example of X training data in correct format.
         `timeout`: ``TODO``
         `onnx_timeout`: ``int``
             Time in seconds after which ONNX conversion should be interrupted.
             Set to False if you want to force ONNX conversion.
-        `example_data`: ``Example of X data that will be shown on the online Playground page. 
+        `example_data`: ``Example of X data that will be shown on the online Playground page.
             if no example data is submitted, certain functionalities may be limited, including the deployment of live prediction APIs.
             Example data can be updated at a later stage, using the update_example_data() method.``
 
@@ -709,7 +709,7 @@ class ModelPlayground:
                           playground_id=playground_id)
             print()
 
-        # if playground is active, ask whether user wants to overwrite 
+        # if playground is active, ask whether user wants to overwrite
         else:
 
             print(
@@ -805,23 +805,23 @@ class ModelPlayground:
         Creates a model competition for a deployed prediction REST API
         Inputs : 4
         Output : Create ML model competition and allow authorized users to submit models to resulting leaderboard/competition
-        
+
         Parameters:
         -----------
         `y_test` :  ``list`` of y values for test data used to generate metrics from predicted values from X test data submitted via the submit_model() function
             [REQUIRED] to generate eval metrics in competition leaderboard
-                                
+
         `data_directory` : folder storing training data and test data (excluding Y test data)
         `eval_metric_filepath`: [OPTIONAL] file path of zip file with custon evaluation functions
         `email_list`: [OPTIONAL] list of comma separated emails for users who are allowed to submit models to competition.  Emails should be strings in a list.
-        `public`: [REQUIRED] True/false. Defaults to False.  If True, competition is public and ANY AIMODELSHARE USER CAN SUBMIT MODELS.  USE WITH CAUTION b/c one model and 
+        `public`: [REQUIRED] True/false. Defaults to False.  If True, competition is public and ANY AIMODELSHARE USER CAN SUBMIT MODELS.  USE WITH CAUTION b/c one model and
             one preprocessor file will be be saved to your AWS S3 folder for each model submission.
         `public_private_split`: [REQUIRED] Float between 0 and 1. Defaults to 0.5. Porportion of test data that is allocated to private hold-out set.
-        
+
         Returns:
         -----------
         finalmessage : Information such as how to submit models to competition
-        
+
         """
 
         if email_list is None:
@@ -862,7 +862,7 @@ class ModelPlayground:
             # model competition files
             def upload_comp_exp_zipfile(data_directory, y_test=None, eval_metric_filepath=None, email_list=[]):
                 """
-                minimally requires model_filepath, preprocessor_filepath 
+                minimally requires model_filepath, preprocessor_filepath
                 """
                 zipfilelist = [data_directory]
 
@@ -1006,24 +1006,24 @@ class ModelPlayground:
         Creates an experiment for a deployed prediction REST API
         Inputs : 4
         Output : Create ML model experiment and allows authorized users to submit models to resulting experiment tracking leaderboard
-        
+
         Parameters:
         -----------
         `y_test` :  ``list`` of y values for test data used to generate metrics from predicted values from X test data submitted via the submit_model() function
             [REQUIRED] to generate eval metrics in experiment leaderboard
-                                
+
         `data_directory` : folder storing training data and test data (excluding Y test data)
         `eval_metric_filepath`: [OPTIONAL] file path of zip file with custon evaluation functions
         `email_list`: [OPTIONAL] list of comma separated emails for users who are allowed to submit models to experiment leaderboard.  Emails should be strings in a list.
-        `public`: [REQUIRED] True/false. Defaults to False.  If True, experiment is public and ANY AIMODELSHARE USER CAN SUBMIT MODELS.  USE WITH CAUTION b/c one model and 
+        `public`: [REQUIRED] True/false. Defaults to False.  If True, experiment is public and ANY AIMODELSHARE USER CAN SUBMIT MODELS.  USE WITH CAUTION b/c one model and
             one preprocessor file will be be saved to your AWS S3 folder for each model submission.
         `public_private_split`: [REQUIRED] Float between 0 and 1. Defaults to 0. Porportion of test data that is allocated to private hold-out set.
-        
-        
+
+
         Returns:
         -----------
         finalmessage : Information such as how to submit models to experiment
-        
+
         """
 
         # catch email list error
@@ -1061,7 +1061,7 @@ class ModelPlayground:
             # model competition files
             def upload_comp_exp_zipfile(data_directory, y_test=None, eval_metric_filepath=None, email_list=[]):
                 """
-                minimally requires model_filepath, preprocessor_filepath 
+                minimally requires model_filepath, preprocessor_filepath
                 """
                 zipfilelist = [data_directory]
 
@@ -1201,24 +1201,15 @@ class ModelPlayground:
         """
         Submits model/preprocessor to machine learning competition using live prediction API url generated by AI Modelshare library
         The submitted model gets evaluated and compared with all existing models and a leaderboard can be generated
-        
+
         Parameters:
         -----------
-        `model_filepath`:  ``string`` ends with '.onnx'
-            value - Absolute path to model file [REQUIRED] to be set by the user
-            .onnx is the only accepted model file extension
-            "example_model.onnx" filename for file in directory.
-            "/User/xyz/model/example_model.onnx" absolute path to model file from local directory
+        `model`:  model object (sklearn, keras, pytorch, onnx) or onnx model file path
         `prediction_submission`:   one hot encoded y_pred
             value - predictions for test data
             [REQUIRED] for evaluation metrics of the submitted model
-        `preprocessor_filepath`:   ``string``, default=None
-            value - absolute path to preprocessor file 
-            [REQUIRED] to be set by the user
-            "./preprocessor.zip" 
-            searches for an exported zip preprocessor file in the current directory
-            file is generated from preprocessor module using export_preprocessor function from the AI Modelshare library 
- 
+        `preprocessor`: preprocessor function object
+
         Returns:
         --------
         response:   Model version if the model is submitted sucessfully
@@ -1248,9 +1239,9 @@ class ModelPlayground:
             with HiddenPrints():
                 competition = Competition(self.playground_url)
 
-                version_comp, model_page = competition.submit_model(model_filepath=model,
+                version_comp, model_page = competition.submit_model(model=model,
                                                                     prediction_submission=prediction_submission,
-                                                                    preprocessor_filepath=preprocessor,
+                                                                    preprocessor=preprocessor,
                                                                     reproducibility_env_filepath=reproducibility_env_filepath,
                                                                     custom_metadata=custom_metadata,
                                                                     input_dict=input_dict,
@@ -1262,9 +1253,9 @@ class ModelPlayground:
             with HiddenPrints():
                 experiment = Experiment(self.playground_url)
 
-                version_exp, model_page = experiment.submit_model(model_filepath=model,
+                version_exp, model_page = experiment.submit_model(model=model,
                                                                   prediction_submission=prediction_submission,
-                                                                  preprocessor_filepath=preprocessor,
+                                                                  preprocessor=preprocessor,
                                                                   reproducibility_env_filepath=reproducibility_env_filepath,
                                                                   custom_metadata=custom_metadata,
                                                                   input_dict=input_dict,
@@ -1339,16 +1330,16 @@ class ModelPlayground:
 
     def replicate_model(self, version=None, submission_type="experiment"):
         """
-        Instantiate an untrained model with reproducibility environment setup. 
-        
-        Parameters: 
+        Instantiate an untrained model with reproducibility environment setup.
+
+        Parameters:
         -----------
         `version`: ``int``
             Model version number from competition or experiment leaderboard
-          
+
         Returns:
         --------
-        model:  model chosen from leaderboard     
+        model:  model chosen from leaderboard
         """
 
         model = self.instantiate_model(version=version, trained=False, reproduce=True, submission_type=submission_type)
@@ -1383,11 +1374,11 @@ class ModelPlayground:
         Parameters:
         -----------
         `apiurl`: string
-                URL of deployed prediction API 
-          
+                URL of deployed prediction API
+
         `email_list`: [REQUIRED] list of comma separated emails for users who are allowed to submit models to competition.  Emails should be strings in a list.
-        `update_type`:[REQUIRED] options, ``string``: 'Add', 'Remove', 'Replace_list','Get. Add appends user emails to original list, Remove deletes users from list, 
-                  'Replace_list' overwrites the original list with the new list provided, and Get returns the current list.    
+        `update_type`:[REQUIRED] options, ``string``: 'Add', 'Remove', 'Replace_list','Get. Add appends user emails to original list, Remove deletes users from list,
+                  'Replace_list' overwrites the original list with the new list provided, and Get returns the current list.
         Returns:
         --------
         response:   "Success" upon successful request
@@ -1526,9 +1517,9 @@ class ModelPlayground:
             raise error
 
         _, api_bucket, model_id = json.loads(response.content.decode("utf-8"))
-        # }}} 
+        # }}}
 
-        # upload eval_data data: 
+        # upload eval_data data:
         eval_data_path = os.path.join(temp_dir, "ytest.pkl")
         import pickle
         # ytest data to load to s3
@@ -1553,19 +1544,19 @@ class ModelPlayground:
     def get_leaderboard(self, verbose=3, columns=None, submission_type="experiment"):
         """
         Get current competition leaderboard to rank all submitted models.
-        Use in conjuction with stylize_leaderboard to visualize data. 
-        
+        Use in conjuction with stylize_leaderboard to visualize data.
+
         Parameters:
         -----------
         `verbose` : optional, ``int``
-            controls the verbosity: the higher, the more detail 
+            controls the verbosity: the higher, the more detail
         `columns` : optional, ``list of strings``
             list of specific column names to include in the leaderboard, all else will be excluded
             performance metrics will always be displayed
-        
+
         Returns:
         --------
-        dictionary of leaderboard data 
+        dictionary of leaderboard data
         """
         from aimodelshare.leaderboard import get_leaderboard
         data = get_leaderboard(verbose=verbose,
@@ -1593,14 +1584,14 @@ class ModelPlayground:
         """
         Compare the structure of two or more models submitted to a competition leaderboard.
         Use in conjunction with stylize_compare to visualize data.
-        
+
         Parameters:
         -----------
         `version_list` = ``list of int``
-            list of model version numbers to compare (previously submitted to competition leaderboard) 
+            list of model version numbers to compare (previously submitted to competition leaderboard)
         `verbose` = ``int``
-            controls the verbosity: the higher, the more detail 
-        
+            controls the verbosity: the higher, the more detail
+
         Returns:
         --------
         data : dictionary of model comparison information
@@ -1621,10 +1612,10 @@ class ModelPlayground:
         Parameters:
         -----------
         `compare_dict` = dictionary of model data from compare_models
- 
+
         Returns:
         --------
-        formatted table of model comparisons 
+        formatted table of model comparisons
         """
         from aimodelshare.aimsonnx import stylize_model_comparison
         stylized_compare = stylize_model_comparison(comp_dict_out=compare_dict, naming_convention=naming_convention)
@@ -1639,7 +1630,7 @@ class ModelPlayground:
             Model version number from competition leaderboard
         `trained`: ``bool, default=False``
             if True, a trained model is instantiated, if False, the untrained model is instantiated
-       
+
         Returns:
         --------
         model: model chosen from leaderboard
@@ -1655,7 +1646,7 @@ class ModelPlayground:
         Parameters:
         ------------
         None
- 
+
         Returns:
         --------
         dictionary of a competition's y-test metadata
@@ -1681,13 +1672,13 @@ class Competition:
     def __str__(self):
         return f"Competition class instance for playground: {self.playground_url}"
 
-    def submit_model(self, model_filepath, preprocessor_filepath, prediction_submission,
+    def submit_model(self, model, preprocessor, prediction_submission,
                      sample_data=None, reproducibility_env_filepath=None, custom_metadata=None, input_dict=None,
-                     print_output=True):
+                     print_output=True, onnx_timeout=60, model_input=None):
         """
         Submits model/preprocessor to machine learning competition using live prediction API url generated by AI Modelshare library
         The submitted model gets evaluated and compared with all existing models and a leaderboard can be generated
-        
+
         Parameters:
         -----------
         `model_filepath`:  ``string`` ends with '.onnx'
@@ -1699,22 +1690,32 @@ class Competition:
             value - predictions for test data
             [REQUIRED] for evaluation metrics of the submitted model
         `preprocessor_filepath`:   ``string``, default=None
-            value - absolute path to preprocessor file 
+            value - absolute path to preprocessor file
             [REQUIRED] to be set by the user
-            "./preprocessor.zip" 
+            "./preprocessor.zip"
             searches for an exported zip preprocessor file in the current directory
-            file is generated from preprocessor module using export_preprocessor function from the AI Modelshare library 
- 
+            file is generated from preprocessor module using export_preprocessor function from the AI Modelshare library
+
         Returns:
         --------
         response:   Model version if the model is submitted sucessfully
         """
 
+        # convert model to onnx
+        if onnx_timeout == False:
+            force_onnx = True
+        else:
+            force_onnx = False
+
+        with HiddenPrints():
+            model = model_to_onnx_timed(model, timeout=onnx_timeout,
+                                        force_onnx=force_onnx, model_input=model_input)
+
         from aimodelshare.model import submit_model
-        submission = submit_model(model_filepath=model_filepath,
+        submission = submit_model(model_filepath=model,
                                   apiurl=self.playground_url,
                                   prediction_submission=prediction_submission,
-                                  preprocessor=preprocessor_filepath,
+                                  preprocessor=preprocessor,
                                   reproducibility_env_filepath=reproducibility_env_filepath,
                                   custom_metadata=custom_metadata,
                                   submission_type=self.submission_type,
@@ -1732,7 +1733,7 @@ class Competition:
             Model version number from competition leaderboard
         `trained`: ``bool, default=False``
             if True, a trained model is instantiated, if False, the untrained model is instantiated
-       
+
         Returns:
         --------
         model: model chosen from leaderboard
@@ -1744,16 +1745,16 @@ class Competition:
 
     def replicate_model(self, version=None):
         """
-        Instantiate an untrained model previously submitted to the competition leaderboard with its reproducibility environment setup. 
-        
-        Parameters: 
+        Instantiate an untrained model previously submitted to the competition leaderboard with its reproducibility environment setup.
+
+        Parameters:
         -----------
         `version`: ``int``
             Model version number from competition or experiment leaderboard
-          
+
         Returns:
         --------
-        model:  model chosen from leaderboard     
+        model:  model chosen from leaderboard
         """
 
         model = self.instantiate_model(version=version, trained=False, reproduce=True)
@@ -1762,15 +1763,15 @@ class Competition:
     def set_model_reproducibility_env(self, version=None):
         """
         Set the reproducibility environment prior to instantiating an untrained model previously submitted to the competition leaderboard.
-        
-        Parameters: 
+
+        Parameters:
         -----------
         `version`: ``int``
             Model version number from competition or experiment leaderboard
-          
+
         Returns:
         --------
-        Sets environment according to reproducibility.json from model if present.  
+        Sets environment according to reproducibility.json from model if present.
         """
         from aimodelshare.reproducibility import import_reproducibility_env_from_competition_model
         import_reproducibility_env_from_competition_model(apiurl=self.playground_url, version=version,
@@ -1783,7 +1784,7 @@ class Competition:
         ----------
         `version` : ``int``
             Model version number from competition leaderboard
-      
+
         Returns:
         --------
         inspect_pd : dictionary of model summary & metadata
@@ -1799,15 +1800,15 @@ class Competition:
                        naming_convention=None):
         """
         Compare the structure of two or more models submitted to a competition leaderboard.
-        Use in conjuction with stylize_compare to visualize data. 
-        
+        Use in conjuction with stylize_compare to visualize data.
+
         Parameters:
         -----------
         `version_list` = ``list of int``
-            list of model version numbers to compare (previously submitted to competition leaderboard) 
+            list of model version numbers to compare (previously submitted to competition leaderboard)
         `verbose` = ``int``
-            controls the verbosity: the higher, the more detail 
-        
+            controls the verbosity: the higher, the more detail
+
         Returns:
         --------
         data : dictionary of model comparison information
@@ -1828,10 +1829,10 @@ class Competition:
         Parameters:
         -----------
         `compare_dict` = dictionary of model data from compare_models
- 
+
         Returns:
         --------
-        formatted table of model comparisons 
+        formatted table of model comparisons
         """
         from aimodelshare.aimsonnx import stylize_model_comparison
         stylized_compare = stylize_model_comparison(comp_dict_out=compare_dict, naming_convention=naming_convention)
@@ -1843,7 +1844,7 @@ class Competition:
         Parameters:
         ------------
         None
- 
+
         Returns:
         --------
         dictionary of a competition's y-test metadata
@@ -1855,19 +1856,19 @@ class Competition:
     def get_leaderboard(self, verbose=3, columns=None):
         """
         Get current competition leaderboard to rank all submitted models.
-        Use in conjuction with stylize_leaderboard to visualize data. 
-        
+        Use in conjuction with stylize_leaderboard to visualize data.
+
         Parameters:
         -----------
         `verbose` : optional, ``int``
-            controls the verbosity: the higher, the more detail 
+            controls the verbosity: the higher, the more detail
         `columns` : optional, ``list of strings``
             list of specific column names to include in the leaderboard, all else will be excluded
             performance metrics will always be displayed
-        
+
         Returns:
         --------
-        dictionary of leaderboard data 
+        dictionary of leaderboard data
         """
         from aimodelshare.leaderboard import get_leaderboard
         data = get_leaderboard(verbose=verbose,
@@ -1896,11 +1897,11 @@ class Competition:
         Parameters:
         -----------
         `apiurl`: string
-                URL of deployed prediction API 
-          
+                URL of deployed prediction API
+
         `email_list`: [REQUIRED] list of comma separated emails for users who are allowed to submit models to competition.  Emails should be strings in a list.
-        `update_type`:[REQUIRED] options, ``string``: 'Add', 'Remove', 'Replace_list','Get. Add appends user emails to original list, Remove deletes users from list, 
-                  'Replace_list' overwrites the original list with the new list provided, and Get returns the current list.    
+        `update_type`:[REQUIRED] options, ``string``: 'Add', 'Remove', 'Replace_list','Get. Add appends user emails to original list, Remove deletes users from list,
+                  'Replace_list' overwrites the original list with the new list provided, and Get returns the current list.
         Returns:
         --------
         response:   "Success" upon successful request
