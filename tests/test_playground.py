@@ -104,7 +104,7 @@ def test_playground_sklearn():
 	    return preprocessed_data
 
 	# check shape of X data after preprocessing it using our new function
-	preprocessor(X_train).shape
+	assert preprocessor(X_train).shape == (1047, 10)
 
 	# build model 1
 	model = LogisticRegression(C=10, penalty='l1', solver = 'liblinear')
@@ -142,24 +142,41 @@ def test_playground_sklearn():
 	                          input_dict={"description": "", "tags": ""},
 	                          submission_type="all")
 
+	#submit model through competition
+	mycompetition = ai.playground.Competition(myplayground.playground_url)
+	mycompetition.submit_model(model=model_2,
+							   preprocessor=preprocessor,
+							   prediction_submission=prediction_labels)
+
+	#submit model through experiment
+	myexperiment = ai.playground.Experiment(myplayground.playground_url)
+	myexperiment.submit_model(model=model_2,
+							   preprocessor=preprocessor,
+							   prediction_submission=prediction_labels)
+
 	# Check Competition Leaderboard
 	data = myplayground.get_leaderboard()
 	myplayground.stylize_leaderboard(data)
+	assert isinstance(data, pd.DataFrame)
 
 	# Compare two or more models
-	data=myplayground.compare_models([1,2], verbose=1)
+	data = myplayground.compare_models([1,2], verbose=1)
 	myplayground.stylize_compare(data)
+	assert isinstance(data, pd.DataFrame)
+
 
 	# Check structure of evaluation data
-	myplayground.inspect_eval_data()
+	data = myplayground.inspect_eval_data()
+	assert isinstance(data, dict)
 
 	# deploy model
 	myplayground.deploy_model(model_version=1, example_data=example_data, y_train=y_train)
 
-	# myplayground.update_example_data(example_data)
+	# update example data
+	myplayground.update_example_data(example_data)
 
-	# # swap out runtime model
-	# myplayground.update_runtime_model(model_version=1)
+	# swap out runtime model
+	myplayground.update_runtime_model(model_version=1)
 
 	# delete
 	myplayground.delete_deployment(confirmation=False)
@@ -253,7 +270,7 @@ def test_playground_keras():
 	from aimodelshare.playground import ModelPlayground
 	myplayground=ModelPlayground(input_type="image", task_type="classification", private=False)
 	# Create Model Playground Page on modelshare.ai website
-	myplayground.create(eval_data = y_test_labels)
+	myplayground.create(eval_data=y_test_labels)
 
 	# Submit Model to Experiment Leaderboard
 	myplayground.submit_model(model=keras_model,
@@ -277,7 +294,7 @@ def test_playground_keras():
 	prediction_labels = [y_train.columns[i] for i in prediction_column_index]
 
 	# Submit Model 2 to Experiment Leaderboard
-	myplayground.submit_model(model = keras_model_2,
+	myplayground.submit_model(model=keras_model_2,
 	                            preprocessor=preprocessor,
 	                            prediction_submission=prediction_labels,
 	                            input_dict={"description": "", "tags": ""},
@@ -286,13 +303,16 @@ def test_playground_keras():
 	# Check experiment leaderboard
 	data = myplayground.get_leaderboard()
 	myplayground.stylize_leaderboard(data)
+	assert isinstance(data, pd.DataFrame)
 
 	# Compare two or more models
-	data=myplayground.compare_models([1,2], verbose=1)
+	data = myplayground.compare_models([1,2], verbose=1)
 	myplayground.stylize_compare(data)
+	assert isinstance(data, pd.DataFrame)
 
 	# Check structure of evaluation data
-	myplayground.inspect_eval_data()
+	data = yplayground.inspect_eval_data()
+	assert isinstance(data, pd.DataFrame)
 
 	# Update runtime model
 	myplayground.update_runtime_model(model_version=2)
