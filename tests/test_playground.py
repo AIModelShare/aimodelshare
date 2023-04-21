@@ -330,7 +330,7 @@ def test_playground_keras():
 	assert isinstance(data, (pd.DataFrame, dict))
 
 	# Check structure of evaluation data
-	data = yplayground.inspect_eval_data()
+	data = myplayground.inspect_eval_data()
 	assert isinstance(data, dict)
 
 	# Update runtime model
