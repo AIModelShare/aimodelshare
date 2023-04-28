@@ -1184,7 +1184,6 @@ def onnx_to_image(model):
     return pydot_graph
 
 
-
 def inspect_model(apiurl, version=None, naming_convention = None, submission_type="competition"):
     if all(["username" in os.environ, 
            "password" in os.environ]):

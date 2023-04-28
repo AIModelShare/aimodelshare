@@ -37,12 +37,24 @@ import os
 
 def test_configure_credentials():
 
+	# when testing locally, we can set credentials from file
+	try:
+		set_credentials(credential_file="../../../credentials.txt", type="deploy_model")
+	except Exception as e:
+		print(e)
+
+	try:
+		set_credentials(credential_file="../../credentials.txt", type="deploy_model")
+	except Exception as e:
+		print(e)
+
 	# mock user input
 	inputs = [os.environ.get('USERNAME'),
 			  os.environ.get('PASSWORD'),
 			  os.environ.get('AWS_ACCESS_KEY_ID'),
 			  os.environ.get('AWS_SECRET_ACCESS_KEY'),
 			  os.environ.get('AWS_REGION')]
+
 
 	with patch("getpass.getpass", side_effect=inputs):
 		from aimodelshare.aws import configure_credentials
@@ -53,6 +65,17 @@ def test_configure_credentials():
 
 
 def test_playground_sklearn():
+
+	# when testing locally, we can set credentials from file
+	try:
+		set_credentials(credential_file="../../../credentials.txt", type="deploy_model")
+	except Exception as e:
+		print(e)
+
+	try:
+		set_credentials(credential_file="../../credentials.txt", type="deploy_model")
+	except Exception as e:
+		print(e)
 
 	# mock user input
 	inputs = [os.environ.get('USERNAME'),
