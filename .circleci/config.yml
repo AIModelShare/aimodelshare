@@ -13,6 +13,10 @@ jobs:
           pkg-manager: pip
           pypi-cache: true
       - python/install-packages:
+          pip-dependency-file: tests/requirements.txt
+          pkg-manager: pip
+          pypi-cache: true
+      - python/install-packages:
           args: pytest
           pkg-manager: pip
           pypi-cache: false
