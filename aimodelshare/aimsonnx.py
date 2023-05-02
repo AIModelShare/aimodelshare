@@ -3,25 +3,35 @@ import pandas as pd
 import numpy as np
 
 # ml frameworks
-
 try:
     import sklearn
     from sklearn.model_selection import GridSearchCV, RandomizedSearchCV
 except:
-    pass
+    print("Warning: Please install sklearn to enable sklearn features")
+
 try:
     import torch
 except:
-    pass
+    print("Warning: Please install pytorch to enable pytorch features")
+
 try:
     import xgboost
 except:
-    pass
+    print("Warning: Please install xgboost to enable xgboost features")
 try:
     import tensorflow as tf
     import keras
 except:
-    pass
+    print("Warning: Please install tensorflow/keras to enable tensorflow/keras features")
+
+try:
+    import pyspark
+    from pyspark.sql import SparkSession
+    from pyspark.ml import PipelineModel, Model
+    from pyspark.ml.tuning import CrossValidatorModel, TrainValidationSplitModel
+    from onnxmltools import convert_sparkml
+except:
+    print("Warning: Please install pyspark to enable pyspark features")
 
 
 # onnx modules
@@ -1581,9 +1591,9 @@ def model_from_string(model_type):
 def _get_pyspark_modules():
     try:
         if pyspark is None:
-            raise("Error: Please install pyspark to enable pyspark features")
+            raise Exception("Error: Please install pyspark to enable pyspark features")
     except:
-        raise("Error: Please install pyspark to enable pyspark features")
+        raise Exception("Error: Please install pyspark to enable pyspark features")
 
     pyspark_modules = ['ml', 'ml.feature', 'ml.classification', 'ml.clustering', 'ml.regression']
 
@@ -1602,9 +1612,9 @@ def _get_pyspark_modules():
 def pyspark_model_from_string(model_type):
     try:
         if pyspark is None:
-            raise("Error: Please install pyspark to enable pyspark features")
+            raise Exception("Error: Please install pyspark to enable pyspark features")
     except:
-        raise("Error: Please install pyspark to enable pyspark features")
+        raise Exception("Error: Please install pyspark to enable pyspark features")
 
     models_modules_dict = _get_pyspark_modules()
     module = models_modules_dict[model_type]
