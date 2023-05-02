@@ -419,8 +419,6 @@ def test_playground_pytorch():
 	categories = ['daisy', 'dandelion', 'roses', 'sunflowers', 'tulips']
 
 	# Load file paths to fnames list object...
-	import os
-
 	fnames = []
 
 	for category in categories:
@@ -717,7 +715,6 @@ def test_playground_pytorch():
 	# Create example data folder to provide on model playground page
 	#     for users to test prediction REST API
 
-	import os
 	import shutil
 
 	os.mkdir('example_data')
