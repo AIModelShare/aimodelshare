@@ -61,3 +61,4 @@ def test_layer_mapping():
 
     layer_map = layer_mapping(direction="keras_to_torch", activation=True)
     assert isinstance(layer_map, dict)
+

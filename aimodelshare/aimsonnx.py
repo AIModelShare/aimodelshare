@@ -18,6 +18,7 @@ try:
     import xgboost
 except:
     print("Warning: Please install xgboost to enable xgboost features")
+
 try:
     import tensorflow as tf
     import keras
