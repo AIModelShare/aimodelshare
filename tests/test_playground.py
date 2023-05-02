@@ -600,7 +600,10 @@ def test_playground_pytorch():
 
 	# -- Generate predicted y values (Model 1)
 	# Note: returns the predicted column index location for classification models
-	prediction_column_index = model(tensor_X_test.cuda()).argmax(axis=1)
+	if torch.cuda.is_available():
+		prediction_column_index = model(tensor_X_test.cuda()).argmax(axis=1)
+	else:
+		prediction_column_index = model(tensor_X_test).argmax(axis=1)
 
 	# extract correct prediction labels
 	prediction_labels = [['daisy', 'dandelion', 'roses', 'sunflowers', 'tulips'][i] for i in prediction_column_index]
@@ -618,7 +621,11 @@ def test_playground_pytorch():
 	# Create Model Playground Page on modelshare.ai website
 	myplayground.create(eval_data=y_test_labels)
 
-	example_input = torch.randn(1, 3, 128, 128, requires_grad=True)
+	if torch.cuda.is_available():
+		example_input = torch.randn(1, 3, 128, 128, requires_grad=True).cuda()
+	else:
+		example_input = torch.randn(1, 3, 128, 128, requires_grad=True)
+
 
 	# Submit Model to Experiment Leaderboard
 	myplayground.submit_model(model=model,
@@ -626,10 +633,24 @@ def test_playground_pytorch():
 							  prediction_submission=prediction_labels,
 							  input_dict={"description": "", "tags": ""},
 							  submission_type="all",
-							  model_input = example_input.cuda())
+							  model_input = example_input)
+
+
+	# Create example data folder to provide on model playground page
+	#     for users to test prediction REST API
+	import shutil
+	os.mkdir('example_data')
+	example_images = ["flower-competition-data/train_images/daisy/100080576_f52e8ee070_n.jpg",
+					  "flower-competition-data/train_images/dandelion/10200780773_c6051a7d71_n.jpg",
+					  "flower-competition-data/train_images/roses/10503217854_e66a804309.jpg",
+					  "flower-competition-data/train_images/sunflowers/1022552002_2b93faf9e7_n.jpg",
+					  "flower-competition-data/train_images/tulips/100930342_92e8746431_n.jpg"]
+
+	for image in example_images:
+		shutil.copy(image, 'example_data')
 
 	# Deploy model by version number
-	myplayground.deploy_model(model_version=1, example_data="quickstart_materials/example_data", y_train=y_train)
+	myplayground.deploy_model(model_version=1, example_data="example_data", y_train=y_train)
 
 	# example url from deployed playground: apiurl= "https://123456.execute-api.us-east-1.amazonaws.com/prod/m
 	apiurl = myplayground.playground_url
@@ -678,7 +699,7 @@ def test_playground_pytorch():
 							  prediction_submission=prediction_labels,
 							  input_dict={"description": "", "tags": ""},
 							  submission_type="all",
-							  model_input = example_input.cuda())
+							  model_input = example_input)
 
 	# submit model through competition
 	mycompetition = ai.playground.Competition(myplayground.playground_url)
@@ -686,8 +707,7 @@ def test_playground_pytorch():
 							   preprocessor=preprocessor,
 							   prediction_submission=prediction_labels,
 							   input_dict={"description": "", "tags": ""},
-							   model_input=example_input.cuda()
-							   )
+							   model_input=example_input)
 
 	# submit model through experiment
 	myexperiment = ai.playground.Experiment(myplayground.playground_url)
@@ -695,8 +715,7 @@ def test_playground_pytorch():
 							  preprocessor=preprocessor,
 							  prediction_submission=prediction_labels,
 							  input_dict={"description": "", "tags": ""},
-							  model_input=example_input.cuda()
-							  )
+							  model_input=example_input)
 
 	# Check experiment leaderboard
 	data = myplayground.get_leaderboard()
@@ -711,24 +730,6 @@ def test_playground_pytorch():
 	# Check structure of evaluation data
 	data = myplayground.inspect_eval_data()
 	assert isinstance(data, dict)
-
-	# Create example data folder to provide on model playground page
-	#     for users to test prediction REST API
-
-	import shutil
-
-	os.mkdir('example_data')
-	example_images = ["flower-competition-data/train_images/daisy/100080576_f52e8ee070_n.jpg",
-					  "flower-competition-data/train_images/dandelion/10200780773_c6051a7d71_n.jpg",
-					  "flower-competition-data/train_images/roses/10503217854_e66a804309.jpg",
-					  "flower-competition-data/train_images/sunflowers/1022552002_2b93faf9e7_n.jpg",
-					  "flower-competition-data/train_images/tulips/100930342_92e8746431_n.jpg"]
-
-	for image in example_images:
-		shutil.copy(image, 'example_data')
-
-	# Update example data
-	myplayground.update_example_data("example_data")
 
 	# Update runtime model
 	myplayground.update_runtime_model(model_version=2)
