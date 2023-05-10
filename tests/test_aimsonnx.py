@@ -17,15 +17,23 @@ from xgboost import XGBClassifier
 from pyspark.ml.classification import RandomForestClassifier, MultilayerPerceptronClassifier
 from keras.models import Sequential
 from torch import nn
+import torch
+from tensorflow.keras.layers import Dense
 
 def test_sklearn_to_onnx():
 
+    from sklearn.datasets import load_iris
+    data = load_iris()
+    X = data.data
+    y = data.target
 
     model = LogisticRegression(C=10, penalty='l1', solver='liblinear')
+    model.fit(X, y)
     onnx_model = _sklearn_to_onnx(model)
     assert isinstance(onnx_model, onnx.ModelProto)
 
     model = MLPClassifier()
+    model.fit(X, y)
     onnx_model = _sklearn_to_onnx(model)
     assert isinstance(onnx_model, onnx.ModelProto)
 
@@ -39,7 +47,7 @@ def test_misc_to_onnx():
 
 def test_pyspark_to_onnx():
 
-    model = RandomForestClassifier()
+    model =RandomForestClassifier(labelCol="indexedLabel", featuresCol="indexedFeatures", numTrees=10)
     onnx_model = _pyspark_to_onnx(model)
     assert isinstance(onnx_model, onnx.ModelProto)
 
@@ -61,12 +69,12 @@ def test_keras_to_onnx():
 
 def test_pytorch_to_onnx():
 
-    model = nn.Sequential(nn.Linear(n_input, n_hidden),
+    model = nn.Sequential(nn.Linear(3, 3),
                           nn.ReLU(),
-                          nn.Linear(n_hidden, n_out),
+                          nn.Linear(3, 1),
                           nn.Sigmoid())
 
-    onnx_model = _pytorch_to_onnx(model)
+    onnx_model = _pytorch_to_onnx(model, torch.randn(1, 3))
     assert isinstance(onnx_model, onnx.ModelProto)
 
 
