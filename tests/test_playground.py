@@ -684,7 +684,7 @@ def test_playground_pytorch():
 	optimizer = torch.optim.SGD(model2.parameters(), lr=1e-3)
 
 	# train model
-	epochs = 30
+	epochs = 2
 	for t in range(epochs):
 		print(f"Epoch {t + 1}\n-------------------------------")
 		train(train_dataloader, model2, loss_fn, optimizer)
