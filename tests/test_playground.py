@@ -17,24 +17,6 @@ import os
 
 
 
-
-# def test_set_credentials():
-
-#	set_credentials(credential_file="../../credentials.txt", type="deploy_model")
-
-
-# def test_quickstart_sklearn():
-
-# 	X_train, X_test, y_train, y_test, example_data, y_test_labels = ai.import_quickstart_data("titanic")
-
-# 	assert isinstance(X_train, pd.DataFrame)
-# 	assert isinstance(X_test, pd.DataFrame)
-# 	assert isinstance(y_train, pd.Series)
-# 	assert isinstance(y_test, pd.Series)
-# 	assert isinstance(example_data, pd.DataFrame)
-# 	assert isinstance(y_test_labels, list)
-
-
 def test_configure_credentials():
 
 	# when testing locally, we can set credentials from file
@@ -321,7 +303,6 @@ def test_playground_keras():
 
 	# example url from deployed playground: apiurl= "https://123456.execute-api.us-east-1.amazonaws.com/prod/m
 	apiurl=myplayground.playground_url 
-
 
 	# Submit Model 2
 	# Generate predicted y values (Model 2)
@@ -690,8 +671,6 @@ def test_playground_pytorch():
 		train(train_dataloader, model2, loss_fn, optimizer)
 		test(test_dataloader, model2, loss_fn)
 	print("Done!")
-
-
 
 	# Submit Model 2 to Experiment Leaderboard
 	myplayground.submit_model(model=model2,

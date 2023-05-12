@@ -786,7 +786,7 @@ class ModelPlayground:
                               eval_metric_filepath=eval_metric_filepath,
                               email_list=email_list,
                               public=public,
-                              public_private_split=public_private_split,
+                              public_private_split=0, #set to 0 because its an experiment
                               input_dict=exp_input_dict,
                               print_output=False)
 
