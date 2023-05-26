@@ -34,7 +34,7 @@ def handler(event, context):
             body[key]=None
 
 
-    if body.get("return_task_type","ALL")  == "True" or body.get("exampledata", "ALL") == "TRUE":
+    if body.get("return_task_type","ALL")  == "True" or body.get("return_task_type", "ALL") == "TRUE":
         task_type="$task_type"
         task_type_dict = {"statusCode": 200,
         "headers": {
