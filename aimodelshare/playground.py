@@ -50,6 +50,13 @@ class ModelPlayground:
 
         self.model_type = input_type
 
+        if task_type == None:
+            post_dict = {"return_task_type": "TRUE"}
+            headers = { 'Content-Type':'application/json', 'authorizationToken': os.environ.get("AWS_TOKEN"),} 
+            playground_url_eval=playground_url[:-1]+"eval"
+            response = requests.post(playground_url_eval,headers=headers,data=json.dumps(post_dict))
+            task_type = json.loads(response.text)['task_type']
+        
         if task_type == "classification":
             self.categorical = True
         elif task_type == "regression":

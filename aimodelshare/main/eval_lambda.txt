@@ -33,6 +33,20 @@ def handler(event, context):
         if value == "None":
             body[key]=None
 
+
+    if body.get("return_task_type","ALL")  == "True" or body.get("return_task_type", "ALL") == "TRUE":
+        task_type="$task_type"
+        task_type_dict = {"statusCode": 200,
+        "headers": {
+        "Access-Control-Allow-Origin" : "*",
+        "Access-Control-Allow-Credentials": True,
+        "Allow" : "GET, OPTIONS, POST",
+        "Access-Control-Allow-Methods" : "GET, OPTIONS, POST",
+        "Access-Control-Allow-Headers" : "*"},
+        "body": json.dumps({"task_type":task_type})
+        }
+        return task_type_dict
+
     if body.get("exampledata", "ALL") == "True" or body.get("exampledata", "ALL") == "TRUE":
 
         exampledata=get_exampledata(example_data_filename = "exampledata.json")

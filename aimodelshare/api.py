@@ -211,7 +211,8 @@ class create_prediction_api_class():
         ###
         api_key = str(shortuuid.uuid())
 
-        t = Template(pkg_resources.read_text(main, 'eval_lambda.txt').replace("$apikey",api_key))
+        t = Template(pkg_resources.read_text(main, 'eval_lambda.txt').replace("$apikey",api_key).replace("$task_type",self.task_type))
+        
         data = t.substitute(bucket_name = self.bucket_name, unique_model_id = self.unique_model_id, task_type = self.task_type)
         with open(os.path.join(self.temp_dir, 'main.py'), 'w') as file:
             file.write(data)
