@@ -26,5 +26,5 @@ psutil>=5.9.1
 pathlib>=1.0.1
 scipy==1.7.0
 protobuf==3.19.6
-IPython
+IPython>=8.12
 opencv-python
