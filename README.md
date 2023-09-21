@@ -1,6 +1,6 @@
 <p align="center"><img width="40%" src="docs/aimodshare_banner.jpg" /></p>
 
-### The mission of the AI Model Share Platform is to provide a trusted non profit repository for machine learning model prediction APIs (python library + integrated website at modelshare.org).  A beta version of the platform is currently being used by Columbia University students, faculty, and staff to test and improve platform functionality.
+### The mission of the AI Model Share Platform is to provide a trusted non profit repository for machine learning model prediction APIs (python library + integrated website at modelshare.org).  A beta version of the platform is currently being used by [MASKED] University students, faculty, and staff to test and improve platform functionality.
 
 ### In a matter of seconds, data scientists can launch a model into this infrastructure and end-users the world over will be able to engage their machine learning models.
 
