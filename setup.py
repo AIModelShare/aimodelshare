@@ -7,8 +7,8 @@ with open("README.md", "r") as fh:
 setuptools.setup(
     name='aimodelshare', #TODO:update
     version='0.0.107',        #TODO:update
-    author="Michael Parrott",
-    author_email="mikedparrott@modelshare.org",
+    author="MASKED",
+    author_email="MASKED",
     description="Deploy locally saved machine learning models to a live rest API and web-dashboard.  Share it with the world via modelshare.org",
     long_description=long_description,
     long_description_content_type="text/markdown",
