@@ -562,8 +562,8 @@ def _keras_to_onnx(model, transfer_learning=None,
     if isinstance(model, sklearn.pipeline.Pipeline):
         model = model.steps[-1][1]
 
-    sklearn_wrappers = (scikeras.wrappers.KerasClassifier,
-                    scikeras.wrappers.KerasRegressor)
+    sklearn_wrappers = (from scikeras.wrappers import KerasClassifier,
+                    from scikeras.wrappers import KerasRegressor)
 
     if isinstance(model, sklearn_wrappers):
         model = model.model
