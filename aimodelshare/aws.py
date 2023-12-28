@@ -13,6 +13,7 @@ def set_credentials(credential_file=None, type="submit_model", apiurl="apiurl", 
   from aimodelshare.modeluser import get_jwt_token, create_user_getkeyandpassword
   if all([credential_file==None, type=="submit_model"]):
     set_credentials_public(type="submit_model", apiurl=apiurl)
+    os.environ["AWS_TOKEN"]=get_aws_token()
   elif all([credential_file==None, type=="deploy_model", cloud=="model_share"]):
     set_credentials_public_aimscloud(credential_file=None, type="deploy_model", apiurl=apiurl)
     os.environ["cloud_location"] = cloud
