@@ -28,3 +28,4 @@ scipy==1.7.0
 protobuf==3.19.6
 IPython>=8.12
 opencv-python
+scikeras
