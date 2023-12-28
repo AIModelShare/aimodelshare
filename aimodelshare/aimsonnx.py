@@ -1849,7 +1849,7 @@ def keras_unpack(model):
     
     for module in model.layers:
                 
-        if isinstance(module, (keras.engine.functional.Functional, keras.engine.sequential.Sequential)):
+        if isinstance(module, (tf.keras.Model, tf.keras.Sequential)):
             
             layers_out = keras_unpack(module)
             
