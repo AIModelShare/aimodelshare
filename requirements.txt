@@ -2,7 +2,7 @@ pytest
 coverage
 boto3==1.26.69
 botocore==1.29.82
-scikit-learn==1.2.1
+scikit-learn>=1.2.1
 onnx==1.12.0
 onnxconverter-common>=1.7.0
 regex
