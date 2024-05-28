@@ -57,7 +57,7 @@ class create_prediction_api_class():
         self.pyspark_support = pyspark_support
         self.region = os.environ.get("AWS_REGION")
         self.bucket_name = os.environ.get("BUCKET_NAME")
-        self.python_runtime = 'python3.12'
+        self.python_runtime = 'python3.09'
         #####
 
         self.model_type = self.model_type.lower()
