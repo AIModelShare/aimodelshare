@@ -76,87 +76,111 @@ def download_layer(layer, layer_count, tmp_img_dir, blobs_resp):
 	return layer_id, layer_dir
 
 def pull_image(image_uri):
+    import os
+    import requests
+    import tempfile
+    import json
+    import shutil
+    import tarfile
+    from aimodelshare.data_sharing.utils import redo_with_write
 
-	image_uri_parts = image_uri.split('/')
+    image_uri_parts = image_uri.split('/')
 
-	registry = image_uri_parts[0]	
-	image, tag = image_uri_parts[2].split(':')
-	repository = '/'.join([image_uri_parts[1], image])
+    registry = image_uri_parts[0]    
+    image, tag = image_uri_parts[2].split(':')
+    repository = '/'.join([image_uri_parts[1], image])
 
-	auth_url = get_auth_url(registry)
+    auth_url = get_auth_url(registry)
 
-	auth_head = get_auth_head(auth_url, registry, repository)
+    # Request manifest with correct Accept header
+    auth_head = get_auth_head(auth_url, registry, repository)
+    manifest_url = f'https://{registry}/v2/{repository}/manifests/{tag}'
+    resp = requests.get(manifest_url, headers=auth_head, verify=False)
 
-	resp = requests.get('https://{}/v2/{}/manifests/{}'.format(registry, repository, tag), headers=auth_head, verify=False)
-    
-	config = resp.json()['config']['digest']
-	config_resp = requests.get('https://{}/v2/{}/blobs/{}'.format(registry, repository, config), headers=auth_head, verify=False)
+    # --- PATCH: Handle manifest list (multi-platform images) ---
+    if resp.headers.get('Content-Type') == 'application/vnd.docker.distribution.manifest.list.v2+json':
+        manifest_list = resp.json()
 
-	tmp_img_dir = tempfile.gettempdir() + '/' + 'tmp_{}_{}'.format(image, tag)
-	os.mkdir(tmp_img_dir)
+        # Find the first linux/amd64 image (or fallback to first available)
+        target_manifest = next(
+            (m for m in manifest_list['manifests']
+             if m['platform'].get('architecture') == 'amd64' and m['platform'].get('os') == 'linux'),
+            manifest_list['manifests'][0]
+        )
+        digest = target_manifest['digest']
 
-	file = open('{}/{}.json'.format(tmp_img_dir, config[7:]), 'wb')
-	file.write(config_resp.content)
-	file.close()
+        # Get the actual image manifest now
+        resp = requests.get(
+            f'https://{registry}/v2/{repository}/manifests/{digest}',
+            headers=auth_head,
+            verify=False
+        )
+    # -----------------------------------------------------------
 
-	content = [{
-		'Config': config[7:] + '.json',
-		'RepoTags': [],
-		'Layers': []
-	}]
-	content[0]['RepoTags'].append(image_uri)
+    manifest = resp.json()
 
-	layer_count=0
-	layers = resp.json()['layers'][6:]
+    # Safely check and fail early if config key is still missing
+    if 'config' not in manifest:
+        raise ValueError("Manifest response missing 'config'. This image may not follow Docker V2 manifest schema.")
 
-	for layer in layers:
+    config = manifest['config']['digest']
+    config_resp = requests.get(f'https://{registry}/v2/{repository}/blobs/{config}', headers=auth_head, verify=False)
 
-		layer_count += 1
+    tmp_img_dir = os.path.join(tempfile.gettempdir(), f'tmp_{image}_{tag}')
+    os.mkdir(tmp_img_dir)
 
-		auth_head = get_auth_head(auth_url, registry, repository) # done to keep from expiring
-		blobs_resp = requests.get('https://{}/v2/{}/blobs/{}'.format(registry, repository, layer['digest']), headers=auth_head, stream=True, verify=False)
+    with open(f'{tmp_img_dir}/{config[7:]}.json', 'wb') as file:
+        file.write(config_resp.content)
 
-		layer_id, layer_dir = download_layer(layer, layer_count, tmp_img_dir, blobs_resp)
-		content[0]['Layers'].append(layer_id + '/layer.tar')
+    content = [{
+        'Config': config[7:] + '.json',
+        'RepoTags': [image_uri],
+        'Layers': []
+    }]
 
-		# Creating json file
-		file = open(layer_dir + '/json', 'w')
+    # Skip first 6 layers? Keep original logic for compatibility
+    layers = manifest['layers'][6:]
+    layer_count = 0
 
-		# last layer = config manifest - history - rootfs
-		if layers[-1]['digest'] == layer['digest']:
-			json_obj = json.loads(config_resp.content)
-			del json_obj['history']
-			del json_obj['rootfs']
-		else: # other layers json are empty
-			json_obj = json.loads('{}')
-		
-		json_obj['id'] = layer_id
-		file.write(json.dumps(json_obj))
-		file.close()
+    for layer in layers:
+        layer_count += 1
+        auth_head = get_auth_head(auth_url, registry, repository)
+        blobs_resp = requests.get(
+            f'https://{registry}/v2/{repository}/blobs/{layer["digest"]}',
+            headers=auth_head,
+            stream=True,
+            verify=False
+        )
 
-	file = open(tmp_img_dir + '/manifest.json', 'w')
-	file.write(json.dumps(content))
-	file.close()
+        layer_id, layer_dir = download_layer(layer, layer_count, tmp_img_dir, blobs_resp)
+        content[0]['Layers'].append(layer_id + '/layer.tar')
 
-	content = {
-		'/'.join(image_uri_parts[:-1]) + '/' + image : { tag : layer_id }
-	}
+        json_path = os.path.join(layer_dir, 'json')
+        with open(json_path, 'w') as file:
+            if layers[-1]['digest'] == layer['digest']:
+                json_obj = json.loads(config_resp.content)
+                json_obj.pop('history', None)
+                json_obj.pop('rootfs', None)
+            else:
+                json_obj = {}
+            json_obj['id'] = layer_id
+            file.write(json.dumps(json_obj))
 
-	file = open(tmp_img_dir + '/repositories', 'w')
-	file.write(json.dumps(content))
-	file.close()
+    with open(os.path.join(tmp_img_dir, 'manifest.json'), 'w') as f:
+        f.write(json.dumps(content))
 
-	# Create image tar and clean tmp folder
-	docker_tar = tempfile.gettempdir() + '/' + '_'.join([repository.replace('/', '_'), tag]) + '.tar'
-	sys.stdout.flush()
+    repo_dict = {'/'.join(image_uri_parts[:-1]) + '/' + image: {tag: layer_id}}
+    with open(os.path.join(tmp_img_dir, 'repositories'), 'w') as f:
+        f.write(json.dumps(repo_dict))
 
-	tar = tarfile.open(docker_tar, "w")
-	tar.add(tmp_img_dir, arcname=os.path.sep)
-	tar.close()
+    # Create tar archive from temp image directory
+    docker_tar = os.path.join(tempfile.gettempdir(), f'{repository.replace("/", "_")}_{tag}.tar')
+    with tarfile.open(docker_tar, "w") as tar:
+        tar.add(tmp_img_dir, arcname=os.path.sep)
 
-	shutil.rmtree(tmp_img_dir, onerror=redo_with_write)
+    shutil.rmtree(tmp_img_dir, onerror=redo_with_write)
+    return docker_tar
 
-	return docker_tar
 
 def extract_data_from_image(image_name, file_name, location):
     tar = tarfile.open(image_name, 'r')
