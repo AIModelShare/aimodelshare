@@ -549,197 +549,146 @@ def _pyspark_to_onnx(model, initial_types, spark_session,
     return onx
 
 def _keras_to_onnx(model, transfer_learning=None,
-                  deep_learning=None, task_type=None, epochs=None):
-    '''Extracts metadata from keras model object.'''
+                   deep_learning=None, task_type=None, epochs=None):
+    '''Converts a Keras model to ONNX and extracts metadata.'''
 
-    # check whether this is a fitted keras model
-    # isinstance...
+    import tf2onnx
+    import tensorflow as tf
+    import numpy as np
+    import onnx
+    import pickle
+    import psutil
+    import warnings
+    from pympler import asizeof
+    import logging
+    import os
+    import sys
+    from contextlib import contextmanager
 
-    # handle keras models in sklearn wrapper
+    # -- Helper to suppress tf2onnx stderr (NumPy warnings etc.)
+    @contextmanager
+    def suppress_stderr():
+        with open(os.devnull, "w") as devnull:
+            old_stderr = sys.stderr
+            sys.stderr = devnull
+            try:
+                yield
+            finally:
+                sys.stderr = old_stderr
+
+    # Reduce logging output
+    tf2onnx_logger = logging.getLogger("tf2onnx")
+    tf2onnx_logger.setLevel(logging.CRITICAL)
+
+    # Unwrap scikeras, sklearn pipelines etc.
+    from sklearn.model_selection import GridSearchCV, RandomizedSearchCV
+    from sklearn.pipeline import Pipeline
+    from scikeras.wrappers import KerasClassifier, KerasRegressor
+
     if isinstance(model, (GridSearchCV, RandomizedSearchCV)):
         model = model.best_estimator_
-
-    if isinstance(model, sklearn.pipeline.Pipeline):
+    if isinstance(model, Pipeline):
         model = model.steps[-1][1]
-
-    sklearn_wrappers = (KerasClassifier,KerasRegressor)
-
-    if isinstance(model, sklearn_wrappers):
+    if isinstance(model, (KerasClassifier, KerasRegressor)):
         model = model.model
-    
-    # convert to onnx
-    #onx = convert_keras(model)
-    # generate tempfile for onnx object 
-    temp_dir = tempfile.mkdtemp()
 
+    # Input signature
+    input_shape = model.input_shape
+    if isinstance(input_shape, list):
+        input_shape = input_shape[0]
+    input_signature = [tf.TensorSpec(input_shape, tf.float32, name="input")]
 
+    # Wrap model in tf.function
+    @tf.function(input_signature=input_signature)
+    def model_fn(x):
+        return model(x)
 
-    
-    tf.get_logger().setLevel('ERROR') # probably not good practice
-    output_path = os.path.join(temp_dir, 'temp.onnx')
-    
-    
-    tf.saved_model.save(model, temp_dir)
+    concrete_func = model_fn
 
-    # # Convert the model
-    try:
-            modelstringtest="python -m tf2onnx.convert --saved-model  "+temp_dir+" --output "+output_path+" --opset 13"
-            resultonnx=os.system(modelstringtest)
-            resultonnx2=1
-            if resultonnx==0:
-              pass
-            else:
-              raise Exception('Model conversion to onnx unsuccessful.  Please try different model or submit predictions to leaderboard without submitting preprocessor or model files.')
-    except:
-            converter = tf.lite.TFLiteConverter.from_saved_model(temp_dir) # path to the SavedModel directory
-            converter.target_spec.supported_ops = [
-                tf.lite.OpsSet.TFLITE_BUILTINS, # enable TensorFlow Lite ops.
-                tf.lite.OpsSet.SELECT_TF_OPS # enable TensorFlow ops.
-              ]
-            tflite_model = converter.convert()
+    # Convert to ONNX
+    with suppress_stderr():
+        onx_model, _ = tf2onnx.convert.from_function(
+            concrete_func,
+            input_signature=input_signature,
+            opset=13,
+            output_path=None
+        )
 
-            # Save the model.
-            with open(os.path.join(temp_dir,'tempmodel.tflite'), 'wb') as f:
-              f.write(tflite_model)
+    # Extract metadata
+    metadata = {
+        'model_id': None,
+        'data_id': None,
+        'preprocessor_id': None,
+        'ml_framework': 'keras',
+        'model_type': model.__class__.__name__,
+        'transfer_learning': transfer_learning,
+        'deep_learning': deep_learning,
+        'task_type': task_type,
+        'target_distribution': None,
+        'input_type': None,
+        'input_shape': input_shape,
+        'input_dtypes': None,
+        'input_distribution': None,
+        'model_config': str(model.get_config()),
+        'model_state': None,
+        'eval_metrics': None,
+        'model_graph': "",
+        'metadata_onnx': None,
+        'epochs': epochs
+    }
 
-            modelstringtest="python -m tf2onnx.convert --tflite "+os.path.join(temp_dir,'tempmodel.tflite')+" --output "+output_path+" --opset 13"
-            resultonnx2=os.system(modelstringtest)
-            pass
-
-    if any([resultonnx==0, resultonnx2==0]):
-      pass
-    else:
-      return print("Model conversion to onnx unsuccessful.  Please try different model or submit\npredictions to leaderboard without submitting preprocessor or model files.")
-
-    onx = onnx.load(output_path)
-
-
-    # generate metadata dict 
-    metadata = {}
-
-    # placeholders, need to be generated elsewhere
-    metadata['model_id'] = None
-    metadata['data_id'] = None
-    metadata['preprocessor_id'] = None
-
-    # infer ml framework from function call
-    metadata['ml_framework'] = 'keras'
-
-    # get model type from model object
-    metadata['model_type'] =  str(model.__class__.__name__)
-
-    # get transfer learning bool from user input
-    metadata['transfer_learning'] = transfer_learning
-
-    # get deep learning bool from user input
-    metadata['deep_learning'] = deep_learning
-
-    # get task type from user input
-    metadata['task_type'] = task_type
-
-    # placeholders, need to be inferred from data 
-    metadata['target_distribution'] = None
-    metadata['input_type'] = None
-    metadata['input_shape'] = None
-    metadata['input_dtypes'] = None       
-    metadata['input_distribution'] = None
-
-    # get model config dict from keras model object
-    metadata['model_config'] = str(model.get_config())
-
-    # get model weights from keras object 
     model_size = asizeof.asizeof(model.get_weights())
     mem = psutil.virtual_memory()
 
-    if model_size > mem.available: 
-
-        warnings.warn(f"Model size ({model_size/1e6} MB) exceeds available memory ({mem.available/1e6} MB). Skipping extraction of model weights.")
-
+    if model_size > mem.available:
+        warnings.warn(f"Model size ({model_size/1e6} MB) exceeds available memory.")
         metadata['model_weights'] = None
-
-    else: 
-        
+    else:
         metadata['model_weights'] = pickle.dumps(model.get_weights())
 
-    # get model state from pytorch model object
-    metadata['model_state'] = None
-    
-    # get list of current layer types 
-    layer_list, activation_list = _get_layer_names()
+    # Extract architecture
+    from aimodelshare.model import keras_unpack, model_summary_keras
 
-    # extract model architecture metadata 
+    keras_layers = keras_unpack(model)
     layers = []
     layers_n_params = []
     layers_shapes = []
     activations = []
 
+    for layer in keras_layers:
+        layers.append(layer.__class__.__name__)
+        layers_n_params.append(layer.count_params())
+        layers_shapes.append(getattr(layer, 'output_shape', None))
+        if hasattr(layer, 'activation'):
+            act = getattr(layer.activation, '__name__', None)
+            if act: activations.append(act)
 
-    keras_layers = keras_unpack(model)
+    optimizer = getattr(model.optimizer, '__class__', None)
+    loss = getattr(model.loss, '__class__', None)
 
-    for i in keras_layers: 
-        
-        # get layer names 
-        if i.__class__.__name__ in layer_list:
-            layers.append(i.__class__.__name__)
-            layers_n_params.append(i.count_params())
-            layers_shapes.append(i.output_shape)
-        
-        # get activation names
-        if i.__class__.__name__ in activation_list: 
-            activations.append(i.__class__.__name__.lower())
-        if hasattr(i, 'activation') and i.activation.__name__ in activation_list:
-            activations.append(i.activation.__name__)
-
-    if hasattr(model, 'loss'):
-        loss = model.loss.__class__.__name__
-    else:
-        loss = None
-        
-    if hasattr(model, 'optimizer'):
-        optimizer = model.optimizer.__class__.__name__
-    else:
-        optimizer = None 
-
-    model_summary_pd = model_summary_keras(model)
-    
-    # insert data into model architecture dict 
-    model_architecture = {'layers_number': len(layers),
-                          'layers_sequence': layers,
-                          'layers_summary': {i:layers.count(i) for i in set(layers)},
-                          'layers_n_params': layers_n_params,
-                          'layers_shapes': layers_shapes,
-                          'activations_sequence': activations,
-                          'activations_summary': {i:activations.count(i) for i in set(activations)},
-                          'loss':loss,
-                          'optimizer': optimizer
-                         }
+    model_architecture = {
+        'layers_number': len(layers),
+        'layers_sequence': layers,
+        'layers_summary': {i: layers.count(i) for i in set(layers)},
+        'layers_n_params': layers_n_params,
+        'layers_shapes': layers_shapes,
+        'activations_sequence': activations,
+        'activations_summary': {i: activations.count(i) for i in set(activations)},
+        'loss': loss.__name__ if loss else None,
+        'optimizer': optimizer.__name__ if optimizer else None
+    }
 
     metadata['model_architecture'] = str(model_architecture)
-
-
-    metadata['model_summary'] = model_summary_pd.to_json()
-
+    metadata['model_summary'] = model_summary_keras(model).to_json()
     metadata['memory_size'] = model_size
 
-    metadata['epochs'] = epochs
-
-    # model graph 
-    #G = model_graph_keras(model)
-    #metadata['model_graph'] = G.create_dot().decode('utf-8')
-    metadata['model_graph'] = ""
-    # placeholder, needs evaluation engine
-    metadata['eval_metrics'] = None
-
-    # add metadata from onnx object
-    # metadata['metadata_onnx'] = str(_extract_onnx_metadata(onx, framework='keras'))
-    metadata['metadata_onnx'] = None
-    # add metadata dict to onnx object
-    
-    meta = onx.metadata_props.add()
+    # Embed metadata in ONNX
+    meta = onx_model.metadata_props.add()
     meta.key = 'model_metadata'
     meta.value = str(metadata)
 
-    return onx
+    return onx_model
+
 
 
 def _pytorch_to_onnx(model, model_input, transfer_learning=None, 
