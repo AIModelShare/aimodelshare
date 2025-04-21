@@ -647,7 +647,12 @@ def _keras_to_onnx(model, transfer_learning=None,
         metadata['model_weights'] = pickle.dumps(model.get_weights())
 
     # Extract architecture
-
+    if not model.built: # add shape outputs if model not built
+        try:
+            model(tf.random.uniform([1] + list(input_shape[1:])))
+        except Exception:
+            pass  # fallback, don't crash conversion
+            
     keras_layers = keras_unpack(model)
     layers = []
     layers_n_params = []
@@ -657,10 +662,19 @@ def _keras_to_onnx(model, transfer_learning=None,
     for layer in keras_layers:
         layers.append(layer.__class__.__name__)
         layers_n_params.append(layer.count_params())
-        layers_shapes.append(getattr(layer, 'output_shape', None))
+    
+        shape = getattr(layer, 'output_shape', None)
+        if shape is not None:
+            try:
+                shape = tuple(shape)
+            except:
+                shape = str(shape)
+        layers_shapes.append(shape)
+    
         if hasattr(layer, 'activation'):
             act = getattr(layer.activation, '__name__', None)
-            if act: activations.append(act)
+            if act:
+                activations.append(act)
 
     optimizer = getattr(model.optimizer, '__class__', None)
     loss = getattr(model.loss, '__class__', None)
