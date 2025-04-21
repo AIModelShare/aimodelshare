@@ -197,10 +197,11 @@ def import_quickstart_data(tutorial, section="modelplayground"):
    
     #Download Quick Start materials
     if all([tutorial == "flowers", section == "modelplayground"]):
-        quickstart_repository = "public.ecr.aws/y2e2a1d6/quickstart_materials-repository:latest"   
+        quickstart_repository = "public.ecr.aws/z5w0c9e9/quickstart_materials-repository:latest"
         existing_folder = 'flower_competition_data'
+
     if all([tutorial == "flowers", section == "competition"]):
-        quickstart_repository = "public.ecr.aws/y2e2a1d6/quickstart_flowers_competition-repository:latest"
+        quickstart_repository = "public.ecr.aws/z5w0c9e9/quickstart_flowers_competition-repository:latest"
         existing_folder = 'flower_competition_data'
     
     if all([tutorial == "mnist", section == "modelplayground"]):
