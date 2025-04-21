@@ -647,7 +647,6 @@ def _keras_to_onnx(model, transfer_learning=None,
         metadata['model_weights'] = pickle.dumps(model.get_weights())
 
     # Extract architecture
-    from aimodelshare.model import keras_unpack, model_summary_keras
 
     keras_layers = keras_unpack(model)
     layers = []
@@ -1793,22 +1792,12 @@ def torch_unpack(model):
 
     
 def keras_unpack(model):
-    
     layers = []
-    
     for module in model.layers:
-                
         if isinstance(module, (tf.keras.Model, tf.keras.Sequential)):
-            
-            layers_out = keras_unpack(module)
-            
-            layers = layers + layers_out
-            
-            
+            layers += keras_unpack(module)
         else:
-            
             layers.append(module)
-            
     return layers
 
 
