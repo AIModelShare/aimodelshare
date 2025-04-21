@@ -92,11 +92,15 @@ def _extract_onnx_metadata(onnx_model, framework):
     # initialize metadata dict
     metadata_onnx = {}
 
-    # get input shape
-    metadata_onnx["input_shape"] = graph.input[0].type.tensor_type.shape.dim[1].dim_value
-
-    # get output shape
-    metadata_onnx["output_shape"] = graph.output[0].type.tensor_type.shape.dim[1].dim_value 
+    # get input and output shapes
+    def _get_shape(dims):
+        return [d.dim_value if d.HasField("dim_value") else None for d in dims]
+    
+    input_dims = graph.input[0].type.tensor_type.shape.dim
+    output_dims = graph.output[0].type.tensor_type.shape.dim
+    
+    metadata_onnx["input_shape"] = _get_shape(input_dims)
+    metadata_onnx["output_shape"] = _get_shape(output_dims)
     
     # get layers and activations NEW
     # match layers and nodes and initalizers in sinle object
