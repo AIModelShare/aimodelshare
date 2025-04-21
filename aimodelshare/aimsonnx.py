@@ -1104,6 +1104,7 @@ def _get_leaderboard_data(onnx_model, eval_metrics=None):
 
 def _model_summary(meta_dict, from_onnx=False):
     '''Creates model summary table from model metadata dict.'''
+    import io
     
     assert(isinstance(meta_dict, dict)), \
     "Please pass valid metadata dict."
@@ -1112,9 +1113,9 @@ def _model_summary(meta_dict, from_onnx=False):
     "Please make sure model architecture data is included."
 
     if from_onnx == True:
-        model_summary = pd.read_json(meta_dict['metadata_onnx']["model_summary"])
+        model_summary = pd.read_json(io.StringIO(meta_dict['metadata_onnx']["model_summary"]))
     else:
-        model_summary = pd.read_json(meta_dict["model_summary"])
+        model_summary = pd.read_json(io.StringIO(meta_dict["model_summary"]))
        
     return model_summary
 
