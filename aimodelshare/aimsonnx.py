@@ -657,23 +657,41 @@ def _keras_to_onnx(model, transfer_learning=None,
             pass  # fallback, don't crash conversion
             
     keras_layers = keras_unpack(model)
+    
+    
+    from tensorflow.python.framework import tensor_shape  # <- place this at the top of your file
+    
     layers = []
     layers_n_params = []
     layers_shapes = []
     activations = []
-
-    for layer in keras_layers:
-        layers.append(layer.__class__.__name__)
-        layers_n_params.append(layer.count_params())
     
+    for layer in keras_layers:
+        # layer name
+        layers.append(layer.__class__.__name__)
+    
+        # parameter count
+        try:
+            layers_n_params.append(layer.count_params())
+        except:
+            layers_n_params.append(0)
+    
+        # output shape (sanitized for JSON)
         shape = getattr(layer, 'output_shape', None)
-        if shape is not None:
+    
+        if isinstance(shape, tensor_shape.TensorShape):
+            shape = shape.as_list()
+        elif shape is not None:
             try:
-                shape = tuple(shape)
+                shape = list(shape)
             except:
                 shape = str(shape)
+        else:
+            shape = None
+    
         layers_shapes.append(shape)
     
+        # activation
         if hasattr(layer, 'activation'):
             act = getattr(layer.activation, '__name__', None)
             if act:
