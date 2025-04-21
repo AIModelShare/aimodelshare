@@ -579,7 +579,7 @@ def _keras_to_onnx(model, transfer_learning=None,
     output_path = os.path.join(temp_dir, 'temp.onnx')
     
     
-    model.save(temp_dir)
+    tf.saved_model.save(model, temp_dir)
 
     # # Convert the model
     try:
