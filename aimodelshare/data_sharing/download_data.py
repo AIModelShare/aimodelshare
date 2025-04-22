@@ -241,7 +241,7 @@ def import_quickstart_data(tutorial, section="modelplayground"):
         existing_folder = 'dog_competition_data'
 
     if all([tutorial == "imdb", section == "modelplayground"]):
-        quickstart_repository = "public.ecr.aws/y2e2a1d6/imdb_quickstart_materials-repository:latest"   
+        quickstart_repository = "public.ecr.aws/z5w0c9e9/imdb_quickstart_materials-repository:latest"
         existing_folder = 'imdb_competition_data'
 
     download_data(quickstart_repository)
