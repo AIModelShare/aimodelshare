@@ -411,7 +411,7 @@ def import_quickstart_data(tutorial, section="modelplayground"):
 
             # read in data
             import pandas as pd
-            data = pd.read_csv("car_quickstart_materials/used_car_dataset.csv")
+            data = pd.read_csv("quickstart_car_sales_competition/used_car_dataset.csv")
             y = data['selling_price']
             X = data.drop(['selling_price', 'torque', 'name'], axis=1)
 
