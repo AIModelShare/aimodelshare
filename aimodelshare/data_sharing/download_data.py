@@ -284,8 +284,11 @@ def import_quickstart_data(tutorial, section="modelplayground"):
             #unpack data 
             X_train = pd.read_csv("imdb_quickstart_materials/X_train.csv").squeeze("columns")
             X_test = pd.read_csv("imdb_quickstart_materials/X_test.csv").squeeze("columns")
-            y_test_labels = pd.read_csv("imdb_quickstart_materials/y_test_labels.csv").squeeze("columns")
-            y_train_labels = pd.read_csv("imdb_quickstart_materials/y_train_labels.csv").squeeze("columns")
+            with open("imdb_quickstart_materials/y_train_labels.json", "r") as f:
+                y_train_labels = json.load(f)
+            with open("imdb_quickstart_materials/y_test_labels.json", "r") as f:
+                y_test_labels = json.load(f)
+		
             # example data
             example_data = X_train[50:55]
 
