@@ -215,7 +215,7 @@ def import_quickstart_data(tutorial, section="modelplayground"):
         existing_folder = 'titanic_competition_data'
         
     if all([tutorial == "cars", section == "modelplayground"]):
-        quickstart_repository = "public.ecr.aws/z5w0c9e9/car_quickstart_materials-repository:latest" 
+        quickstart_repository = "public.ecr.aws/z5w0c9e9/quickstart_car_sales_competition-repository:latest" 
         existing_folder = 'used_car_competition_data'
         
     if all([tutorial == "clickbait", section == "modelplayground"]):
