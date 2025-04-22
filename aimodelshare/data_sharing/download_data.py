@@ -288,7 +288,9 @@ def import_quickstart_data(tutorial, section="modelplayground"):
                 y_train_labels = json.load(f)
             with open("imdb_quickstart_materials/y_test_labels.json", "r") as f:
                 y_test_labels = json.load(f)
-		
+            import pandas as pd
+            y_train_labels=pd.Series(y_train_labels)
+            y_test_labels=pd.Series(y_test_labels)
             # example data
             example_data = X_train[50:55]
 
