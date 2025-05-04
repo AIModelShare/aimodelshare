@@ -1265,7 +1265,7 @@ def _extract_model_metadata(model, eval_metrics=None):
 
     metadata["num_nodes"] = len(graph.node)
     metadata["depth_test"] = len(graph.initializer)
-    metadata["num_params"] = sum(np.product(node.dims) for node in graph.initializer)
+    metadata["num_params"] = sum(np.prod(node.dims) for node in graph.initializer)
 
     # layers = ""
     # for node in graph.node:
